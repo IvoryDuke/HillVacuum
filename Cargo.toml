@@ -1,0 +1,15 @@
+[package]
+name = "hill_vacuum"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+debug = ["hill_vacuum_lib/debug"]
+arena_alloc = ["hill_vacuum_lib/arena_alloc"]
+
+[dependencies.hill_vacuum_lib]
+path = "hill_vacuum_lib/"
+
+[dependencies.bevy]
+version = "0.13"
+default-features = false

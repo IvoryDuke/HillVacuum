@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="256"
+   height="256"
+   viewBox="0 0 67.733332 67.733333"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="rotate_pivot.svg"
+   inkscape:export-filename="rotate_pivot.png"
+   inkscape:export-xdpi="12"
+   inkscape:export-ydpi="12"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="px"
+     showgrid="false"
+     inkscape:lockguides="true"
+     inkscape:zoom="0.70710678"
+     inkscape:cx="-22.627417"
+     inkscape:cy="120.20815"
+     inkscape:window-width="1920"
+     inkscape:window-height="953"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1"
+     showguides="true">
+    <sodipodi:guide
+       position="0,33.8667"
+       orientation="0,67.7333"
+       id="guide1276"
+       inkscape:locked="true" />
+    <sodipodi:guide
+       position="33.8667,0"
+       orientation="67.7333,0"
+       id="guide1278"
+       inkscape:locked="true" />
+  </sodipodi:namedview>
+  <defs
+     id="defs2">
+    <marker
+       style="overflow:visible"
+       id="TriangleStart"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="TriangleStart"
+       markerWidth="3.5"
+       markerHeight="3.5"
+       viewBox="0 0 5.3244081 6.1553851"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid">
+      <path
+         transform="scale(0.5)"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:context-stroke;stroke-width:1pt"
+         d="M 5.77,0 -2.88,5 V -5 Z"
+         id="path135" />
+    </marker>
+    <inkscape:path-effect
+       effect="powerstroke"
+       id="path-effect1460"
+       is_visible="true"
+       lpeversion="1"
+       offset_points="0,4.99"
+       not_jump="false"
+       sort_points="true"
+       interpolator_type="CubicBezierJohan"
+       interpolator_beta="0.2"
+       start_linecap_type="zerowidth"
+       linejoin_type="extrp_arc"
+       miter_limit="4"
+       scale_width="1"
+       end_linecap_type="zerowidth" />
+    <inkscape:path-effect
+       effect="powerstroke"
+       id="path-effect1329"
+       is_visible="true"
+       lpeversion="1"
+       offset_points="0,4.99"
+       not_jump="false"
+       sort_points="true"
+       interpolator_type="CubicBezierJohan"
+       interpolator_beta="0.2"
+       start_linecap_type="zerowidth"
+       linejoin_type="extrp_arc"
+       miter_limit="4"
+       scale_width="1"
+       end_linecap_type="zerowidth" />
+    <inkscape:path-effect
+       effect="powerstroke"
+       id="path-effect6384"
+       is_visible="true"
+       lpeversion="1"
+       offset_points="0,4.99"
+       not_jump="false"
+       sort_points="true"
+       interpolator_type="CubicBezierJohan"
+       interpolator_beta="0.2"
+       start_linecap_type="zerowidth"
+       linejoin_type="extrp_arc"
+       miter_limit="4"
+       scale_width="1"
+       end_linecap_type="zerowidth" />
+    <inkscape:path-effect
+       effect="powerstroke"
+       id="path-effect6363"
+       is_visible="true"
+       lpeversion="1"
+       offset_points="0,4.99"
+       not_jump="false"
+       sort_points="true"
+       interpolator_type="CubicBezierJohan"
+       interpolator_beta="0.2"
+       start_linecap_type="zerowidth"
+       linejoin_type="extrp_arc"
+       miter_limit="4"
+       scale_width="1"
+       end_linecap_type="zerowidth" />
+    <inkscape:path-effect
+       effect="powerstroke"
+       id="path-effect6077"
+       is_visible="true"
+       lpeversion="1"
+       offset_points="0,4.99"
+       not_jump="false"
+       sort_points="true"
+       interpolator_type="CubicBezierJohan"
+       interpolator_beta="0.2"
+       start_linecap_type="zerowidth"
+       linejoin_type="extrp_arc"
+       miter_limit="4"
+       scale_width="1"
+       end_linecap_type="zerowidth" />
+    <inkscape:path-effect
+       effect="powerstroke"
+       id="path-effect6052"
+       is_visible="true"
+       lpeversion="1"
+       offset_points="0,4.99"
+       not_jump="false"
+       sort_points="true"
+       interpolator_type="CubicBezierJohan"
+       interpolator_beta="0.2"
+       start_linecap_type="zerowidth"
+       linejoin_type="extrp_arc"
+       miter_limit="4"
+       scale_width="1"
+       end_linecap_type="zerowidth" />
+    <inkscape:path-effect
+       effect="powerstroke"
+       id="path-effect6035"
+       is_visible="true"
+       lpeversion="1"
+       offset_points="0,4.99"
+       not_jump="false"
+       sort_points="true"
+       interpolator_type="CubicBezierJohan"
+       interpolator_beta="0.2"
+       start_linecap_type="zerowidth"
+       linejoin_type="extrp_arc"
+       miter_limit="4"
+       scale_width="1"
+       end_linecap_type="zerowidth" />
+    <inkscape:path-effect
+       effect="powerstroke"
+       id="path-effect5819"
+       is_visible="true"
+       lpeversion="1"
+       offset_points="0,4.99"
+       not_jump="false"
+       sort_points="true"
+       interpolator_type="CubicBezierJohan"
+       interpolator_beta="0.2"
+       start_linecap_type="zerowidth"
+       linejoin_type="extrp_arc"
+       miter_limit="4"
+       scale_width="1"
+       end_linecap_type="zerowidth" />
+    <inkscape:path-effect
+       effect="powerstroke"
+       id="path-effect2879"
+       is_visible="true"
+       lpeversion="1"
+       offset_points="0,4.99"
+       not_jump="false"
+       sort_points="true"
+       interpolator_type="CubicBezierJohan"
+       interpolator_beta="0.2"
+       start_linecap_type="zerowidth"
+       linejoin_type="extrp_arc"
+       miter_limit="4"
+       scale_width="1"
+       end_linecap_type="zerowidth" />
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect2877"
+       is_visible="true"
+       lpeversion="1"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false" />
+    <linearGradient
+       id="linearGradient3612"
+       inkscape:swatch="solid">
+      <stop
+         style="stop-color:#ff0000;stop-opacity:1;"
+         offset="0"
+         id="stop3610" />
+    </linearGradient>
+    <inkscape:path-effect
+       effect="fill_between_many"
+       method="bsplinespiro"
+       linkedpaths="#path2875,0,1"
+       id="path-effect2881" />
+    <inkscape:path-effect
+       effect="fill_between_many"
+       method="bsplinespiro"
+       linkedpaths="#path5817,0,1"
+       id="path-effect5821" />
+    <inkscape:path-effect
+       effect="fill_between_many"
+       method="bsplinespiro"
+       linkedpaths="#path6033,0,1"
+       id="path-effect6037" />
+    <inkscape:path-effect
+       effect="fill_between_many"
+       method="bsplinespiro"
+       linkedpaths="#path6050,0,1"
+       id="path-effect6054" />
+    <inkscape:path-effect
+       effect="fill_between_many"
+       method="bsplinespiro"
+       linkedpaths="#path6075,0,1"
+       id="path-effect6079" />
+    <inkscape:path-effect
+       effect="fill_between_many"
+       method="bsplinespiro"
+       linkedpaths="#path6361,0,1"
+       id="path-effect6365" />
+    <inkscape:path-effect
+       effect="fill_between_many"
+       method="bsplinespiro"
+       linkedpaths="#path6382,0,1"
+       id="path-effect6386" />
+    <inkscape:path-effect
+       effect="fill_between_many"
+       method="bsplinespiro"
+       linkedpaths="#path1327,0,1"
+       id="path-effect1331" />
+    <inkscape:path-effect
+       effect="fill_between_many"
+       method="bsplinespiro"
+       linkedpaths="#path1458,0,1"
+       id="path-effect1462" />
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:#ffa600;fill-opacity:1;stroke:none;stroke-width:2.64583;stroke-linejoin:miter;stroke-dasharray:none;stroke-dashoffset:100"
+       id="rect426"
+       width="8.4666662"
+       height="8.4666662"
+       x="29.633333"
+       y="29.633333" />
+    <path
+       style="fill:#ffa600;fill-opacity:1;stroke:#ffa600;stroke-width:3.96875;stroke-linejoin:miter;stroke-dasharray:none;stroke-dashoffset:100;stroke-opacity:1;marker-end:url(#TriangleStart)"
+       d="M 41.804167,33.866666 H 57.390812"
+       id="path1196"
+       sodipodi:nodetypes="cc"
+       inkscape:transform-center-x="-15.729984"
+       inkscape:transform-center-y="0.00043327098" />
+    <path
+       style="fill:#ffa600;fill-opacity:1;stroke:#ffa600;stroke-width:3.96875;stroke-linejoin:miter;stroke-dasharray:none;stroke-dashoffset:100;stroke-opacity:1;marker-end:url(#TriangleStart)"
+       d="M 33.867939,25.929571 V 10.342926"
+       id="path1626"
+       sodipodi:nodetypes="cc"
+       inkscape:transform-center-x="-0.00043338389"
+       inkscape:transform-center-y="-15.729984" />
+    <path
+       style="fill:#ffa600;fill-opacity:1;stroke:#ffa600;stroke-width:3.96875;stroke-linejoin:miter;stroke-dasharray:none;stroke-dashoffset:100;stroke-opacity:1;marker-end:url(#TriangleStart)"
+       d="M 25.930844,33.865799 H 10.344199"
+       id="path1630"
+       sodipodi:nodetypes="cc"
+       inkscape:transform-center-x="15.729984"
+       inkscape:transform-center-y="-0.00043338389" />
+    <path
+       style="fill:#ffa600;fill-opacity:1;stroke:#ffa600;stroke-width:3.96875;stroke-linejoin:miter;stroke-dasharray:none;stroke-dashoffset:100;stroke-opacity:1;marker-end:url(#TriangleStart)"
+       d="M 33.867072,41.802894 V 57.389539"
+       id="path1634"
+       sodipodi:nodetypes="cc"
+       inkscape:transform-center-x="0.00043338389"
+       inkscape:transform-center-y="15.729984" />
+  </g>
+</svg>

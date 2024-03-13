@@ -1,0 +1,370 @@
+//=======================================================================//
+// IMPORTS
+//
+//=======================================================================//
+
+use bevy::prelude::Vec2;
+use bevy_egui::egui;
+use shared::return_if_none;
+
+use super::{drag::Drag, draw_selected_and_non_selected_brushes, ActiveTool};
+use crate::{
+    map::{
+        brush::{convex_polygon::ShearInfo, ShearResult},
+        editor::{
+            hv_vec,
+            state::{
+                editor_state::InputsPresses,
+                edits_history::EditsHistory,
+                grid::Grid,
+                manager::EntitiesManager
+            },
+            DrawBundle,
+            ToolUpdateBundle
+        }
+    },
+    utils::{
+        hull::{Hull, Side},
+        identifiers::EntityId,
+        misc::Camera
+    }
+};
+
+//=======================================================================//
+// ENUM
+//
+//=======================================================================//
+
+#[derive(Debug)]
+enum Status
+{
+    Keyboard,
+    Drag(Drag, Option<(bool, ShearInfo)>)
+}
+
+//=======================================================================//
+// TYPES
+//
+//=======================================================================//
+
+#[derive(Debug)]
+pub(in crate::map::editor::state::core) struct ShearTool
+{
+    status:        Status,
+    outline:       Hull,
+    selected_side: Side
+}
+
+impl ShearTool
+{
+    #[inline]
+    pub fn tool(manager: &EntitiesManager, grid: Grid) -> ActiveTool
+    {
+        ActiveTool::Shear(ShearTool {
+            status:        Status::Keyboard,
+            outline:       Self::outline(manager, grid),
+            selected_side: Side::Top
+        })
+    }
+
+    //==============================================================
+    // Info
+
+    #[inline]
+    #[must_use]
+    pub const fn ongoing_multi_frame_changes(&self) -> bool
+    {
+        matches!(self.status, Status::Drag(..))
+    }
+
+    //==============================================================
+    // Update
+
+    #[inline]
+    pub fn update(
+        &mut self,
+        bundle: &mut ToolUpdateBundle,
+        manager: &mut EntitiesManager,
+        inputs: &InputsPresses,
+        edits_history: &mut EditsHistory,
+        grid: Grid
+    )
+    {
+        let ToolUpdateBundle { camera, cursor, .. } = bundle;
+
+        match &mut self.status
+        {
+            Status::Keyboard =>
+            {
+                if inputs.tab.just_pressed()
+                {
+                    if inputs.alt_pressed()
+                    {
+                        self.previous_side();
+                    }
+                    else
+                    {
+                        self.next_side();
+                    }
+                }
+
+                if let Some(delta) = inputs.directional_keys_vector(grid.size())
+                {
+                    let (vertical, info) = return_if_none!(Self::shear_brushes(
+                        manager,
+                        grid,
+                        self.selected_side,
+                        &mut self.outline,
+                        delta
+                    ));
+
+                    Self::push_edit(manager, edits_history, vertical, &info);
+                }
+                else if inputs.left_mouse.just_pressed()
+                {
+                    self.check_shear_corner_proximity(cursor.world_snapped(), camera.scale());
+                }
+            },
+            Status::Drag(drag, info) =>
+            {
+                drag.conditional_update(cursor, grid, |delta| {
+                    let (v, i) = return_if_none!(
+                        Self::shear_brushes(
+                            manager,
+                            grid,
+                            self.selected_side,
+                            &mut self.outline,
+                            delta
+                        ),
+                        false
+                    );
+
+                    match info
+                    {
+                        Some((_, info)) =>
+                        {
+                            let delta = if delta.y == 0f32 { delta.x } else { delta.y };
+                            *info = info.with_delta(info.delta() + delta);
+                        },
+                        None => *info = (v, i).into()
+                    };
+
+                    true
+                });
+
+                if inputs.left_mouse.pressed()
+                {
+                    return;
+                }
+
+                if let Some((vertical, info)) = info
+                {
+                    if info.delta() != 0f32
+                    {
+                        Self::push_edit(manager, edits_history, *vertical, info);
+                    }
+                }
+
+                self.status = Status::Keyboard;
+            }
+        };
+    }
+
+    #[inline]
+    fn push_edit(
+        manager: &EntitiesManager,
+        edits_history: &mut EditsHistory,
+        vertical: bool,
+        info: &ShearInfo
+    )
+    {
+        if vertical
+        {
+            edits_history.vertical_shear(manager.selected_brushes_ids().copied(), info);
+        }
+        else
+        {
+            edits_history.horizontal_shear(manager.selected_brushes_ids().copied(), info);
+        }
+    }
+
+    #[inline]
+    fn shear_brushes(
+        manager: &mut EntitiesManager,
+        grid: Grid,
+        selected_side: Side,
+        outline: &mut Hull,
+        delta: Vec2
+    ) -> Option<(bool, ShearInfo)>
+    {
+        macro_rules! shear {
+            ($xy:ident, $dimension:ident, $pivot:ident, $check:ident, $shear:ident $(, $vertical:ident)?) => {{
+                let info = ShearInfo::new(delta.$xy, outline.$dimension(), outline.$pivot());
+                $($vertical = true;)?
+                let mut payloads = hv_vec![capacity; manager.selected_brushes_amount()];
+
+                let valid = manager.test_operation_validity(|manager| {
+                    manager.selected_brushes().find_map(|brush| {
+                        match brush.$check(&info)
+                        {
+                            ShearResult::Valid(payload) =>
+                            {
+                                payloads.push(payload);
+                                None
+                            },
+                            ShearResult::Invalid => brush.id().into()
+                        }
+                    })
+                });
+
+                if !valid
+                {
+                    return None;
+                }
+
+                for payload in payloads.into_iter()
+                {
+                    manager.brush_mut(payload.id()).$shear(payload);
+                }
+
+                info
+            }};
+        }
+
+        let mut vertical = false;
+        let info = match selected_side
+        {
+            Side::Top => shear!(x, height, bottom, check_horizontal_shear, set_x_coordinates),
+            Side::Right =>
+            {
+                shear!(y, width, left, check_vertical_shear, set_y_coordinates, vertical)
+            },
+            Side::Bottom => shear!(x, height, top, check_horizontal_shear, set_x_coordinates),
+            Side::Left =>
+            {
+                shear!(y, width, right, check_vertical_shear, set_y_coordinates, vertical)
+            }
+        };
+
+        *outline = Self::outline(manager, grid);
+
+        (vertical, info).into()
+    }
+
+    #[inline]
+    fn previous_side(&mut self)
+    {
+        self.selected_side = match self.selected_side
+        {
+            Side::Top => Side::Left,
+            Side::Right => Side::Top,
+            Side::Bottom => Side::Right,
+            Side::Left => Side::Bottom
+        };
+    }
+
+    #[inline]
+    fn next_side(&mut self)
+    {
+        self.selected_side = match self.selected_side
+        {
+            Side::Top => Side::Right,
+            Side::Right => Side::Bottom,
+            Side::Bottom => Side::Left,
+            Side::Left => Side::Top
+        };
+    }
+
+    #[inline]
+    fn check_shear_corner_proximity(&mut self, cursor_pos: Vec2, camera_scale: f32)
+    {
+        self.selected_side = return_if_none!(self.outline.nearby_side(cursor_pos, camera_scale));
+        self.status = Status::Drag(Drag::new(cursor_pos), None);
+    }
+
+    #[inline]
+    #[must_use]
+    fn outline(manager: &EntitiesManager, grid: Grid) -> Hull
+    {
+        grid.snap_hull(&manager.selected_brushes_hull().unwrap())
+    }
+
+    #[inline]
+    pub fn update_outline(&mut self, manager: &EntitiesManager, grid: Grid)
+    {
+        if !self.ongoing_multi_frame_changes()
+        {
+            self.outline = Self::outline(manager, grid);
+        }
+    }
+
+    //==============================================================
+    // Draw
+
+    #[inline]
+    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
+    {
+        draw_selected_and_non_selected_brushes!(bundle, manager);
+
+        bundle.drawer.hull_with_highlighted_side(
+            &self.outline,
+            self.selected_side,
+            Color::Hull,
+            Color::ToolCursor
+        );
+    }
+
+    #[inline]
+    pub fn ui(&mut self, ui: &mut egui::Ui)
+    {
+        ui.label(egui::RichText::new("SHEAR TOOL"));
+        ui.label(egui::RichText::new("Side:"));
+
+        ui.horizontal_wrapped(|ui| {
+            if let Status::Drag { .. } = self.status
+            {
+                ui.add_enabled(false, egui::Button::new(egui::RichText::new("Top")));
+                ui.add_enabled(false, egui::Button::new(egui::RichText::new("Right")));
+                ui.add_enabled(false, egui::Button::new(egui::RichText::new("Bottom")));
+                ui.add_enabled(false, egui::Button::new(egui::RichText::new("Left")));
+
+                return;
+            }
+
+            let top = ui.button(egui::RichText::new("Top"));
+            let right = ui.button(egui::RichText::new("Right"));
+            let bottom = ui.button(egui::RichText::new("Bottom"));
+            let left = ui.button(egui::RichText::new("Left"));
+
+            for b in [&top, &right, &bottom, &left]
+            {
+                b.surrender_focus();
+            }
+
+            if top.clicked()
+            {
+                self.selected_side = Side::Top;
+            }
+            else if right.clicked()
+            {
+                self.selected_side = Side::Right;
+            }
+            else if bottom.clicked()
+            {
+                self.selected_side = Side::Bottom;
+            }
+            else if left.clicked()
+            {
+                self.selected_side = Side::Left;
+            }
+
+            match self.selected_side
+            {
+                Side::Right => right.highlight(),
+                Side::Top => top.highlight(),
+                Side::Bottom => bottom.highlight(),
+                Side::Left => left.highlight()
+            };
+        });
+    }
+}

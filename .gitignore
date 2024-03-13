@@ -1,0 +1,6 @@
+assets/
+target/
+*.ini
+*.hv
+*.prps
+*.anms

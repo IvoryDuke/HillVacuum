@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="256"
+   height="256"
+   viewBox="0 0 67.733332 67.733333"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="subtract.svg"
+   inkscape:export-filename="subtract.png"
+   inkscape:export-xdpi="12"
+   inkscape:export-ydpi="12"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="px"
+     showgrid="false"
+     inkscape:lockguides="true"
+     inkscape:zoom="2.1849431"
+     inkscape:cx="118.53855"
+     inkscape:cy="281.7007"
+     inkscape:window-width="1920"
+     inkscape:window-height="958"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1"
+     showguides="true">
+    <sodipodi:guide
+       position="0,33.8667"
+       orientation="0,67.7333"
+       id="guide1276"
+       inkscape:locked="true" />
+    <sodipodi:guide
+       position="33.8667,0"
+       orientation="67.7333,0"
+       id="guide1278"
+       inkscape:locked="true" />
+  </sodipodi:namedview>
+  <defs
+     id="defs2">
+    <linearGradient
+       id="linearGradient3612"
+       inkscape:swatch="solid">
+      <stop
+         style="stop-color:#ff0000;stop-opacity:1;"
+         offset="0"
+         id="stop3610" />
+    </linearGradient>
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       id="rect1213"
+       style="fill:#ff0000;fill-opacity:0.25;stroke:#ff0000;stroke-width:2.64584;stroke-dasharray:none;stroke-opacity:1"
+       d="M 6.9614163,6.9614163 V 60.772955 H 60.772955 V 6.9614163 Z M 39.387438,22.369425 46.177518,48.568438 21.571414,44.53082 Z"
+       sodipodi:nodetypes="ccccccccc" />
+    <path
+       style="fill:none;fill-opacity:0.249476;stroke:#ff0000;stroke-width:2.64584;stroke-dasharray:none;stroke-dashoffset:15.874;stroke-opacity:1;paint-order:markers stroke fill"
+       d="M 6.9614163,6.9614163 39.387439,21.079971 60.772955,6.9614163"
+       id="path1215"
+       sodipodi:nodetypes="ccc" />
+    <path
+       style="fill:none;fill-opacity:0.249476;stroke:#ff0000;stroke-width:2.64584;stroke-dasharray:none;stroke-dashoffset:15.874;stroke-opacity:1;paint-order:markers stroke fill"
+       d="M 46.177517,48.568437 60.772956,60.772956"
+       id="path1221"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;fill-opacity:0.249476;stroke:#ff0000;stroke-width:2.64584;stroke-dasharray:none;stroke-dashoffset:15.874;stroke-opacity:1;paint-order:markers stroke fill"
+       d="M 6.9614163,6.9614163 21.571414,44.53082 6.9614163,60.772955"
+       id="path1313"
+       sodipodi:nodetypes="ccc" />
+  </g>
+</svg>
