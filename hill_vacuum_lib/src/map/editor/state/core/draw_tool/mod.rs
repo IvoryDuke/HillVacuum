@@ -23,6 +23,7 @@ use super::{
 };
 use crate::{
     map::{
+        containers::{hv_hash_set, Ids},
         drawer::color::Color,
         editor::{
             cursor_pos::Cursor,
@@ -34,9 +35,7 @@ use crate::{
             DrawBundle,
             ToolUpdateBundle
         },
-        hv_hash_set,
-        AssertedInsertRemove,
-        Ids
+        AssertedInsertRemove
     },
     utils::{
         identifiers::{EntityId, Id},

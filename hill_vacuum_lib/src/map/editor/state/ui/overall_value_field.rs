@@ -81,12 +81,11 @@ impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
     {
         let output = Self::singleline_textedit(value.buffer_mut()).show(ui);
         let response = clipboard.copy_paste_text_editor(inputs, ui, value.buffer_mut(), output);
-        let has_focus = response.has_focus();
         let lost_focus = response.actually_lost_focus();
 
         Response {
-            has_focus,
-            interacting: response.interacting(),
+            has_focus:     response.has_focus() || lost_focus,
+            interacting:   response.interacting(),
             value_changed: value.update(response.gained_focus(), lost_focus, f)
         }
     }

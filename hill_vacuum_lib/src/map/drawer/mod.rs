@@ -23,7 +23,7 @@ use self::{
 };
 use super::{
     editor::state::{clipboard::PropCameras, editor_state::ToolsSettings, grid::Grid},
-    thing::{catalog::ThingsCatalog, ThingInstance}
+    thing::{catalog::ThingsCatalog, ThingInterface}
 };
 use crate::utils::{
     hull::{CircleIterator, Corner, EntityHull, Hull, Side},
@@ -83,15 +83,16 @@ type Uv = [f32; 2];
 pub(in crate::map) struct EditDrawer<'w, 's, 'a>
 {
     /// The [`Commands`] necessary to spawn the new [`Mesh`]es.
-    commands:         &'a mut Commands<'w, 's>,
+    commands:               &'a mut Commands<'w, 's>,
     /// The created [`Mesh`]es.
-    meshes:           &'a mut Assets<Mesh>,
+    meshes:                 &'a mut Assets<Mesh>,
     /// The resources required to draw things.
-    resources:        &'a mut DrawingResources,
+    resources:              &'a mut DrawingResources,
     /// The scale of the current frame's camera.
-    camera_scale:     f32,
-    elapsed_time:     f32,
-    parallax_enabled: bool
+    camera_scale:           f32,
+    elapsed_time:           f32,
+    show_collision_overlay: bool,
+    parallax_enabled:       bool
 }
 
 impl<'w: 'a, 's: 'a, 'a> Drop for EditDrawer<'w, 's, 'a>
@@ -463,15 +464,15 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     }
 
     #[inline]
-    fn noclip_texture(&mut self, vertexes: impl ExactSizeIterator<Item = Vec2>, color: Color)
+    fn collision_overlay(&mut self, vertexes: impl ExactSizeIterator<Item = Vec2>, color: Color)
     {
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(vertexes.len());
         mesh_generator.push_positions(vertexes);
-        mesh_generator.noclip_uv();
+        mesh_generator.clip_uv();
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
-        self.push_mesh(mesh, self.resources.noclip_material(), color.noclip_height());
+        self.push_mesh(mesh, self.resources.clip_material(), color.clip_height());
     }
 
     #[inline]
@@ -485,9 +486,9 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         collision: bool
     )
     {
-        if !collision
+        if self.show_collision_overlay && collision
         {
-            self.noclip_texture(vertexes.clone(), color);
+            self.collision_overlay(vertexes.clone(), color);
         }
 
         let mut mesh_generator = self.resources.mesh_generator();
@@ -526,9 +527,9 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             }
         }
 
-        if !collision
+        if self.show_collision_overlay && collision
         {
-            self.noclip_texture(vertexes.clone(), color);
+            self.collision_overlay(vertexes.clone(), color);
         }
 
         let mesh = self.polygon_mesh(vertexes.clone());
@@ -581,25 +582,14 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     )
     {
         self.lines(sides.clone());
-
-        if let Some(texture) = texture
-        {
-            if !texture.sprite()
-            {
-                self.polygon_texture(
-                    camera,
-                    sides.map(|(vx, ..)| vx),
-                    center,
-                    body_color,
-                    texture,
-                    collision
-                );
-                return;
-            }
-        }
-
-        let mesh = self.polygon_mesh(sides.clone().map(|(vx, ..)| vx));
-        self.push_mesh(mesh, self.resources.brush_material(body_color), body_color.height());
+        self.sideless_brush(
+            camera,
+            sides.map(|(vx, ..)| vx),
+            center,
+            body_color,
+            texture,
+            collision
+        );
     }
 
     #[inline]
@@ -622,7 +612,12 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     }
 
     #[inline]
-    pub fn thing(&mut self, catalog: &ThingsCatalog, thing: &ThingInstance, color: Color)
+    pub fn thing<T: ThingInterface + EntityHull>(
+        &mut self,
+        catalog: &ThingsCatalog,
+        thing: &T,
+        color: Color
+    )
     {
         const CORNER_RESOLUTION: u8 = 6;
 
@@ -689,13 +684,13 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         impl ThingOutline
         {
             #[inline]
-            fn new(thing: &ThingInstance) -> Self
+            fn new<T: ThingInterface + EntityHull>(thing: &T) -> Self
             {
                 let hull = thing.hull();
                 let (width, height) = hull.dimensions();
                 let ray = (width.min(height) / 8f32).min(24f32);
-                let x_delta = width - ray;
-                let y_delta = height - ray;
+                let x_delta = width / 2f32 - ray;
+                let y_delta = height / 2f32 - ray;
                 let center = hull.center();
                 let circle_iter =
                     Hull::new(center.y + ray, center.y - ray, center.x - ray, center.x + ray)
@@ -763,7 +758,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         mesh_generator.set_indexes(4);
 
         let hull = thing.hull();
-        let half_side = (hull.width().min(hull.height()) / 2f32).max(32f32).min(64f32) / 2f32;
+        let half_side = (hull.width().min(hull.height()) / 2f32).min(64f32);
         let center = hull.center();
         let hull = Hull::new(
             center.y + half_side,
@@ -775,7 +770,11 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
         mesh_generator.set_thing_angle_indicator_uv(thing.angle());
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
-        self.push_mesh(mesh, self.resources.thing_angle_texture(), color.line_height());
+        self.push_mesh(
+            mesh,
+            self.resources.thing_angle_texture(),
+            color.thing_angle_indicator_height()
+        );
 
         // Texture
         let vxs = self
@@ -823,10 +822,11 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         meshes: &'a mut Assets<Mesh>,
         meshes_query: &Query<Entity, With<Mesh2dHandle>>,
         resources: &'a mut DrawingResources,
+        settings: &ToolsSettings,
         mut elapsed_time: f32,
         camera_scale: f32,
         paint_tool_camera_scale: f32,
-        settings: &ToolsSettings
+        show_collision_overlay: bool
     ) -> Self
     {
         resources.setup_frame(
@@ -849,7 +849,8 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             resources,
             camera_scale,
             elapsed_time,
-            parallax_enabled: settings.parallax_enabled
+            parallax_enabled: settings.parallax_enabled,
+            show_collision_overlay
         }
     }
 
@@ -1088,22 +1089,12 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
     }
 
     #[inline]
-    pub fn thing(
-        &mut self,
-        catalog: &ThingsCatalog,
-        thing: &ThingInstance,
-        animator: Option<&Animator>
-    )
+    pub fn thing<T: ThingInterface + EntityHull>(&mut self, catalog: &ThingsCatalog, thing: &T)
     {
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(4);
         mesh_generator.push_positions(thing.hull().rectangle());
-
-        match animator
-        {
-            Some(animator) => mesh_generator.set_animated_thing_uv(catalog, thing, animator),
-            None => mesh_generator.set_thing_uv(catalog, thing)
-        }
+        mesh_generator.set_thing_uv(catalog, thing);
 
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 

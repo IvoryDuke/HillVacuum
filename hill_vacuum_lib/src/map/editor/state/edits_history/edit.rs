@@ -3,8 +3,6 @@
 //
 //=======================================================================//
 
-use shared::match_or_panic;
-
 use super::edit_type::EditType;
 use crate::{
     map::{
@@ -14,7 +12,7 @@ use crate::{
         hv_vec,
         HvVec
     },
-    utils::{identifiers::Id, misc::LastPosition}
+    utils::identifiers::Id
 };
 
 //=======================================================================//
@@ -76,7 +74,7 @@ impl Edit
     /// Whever `self` only contains entity selection sub-edits.
     #[inline]
     #[must_use]
-    pub fn only_contains_selection_edits(&self) -> bool
+    pub fn only_contains_entity_selection_edits(&self) -> bool
     {
         if self.is_empty()
         {
@@ -88,6 +86,23 @@ impl Edit
             .all(|(_, et)| matches!(et, EditType::EntitySelection | EditType::EntityDeselection))
     }
 
+    /// Whever `self` only contains selection sub-edits.
+    #[inline]
+    #[must_use]
+    pub fn only_contains_selection_edits(&self) -> bool
+    {
+        self.only_contains_entity_selection_edits() ||
+            self.0.iter().all(|(_, et)| {
+                matches!(
+                    et,
+                    EditType::VertexesSelection(_) |
+                        EditType::PathNodesSelection(_) |
+                        EditType::SubtracteeSelection |
+                        EditType::SubtracteeDeselection
+                )
+            })
+    }
+
     //==============================================================
     // Update
 
@@ -97,7 +112,7 @@ impl Edit
     #[inline]
     pub fn push(&mut self, identifiers: HvVec<Id>, edit: EditType)
     {
-        if matches!(
+        let despawn = if matches!(
             edit,
             EditType::TAnimation(..) |
                 EditType::TAnimationMoveUp(..) |
@@ -118,6 +133,8 @@ impl Edit
                 identifiers.is_empty(),
                 "Identifiers associated to default texture animation edit."
             );
+
+            false
         }
         else if !matches!(
             edit,
@@ -126,8 +143,6 @@ impl Edit
                 EditType::SubtracteeSelection |
                 EditType::SubtracteeDeselection |
                 EditType::BrushMove(..) |
-                EditType::HorizontalShear(_) |
-                EditType::VerticalShear(_) |
                 EditType::Flip(..) |
                 EditType::FreeDrawPointInsertion(..) |
                 EditType::FreeDrawPointDeletion(..) |
@@ -149,76 +164,18 @@ impl Edit
                 "Edit {edit:?} should have only one associated entity, not {}",
                 identifiers.len()
             );
+
+            false
         }
+        else
+        {
+            matches!(edit, EditType::BrushDespawn(..))
+        };
 
-        // Organize the vector in such fashion:
-        // Despawns with anchors || Anchored despawns || Everything else
-
-        if !matches!(edit, EditType::BrushDespawn(..))
+        if !despawn
         {
             self.0.push((identifiers, edit));
             return;
-        }
-
-        let mover = match_or_panic!(&edit, EditType::BrushDespawn(_, mover, _), mover);
-
-        if !mover.has_anchors()
-        {
-            let index = match mover
-            {
-                Mover::None | Mover::Motor(_) => self.0.len(),
-                Mover::Anchored(_) =>
-                {
-                    self.0
-                        .iter()
-                        .last_position(|(_, et)| {
-                            if let EditType::BrushDespawn(_, mover, _) = et
-                            {
-                                return mover.has_anchors();
-                            }
-
-                            false
-                        })
-                        .map_or(0, |idx| idx + 1)
-                },
-                Mover::Anchors(_) => unreachable!()
-            };
-
-            self.0.insert(index, (identifiers, edit));
-            return;
-        }
-
-        if let Some(left) = self
-            .0
-            .iter()
-            .position(|(_, et)| matches!(et, EditType::BrushDespawn(_, Mover::Anchored(_), _)))
-        {
-            let right = self
-                .0
-                .iter()
-                .last_position(|(_, et)| {
-                    matches!(et, EditType::BrushDespawn(_, Mover::Anchored(_), _))
-                })
-                .unwrap();
-
-            for i in left..=right
-            {
-                let mover = match_or_panic!(
-                    &mut self.0[i],
-                    (_, EditType::BrushDespawn(_, mover @ Mover::Anchored(_), _)),
-                    mover
-                );
-
-                if mover.contains_anchor(mover.is_anchored().unwrap())
-                {
-                    *mover = Mover::None;
-                }
-            }
-
-            self.0[left..=right].sort_by(|a, b| {
-                matches!(b, (_, EditType::BrushDespawn(_, Mover::None, _)))
-                    .cmp(&matches!(a, (_, EditType::BrushDespawn(_, Mover::None, _))))
-            });
         }
 
         self.0.insert(0, (identifiers, edit));

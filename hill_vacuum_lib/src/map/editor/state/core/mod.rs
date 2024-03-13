@@ -36,16 +36,20 @@ use super::{
     clipboard::Clipboard,
     editor_state::{InputsPresses, ToolsSettings},
     edits_history::{edit_type::BrushType, EditsHistory},
-    manager::{BrushMut, EntitiesManager, ThingMut},
+    manager::{BrushMut, EntitiesManager, MovingMut, ThingMut},
     ui::{ToolsButtons, Ui}
 };
 use crate::{
     map::{
         brush::{
             convex_polygon::{ConvexPolygon, TextureSetResult},
-            mover::{Motor, Mover}
+            mover::Mover
         },
-        drawer::{drawing_resources::DrawingResources, texture::TextureSettings},
+        containers::HvBox,
+        drawer::{
+            drawing_resources::DrawingResources,
+            texture::{Sprite, TextureSettings}
+        },
         editor::{
             state::{core::zoom_tool::ZoomTool, grid::Grid},
             DrawBundle,
@@ -53,10 +57,10 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
-        thing::{catalog::ThingsCatalog, ThingId},
-        HvBox
+        thing::{catalog::ThingsCatalog, ThingId}
     },
-    utils::identifiers::{EntityId, Id}
+    utils::identifiers::{EntityId, Id},
+    Path
 };
 
 //=======================================================================//
@@ -124,7 +128,7 @@ macro_rules! draw_selected_and_non_selected {
             if $manager.is_selected(id)
             {
                 #[allow(clippy::redundant_closure_call)]
-                $draw(entity, camera, drawer, Color::SelectedBrush);
+                $draw(entity, camera, drawer, Color::SelectedEntity);
                 selected_entities_iterated += 1;
 
                 if selected_entities_iterated == selected_entities_len
@@ -136,59 +140,18 @@ macro_rules! draw_selected_and_non_selected {
             }
 
             #[allow(clippy::redundant_closure_call)]
-            $draw(entity, camera, drawer, Color::NonSelectedBrush);
+            $draw(entity, camera, drawer, Color::NonSelectedEntity);
         }
 
         for entity in entities
         {
             #[allow(clippy::redundant_closure_call)]
-            $draw(entity, camera, drawer, Color::NonSelectedBrush);
+            $draw(entity, camera, drawer, Color::NonSelectedEntity);
         }
     }};
 }
 
 use draw_selected_and_non_selected;
-
-//=======================================================================//
-
-macro_rules! is_anchored_to_selected_platform {
-    ($manager:expr, $identifier:expr) => {{
-        let mut found = false;
-
-        for brush in $manager.selected_platforms()
-        {
-            if brush.contains_anchor($identifier)
-            {
-                found = true;
-                break;
-            }
-        }
-
-        found
-    }};
-}
-
-use is_anchored_to_selected_platform;
-
-//=======================================================================//
-
-macro_rules! is_moving_brush {
-    ($manager:expr, $identifier:expr) => {
-        if $manager.is_selected_platform($identifier)
-        {
-            true
-        }
-        else
-        {
-            crate::map::editor::state::core::is_anchored_to_selected_platform!(
-                $manager,
-                $identifier
-            )
-        }
-    };
-}
-
-use is_moving_brush;
 
 //=======================================================================//
 
@@ -215,7 +178,7 @@ macro_rules! bottom_area {
                     #[inline]
                     fn draw_preview(
                         ui: &mut egui::Ui,
-                        texture: (usize, egui::TextureId $(, &$t)?),
+                        texture: (usize, egui::TextureId $(, bevy::prelude::UVec2, &$t)?),
                         clicked_prop: &mut Option<usize>
                     ) -> egui::Response
                     {
@@ -234,7 +197,7 @@ macro_rules! bottom_area {
                     #[inline]
                     fn row_without_highlight<'a>(
                         ui: &mut egui::Ui,
-                        chunk: impl Iterator<Item = (usize, egui::TextureId $(, &'a $t)?)>,
+                        chunk: impl Iterator<Item = (usize, egui::TextureId $(, bevy::prelude::UVec2, &'a $t)?)>,
                         clicked_prop: &mut Option<usize>
                     )
                     {
@@ -270,6 +233,70 @@ macro_rules! bottom_area {
 }
 
 use bottom_area;
+
+//=======================================================================//
+
+macro_rules! selected_vertexes {
+    ($count:ident) => {
+        #[must_use]
+        #[derive(Debug)]
+        struct SelectedVertexes(crate::map::containers::HvHashMap<Id, u8>, usize);
+
+        impl Default for SelectedVertexes
+        {
+            #[inline]
+            fn default() -> Self { Self(crate::map::containers::hv_hash_map![], 0) }
+        }
+
+        impl SelectedVertexes
+        {
+            #[inline]
+            #[must_use]
+            pub fn any_selected_vx(&self) -> bool { self.1 != 0 }
+
+            #[inline]
+            #[must_use]
+            pub fn vx_merge_available(&self) -> bool { self.1 > 2 && self.1 < u8::MAX as usize }
+
+            #[inline]
+            pub fn insert(&mut self, brush: &Brush)
+            {
+                assert!(brush.has_selected_vertexes(), "Brush has no selected vertexes.");
+
+                self.0.insert(brush.id(), brush.$count());
+                self.1 = self.0.iter().fold(0, |acc, (_, n)| acc + *n as usize);
+            }
+
+            #[inline]
+            pub fn remove(&mut self, brush: &Brush)
+            {
+                use crate::map::AssertedInsertRemove;
+
+                assert!(!brush.has_selected_vertexes(), "Brush has selected vertexes.");
+                self.1 -= self.0.asserted_remove(brush.id_as_ref()) as usize;
+            }
+
+            #[inline]
+            pub fn remove_id(&mut self, manager: &EntitiesManager, identifier: Id)
+            {
+                use crate::map::AssertedInsertRemove;
+
+                assert!(!manager.entity_exists(identifier), "Brush exists.");
+                self.1 -= self.0.asserted_remove(&identifier) as usize;
+            }
+
+            #[allow(dead_code)]
+            #[inline]
+            pub fn clear(&mut self)
+            {
+                self.0.clear();
+                self.1 = 0;
+            }
+        }
+    };
+}
+
+use selected_vertexes;
 
 //=======================================================================//
 // ENUMS
@@ -393,7 +420,7 @@ impl<'a> UndoRedoInterface<'a>
             ActiveTool::Subtract(t) => t.undo_redo_despawn(self.manager, identifier),
             ActiveTool::Path(t) =>
             {
-                if b_type.selected() && parts.1.has_motor()
+                if b_type.selected() && parts.1.has_path()
                 {
                     t.undo_redo_despawn(self.manager, identifier);
                 }
@@ -408,15 +435,21 @@ impl<'a> UndoRedoInterface<'a>
     pub fn brush_mut(&mut self, identifier: Id) -> BrushMut { self.manager.brush_mut(identifier) }
 
     #[inline]
-    pub fn set_motor(&mut self, identifier: Id, motor: impl Into<Motor>)
+    pub fn moving_mut(&mut self, identifier: Id) -> MovingMut<'_>
     {
-        self.manager.set_motor(identifier, motor);
+        self.manager.moving_mut(identifier)
     }
 
     #[inline]
-    pub fn remove_motor(&mut self, identifier: Id) -> Motor
+    pub fn set_path(&mut self, identifier: Id, path: Path)
     {
-        let motor = self.manager.remove_motor(identifier);
+        self.manager.set_path(identifier, path);
+    }
+
+    #[inline]
+    pub fn remove_path(&mut self, identifier: Id) -> Path
+    {
+        let motor = self.manager.remove_path(identifier);
 
         if self.manager.is_selected(identifier)
         {
@@ -446,13 +479,13 @@ impl<'a> UndoRedoInterface<'a>
     #[inline]
     pub fn insert_anchor(&mut self, platform: Id, anchor: Id)
     {
-        self.manager.insert_anchor(platform, anchor);
+        self.manager.anchor(platform, anchor);
     }
 
     #[inline]
     pub fn remove_anchor(&mut self, platform: Id, anchor: Id)
     {
-        self.manager.remove_anchor(platform, anchor);
+        self.manager.disanchor(platform, anchor);
     }
 
     #[inline]
@@ -476,6 +509,17 @@ impl<'a> UndoRedoInterface<'a>
     pub fn remove_texture(&mut self, identifier: Id) -> TextureSettings
     {
         self.manager.remove_texture(identifier)
+    }
+
+    #[inline]
+    pub fn set_single_sprite(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        identifier: Id,
+        value: bool
+    ) -> (Sprite, f32, f32)
+    {
+        self.manager.set_single_sprite(drawing_resources, identifier, value)
     }
 
     #[inline]
@@ -774,8 +818,7 @@ impl Core
         edits_history: &mut EditsHistory,
         settings: &ToolsSettings,
         grid: Grid,
-        tool_change_conditions: &ChangeConditions,
-        alt_pressed: bool
+        tool_change_conditions: &ChangeConditions
     )
     {
         self.active_tool.change(
@@ -785,8 +828,7 @@ impl Core
             edits_history,
             settings,
             grid,
-            tool_change_conditions,
-            alt_pressed
+            tool_change_conditions
         );
     }
 
@@ -815,7 +857,7 @@ impl Core
                 },
                 EditingTarget::Path =>
                 {
-                    for mut brush in manager.selected_platforms_mut()
+                    for mut brush in manager.selected_movings_mut()
                     {
                         brush.deselect_path_nodes_no_indexes();
                     }
@@ -849,8 +891,7 @@ impl Core
             manager,
             edits_history,
             settings,
-            Grid::new(2, true, grid_shifted),
-            true
+            Grid::new(2, true, grid_shifted)
         );
     }
 

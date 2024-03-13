@@ -18,9 +18,8 @@ use super::{
 use crate::{
     map::{
         brush::{
-            convex_polygon::{ConvexPolygon, ShearInfo, VertexesMove},
-            mover::{Motor, Mover},
-            path::{MovementValueEdit, NodesMove, StandbyValueEdit},
+            convex_polygon::{ConvexPolygon, VertexesMove},
+            mover::Mover,
             Brush
         },
         drawer::{
@@ -30,13 +29,15 @@ use crate::{
         },
         editor::state::core::UndoRedoInterface,
         hv_vec,
+        path::{MovementValueEdit, NodesMove, StandbyValueEdit},
         thing::ThingId,
         HvVec
     },
     utils::{
         hull::Flip,
         identifiers::{EntityId, Id}
-    }
+    },
+    Path
 };
 
 //=======================================================================//
@@ -225,7 +226,7 @@ impl EditsHistory
 		(brush_spawn, (identifier: Id, selected: bool), (hv_vec![identifier], EditType::BrushSpawn(None, Mover::None, selected))),
         (drawn_brush_despawn, (brush: Brush), (hv_vec![brush.id()], EditType::DrawnBrushDespawn(Some(brush.into_parts().0)))),
         (polygon_edit, (identifier: Id, polygon: ConvexPolygon), (hv_vec![identifier], EditType::PolygonEdit(polygon))),
-        (motor_creation, (identifier: Id), (hv_vec![identifier], EditType::MotorCreation(None))),
+        (path_creation, (identifier: Id), (hv_vec![identifier], EditType::PathCreation(None))),
         (free_draw_point_insertion, (p: Vec2, index: u8), (hv_vec![], EditType::FreeDrawPointInsertion(p, index))),
         (free_draw_point_deletion, (p: Vec2, index: u8), (hv_vec![], EditType::FreeDrawPointDeletion(p, index))),
         (entity_selection, (identifier: Id), (hv_vec![identifier], EditType::EntitySelection)),
@@ -236,7 +237,7 @@ impl EditsHistory
         (subtractee_selection, (identifier: Id), (hv_vec![identifier], EditType::SubtracteeSelection)),
         (subtractee_deselection, (identifier: Id), (hv_vec![identifier], EditType::SubtracteeDeselection)),
         (vertexes_selection, (identifier: Id, idxs: HvVec<u8>), (hv_vec![identifier], EditType::VertexesSelection(idxs))),
-        (motor_deletion, (identifier: Id, mover: Motor), (hv_vec![identifier], EditType::MotorDeletion(Some(mover)))),
+        (path_deletion, (identifier: Id, path: Path), (hv_vec![identifier], EditType::PathDeletion(Some(path)))),
         (path_nodes_selection, (identifier: Id, idxs: HvVec<u8>), (hv_vec![identifier], EditType::PathNodesSelection(idxs))),
         (path_node_insertion, (identifier: Id, pos: Vec2, index: u8), (hv_vec![identifier], EditType::PathNodeInsertion((pos, index)))),
         (path_nodes_deletion, (identifier: Id, nodes: HvVec<(Vec2, u8)>), (hv_vec![identifier], EditType::PathNodesDeletion(nodes))),
@@ -325,8 +326,6 @@ impl EditsHistory
 
     #[rustfmt::skip]
     push_with_amount_assertion!(
-        (horizontal_shear, (info: &ShearInfo), EditType::HorizontalShear(*info)),
-        (vertical_shear, (info: &ShearInfo), EditType::VerticalShear(*info)),
         (flip, (flip: Flip, flip_texture: bool), EditType::Flip(flip, flip_texture)),
         (texture_angle_delta, (delta: f32), EditType::TextureAngleDelta(delta)),
         (texture_flip, (y: bool), EditType::TextureFlip(y)),
@@ -438,18 +437,7 @@ impl EditsHistory
     {
         if manager.selected_brushes_amount() != 0
         {
-            let mut identifiers = hv_vec![];
-
-            for brush in manager.selected_brushes()
-            {
-                identifiers.push(brush.id());
-
-                for id in continue_if_none!(brush.anchors_iter())
-                {
-                    identifiers.push(*id);
-                }
-            }
-
+            let identifiers = hv_vec![collect; manager.selected_brushes_ids().copied()];
             assert!(!identifiers.is_empty(), "EditType::BrushMove has no associated entities.");
             self.push_onto_current_edit(identifiers, EditType::BrushMove(delta, move_texture));
         }
@@ -596,7 +584,7 @@ impl EditsHistory
 
         if self.selections_only_edit_halted ||
             (self.prev_states_amount != self.stack.len() &&
-                self.current_edit.only_contains_selection_edits())
+                self.current_edit.only_contains_entity_selection_edits())
         {
             self.selections_only_edit_halted = true;
             return;
@@ -616,7 +604,6 @@ impl EditsHistory
         }
 
         self.selections_only_edit_halted = false;
-
         self.execute_frame_edit_push();
     }
 
@@ -761,7 +748,7 @@ impl EditsHistory
             return;
         }
 
-        if self.current_edit.only_contains_selection_edits()
+        if self.current_edit.only_contains_entity_selection_edits()
         {
             self.force_push_frame_edit();
         }
@@ -794,7 +781,7 @@ impl EditsHistory
             return;
         }
 
-        if self.current_edit.only_contains_selection_edits()
+        if self.current_edit.only_contains_entity_selection_edits()
         {
             self.current_edit.undo(interface, drawing_resources, ui);
             self.current_edit.clear();

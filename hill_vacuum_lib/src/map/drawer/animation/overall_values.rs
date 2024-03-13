@@ -3,7 +3,7 @@
 //
 //=======================================================================//
 
-use super::{Animation, AtlasAnimation, Timing};
+use super::{Animation, Atlas, Timing};
 use crate::{
     map::{hv_vec, HvVec},
     utils::overall_value::{OverallValue, OverallValueInterface, UiOverallValue}
@@ -244,10 +244,10 @@ pub(in crate::map) struct OverallAtlasAnimation
     pub timing: OverallTiming
 }
 
-impl From<&AtlasAnimation> for OverallAtlasAnimation
+impl From<&Atlas> for OverallAtlasAnimation
 {
     #[inline]
-    fn from(value: &AtlasAnimation) -> Self
+    fn from(value: &Atlas) -> Self
     {
         Self {
             x:      value.x.into(),

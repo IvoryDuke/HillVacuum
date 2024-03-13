@@ -27,6 +27,7 @@ use crate::{
                 clipboard::Clipboard,
                 editor_state::{InputsPresses, ToolsSettings},
                 edits_history::EditsHistory,
+                format_texture_preview,
                 manager::{EntitiesManager, TextureResult},
                 ui::textures_gallery
             },
@@ -71,7 +72,7 @@ macro_rules! plus_minus_textedit {
         $clamp:expr
         $(, $drawing_resources:ident)?
         $(, $return_if_none:literal)?
-    ) => {{
+    ) => {{ paste::paste! {
         #[inline]
         fn set(
             value: $t,
@@ -80,26 +81,24 @@ macro_rules! plus_minus_textedit {
             $(, $drawing_resources: &DrawingResources)?
         ) -> bool
         {
-            paste::paste! {
-                $(
-                    let valid = manager.test_operation_validity(|manager| {
-                        manager.selected_textured_brushes_mut().find_map(|mut brush| {
-                            (!brush.[< check_texture_ $value >]($drawing_resources, value)).then_some(brush.id())
-                           })
-                    });
-
-                    if !valid
-                    {
-                        return false;
-                    }
-                )?
-
-                edits_history.[< texture_ $value _cluster >](
-                    manager.selected_textured_brushes_mut().filter_map(|mut brush| {
-                        brush.[< set_texture_ $value >]($($drawing_resources, )? value).map(|prev| (brush.id(), prev))
+            $(
+                let valid = manager.test_operation_validity(|manager| {
+                    manager.selected_textured_brushes_mut().find_map(|mut brush| {
+                        (!brush.[< check_texture_ $value >]($drawing_resources, value)).then_some(brush.id())
                     })
-                );
-            }
+                });
+
+                if !valid
+                {
+                    return false;
+                }
+            )?
+
+            edits_history.[< texture_ $value _cluster >](
+                manager.selected_textured_brushes_mut().filter_map(|mut brush| {
+                    brush.[< set_texture_ $value >]($($drawing_resources, )? value).map(|prev| (brush.id(), prev))
+                })
+            );
 
             manager.schedule_outline_update();
             true
@@ -137,7 +136,7 @@ macro_rules! plus_minus_textedit {
                     ).then_some(value)
                 }
             ).has_focus
-    }};
+    }}};
 }
 
 //=======================================================================//
@@ -291,29 +290,6 @@ macro_rules! toggle {
             has_focus
         }
     )+ }};
-}
-
-//=======================================================================//
-
-macro_rules! format_texture_preview {
-    ($widget:ident, $ui:ident, $texture_id:expr, $size:expr, $frame_size:expr) => {
-        if $size.x == $size.y
-        {
-            $ui.add(egui::$widget::new(($texture_id, egui::Vec2::splat($frame_size))))
-        }
-        else if $size.x > $size.y
-        {
-            let size = $size.as_vec2();
-            let width = ($frame_size / size.x) * size.y;
-            $ui.add(egui::$widget::new(($texture_id, egui::vec2(width, $frame_size))))
-        }
-        else
-        {
-            let size = $size.as_vec2();
-            let height = ($frame_size / size.y) * size.x;
-            $ui.add(egui::$widget::new(($texture_id, egui::vec2($frame_size, height))))
-        }
-    };
 }
 
 //=======================================================================//
@@ -567,7 +543,7 @@ impl Innards
                 F: FnMut(&Texture)
             {
                 ui.vertical(|ui| {
-                    ui.set_max_width(TEXTURE_LIST_PREVIEW_FRAME_SIDE);
+                    ui.set_width(TEXTURE_LIST_PREVIEW_FRAME_SIDE);
 
                     let texture = texture_materials.texture();
                     let response = format_texture_preview!(
@@ -583,7 +559,9 @@ impl Innards
                         f(texture);
                     }
 
-                    ui.add(egui::Label::new(texture.label()).wrap(true));
+                    ui.vertical_centered(|ui| {
+                        ui.add(egui::Label::new(texture.label()).wrap(true));
+                    });
                     response
                 })
                 .inner

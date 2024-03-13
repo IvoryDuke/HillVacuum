@@ -146,9 +146,7 @@ impl TextureLoader
                     continue;
                 }
 
-                let full_path = child_path.to_str().unwrap();
-                paths[*len % TextureLoader::THREADS_AMOUNT].push(PathBuf::from(full_path));
-
+                paths[*len % TextureLoader::THREADS_AMOUNT].push(child_path);
                 *len += 1;
             }
         }
@@ -230,15 +228,10 @@ impl TextureLoader
                             )
                             .unwrap();
 
-                            let path = path.as_os_str().to_str().unwrap();
-                            let name = path
-                                .split_at(path.rfind('.').unwrap())
-                                .0
-                                .split_at(path.rfind('/').unwrap() + 1)
-                                .1
-                                .to_string();
-
-                            textures.push((name, image));
+                            textures.push((
+                                path.file_stem().unwrap().to_str().unwrap().to_owned(),
+                                image
+                            ));
                         }
 
                         images.lock().unwrap().extend(textures);

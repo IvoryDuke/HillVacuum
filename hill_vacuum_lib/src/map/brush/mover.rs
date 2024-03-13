@@ -7,14 +7,19 @@ use bevy::prelude::Vec2;
 use serde::{Deserialize, Serialize};
 use shared::{match_or_panic, return_if_no_match};
 
-use super::path::Path;
 use crate::{
-    map::{brush::calc_path_hull, hv_hash_set, AssertedInsertRemove, Ids, OutOfBounds},
+    map::{
+        brush::calc_path_hull,
+        containers::{hv_hash_set, Ids},
+        AssertedInsertRemove,
+        OutOfBounds
+    },
     utils::{
         hull::Hull,
         identifiers::Id,
         misc::{NoneIfEmpty, TakeValue}
-    }
+    },
+    Path
 };
 
 //=======================================================================//
@@ -49,7 +54,7 @@ impl Mover
 {
     #[inline]
     #[must_use]
-    pub(in crate::map) const fn has_motor(&self) -> bool { matches!(self, Self::Motor(_)) }
+    pub(in crate::map) const fn has_path(&self) -> bool { matches!(self, Self::Motor(_)) }
 
     #[inline]
     #[must_use]
@@ -70,9 +75,9 @@ impl Mover
     }
 
     #[inline]
-    pub(in crate::map) const fn path(&self) -> &Path
+    pub(in crate::map) const fn path(&self) -> Option<&Path>
     {
-        &match_or_panic!(self, Self::Motor(motor), motor).path
+        Some(&return_if_no_match!(self, Self::Motor(motor), motor, None).path)
     }
 
     #[inline]
@@ -97,17 +102,6 @@ impl Mover
             Self::None | Self::Anchored(_) => None,
             Self::Anchors(ids) => Some(ids),
             Self::Motor(motor) => Some(&motor.anchored_brushes)
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub(in crate::map) fn contains_anchor(&self, identifier: Id) -> bool
-    {
-        match self.anchors()
-        {
-            Some(ids) => ids.contains(&identifier),
-            None => false
         }
     }
 
@@ -143,46 +137,32 @@ impl Mover
     }
 
     #[inline]
-    pub(in crate::map::brush) fn create_motor(&mut self, path: Path)
-    {
-        match self
-        {
-            Self::None => *self = Self::Motor(Motor::new(path, None)),
-            Self::Anchors(ids) => *self = Self::Motor(Motor::new(path, Some(ids.take_value()))),
-            _ => panic!("Unsuitable circumstances for a motor creation.")
-        };
-    }
-
-    #[inline]
-    pub(in crate::map::brush) fn take_motor(&mut self) -> Motor
+    pub(in crate::map::brush) fn take_path(&mut self) -> Path
     {
         let mut motor = match_or_panic!(std::mem::take(self), Self::Motor(motor), motor);
+        let anchors = motor.anchored_brushes.take_value();
 
-        if motor.anchored_brushes.is_empty()
+        if !anchors.is_empty()
         {
-            return motor;
+            *self = Self::Anchors(anchors);
         }
 
-        *self = Self::Anchors(motor.anchored_brushes.take_value());
-        motor
+        motor.path
     }
 
     #[inline]
-    pub(in crate::map::brush) fn set_motor(&mut self, mut motor: Motor)
+    pub(in crate::map::brush) fn set_path(&mut self, path: Path)
     {
-        assert!(motor.anchored_brushes.is_empty(), "Brush's Motor has anchored brushes.");
-
         match self
         {
-            Self::None => *self = motor.into(),
+            Self::None => *self = Self::Motor(Motor::from(path)),
             Self::Anchors(ids) =>
             {
-                motor.anchored_brushes = ids.take_value();
-                *self = Self::Motor(motor);
+                *self = Self::Motor(Motor::new(path, ids.take_value().into()));
             },
             Self::Motor(_) | Self::Anchored(_) =>
             {
-                panic!("Unsuitable circumstance for setting a motor.")
+                panic!("Unsuitable circumstance for setting a path.")
             }
         };
     }
@@ -390,10 +370,11 @@ impl Motor
 
     #[inline]
     #[must_use]
-    pub fn anchored_brushes(&self) -> &Ids { &self.anchored_brushes }
+    pub fn has_anchors(&self) -> bool { !self.anchored_brushes.is_empty() }
 
     #[inline]
-    pub(in crate::map) fn take_path(self) -> Path { self.path }
+    #[must_use]
+    pub fn anchored_brushes(&self) -> &Ids { &self.anchored_brushes }
 
     #[inline]
     fn insert_anchor(&mut self, identifier: Id)

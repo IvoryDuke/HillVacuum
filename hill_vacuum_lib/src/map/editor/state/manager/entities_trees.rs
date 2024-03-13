@@ -11,6 +11,7 @@ use crate::{
     map::{
         brush::Brush,
         editor::state::manager::quad_tree::{QuadTree, QuadTreeIds},
+        path::Moving,
         thing::ThingInstance
     },
     utils::{
@@ -143,23 +144,28 @@ impl Trees
     }
 
     #[inline]
-    pub fn insert_path_hull(&mut self, brush: &Brush)
+    pub fn insert_path_hull<P: EntityId + Moving>(&mut self, entity: &P)
     {
-        self.paths_tree.insert_hull(brush.id(), &brush.path_hull().unwrap());
+        self.paths_tree.insert_hull(entity.id(), &entity.path_hull().unwrap());
         self.set_paths_dirty();
     }
 
     #[inline]
-    pub fn remove_path_hull(&mut self, brush: &Brush, hull: &Hull)
+    pub fn remove_path_hull<P: EntityId + ?Sized>(&mut self, entity: &P, hull: &Hull)
     {
-        self.paths_tree.remove_hull(brush.id(), hull);
+        self.paths_tree.remove_hull(entity.id(), hull);
         self.set_paths_dirty();
     }
 
     #[inline]
-    pub fn replace_path_hull(&mut self, brush: &Brush, current_hull: &Hull, previous_hull: &Hull)
+    pub fn replace_path_hull<P: EntityId + Moving>(
+        &mut self,
+        entity: &P,
+        current_hull: &Hull,
+        previous_hull: &Hull
+    )
     {
-        self.paths_tree.replace_hull(brush.id(), current_hull, previous_hull);
+        self.paths_tree.replace_hull(entity.id(), current_hull, previous_hull);
         self.set_paths_dirty();
     }
 

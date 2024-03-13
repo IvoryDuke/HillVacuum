@@ -8,14 +8,14 @@ use shared::return_if_none;
 
 use crate::{
     map::{
-        brush::path::overall_values::{OverallMovement, UiOverallMovement},
         editor::state::{
             clipboard::Clipboard,
             editor_state::InputsPresses,
             edits_history::EditsHistory,
             manager::EntitiesManager,
             ui::overall_value_field::{OverallValueField, Response}
-        }
+        },
+        path::overall_values::{OverallMovement, UiOverallMovement}
     },
     utils::{
         identifiers::EntityId,
@@ -40,10 +40,10 @@ macro_rules! movement_values {
         {
             let new_value = ($clamp)(new_value);
 
-            edits_history.[< path_nodes_ $value _cluster >](manager.selected_platforms_mut().filter_map(|mut brush| {
-                brush.[< set_selected_path_nodes_ $value >](new_value).map(|edit| {
-                    _ = overall.merge(brush.overall_selected_path_nodes_movement());
-                    (brush.id(), edit)
+            edits_history.[< path_nodes_ $value _cluster >](manager.selected_movings_mut().filter_map(|mut entity| {
+                entity.[< set_selected_path_nodes_ $value >](new_value).map(|edit| {
+                    _ = overall.merge(entity.overall_selected_path_nodes_movement());
+                    (entity.id(), edit)
                 })
             }));
 
@@ -215,7 +215,7 @@ impl NodesEditor
     {
         let mut overall = OverallMovement::new();
 
-        for brush in manager.selected_platforms()
+        for brush in manager.selected_moving()
         {
             if overall.merge(brush.overall_selected_path_nodes_movement())
             {

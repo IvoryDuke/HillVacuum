@@ -33,7 +33,7 @@ macro_rules! deselect_vectors {
     }};
 }
 
-pub(in crate::map::brush) use deselect_vectors;
+pub(in crate::map) use deselect_vectors;
 
 //=======================================================================//
 
@@ -62,7 +62,7 @@ macro_rules! select_vectors_in_range {
     }};
 }
 
-pub(in crate::map::brush) use select_vectors_in_range;
+pub(in crate::map) use select_vectors_in_range;
 
 //=======================================================================//
 // ENUMS

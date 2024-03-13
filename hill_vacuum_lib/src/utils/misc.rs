@@ -4,7 +4,6 @@
 //=======================================================================//
 
 use bevy::{prelude::Vec2, window::Window};
-use shared::return_if_none;
 
 use super::hull::Hull;
 
@@ -88,36 +87,6 @@ pub trait TakeValue
     /// Replaces `self` with its default and returns its value.
     #[must_use]
     fn take_value(&mut self) -> Self;
-}
-
-//=======================================================================//
-
-/// A trait to return the index of the last element of an iterator that satisfies a certain
-/// condition.
-pub trait LastPosition
-where
-    Self: ExactSizeIterator + DoubleEndedIterator
-{
-    /// Returns the index of the last element that satusfies `predicate`.
-    #[must_use]
-    fn last_position<P>(&mut self, predicate: P) -> Option<usize>
-    where
-        Self: Sized,
-        P: FnMut(Self::Item) -> bool;
-}
-
-impl<T: ExactSizeIterator + DoubleEndedIterator> LastPosition for T
-where
-    Self: ExactSizeIterator + DoubleEndedIterator
-{
-    #[inline]
-    fn last_position<P>(&mut self, predicate: P) -> Option<usize>
-    where
-        Self: Sized,
-        P: FnMut(Self::Item) -> bool
-    {
-        Some(self.len() - return_if_none!(self.rev().position(predicate), None) - 1)
-    }
 }
 
 //=======================================================================//
@@ -384,8 +353,8 @@ impl PointInsideUiHighlight for Vec2
     #[inline]
     fn is_point_inside_ui_highlight(&self, p: Vec2, camera_scale: f32) -> bool
     {
-        let side_length = vertex_highlight_side_length(camera_scale) * 1.5f32;
-        f32::abs(self.x - p.x) <= side_length && f32::abs(self.y - p.y) <= side_length
+        let half_side_length = bumped_vertex_highlight_side_length(camera_scale) / 2f32;
+        f32::abs(self.x - p.x) <= half_side_length && f32::abs(self.y - p.y) <= half_side_length
     }
 }
 
@@ -410,7 +379,7 @@ pub struct Blinker
 impl Blinker
 {
     #[inline]
-    pub fn new(interval: f32) -> Self
+    pub const fn new(interval: f32) -> Self
     {
         Self {
             time: interval,
@@ -464,13 +433,33 @@ pub fn to_world_coordinates<T: Camera>(p: Vec2, window: &Window, camera: &T) -> 
 #[must_use]
 pub fn vertex_highlight_side_length(camera_scale: f32) -> f32 { camera_scale * VX_HGL_SIDE }
 
+#[inline]
+#[must_use]
+pub fn bumped_vertex_highlight_side_length(camera_scale: f32) -> f32
+{
+    vertex_highlight_side_length(camera_scale) * 4f32
+}
+
+#[inline]
+#[must_use]
+fn square(side_length: f32) -> Hull
+{
+    Hull::new(side_length, -side_length, -side_length, side_length)
+}
+
 /// Returns the scaled squared length of the vertex highlight side.
 #[inline]
 #[must_use]
 pub fn vertex_highlight_square(camera_scale: f32) -> Hull
 {
-    let side_length = vertex_highlight_side_length(camera_scale);
-    Hull::new(side_length, -side_length, -side_length, side_length)
+    square(vertex_highlight_side_length(camera_scale))
+}
+
+#[inline]
+#[must_use]
+pub fn bumped_vertex_highlight_square(camera_scale: f32) -> Hull
+{
+    square(bumped_vertex_highlight_side_length(camera_scale))
 }
 
 //=======================================================================//
@@ -485,7 +474,7 @@ pub fn next(n: usize, div: usize) -> usize { next_n_steps(n, 1, div) }
 #[must_use]
 pub fn next_n_steps(n: usize, s: usize, div: usize) -> usize
 {
-    assert!(n < div, "n {n} is higher than div {div}.");
+    assert!(n < div, "n {n} is higher or equal than div {div}.");
 
     let n = n + s;
 
@@ -516,7 +505,7 @@ pub fn prev(n: usize, div: usize) -> usize { prev_n_steps(n, 1, div) }
 #[must_use]
 pub fn prev_n_steps(n: usize, s: usize, div: usize) -> usize
 {
-    assert!(n < div, "n {n} is higher than div {div}.");
+    assert!(n < div, "n {n} is higher or equal to div {div}.");
 
     if n < s
     {

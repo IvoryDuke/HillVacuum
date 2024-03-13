@@ -6,20 +6,16 @@
 use super::{tool::ActiveTool, PreviousActiveTool};
 use crate::{
     map::{
-        brush::path::MovementSimulator,
+        containers::{hv_box, HvVec},
         drawer::drawing_resources::DrawingResources,
         editor::{
-            state::{
-                core::is_moving_brush,
-                manager::{Animators, EntitiesManager}
-            },
+            state::manager::{Animators, EntitiesManager},
             DrawBundleMapPreview,
             ToolUpdateBundle
         },
-        hv_box,
-        HvVec
+        path::MovementSimulator
     },
-    utils::identifiers::EntityId
+    utils::identifiers::{EntityId, Id}
 };
 
 //=======================================================================//
@@ -80,9 +76,10 @@ impl MapPreviewTool
 
         for simulator in &self.movement
         {
-            manager.brush(simulator.id()).draw_map_preview_movement_simulation(
+            manager.moving(simulator.id()).draw_map_preview_movement_simulation(
                 camera,
                 brushes,
+                things_catalog,
                 drawer,
                 &self.animators,
                 simulator
@@ -92,7 +89,7 @@ impl MapPreviewTool
         for brush in manager
             .visible_brushes(window, camera)
             .iter()
-            .filter(|brush| !is_moving_brush!(manager, brush.id()) && !brush.has_sprite())
+            .filter(|brush| !is_moving(manager, brush.id()) && !brush.has_sprite())
         {
             brush.draw_map_preview(camera, drawer, self.animators.get(brush.id()));
         }
@@ -100,14 +97,36 @@ impl MapPreviewTool
         for brush in manager
             .visible_sprites(window, camera)
             .iter()
-            .filter(|brush| !is_moving_brush!(manager, brush.id()))
+            .filter(|brush| !is_moving(manager, brush.id()))
         {
             brush.draw_map_preview_sprite(drawer, self.animators.get(brush.id()));
         }
 
-        for thing in manager.visible_things(window, camera).iter()
+        for thing in manager
+            .visible_things(window, camera)
+            .iter()
+            .filter(|brush| !is_moving(manager, brush.id()))
         {
-            thing.draw_map_preview(drawer, things_catalog, self.animators.get(thing.id()));
+            thing.draw_map_preview(drawer, things_catalog);
         }
     }
+}
+
+//=======================================================================//
+// FUNCTIONS
+//
+//=======================================================================//
+
+#[inline]
+#[must_use]
+fn is_moving(manager: &EntitiesManager, identifier: Id) -> bool
+{
+    let moving = manager.is_moving(identifier);
+
+    if manager.is_thing(identifier)
+    {
+        return moving;
+    }
+
+    moving || manager.brush(identifier).anchored().is_some()
 }

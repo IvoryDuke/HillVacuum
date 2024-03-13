@@ -7,7 +7,7 @@ use std::{hash::Hash, ops::Index, slice::Chunks};
 
 use hashbrown::Equivalent;
 
-use super::{hv_hash_map, HvHashMap, HvVec};
+use super::{containers::hv_hash_map, HvHashMap, HvVec};
 
 //=======================================================================//
 // TYPES

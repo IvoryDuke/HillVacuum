@@ -36,16 +36,15 @@ use super::{
 use crate::{
     embedded_assets::embedded_asset_path,
     map::{
-        editor::state::clipboard::{PropCameras, PropCamerasMut},
-        hv_hash_map,
-        hv_hash_set,
-        hv_vec,
+        brush::convex_polygon::NEW_VX,
+        containers::{hv_hash_map, hv_hash_set, hv_vec, HvHashMap, HvHashSet, HvVec},
+        editor::state::{
+            clipboard::{PropCameras, PropCamerasMut},
+            core::drag::Drag
+        },
         ordered_map::IndexedMap,
-        thing::{catalog::ThingsCatalog, ThingInstance},
-        AssertedInsertRemove,
-        HvHashMap,
-        HvHashSet,
-        HvVec
+        thing::{catalog::ThingsCatalog, ThingInterface},
+        AssertedInsertRemove
     },
     utils::{
         hull::Hull,
@@ -94,12 +93,12 @@ impl TextureMaterials
     ) -> Self
     {
         const COLORS: [Color; 7] = [
-            Color::SelectedBrush,
+            Color::SelectedEntity,
             Color::HighlightedNonSelectedBrush,
             Color::HighlightedSelectedBrush,
             Color::NonSelectedVertex,
             Color::ClippedPolygonsToSpawn,
-            Color::OpaqueBrush,
+            Color::Opaque,
             Color::ClippedPolygonsNotToSpawn
         ];
         const LEN: usize = COLORS.len();
@@ -189,14 +188,14 @@ impl TextureMaterials
     {
         match color
         {
-            Color::NonSelectedBrush => &self.semi_transparent,
-            Color::SelectedBrush | Color::SubtractorBrush => &self.selected,
+            Color::NonSelectedEntity => &self.semi_transparent,
+            Color::SelectedEntity | Color::SubtractorBrush => &self.selected,
             Color::HighlightedNonSelectedBrush => &self.highlighted_non_selected,
             Color::HighlightedSelectedBrush => &self.highlighted_selected,
             Color::NonSelectedVertex => &self.side_mode,
             Color::ClippedPolygonsToSpawn | Color::SubtracteeBrush => &self.gold,
             Color::ClippedPolygonsNotToSpawn => &self.clip_not_to_spawn,
-            Color::OpaqueBrush => &self.opaque,
+            Color::Opaque => &self.opaque,
             _ => panic!("Color with no associated color material.")
         }
         .clone_weak()
@@ -228,7 +227,7 @@ pub(in crate::map) struct DrawingResources
     /// The textures loaded from the assets folder.
     textures: IndexedMap<String, TextureMaterials>,
     error_texture: TextureMaterials,
-    noclip_texture: Handle<ColorMaterial>,
+    clip_texture: Handle<ColorMaterial>,
     thing_angle_texture: Handle<ColorMaterial>,
     animated_textures: HvHashSet<String>,
     default_animation_changed: bool
@@ -270,7 +269,7 @@ impl DrawingResources
     {
         const ERROR_TEXTURE_NAME: &str = "error.png";
         const THING_ANGLE_TEXTURE_NAME: &str = "thing_angle.png";
-        const NOCLIP_TEXTURE_NAME: &str = "noclip.png";
+        const CLIP_OVERLAY_TEXTURE_NAME: &str = "clip_overlay.png";
 
         macro_rules! highlight_mesh {
             ($func:ident) => {{
@@ -321,8 +320,8 @@ impl DrawingResources
             color_materials: Color::materials(materials),
             textures: Self::sort_textures(texture_loader.loaded_textures(), materials),
             error_texture: TextureMaterials::clean((err_tex, err_id), materials),
-            noclip_texture: materials
-                .add(asset_server.load(embedded_asset_path(NOCLIP_TEXTURE_NAME))),
+            clip_texture: materials
+                .add(asset_server.load(embedded_asset_path(CLIP_OVERLAY_TEXTURE_NAME))),
             thing_angle_texture: materials
                 .add(asset_server.load(embedded_asset_path(THING_ANGLE_TEXTURE_NAME))),
             animated_textures: hv_hash_set![],
@@ -345,10 +344,26 @@ impl DrawingResources
             color_materials: std::array::from_fn(|_| ColorHandles::default()),
             textures: IndexedMap::new(hv_vec![], |tex| tex.texture.name().to_owned()),
             error_texture: TextureMaterials::placeholder(),
-            noclip_texture: Handle::default(),
+            clip_texture: Handle::default(),
             thing_angle_texture: Handle::default(),
             animated_textures: hv_hash_set![],
             default_animation_changed: false
+        }
+    }
+
+    /// Initialized the labels used by the tooltips,
+    #[inline]
+    pub fn init(ctx: &egui::Context)
+    {
+        for label in [Drag::X_DRAG, Drag::Y_DRAG, NEW_VX]
+            .into_iter()
+            .chain(TooltipLabelGenerator::iter().copied())
+        {
+            egui::Area::new(label).order(egui::Order::Background).show(ctx, |ui| {
+                egui::Frame::none().fill(egui::Color32::TRANSPARENT).show(ui, |ui| {
+                    ui.label(egui::RichText::default().color(egui::Color32::TRANSPARENT));
+                });
+            });
         }
     }
 
@@ -555,7 +570,7 @@ impl DrawingResources
     pub const fn error_texture(&self) -> &Texture { self.error_texture.texture() }
 
     #[inline]
-    pub fn noclip_material(&self) -> Handle<ColorMaterial> { self.noclip_texture.clone() }
+    pub fn clip_material(&self) -> Handle<ColorMaterial> { self.clip_texture.clone() }
 
     #[inline]
     pub fn thing_angle_texture(&self) -> Handle<ColorMaterial> { self.thing_angle_texture.clone() }
@@ -598,7 +613,7 @@ impl DrawingResources
 
         for t in &self.animated_textures
         {
-            let materials = match textures.get_mut(t)
+            let tex_materials = match textures.get_mut(t)
             {
                 Some(texture) => texture,
                 None =>
@@ -608,7 +623,7 @@ impl DrawingResources
                 }
             };
 
-            *materials.texture.animation_mut_set_dirty() =
+            *tex_materials.texture.animation_mut_set_dirty() =
                 std::mem::take(self.textures.get_mut(t).unwrap().texture.animation_mut());
         }
 
@@ -789,11 +804,11 @@ impl DrawingResources
     }
 
     #[inline]
-    pub(in crate::map::drawer) fn push_thing(
+    pub(in crate::map::drawer) fn push_thing<T: ThingInterface>(
         &mut self,
         mesh: Mesh2dHandle,
         catalog: &ThingsCatalog,
-        thing: &ThingInstance,
+        thing: &T,
         color: Color
     )
     {
@@ -806,11 +821,11 @@ impl DrawingResources
     }
 
     #[inline]
-    pub(in crate::map::drawer) fn push_map_preview_thing(
+    pub(in crate::map::drawer) fn push_map_preview_thing<T: ThingInterface>(
         &mut self,
         mesh: Mesh2dHandle,
         catalog: &ThingsCatalog,
-        thing: &ThingInstance
+        thing: &T
     )
     {
         self.push_mesh(
@@ -964,6 +979,10 @@ impl Default for TooltipLabelGenerator
 impl TooltipLabelGenerator
 {
     str_array!(VX_LABELS, 128, vx_);
+
+    /// Returns an iterator to all assignable labels.
+    #[inline]
+    fn iter() -> impl Iterator<Item = &'static &'static str> { Self::VX_LABELS.iter() }
 
     /// Resets the assigned labels.
     #[inline]
@@ -1369,55 +1388,10 @@ impl<'a> MeshGenerator<'a>
     }
 
     #[inline]
-    pub fn set_thing_uv(&mut self, catalog: &ThingsCatalog, thing: &ThingInstance)
+    pub fn set_thing_uv<T: ThingInterface>(&mut self, catalog: &ThingsCatalog, thing: &T)
     {
         self.3
             .extend(self.thing_uv(self.4.texture_or_error(catalog.texture(thing.thing()))));
-    }
-
-    #[inline]
-    pub fn set_animated_thing_uv(
-        &mut self,
-        catalog: &ThingsCatalog,
-        thing: &ThingInstance,
-        animator: &Animator
-    )
-    {
-        let texture = self.4.texture_or_error(catalog.texture(thing.thing()));
-
-        match animator
-        {
-            Animator::List(animator) =>
-            {
-                self.3.extend(
-                    self.thing_uv(
-                        animator
-                            .texture(
-                                self.4,
-                                self.4
-                                    .texture(texture.name())
-                                    .unwrap()
-                                    .animation()
-                                    .get_list_animation()
-                            )
-                            .texture()
-                    )
-                );
-            },
-            Animator::Atlas(animator) =>
-            {
-                let pivot = animator.pivot();
-                let mut uvs = self.thing_uv(texture);
-
-                for uv in &mut uvs
-                {
-                    uv[0] += pivot[0];
-                    uv[1] += pivot[1];
-                }
-
-                self.3.extend(uvs);
-            }
-        };
     }
 
     #[inline]
@@ -1570,7 +1544,7 @@ impl<'a> MeshGenerator<'a>
     }
 
     #[inline]
-    pub fn noclip_uv(&mut self)
+    pub fn clip_uv(&mut self)
     {
         self.3.extend(self.0.iter().map(|vx| [vx[0] / 64f32, -vx[1] / 64f32]));
     }

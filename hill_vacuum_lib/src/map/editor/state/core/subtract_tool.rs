@@ -14,6 +14,7 @@ use super::{
 use crate::{
     map::{
         brush::convex_polygon::SubtractResult,
+        containers::{hv_hash_set, hv_vec, Ids},
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             cursor_pos::Cursor,
@@ -26,10 +27,7 @@ use crate::{
             DrawBundle,
             ToolUpdateBundle
         },
-        hv_hash_set,
-        hv_vec,
-        AssertedInsertRemove,
-        Ids
+        AssertedInsertRemove
     },
     utils::{
         identifiers::{EntityId, Id},
@@ -240,7 +238,6 @@ impl SubtractTool
     )
     {
         let sel_id = *manager.selected_brushes_ids().next_value();
-        let mut did_someting = false;
 
         for id in subtractees.take_value()
         {
@@ -257,12 +254,6 @@ impl SubtractTool
             };
 
             manager.despawn_brush(id, edits_history, false);
-            did_someting = true;
-        }
-
-        if did_someting
-        {
-            manager.despawn_selected_brush(sel_id, edits_history);
         }
     }
 

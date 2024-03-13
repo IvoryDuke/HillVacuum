@@ -4,3 +4,4 @@ target/
 *.hv
 *.prps
 *.anms
+*.lock

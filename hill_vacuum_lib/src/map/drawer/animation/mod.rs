@@ -147,22 +147,22 @@ impl Animator
 //=======================================================================//
 
 #[must_use]
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Animation
 {
     #[default]
     None,
-    List(ListAnimation),
-    Atlas(AtlasAnimation)
+    List(List),
+    Atlas(Atlas)
 }
 
 impl Animation
 {
     #[inline]
-    pub fn list_animation(texture: &str) -> Self { Self::List(ListAnimation::new(texture)) }
+    pub fn list_animation(texture: &str) -> Self { Self::List(List::new(texture)) }
 
     #[inline]
-    pub const fn atlas_animation() -> Self { Self::Atlas(AtlasAnimation::new()) }
+    pub const fn atlas_animation() -> Self { Self::Atlas(Atlas::new()) }
 
     #[inline]
     #[must_use]
@@ -181,25 +181,25 @@ impl Animation
     }
 
     #[inline]
-    pub const fn get_list_animation(&self) -> &ListAnimation
+    pub const fn get_list_animation(&self) -> &List
     {
         match_or_panic!(self, Self::List(anim), anim)
     }
 
     #[inline]
-    pub fn get_list_animation_mut(&mut self) -> &mut ListAnimation
+    pub fn get_list_animation_mut(&mut self) -> &mut List
     {
         match_or_panic!(self, Self::List(anim), anim)
     }
 
     #[inline]
-    pub const fn get_atlas_animation(&self) -> &AtlasAnimation
+    pub const fn get_atlas_animation(&self) -> &Atlas
     {
         match_or_panic!(self, Self::Atlas(anim), anim)
     }
 
     #[inline]
-    pub fn get_atlas_animation_mut(&mut self) -> &mut AtlasAnimation
+    pub fn get_atlas_animation_mut(&mut self) -> &mut Atlas
     {
         match_or_panic!(self, Self::Atlas(anim), anim)
     }
@@ -208,8 +208,8 @@ impl Animation
 //=======================================================================//
 
 #[must_use]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AtlasAnimation
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Atlas
 {
     x:      u32,
     y:      u32,
@@ -217,7 +217,7 @@ pub struct AtlasAnimation
     timing: Timing
 }
 
-impl MoveUpDown for AtlasAnimation
+impl MoveUpDown for Atlas
 {
     #[inline]
     fn move_up(&mut self, index: usize)
@@ -232,7 +232,7 @@ impl MoveUpDown for AtlasAnimation
     }
 }
 
-impl AtlasAnimation
+impl Atlas
 {
     #[inline]
     pub(in crate::map) const fn new() -> Self
@@ -408,10 +408,10 @@ impl AtlasAnimation
 //=======================================================================//
 
 #[must_use]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListAnimation(Vec<(String, f32)>);
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct List(Vec<(String, f32)>);
 
-impl MoveUpDown for ListAnimation
+impl MoveUpDown for List
 {
     #[inline]
     fn move_up(&mut self, index: usize) { self.0.move_up(index); }
@@ -420,7 +420,7 @@ impl MoveUpDown for ListAnimation
     fn move_down(&mut self, index: usize) { self.0.move_down(index); }
 }
 
-impl ListAnimation
+impl List
 {
     #[inline]
     pub(in crate::map) fn new(texture: &str) -> Self
@@ -512,7 +512,7 @@ impl EntityId for ListAnimator
 impl ListAnimator
 {
     #[inline]
-    pub fn new(animation: &ListAnimation, identifier: Id) -> Self
+    pub fn new(animation: &List, identifier: Id) -> Self
     {
         Self {
             id:           identifier,
@@ -522,7 +522,7 @@ impl ListAnimator
     }
 
     #[inline]
-    pub fn update(&mut self, animation: &ListAnimation, mut delta_time: f32)
+    pub fn update(&mut self, animation: &List, mut delta_time: f32)
     {
         loop
         {
@@ -542,7 +542,7 @@ impl ListAnimator
     pub(in crate::map::drawer) fn texture<'a>(
         &self,
         drawing_resources: &'a DrawingResources,
-        animation: &ListAnimation
+        animation: &List
     ) -> &'a TextureMaterials
     {
         drawing_resources.texture_materials(&animation.0[self.index].0)
@@ -577,7 +577,7 @@ impl AtlasAnimator
 {
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    pub fn new(animation: &AtlasAnimation, identifier: Id) -> Self
+    pub fn new(animation: &Atlas, identifier: Id) -> Self
     {
         Self {
             id:           identifier,
@@ -593,7 +593,7 @@ impl AtlasAnimator
     #[allow(clippy::float_cmp)]
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    pub fn update(&mut self, animation: &AtlasAnimation, mut delta_time: f32)
+    pub fn update(&mut self, animation: &Atlas, mut delta_time: f32)
     {
         loop
         {

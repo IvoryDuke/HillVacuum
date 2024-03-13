@@ -5,13 +5,11 @@
 
 use arrayvec::ArrayVec;
 use bevy::prelude::Vec2;
-#[cfg(feature = "arena_alloc")]
-use blink_alloc::BlinkAlloc;
 use shared::{continue_if_none, NextValue};
 
 use super::{node::SplitSegments, RemoveResult};
 use crate::{
-    map::{hv_hash_map, hv_vec, AssertedInsertRemove, HvHashMap, HvVec},
+    map::{containers::hv_hash_map, hv_vec, AssertedInsertRemove, HvHashMap, HvVec},
     utils::{
         hull::Hull,
         identifiers::Id,
@@ -199,9 +197,6 @@ impl Vertex
     }
 
     #[inline]
-    pub fn entities_ids(&self) -> VertexIds<'_> { VertexIds(self.corners.iter()) }
-
-    #[inline]
     pub fn intersections(&self, intersections: &mut Intersections, split_segments: &SplitSegments)
     {
         for (id, corner) in &self.corners
@@ -240,21 +235,6 @@ impl Vertex
         self.corners.asserted_remove(&identifier);
         false
     }
-}
-
-//=======================================================================//
-
-pub(in crate::map::editor::state::manager::quad_tree) struct VertexIds<'a>(
-    hashbrown::hash_map::Iter<'a, Id, Corner>
-);
-
-impl<'a> Iterator for VertexIds<'a>
-{
-    type Item = &'a Id;
-
-    #[inline]
-    #[must_use]
-    fn next(&mut self) -> Option<Self::Item> { self.0.next().map(|(id, _)| id) }
 }
 
 //=======================================================================//
@@ -351,40 +331,6 @@ impl Vertexes
 
 //=======================================================================//
 
-pub(in crate::map::editor::state::manager::quad_tree) struct VertexesIds<'a>
-{
-    vertexes: &'a Vertexes,
-    iter:     VertexIds<'a>,
-    left:     usize
-}
-
-impl<'a> Iterator for VertexesIds<'a>
-{
-    type Item = &'a Id;
-
-    fn next(&mut self) -> Option<Self::Item>
-    {
-        let mut value = self.iter.next();
-
-        if value.is_none()
-        {
-            self.left += 1;
-
-            if self.left == self.vertexes.len()
-            {
-                return None;
-            }
-
-            self.iter = self.vertexes.0[self.left].entities_ids();
-            value = self.iter.next();
-        }
-
-        value
-    }
-}
-
-//=======================================================================//
-
 #[derive(Clone, Debug)]
 pub(in crate::map::editor::state::manager::quad_tree) struct Intersection
 {
@@ -458,7 +404,7 @@ impl Default for Intersections
 impl IntoIterator for Intersections
 {
     #[cfg(feature = "arena_alloc")]
-    type IntoIter = std::vec::IntoIter<Intersection, &'static BlinkAlloc>;
+    type IntoIter = std::vec::IntoIter<Intersection, &'static blink_alloc::BlinkAlloc>;
     #[cfg(not(feature = "arena_alloc"))]
     type IntoIter = smallvec::IntoIter<[Intersection; 1]>;
     type Item = Intersection;

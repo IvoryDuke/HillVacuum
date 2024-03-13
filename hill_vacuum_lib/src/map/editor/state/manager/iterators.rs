@@ -5,9 +5,22 @@
 
 use std::cell::Ref;
 
-use super::{entities_trees::Trees, AuxiliaryIds, BrushMut, EntitiesManager, Innards, ThingMut};
+use super::{
+    entities_trees::Trees,
+    AuxiliaryIds,
+    BrushMut,
+    EntitiesManager,
+    Innards,
+    MovingMut,
+    ThingMut
+};
 use crate::{
-    map::{brush::Brush, editor::state::manager::quad_tree::QuadTreeIds, thing::ThingInstance},
+    map::{
+        brush::Brush,
+        editor::state::manager::quad_tree::QuadTreeIds,
+        path::Moving,
+        thing::ThingInstance
+    },
     utils::{hull::Hull, identifiers::Id}
 };
 
@@ -178,6 +191,35 @@ impl<'a> SelectedBrushesMut<'a>
 
 //=======================================================================//
 
+#[must_use]
+pub(in crate::map::editor::state) struct SelectedThingsIter<'a>(
+    &'a EntitiesManager,
+    Ref<'a, QuadTreeIds>
+);
+
+impl<'a> SelectedThingsIter<'a>
+{
+    #[inline]
+    pub(in crate::map::editor::state::manager) const fn new(
+        manager: &'a EntitiesManager,
+        ids: Ref<'a, QuadTreeIds>
+    ) -> Self
+    {
+        Self(manager, ids)
+    }
+
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = &ThingInstance>
+    {
+        self.1
+            .ids()
+            .filter(|&id| self.0.is_selected(*id))
+            .map(|id| self.0.thing(*id))
+    }
+}
+
+//=======================================================================//
+
 /// An iterator to all selected [`ThingInstance`]s wrapped in [`ThingMut`].
 #[must_use]
 pub(in crate::map::editor::state::manager) struct SelectedThingsMut<'a>
@@ -209,6 +251,118 @@ impl<'a> Iterator for SelectedThingsMut<'a>
 impl<'a> SelectedThingsMut<'a>
 {
     /// Returns a new [`SelectedThingsMut`].
+    #[inline]
+    pub fn new(
+        manager: &'a mut Innards,
+        quad_trees: &'a mut Trees,
+        selected_brushes: &'a AuxiliaryIds
+    ) -> Self
+    {
+        Self {
+            iter: selected_brushes.iter(),
+            manager,
+            quad_trees
+        }
+    }
+}
+
+//=======================================================================//
+
+#[must_use]
+pub(in crate::map::editor::state) struct SelectedMovingsIter<'a>(
+    &'a EntitiesManager,
+    Ref<'a, QuadTreeIds>
+);
+
+impl<'a> SelectedMovingsIter<'a>
+{
+    #[inline]
+    pub(in crate::map::editor::state::manager) const fn new(
+        manager: &'a EntitiesManager,
+        ids: Ref<'a, QuadTreeIds>
+    ) -> Self
+    {
+        Self(manager, ids)
+    }
+
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = &dyn Moving>
+    {
+        self.1.ids().filter(|&id| self.0.is_selected(*id)).map(|id| {
+            if self.0.innards.is_thing(*id)
+            {
+                self.0.thing(*id) as &dyn Moving
+            }
+            else
+            {
+                self.0.brush(*id) as &dyn Moving
+            }
+        })
+    }
+}
+
+//=======================================================================//
+
+#[must_use]
+pub(in crate::map::editor::state) struct MovingsIter<'a>(&'a EntitiesManager, Ref<'a, QuadTreeIds>);
+
+impl<'a> MovingsIter<'a>
+{
+    #[inline]
+    pub(in crate::map::editor::state::manager) const fn new(
+        manager: &'a EntitiesManager,
+        ids: Ref<'a, QuadTreeIds>
+    ) -> Self
+    {
+        Self(manager, ids)
+    }
+
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = &dyn Moving>
+    {
+        self.1.ids().map(|id| {
+            if self.0.innards.is_thing(*id)
+            {
+                self.0.thing(*id) as &dyn Moving
+            }
+            else
+            {
+                self.0.brush(*id) as &dyn Moving
+            }
+        })
+    }
+}
+
+//=======================================================================//
+
+#[must_use]
+pub(in crate::map::editor::state::manager) struct SelectedMovingsMut<'a>
+{
+    iter:       hashbrown::hash_set::Iter<'a, Id>,
+    manager:    &'a mut Innards,
+    quad_trees: &'a mut Trees
+}
+
+impl<'a> Iterator for SelectedMovingsMut<'a>
+{
+    type Item = MovingMut<'a>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item>
+    {
+        unsafe {
+            self.iter.next().map(|id| {
+                std::ptr::from_mut(self.manager)
+                    .as_mut()
+                    .unwrap()
+                    .moving_mut(std::ptr::from_mut(self.quad_trees).as_mut().unwrap(), *id)
+            })
+        }
+    }
+}
+
+impl<'a> SelectedMovingsMut<'a>
+{
     #[inline]
     pub fn new(
         manager: &'a mut Innards,

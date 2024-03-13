@@ -90,7 +90,7 @@ impl OpenFile
     /// Returns the file path, if any.
     #[inline]
     #[must_use]
-    pub fn path(&self) -> Option<&PathBuf> { self.0.as_ref() }
+    pub const fn path(&self) -> Option<&PathBuf> { self.0.as_ref() }
 }
 
 //=======================================================================//

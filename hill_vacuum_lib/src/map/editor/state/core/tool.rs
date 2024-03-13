@@ -35,6 +35,7 @@ use crate::{
     config::controls::{bind::Bind, BindsKeyCodes},
     map::{
         brush::{convex_polygon::ConvexPolygon, Brush},
+        containers::HvHashSet,
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             state::{
@@ -57,7 +58,7 @@ use crate::{
     utils::{
         identifiers::{EntityId, Id},
         iterators::FilterSet,
-        math::polygons::convex_hull,
+        math::{polygons::convex_hull, HashVec2},
         misc::FromToStr
     }
 };
@@ -166,11 +167,9 @@ impl Snap
 {
     #[inline]
     #[must_use]
-    fn new(active_tool: &ActiveTool, manager: &EntitiesManager, alt_pressed: bool) -> Self
+    fn new(active_tool: &ActiveTool, manager: &EntitiesManager) -> Self
     {
-        if active_tool.ongoing_multi_frame_changes() ||
-            alt_pressed ||
-            manager.selected_brushes_amount() == 0
+        if active_tool.ongoing_multi_frame_changes() || manager.selected_brushes_amount() == 0
         {
             return Self::None;
         }
@@ -194,7 +193,7 @@ impl Snap
             Self::Brushes => Some(Brush::snap_vertexes),
             Self::Vertexes => Some(Brush::snap_selected_vertexes),
             Self::Sides => Some(Brush::snap_selected_sides),
-            Self::PathNodes => Some(Brush::snap_selected_path_nodes)
+            Self::PathNodes => panic!()
         }
     }
 }
@@ -257,7 +256,7 @@ impl EditingTarget
                 }
             },
             ActiveTool::Subtract(_) => Self::Subtract,
-            ActiveTool::Zoom(_) => prev_value,
+            ActiveTool::Zoom(_) | ActiveTool::MapPreview(_) => prev_value,
             _ => Self::Other
         }
     }
@@ -403,6 +402,18 @@ impl ActiveTool
 
     #[inline]
     #[must_use]
+    pub fn vx_merge_available(&self) -> bool
+    {
+        match self
+        {
+            Self::Vertex(t) => t.vx_merge_available(),
+            Self::Side(t) => t.vx_merge_available(),
+            _ => false
+        }
+    }
+
+    #[inline]
+    #[must_use]
     pub fn split_available(&self) -> bool
     {
         return_if_no_match!(self, Self::Vertex(t), t, false).split_available()
@@ -457,7 +468,7 @@ impl ActiveTool
         {
             clipboard.copy_platform_path(
                 manager,
-                return_if_none!(t.path_beneath_cursor(bundle, manager, inputs))
+                return_if_none!(t.selected_moving_beneath_cursor(bundle, manager, inputs))
             );
 
             return;
@@ -485,7 +496,7 @@ impl ActiveTool
                 clipboard.cut_platform_path(
                     manager,
                     edits_history,
-                    return_if_none!(t.path_beneath_cursor(bundle, manager, inputs))
+                    return_if_none!(t.selected_moving_beneath_cursor(bundle, manager, inputs))
                 );
 
                 return;
@@ -516,7 +527,7 @@ impl ActiveTool
             clipboard.paste_platform_path(
                 manager,
                 edits_history,
-                return_if_none!(t.path_beneath_cursor(bundle, manager, inputs))
+                return_if_none!(t.possible_moving_beneath_cursor(bundle, manager, inputs))
             );
 
             return;
@@ -630,7 +641,7 @@ impl ActiveTool
             Self::Path(_) =>
             {
                 edits_history.path_nodes_selection_cluster(
-                    manager.selected_platforms_mut().filter_map(|mut brush| {
+                    manager.selected_movings_mut().filter_map(|mut brush| {
                         brush.select_all_path_nodes().map(|idxs| (brush.id(), idxs))
                     })
                 );
@@ -754,8 +765,7 @@ impl ActiveTool
         edits_history: &mut EditsHistory,
         settings: &ToolsSettings,
         grid: Grid,
-        tool_change_conditions: &ChangeConditions,
-        alt_pressed: bool
+        tool_change_conditions: &ChangeConditions
     )
     {
         // Safety check.
@@ -785,14 +795,7 @@ impl ActiveTool
             Tool::Side => SideTool::tool(self.drag_selection()),
             Tool::Snap =>
             {
-                self.snap_tool(
-                    bundle.drawing_resources,
-                    manager,
-                    edits_history,
-                    settings,
-                    grid,
-                    alt_pressed
-                );
+                self.snap_tool(bundle.drawing_resources, manager, edits_history, settings, grid);
                 return;
             },
             Tool::Zoom => ZoomTool::tool(self.drag_selection(), self),
@@ -815,7 +818,7 @@ impl ActiveTool
             },
             Tool::Merge =>
             {
-                self.merge_tool(manager, edits_history, alt_pressed);
+                self.merge_tool(manager, edits_history);
                 return;
             },
             Tool::Path => PathTool::tool(self.drag_selection()),
@@ -831,20 +834,19 @@ impl ActiveTool
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         settings: &ToolsSettings,
-        grid: Grid,
-        alt_pressed: bool
+        grid: Grid
     )
     {
-        let snap = Snap::new(self, manager, alt_pressed);
+        let snap = Snap::new(self, manager);
         let mut snapped = false;
 
         if let Snap::PathNodes = snap
         {
-            for mut brush in manager.selected_platforms_mut()
+            for mut moving in manager.selected_movings_mut()
             {
                 edits_history.path_nodes_snap(
-                    brush.id(),
-                    continue_if_none!(brush.snap_selected_path_nodes(drawing_resources, grid))
+                    moving.id(),
+                    continue_if_none!(moving.snap_selected_path_nodes(grid))
                 );
             }
         }
@@ -902,8 +904,9 @@ impl ActiveTool
             return;
         }
 
-        self.instantaneous_tools_fallback(manager, edits_history);
-        manager.replace_selected_brushes(wall_brushes.into_iter(), edits_history);
+        self.draw_tool_despawn(manager, edits_history, move |manager, edits_history| {
+            manager.replace_selected_brushes(wall_brushes.into_iter(), edits_history);
+        });
     }
 
     #[inline]
@@ -947,14 +950,15 @@ impl ActiveTool
             }
         }
 
-        manager.despawn_selected_brushes(edits_history);
-
         // Spawn the intersection brush.
-        if success
-        {
-            self.instantaneous_tools_fallback(manager, edits_history);
-            manager.spawn_brushes(Some(intersection_polygon).into_iter(), edits_history);
-        }
+        self.draw_tool_despawn(manager, edits_history, |manager, edits_history| {
+            manager.despawn_selected_brushes(edits_history);
+
+            if success
+            {
+                manager.spawn_brushes(Some(intersection_polygon).into_iter(), edits_history);
+            }
+        });
 
         self.update_outline(manager, settings, grid);
     }
@@ -966,99 +970,103 @@ impl ActiveTool
         sides: bool
     )
     {
-        let mut brushes_with_selected_sides = 0;
-        let mut vertexes = Vec::with_capacity(manager.selected_brushes_amount());
+        let mut vertexes = HvHashSet::new();
 
         if sides
         {
             for vxs in manager.selected_brushes().filter_map(Brush::selected_sides_vertexes)
             {
-                vertexes.extend(vxs);
-                brushes_with_selected_sides += 1;
+                vertexes.extend(vxs.map(HashVec2));
             }
         }
         else
         {
             for vxs in manager.selected_brushes().filter_map(Brush::selected_vertexes)
             {
-                vertexes.extend(vxs);
-                brushes_with_selected_sides += 1;
+                vertexes.extend(vxs.map(HashVec2));
             }
         }
 
-        if brushes_with_selected_sides > 1 && vertexes.len() > 2
+        if vertexes.len() < 3
         {
-            manager.deselect_selected_entities(edits_history);
-            manager.spawn_brush(
-                ConvexPolygon::from(
-                    hv_vec![collect; convex_hull(std::mem::take(&mut vertexes).into_iter())]
-                ),
-                edits_history
-            );
+            return;
         }
+
+        let vertexes = return_if_none!(convex_hull(vertexes));
+        manager.deselect_selected_entities(edits_history);
+        manager.spawn_brush(ConvexPolygon::from(hv_vec![collect; vertexes]), edits_history);
     }
 
     #[inline]
-    fn merge_tool(
-        &mut self,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        alt_pressed: bool
-    )
+    fn merge_tool(&mut self, manager: &mut EntitiesManager, edits_history: &mut EditsHistory)
     {
-        if alt_pressed
-        {
-            match self
+        // Place all vertexes of the selected brushes in one vector.
+        let mut vertexes = HvHashSet::new();
+        let mut brushes = manager.selected_brushes();
+
+        let mut texture = {
+            let first = brushes.next_value();
+            let second = brushes.next_value();
+
+            for brush in manager.selected_brushes()
             {
-                Self::Vertex(_) =>
-                {
-                    Self::merge_vertexes(manager, edits_history, false);
-                    return;
-                },
-                Self::Side(_) =>
-                {
-                    Self::merge_vertexes(manager, edits_history, true);
-                    return;
-                },
-                _ => ()
+                vertexes.extend(brush.vertexes().map(HashVec2));
+            }
+
+            match (first.texture_settings(), second.texture_settings())
+            {
+                (Some(t_1), Some(t_2)) if *t_1 == *t_2 => t_1.clone().into(),
+                _ => None
+            }
+        };
+
+        while texture.is_some()
+        {
+            let brush = match brushes.next()
+            {
+                Some(brush) => brush,
+                None => break
+            };
+
+            match brush.texture_settings()
+            {
+                Some(tex) if *tex == *texture.as_ref().unwrap() => (),
+                _ => texture = None
             };
         }
 
-        // Place all vertexes of the selected brushes in one vector.
-        let mut vertexes = Vec::with_capacity(manager.selected_brushes_amount() * 3);
-
-        for vxs in manager.selected_brushes().map(Brush::vertexes)
+        for brush in brushes
         {
-            for vx in vxs
-            {
-                if !vertexes.contains(&vx)
-                {
-                    vertexes.push(vx);
-                }
-            }
+            vertexes.extend(brush.vertexes().map(HashVec2));
         }
 
-        // Spawn and despawn.
-        self.instantaneous_tools_fallback(manager, edits_history);
+        self.draw_tool_despawn(manager, edits_history, |manager, edits_history| {
+            let mut poly = ConvexPolygon::from(hv_vec![collect; convex_hull(vertexes).unwrap()]);
 
-        manager.replace_selected_brushes(
-            Some(ConvexPolygon::from(hv_vec![collect; convex_hull(vertexes.into_iter())]))
-                .into_iter(),
-            edits_history
-        );
+            if let Some(texture) = texture
+            {
+                poly.set_texture_settings(texture);
+            }
+
+            manager.replace_selected_brushes(Some(poly).into_iter(), edits_history);
+        });
     }
 
     #[inline]
-    fn instantaneous_tools_fallback(
+    fn draw_tool_despawn<F>(
         &mut self,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory
-    )
+        edits_history: &mut EditsHistory,
+        f: F
+    ) where
+        F: FnOnce(&mut EntitiesManager, &mut EditsHistory)
     {
         if let Self::Draw(t) = self
         {
             t.despawn_drawn_brushes(manager, edits_history);
         }
+
+        f(manager, edits_history);
     }
 
     #[inline]
@@ -1099,6 +1107,13 @@ impl ActiveTool
             Self::Paint(_) =>
             {
                 if manager.selected_entities_amount() != 0 || clipboard.props_amount() != 0
+                {
+                    return;
+                }
+            },
+            Self::Path(_) =>
+            {
+                if manager.selected_entities_amount() != 0
                 {
                     return;
                 }
@@ -1200,11 +1215,11 @@ impl ActiveTool
             {
                 let color = if manager.is_selected(brush.id())
                 {
-                    Color::SelectedBrush
+                    Color::SelectedEntity
                 }
                 else
                 {
-                    Color::NonSelectedBrush
+                    Color::NonSelectedEntity
                 };
 
                 brush.draw_sprite(drawer, color);
@@ -1214,7 +1229,7 @@ impl ActiveTool
         // Things
         match tool
         {
-            ActiveTool::Entity(_) | ActiveTool::Thing(_) => (),
+            ActiveTool::Entity(_) | ActiveTool::Thing(_) | ActiveTool::Path(_) => (),
             ActiveTool::Paint(_) =>
             {
                 draw_selected_and_non_selected_things!(bundle, manager);
@@ -1527,23 +1542,24 @@ impl SubTool
 
 pub(in crate::map::editor::state) struct ChangeConditions
 {
-    ongoing_multi_frame_changes:  bool,
-    ctrl_pressed:                 bool,
-    space_pressed:                bool,
-    alt_pressed:                  bool,
+    ongoing_multi_frame_changes: bool,
+    ctrl_pressed: bool,
+    space_pressed: bool,
     vertex_rounding_availability: bool,
-    path_simulation_active:       bool,
-    quick_prop:                   bool,
-    split_available:              bool,
-    xtrusion_available:           bool,
-    things_catalog_empty:         bool,
-    no_props:                     bool,
-    brushes_amount:               usize,
-    selected_brushes_amount:      usize,
-    things_amount:                usize,
-    selected_things_amount:       usize,
-    selected_paths_amount:        usize,
-    settings:                     ToolsSettings
+    path_simulation_active: bool,
+    quick_prop: bool,
+    vx_merge_available: bool,
+    split_available: bool,
+    xtrusion_available: bool,
+    things_catalog_empty: bool,
+    no_props: bool,
+    brushes_amount: usize,
+    selected_brushes_amount: usize,
+    things_amount: usize,
+    selected_things_amount: usize,
+    selected_platforms_amount: usize,
+    any_selected_possible_platforms: bool,
+    settings: ToolsSettings
 }
 
 impl ChangeConditions
@@ -1558,22 +1574,20 @@ impl ChangeConditions
         settings: &ToolsSettings
     ) -> Self
     {
-        let alt_pressed = inputs.alt_pressed();
-
         Self {
             ongoing_multi_frame_changes: core.active_tool.ongoing_multi_frame_changes(),
             ctrl_pressed: inputs.ctrl_pressed(),
             space_pressed: inputs.space.pressed(),
-            alt_pressed,
-            vertex_rounding_availability: Snap::new(&core.active_tool, manager, alt_pressed) !=
-                Snap::None,
+            vertex_rounding_availability: Snap::new(&core.active_tool, manager) != Snap::None,
             path_simulation_active: core.active_tool.path_simulation_active(),
             quick_prop: clipboard.has_quick_prop(),
+            vx_merge_available: core.active_tool.vx_merge_available(),
             split_available: core.active_tool.split_available(),
             xtrusion_available: core.active_tool.xtrusion_available(),
             selected_brushes_amount: manager.selected_brushes_amount(),
             brushes_amount: manager.brushes_amount(),
-            selected_paths_amount: manager.selected_platforms_amount(),
+            selected_platforms_amount: manager.selected_moving_amount(),
+            any_selected_possible_platforms: manager.any_selected_possible_moving(),
             settings: *settings,
             things_catalog_empty: things_catalog.is_empty(),
             things_amount: manager.things_amount(),

@@ -7,7 +7,7 @@ use std::path::Path;
 
 use bevy::{
     ecs::system::{Res, Resource},
-    math::Vec2
+    math::{UVec2, Vec2}
 };
 use bevy_egui::egui;
 use configparser::ini::Ini;
@@ -16,12 +16,12 @@ use shared::{continue_if_err, continue_if_none};
 use super::{Thing, ThingId, ThingInstance};
 use crate::{
     map::{
+        containers::{hv_hash_map, hv_vec},
         drawer::drawing_resources::DrawingResources,
-        hv_hash_map,
-        hv_vec,
         ordered_map::IndexedMap,
         AssertedInsertRemove,
-        HvHashMap
+        HvHashMap,
+        HvVec
     },
     utils::identifiers::Id,
     MapThing
@@ -106,63 +106,72 @@ impl ThingsCatalog
         const THINGS_DIR: &str = "assets/things/";
 
         #[inline]
-        fn recurse(path: &Path, ini: &mut Ini)
+        fn recurse(path: &Path, inis: &mut HvVec<Ini>)
         {
             if path.is_file()
             {
-                ini.load(path).ok();
+                let mut ini = Ini::new_cs();
+
+                if ini.load(path).is_ok()
+                {
+                    inis.push(ini);
+                }
+
                 return;
             }
 
             for entry in std::fs::read_dir(path).unwrap()
             {
-                recurse(&entry.unwrap().path(), ini);
+                recurse(&entry.unwrap().path(), inis);
             }
         }
 
         std::fs::create_dir_all(THINGS_DIR).ok();
-        let mut config = Ini::new_cs();
-        recurse(Path::new(THINGS_DIR), &mut config);
+        let mut configs = hv_vec![];
+        recurse(Path::new(THINGS_DIR), &mut configs);
 
         let mut things = hv_vec![collect; hardcoded_things.values().cloned()];
 
-        'outer: for (name, values) in config.get_map_ref()
+        for ini in configs
         {
-            macro_rules! value {
-                ($key:literal, $t:ty) => {
-                    continue_if_err!(continue_if_none!(values.get($key))
-                        .as_ref()
-                        .unwrap()
-                        .parse::<$t>())
-                };
-            }
-
-            let id = value!("id", u16);
-
-            if id == Self::ERROR_ID
+            'outer: for (name, values) in ini.get_map_ref()
             {
-                continue;
-            }
-
-            let new_thing = continue_if_none!(Thing::new(
-                name,
-                id,
-                value!("width", f32),
-                value!("height", f32),
-                continue_if_none!(values.get("preview")).as_ref().unwrap()
-            ));
-            let id = new_thing.id;
-
-            for thing in &mut things
-            {
-                if thing.id == id
-                {
-                    *thing = new_thing;
-                    continue 'outer;
+                macro_rules! value {
+                    ($key:literal, $t:ty) => {
+                        continue_if_err!(continue_if_none!(values.get($key))
+                            .as_ref()
+                            .unwrap()
+                            .parse::<$t>())
+                    };
                 }
-            }
 
-            things.push(new_thing);
+                let id = value!("id", u16);
+
+                if id == Self::ERROR_ID
+                {
+                    continue;
+                }
+
+                let new_thing = continue_if_none!(Thing::new(
+                    name,
+                    id,
+                    value!("width", f32),
+                    value!("height", f32),
+                    continue_if_none!(values.get("preview")).as_ref().unwrap()
+                ));
+                let id = new_thing.id;
+
+                for thing in &mut things
+                {
+                    if thing.id == id
+                    {
+                        *thing = new_thing;
+                        continue 'outer;
+                    }
+                }
+
+                things.push(new_thing);
+            }
         }
 
         things.sort_by(|a, b| a.name.cmp(&b.name));
@@ -250,7 +259,7 @@ impl ThingsCatalog
         &'a self,
         chunk_size: usize,
         drawing_resources: &'a DrawingResources
-    ) -> impl ExactSizeIterator<Item = impl Iterator<Item = (usize, egui::TextureId, &'a str)>>
+    ) -> impl ExactSizeIterator<Item = impl Iterator<Item = (usize, egui::TextureId, UVec2, &'a str)>>
     {
         self.things
             .chunks(chunk_size)
@@ -259,11 +268,8 @@ impl ThingsCatalog
                 let mut index = index * chunk_size;
 
                 things.iter().map(move |thing| {
-                    let value = (
-                        index,
-                        drawing_resources.egui_texture(&thing.preview).0,
-                        thing.name.as_str()
-                    );
+                    let texture = drawing_resources.egui_texture(&thing.preview);
+                    let value = (index, texture.0, texture.1, thing.name.as_str());
                     index += 1;
                     value
                 })

@@ -9,7 +9,7 @@ use bevy::prelude::Vec2;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    map::{brush::selectable_vector::SelectableVector, HvVec},
+    map::{selectable_vector::SelectableVector, HvVec},
     utils::math::AroundEqual
 };
 
@@ -262,7 +262,7 @@ impl Node
     /// Creates a new [`Node`].
     #[inline]
     #[must_use]
-    pub(in crate::map::brush::path) fn new(vec: Vec2, selected: bool) -> Self
+    pub(in crate::map::path) fn new(vec: Vec2, selected: bool) -> Self
     {
         Self {
             selectable_vector: SelectableVector::with_selected(vec, selected),
@@ -274,11 +274,7 @@ impl Node
     /// `center` is the center of the [`Brush`] this [`Node`] is being assigned to.
     #[inline]
     #[must_use]
-    pub(in crate::map::brush::path) fn from_world_pos(
-        pos: Vec2,
-        selected: bool,
-        center: Vec2
-    ) -> Self
+    pub(in crate::map::path) fn from_world_pos(pos: Vec2, selected: bool, center: Vec2) -> Self
     {
         Self::new(pos - center, selected)
     }
@@ -296,7 +292,7 @@ impl Node
 
 /// A [`Node`] of a [`Path`] expressed in world coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::map::brush) struct NodeWorld(pub Vec2, pub bool);
+pub(in crate::map) struct NodeWorld(pub Vec2, pub bool);
 
 impl NodeWorld
 {
@@ -319,7 +315,7 @@ impl NodeWorld
 /// A [`Node`] of a [`Path`] expressed in world coordinates that can mutate the selection status of
 /// the aforementioned [`Node`].
 #[derive(Debug)]
-pub(in crate::map::brush) struct NodeWorldMut<'a>(pub Vec2, pub &'a mut bool);
+pub(in crate::map) struct NodeWorldMut<'a>(pub Vec2, pub &'a mut bool);
 
 impl<'a> NodeWorldMut<'a>
 {
@@ -335,7 +331,7 @@ impl<'a> NodeWorldMut<'a>
 //=======================================================================//
 
 /// The [`Node`]s of a [`Path`] expressed in world coordinates.
-pub(in crate::map::brush) struct NodesWorld<'a>
+pub(in crate::map) struct NodesWorld<'a>
 {
     /// The [`Node`]s.
     slice:  &'a HvVec<Node>,
@@ -364,7 +360,7 @@ impl<'a> NodesWorld<'a>
 //=======================================================================//
 
 /// The [`Node`]s of a [`Path`] expressed in world coordinates through [`NodeWorldMut`].
-pub(in crate::map::brush) struct NodesWorldMut<'a>
+pub(in crate::map) struct NodesWorldMut<'a>
 {
     /// The [`Node`]s.
     slice:  &'a mut HvVec<Node>,
@@ -394,7 +390,7 @@ impl<'a> NodesWorldMut<'a>
 /// The iterator also represents the [`Node`] candidate that overlaps the first [`Node`] of the
 /// [`Path`] and that cannot be insertedin it without a second one.
 #[derive(Clone)]
-pub(in crate::map::brush) struct NodesInsertionIter<'a>
+pub(in crate::map) struct NodesInsertionIter<'a>
 {
     /// The [`Node`]s of the [`Path`] the new [`Node`] is being inserted into.
     slice:             &'a HvVec<Node>,

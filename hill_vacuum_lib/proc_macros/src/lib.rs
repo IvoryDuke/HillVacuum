@@ -254,8 +254,10 @@ pub fn str_array(input: TokenStream) -> TokenStream
 #[proc_macro]
 pub fn color_height(input: TokenStream) -> TokenStream
 {
+    const COLOR_HEIGHT_RANGE: f32 = 2f32;
+
     let textures_interval: f32 = draw_height_to_world(*TEXTURE_HEIGHT_RANGE.end());
-    let textures_and_lines_interval: f32 = textures_interval + 1.5f32;
+    let textures_and_lines_interval: f32 = textures_interval + COLOR_HEIGHT_RANGE;
 
     let mut color_height = "
     /// The height at which map elements colored with a certain [`Color`] should be drawn.
@@ -299,21 +301,28 @@ pub fn color_height(input: TokenStream) -> TokenStream
     /// The draw height of the lines.
     #[inline]
     #[must_use]
-    pub(in crate::map::drawer) fn noclip_height(self) -> f32 {{ self.height() + {}f32 }}
+    pub(in crate::map::drawer) fn clip_height(self) -> f32 {{ self.height() + {}f32 }}
 
     /// The draw height of the lines.
     #[inline]
     #[must_use]
     pub(in crate::map::drawer) fn line_height(self) -> f32 {{ self.height() + {}f32 }}
 
+    /// The draw height of the lines.
+    #[inline]
+    #[must_use]
+    pub(in crate::map::drawer) fn thing_angle_indicator_height(self) -> f32 {{ self.height() + \
+         {}f32 }}
+
     /// The draw height of the square highlights.
     #[inline]
     #[must_use]
     pub(in crate::map::drawer) fn square_hgl_height(self) -> f32 {{ self.height() + {}f32 }}
     ",
-        textures_interval + 0.5f32,
-        textures_interval + 1f32,
-        textures_interval + 1.5f32,
+        textures_interval + COLOR_HEIGHT_RANGE / 4f32,
+        textures_interval + COLOR_HEIGHT_RANGE / 2f32,
+        textures_interval + COLOR_HEIGHT_RANGE / 4f32 * 3f32,
+        textures_interval + COLOR_HEIGHT_RANGE,
     )
     .parse()
     .unwrap()
@@ -570,17 +579,19 @@ pub fn declare_tool_enum(input: TokenStream) -> TokenStream
 
                 match self
                 {{
-                    Self::Square | Self::Triangle | Self::Circle | Self::FreeDraw => true,
+                    Self::Square | Self::Triangle | Self::Circle | Self::FreeDraw | Self::Zoom => \
+         true,
                     Self::Thing => !change_conditions.things_catalog_empty || \
          change_conditions.selected_things_amount != 0,
-                    Self::Zoom => !change_conditions.alt_pressed,
                     Self::Entity => change_conditions.brushes_amount + \
          change_conditions.things_amount > 0,
                     Self::Paint => change_conditions.selected_brushes_amount + \
          change_conditions.selected_things_amount > 0 || !change_conditions.no_props,
                     Self::Vertex | Self::Side | Self::Clip | Self::Shatter | Self::Scale |
-                    Self::Shear | Self::Rotate | Self::Flip | Self::Hollow |
-                    Self::Path => change_conditions.selected_brushes_amount != 0,
+                    Self::Shear | Self::Rotate | Self::Flip | Self::Hollow => \
+         change_conditions.selected_brushes_amount != 0,
+                    Self::Path => change_conditions.selected_platforms_amount != 0 || \
+         change_conditions.any_selected_possible_platforms,
                     Self::Snap => change_conditions.vertex_rounding_availability,
                     Self::Merge | Self::Intersection =>
                     {{
@@ -707,7 +718,7 @@ pub fn subtool_enum(input: TokenStream) -> TokenStream
                     return
                         (change_conditions.path_simulation_active ||
                             self.tool().change_conditions_met(change_conditions)) &&
-                        change_conditions.selected_paths_amount != 0;
+                        change_conditions.selected_platforms_amount != 0;
                 }}
 
                 if !self.tool().change_conditions_met(change_conditions)
@@ -730,15 +741,15 @@ pub fn subtool_enum(input: TokenStream) -> TokenStream
                             change_conditions.settings.target_switch() != TargetSwitch::Texture
                     }},
                     Self::VertexSplit => change_conditions.split_available,
+                    Self::VertexPolygonToPath => \
+         Tool::Path.change_conditions_met(change_conditions),
                     Self::SideXtrusion => change_conditions.xtrusion_available,
                     Self::PaintQuick => change_conditions.quick_prop,
+                    Self::VertexMerge | Self::SideMerge => change_conditions.vx_merge_available,
                     Self::VertexInsert |
-                    Self::VertexPolygonToPath |
                     Self::PathFreeDraw |
                     Self::PathAddNode => true,
-                    Self::VertexMerge |
-                    Self::ClipSide |
-                    Self::SideMerge => change_conditions.selected_brushes_amount > 1,
+                    Self::ClipSide => change_conditions.selected_brushes_amount > 1,
                     Self::PathSimulation => unreachable!()
                 }}
             }}

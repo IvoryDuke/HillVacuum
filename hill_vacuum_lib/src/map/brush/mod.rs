@@ -1,7 +1,5 @@
 pub(in crate::map) mod convex_polygon;
 pub mod mover;
-pub mod path;
-pub(in crate::map) mod selectable_vector;
 
 //=======================================================================//
 // IMPORTS
@@ -13,7 +11,6 @@ use std::borrow::Cow;
 use arrayvec::ArrayVec;
 use bevy::prelude::{Transform, Vec2, Window};
 use bevy_egui::egui;
-use selectable_vector::SelectableVector;
 use serde::{
     de::{MapAccess, Visitor},
     ser::SerializeStruct,
@@ -36,17 +33,7 @@ use self::{
         VertexesMove,
         XtrusionInfo
     },
-    mover::{Motor, Mover},
-    path::{
-        overall_values::OverallMovement,
-        MovementSimulator,
-        MovementValueEdit,
-        NodeSelectionResult,
-        NodesMove,
-        Path,
-        StandbyValueEdit
-    },
-    selectable_vector::VectorSelectionResult
+    mover::Mover
 };
 use super::{
     drawer::{
@@ -67,11 +54,21 @@ use super::{
     editor::state::{
         clipboard::{ClipboardData, CopyToClipboard},
         grid::Grid,
-        manager::{Animators, Brushes, BrushesMut}
+        manager::{Animators, Brushes}
     },
     hv_vec,
-    HvVec,
-    OutOfBounds
+    path::{
+        calc_path_hull,
+        common_edit_path,
+        EditPath,
+        MovementSimulator,
+        Moving,
+        NodesDeletionPayload,
+        Path
+    },
+    selectable_vector::VectorSelectionResult,
+    thing::catalog::ThingsCatalog,
+    HvVec
 };
 use crate::utils::{
     hull::{EntityHull, Flip, Hull},
@@ -107,30 +104,6 @@ macro_rules! flip_funcs {
 }
 
 //=======================================================================//
-
-macro_rules! path_nodes_value {
-    ($(($value:ident, $t:ty)),+) => { paste::paste! { $(
-        #[inline]
-        pub fn [< set_selected_path_nodes_ $value >](&mut self, value: f32) -> Option<$t>
-        {
-            self.path_mut_set_dirty().[< set_selected_nodes_ $value >](value)
-        }
-
-        #[inline]
-        pub fn [< undo_path_nodes_ $value _edit >](&mut self, edit: &$t)
-        {
-            self.path_mut_set_dirty().[< undo_ $value _edit >](edit)
-        }
-
-        #[inline]
-        pub fn [< redo_path_nodes_ $value _edit >](&mut self, edit: &$t)
-        {
-            self.path_mut_set_dirty().[< redo_ $value _edit >](edit)
-        }
-    )+}};
-}
-
-//=======================================================================//
 // TRAITS
 //
 //=======================================================================//
@@ -152,9 +125,7 @@ impl_payload_id!(
     VertexesMovePayload,
     SplitPayload,
     XtrusionPayload,
-    NodesDeletionPayload,
     SidesDeletionPayload,
-    NodesMovePayload,
     ScalePayload,
     ShearPayload,
     RotatePayload
@@ -203,35 +174,6 @@ impl VertexesMovePayload
         self.1.paired_moved_indexes()
     }
 }
-
-//=======================================================================//
-
-#[must_use]
-pub(in crate::map) enum NodesMoveResult
-{
-    None,
-    Invalid,
-    Valid(NodesMovePayload)
-}
-
-impl From<(path::NodesMoveResult, Id)> for NodesMoveResult
-{
-    #[inline]
-    fn from(value: (path::NodesMoveResult, Id)) -> Self
-    {
-        use path::NodesMoveResult;
-
-        match value.0
-        {
-            NodesMoveResult::None => Self::None,
-            NodesMoveResult::Invalid => Self::Invalid,
-            NodesMoveResult::Valid(m) => Self::Valid(NodesMovePayload(value.1, m))
-        }
-    }
-}
-
-#[must_use]
-pub(in crate::map) struct NodesMovePayload(Id, NodesMove);
 
 //=======================================================================//
 
@@ -300,37 +242,6 @@ impl XtrusionPayload
     #[must_use]
     pub const fn info(&self) -> &XtrusionInfo { &self.1 }
 }
-
-//=======================================================================//
-
-#[must_use]
-#[derive(Debug)]
-pub(in crate::map) enum NodesDeletionResult
-{
-    None,
-    Invalid,
-    Valid(NodesDeletionPayload)
-}
-
-impl From<(path::NodesDeletionResult, Id)> for NodesDeletionResult
-{
-    #[inline]
-    fn from(value: (path::NodesDeletionResult, Id)) -> Self
-    {
-        use path::NodesDeletionResult;
-
-        match value.0
-        {
-            NodesDeletionResult::None => Self::None,
-            NodesDeletionResult::Invalid => Self::Invalid,
-            NodesDeletionResult::Valid(nodes) => Self::Valid(NodesDeletionPayload(value.1, nodes))
-        }
-    }
-}
-
-#[must_use]
-#[derive(Debug)]
-pub(in crate::map) struct NodesDeletionPayload(Id, HvVec<(Vec2, u8)>);
 
 //=======================================================================//
 
@@ -660,16 +571,201 @@ impl EntityId for Brush
     fn id_as_ref(&self) -> &Id { &self.id }
 }
 
+impl EntityCenter for Brush
+{
+    #[inline]
+    fn center(&self) -> Vec2 { self.center() }
+}
+
+impl Moving for Brush
+{
+    #[inline]
+    fn path(&self) -> Option<&Path> { self.mover.path() }
+
+    #[inline]
+    fn has_path(&self) -> bool { self.mover.has_path() }
+
+    #[inline]
+    fn possible_moving(&self) -> bool { matches!(self.mover, Mover::None | Mover::Anchors(_)) }
+
+    #[inline]
+    fn draw_highlighted_with_path_nodes(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        egui_context: &egui::Context,
+        brushes: Brushes,
+        _: &ThingsCatalog,
+        drawer: &mut EditDrawer,
+        show_tooltips: bool
+    )
+    {
+        self.draw_with_color(camera, drawer, Color::HighlightedSelectedBrush);
+        self.path().unwrap().draw(
+            window,
+            camera,
+            egui_context,
+            drawer,
+            self.center(),
+            show_tooltips
+        );
+        self.draw_anchored_brushes(camera, brushes, drawer, Self::draw_highlighted_selected);
+    }
+
+    #[inline]
+    fn draw_with_highlighted_path_node(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        egui_context: &egui::Context,
+        brushes: Brushes,
+        _: &ThingsCatalog,
+        drawer: &mut EditDrawer,
+        highlighted_node: usize,
+        show_tooltips: bool
+    )
+    {
+        self.draw_with_color(camera, drawer, Color::HighlightedSelectedBrush);
+        self.path().unwrap().draw_with_highlighted_path_node(
+            window,
+            camera,
+            egui_context,
+            drawer,
+            self.center(),
+            highlighted_node,
+            show_tooltips
+        );
+        self.draw_anchored_brushes(camera, brushes, drawer, Self::draw_selected);
+    }
+
+    #[inline]
+    fn draw_with_path_node_addition(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        egui_context: &egui::Context,
+        brushes: Brushes,
+        _: &ThingsCatalog,
+        drawer: &mut EditDrawer,
+        pos: Vec2,
+        idx: usize,
+        show_tooltips: bool
+    )
+    {
+        self.draw_with_color(camera, drawer, Color::HighlightedSelectedBrush);
+        self.path().unwrap().draw_with_node_insertion(
+            window,
+            camera,
+            egui_context,
+            drawer,
+            pos,
+            idx,
+            self.center(),
+            show_tooltips
+        );
+        self.draw_anchored_brushes(camera, brushes, drawer, Self::draw_selected);
+    }
+
+    #[inline]
+    fn draw_movement_simulation(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        egui_context: &egui::Context,
+        brushes: Brushes,
+        _: &ThingsCatalog,
+        drawer: &mut EditDrawer,
+        show_tooltips: bool,
+        simulator: &MovementSimulator
+    )
+    {
+        assert!(self.id == simulator.id(), "Simulator's ID is not equal to the Brush's ID.");
+
+        let movement_vec = simulator.movement_vec();
+        let center = self.center();
+
+        self.polygon.draw_movement_simulation(camera, drawer, movement_vec);
+        self.path().unwrap().draw_movement_simulation(
+            window,
+            camera,
+            egui_context,
+            drawer,
+            center,
+            movement_vec,
+            show_tooltips
+        );
+
+        let anchors = return_if_none!(self.anchors_iter());
+        let center = center + movement_vec;
+
+        for id in anchors
+        {
+            let a_center = brushes.get(*id).center() + movement_vec;
+            drawer.square_highlight(a_center, Color::BrushAnchor);
+            drawer.line(a_center, center, Color::BrushAnchor);
+
+            brushes
+                .get(*id)
+                .polygon
+                .draw_movement_simulation(camera, drawer, movement_vec);
+        }
+    }
+
+    #[inline]
+    fn draw_map_preview_movement_simulation(
+        &self,
+        camera: &Transform,
+        brushes: Brushes,
+        _: &ThingsCatalog,
+        drawer: &mut MapPreviewDrawer,
+        animators: &Animators,
+        simulator: &MovementSimulator
+    )
+    {
+        assert!(self.id == simulator.id(), "Simulator's ID is not equal to the Brush's ID.");
+
+        let movement_vec = simulator.movement_vec();
+        self.polygon.draw_map_preview_movement_simulation(
+            camera,
+            drawer,
+            animators.get(self.id),
+            movement_vec
+        );
+        let anchors = return_if_none!(self.anchors_iter());
+
+        for id in anchors
+        {
+            brushes.get(*id).polygon.draw_map_preview_movement_simulation(
+                camera,
+                drawer,
+                animators.get(*id),
+                movement_vec
+            );
+        }
+    }
+}
+
+impl EditPath for Brush
+{
+    common_edit_path!();
+
+    #[inline]
+    fn set_path(&mut self, path: Path)
+    {
+        self.path_edited = true;
+        self.mover.set_path(path);
+    }
+
+    #[inline]
+    fn take_path(&mut self) -> Path
+    {
+        self.path_edited = true;
+        self.mover.take_path()
+    }
+}
+
 impl Brush
 {
-    path_nodes_value!(
-        (standby_time, StandbyValueEdit),
-        (max_speed, MovementValueEdit),
-        (min_speed, MovementValueEdit),
-        (accel_travel_percentage, MovementValueEdit),
-        (decel_travel_percentage, MovementValueEdit)
-    );
-
     //==============================================================
     // Flip
 
@@ -706,7 +802,6 @@ impl Brush
 
     #[inline]
     pub fn from_parts<'a, 'b>(
-        mut brushes: BrushesMut<'b>,
         polygon: impl Into<Cow<'a, ConvexPolygon>>,
         mover: Mover,
         identifier: Id
@@ -717,23 +812,15 @@ impl Brush
         match mover
         {
             Mover::None => (),
-            mover @ Mover::Anchors(..) =>
-            {
-                brush.mover = mover;
-                brush.attach_anchors(brushes);
-            },
-            Mover::Motor(motor) =>
-            {
-                brush.mover.apply_motor(motor);
-                brush.attach_anchors(brushes);
-            },
+            Mover::Anchors(anchors) => brush.mover = Mover::Anchors(anchors),
+            Mover::Motor(motor) => brush.mover.apply_motor(motor),
             Mover::Anchored(anchor_id) =>
             {
                 assert!(
                     anchor_id != identifier,
                     "Anchor ID {anchor_id:?} is equal to the Brush ID"
                 );
-                brushes.get_mut(anchor_id).insert_anchor(&mut brush);
+                brush.mover = Mover::Anchored(anchor_id);
             }
         };
 
@@ -741,28 +828,7 @@ impl Brush
     }
 
     //==============================================================
-    // Despawn
-
-    #[inline]
-    pub fn despawn(identifier: Id, mut brushes: BrushesMut)
-    {
-        let mut brush =
-            unsafe { std::ptr::addr_of_mut!(brushes).as_mut().unwrap() }.get_mut(identifier);
-
-        match &brush.mover
-        {
-            Mover::None => (),
-            Mover::Anchors(..) | Mover::Motor(_) => brush.detach_anchors(brushes),
-            Mover::Anchored(id) => brushes.get_mut(*id).mover.remove_anchor(brush.id)
-        };
-    }
-
-    //==============================================================
     // Info
-
-    #[inline]
-    #[must_use]
-    pub fn sides(&self) -> u8 { u8::try_from(self.polygon.sides()).unwrap() }
 
     /// Returns an iterator to the vertexes of the underlying `ConvexPolygon`.
     #[inline]
@@ -800,30 +866,6 @@ impl Brush
     /// Returns a copy of the underlying `ConvexPolygon`.
     #[inline]
     pub fn polygon(&self) -> ConvexPolygon { self.polygon.clone() }
-
-    #[inline]
-    #[must_use]
-    pub fn path_hull(&self) -> Option<Hull>
-    {
-        if !self.has_motor()
-        {
-            return None;
-        }
-
-        calc_path_hull(self.path(), self.center()).into()
-    }
-
-    #[inline]
-    #[must_use]
-    fn path_hull_out_of_bounds(&self, center: Vec2) -> bool
-    {
-        if !self.has_motor()
-        {
-            return false;
-        }
-
-        calc_path_hull(self.path(), center).out_of_bounds()
-    }
 
     #[inline]
     #[must_use]
@@ -883,9 +925,14 @@ impl Brush
     {
         let mut hull = self.hull();
 
-        if let Some(sprite_hull) = self.sprite_hull()
+        if let Some(s_hull) = self.sprite_hull()
         {
-            hull = hull.merged(&sprite_hull);
+            hull = hull.merged(&s_hull);
+        }
+
+        if let Some(p_hull) = self.path_hull()
+        {
+            hull = hull.merged(&p_hull);
         }
 
         hull
@@ -998,18 +1045,6 @@ impl Brush
         self.snap(drawing_resources, grid, ConvexPolygon::snap_selected_sides)
     }
 
-    #[inline]
-    #[must_use]
-    pub fn snap_selected_path_nodes(
-        &mut self,
-        _: &DrawingResources,
-        grid: Grid
-    ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
-    {
-        let center = self.center();
-        self.path_mut().snap_selected_nodes(grid, center)
-    }
-
     //==============================================================
     // Anchors
 
@@ -1019,7 +1054,7 @@ impl Brush
 
     #[inline]
     #[must_use]
-    pub fn anchorable(&self) -> bool { !(self.has_anchors() || self.has_motor()) }
+    pub fn anchorable(&self) -> bool { !(self.has_anchors() || self.has_path()) }
 
     #[inline]
     pub fn anchors_iter(&self) -> Option<impl ExactSizeIterator<Item = &Id> + Clone>
@@ -1032,63 +1067,49 @@ impl Brush
     pub const fn anchored(&self) -> Option<Id> { self.mover.is_anchored() }
 
     #[inline]
-    #[must_use]
-    pub fn contains_anchor(&self, identifier: Id) -> bool { self.mover.contains_anchor(identifier) }
-
-    #[inline]
-    pub fn insert_anchor(&mut self, anchor: &mut Self)
+    pub fn insert_anchor(&mut self, anchor: &Self)
     {
         assert!(self.id != anchor.id, "Brush ID {:?} is equal to the anchor's ID", self.id);
         self.mover.insert_anchor(anchor.id);
+    }
+
+    #[inline]
+    pub fn anchor(&mut self, anchor: &mut Self)
+    {
+        self.insert_anchor(anchor);
         anchor.attach(self.id);
     }
 
     #[inline]
-    pub fn remove_anchor(&mut self, anchor: &mut Self)
+    pub fn remove_anchor(&mut self, anchor: &Self)
     {
         assert!(self.id != anchor.id, "Brush ID {:?} is equal to the anchor's ID", self.id);
         self.mover.remove_anchor(anchor.id);
+    }
+
+    #[inline]
+    pub fn disanchor(&mut self, anchor: &mut Self)
+    {
+        self.remove_anchor(anchor);
         anchor.detach();
     }
 
     #[inline]
-    fn attach(&mut self, identifier: Id)
+    pub fn attach(&mut self, identifier: Id)
     {
         assert!(matches!(self.mover, Mover::None), "Brush Mover is not None");
         self.mover = Mover::Anchored(identifier);
     }
 
     #[inline]
-    fn detach(&mut self)
+    pub fn detach(&mut self)
     {
         assert!(matches!(self.mover, Mover::Anchored(_)), "Brush is not anchored.");
         self.mover = Mover::None;
     }
 
-    #[inline]
-    fn attach_anchors(&mut self, mut brushes: BrushesMut)
-    {
-        for id in self.anchors_iter().unwrap()
-        {
-            brushes.get_mut(*id).attach(self.id);
-        }
-    }
-
-    #[inline]
-    fn detach_anchors(&mut self, mut brushes: BrushesMut)
-    {
-        for id in self.anchors_iter().unwrap()
-        {
-            brushes.get_mut(*id).detach();
-        }
-    }
-
     //==============================================================
-    // Motor-Path
-
-    #[inline]
-    #[must_use]
-    pub const fn has_motor(&self) -> bool { self.mover.has_motor() }
+    // Path
 
     #[inline]
     #[must_use]
@@ -1102,10 +1123,15 @@ impl Brush
     pub fn was_path_edited(&mut self) -> bool { std::mem::replace(&mut self.path_edited, false) }
 
     #[inline]
-    pub fn create_motor(&mut self, path: Path) { self.mover.create_motor(path); }
+    pub fn take_mover(&mut self) -> Option<Mover>
+    {
+        if matches!(self.mover, Mover::None)
+        {
+            return None;
+        }
 
-    #[inline]
-    pub const fn path(&self) -> &Path { self.mover.path() }
+        std::mem::take(&mut self.mover).into()
+    }
 
     #[inline]
     fn path_mut(&mut self) -> &mut Path { self.mover.path_mut() }
@@ -1115,181 +1141,6 @@ impl Brush
     {
         self.path_edited = true;
         self.mover.path_mut()
-    }
-
-    #[inline]
-    pub fn take_motor(&mut self) -> Motor
-    {
-        self.path_edited = true;
-        self.mover.take_motor()
-    }
-
-    #[inline]
-    pub fn set_motor(&mut self, motor: impl Into<Motor>)
-    {
-        self.path_edited = true;
-        self.mover.set_motor(motor.into());
-    }
-
-    #[inline]
-    pub fn try_insert_path_node_at_index(&mut self, cursor_pos: Vec2, index: usize) -> bool
-    {
-        let center = self.center();
-        self.path_mut().try_insert_node_at_index(cursor_pos, index, center)
-    }
-
-    #[inline]
-    pub fn insert_path_node_at_index(&mut self, pos: Vec2, idx: usize)
-    {
-        let center = self.center();
-        self.path_mut().insert_node_at_index(pos, idx, center);
-    }
-
-    #[inline]
-    pub fn delete_path_nodes_at_indexes(&mut self, idxs: impl Iterator<Item = usize>)
-    {
-        self.path_mut_set_dirty().delete_nodes_at_indexes(idxs);
-    }
-
-    #[inline]
-    pub fn check_selected_nodes_deletion(&self) -> NodesDeletionResult
-    {
-        (self.path().check_selected_nodes_deletion(), self.id).into()
-    }
-
-    #[inline]
-    pub fn delete_selected_path_nodes(&mut self, payload: NodesDeletionPayload)
-        -> HvVec<(Vec2, u8)>
-    {
-        assert!(
-            self.id == payload.id(),
-            "NodesDeletionPayload ID is not equal to the Brush's ID."
-        );
-        self.path_mut_set_dirty()
-            .delete_selected_nodes(payload.1.iter().rev().map(|(_, idx)| *idx as usize));
-        payload.1
-    }
-
-    #[inline]
-    pub fn remove_nodes(&mut self, to_remove: impl Iterator<Item = Vec2>)
-    {
-        self.path_mut_set_dirty().delete_nodes(to_remove);
-    }
-
-    #[inline]
-    pub fn insert_path_nodes_at_indexes(
-        &mut self,
-        to_insert: impl Iterator<Item = (Vec2, usize, bool)>
-    )
-    {
-        self.path_mut_set_dirty().insert_nodes_at_indexes(to_insert);
-    }
-
-    #[inline]
-    pub fn path_nodes_nearby_cursor_pos(
-        &self,
-        cursor_pos: Vec2,
-        camera_scale: f32
-    ) -> impl Iterator<Item = (u8, bool)> + '_
-    {
-        self.path().nearby_nodes(cursor_pos, self.center(), camera_scale)
-    }
-
-    #[inline]
-    pub fn toggle_path_node_at_index(&mut self, idx: usize) -> bool
-    {
-        self.path_mut_set_dirty().toggle_node_at_index(idx)
-    }
-
-    #[inline]
-    pub fn exclusively_select_path_node_at_index(&mut self, index: usize) -> NodeSelectionResult
-    {
-        let center = self.center();
-        self.path_mut_set_dirty()
-            .exclusively_select_path_node_at_index(center, index)
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn deselect_path_nodes(&mut self) -> Option<HvVec<u8>>
-    {
-        let center = self.center();
-        self.path_mut_set_dirty().deselect_nodes(center)
-    }
-
-    #[inline]
-    pub fn deselect_path_nodes_no_indexes(&mut self)
-    {
-        let center = self.center();
-        self.path_mut_set_dirty().deselect_nodes_no_indexes(center);
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
-    {
-        let center = self.center();
-        self.path_mut_set_dirty().select_nodes_in_range(center, range)
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
-    {
-        let center = self.center();
-        self.path_mut_set_dirty()
-            .exclusively_select_nodes_in_range(center, range)
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn select_all_path_nodes(&mut self) -> Option<HvVec<u8>>
-    {
-        self.path_mut_set_dirty().select_all_nodes()
-    }
-
-    #[inline]
-    pub fn check_selected_path_nodes_move(&self, delta: Vec2) -> NodesMoveResult
-    {
-        (self.path().check_selected_nodes_move(delta), self.id).into()
-    }
-
-    #[inline]
-    pub fn apply_selected_path_nodes_move(&mut self, payload: NodesMovePayload) -> NodesMove
-    {
-        assert!(payload.0 == self.id, "NodesMovePayload's ID is not equal to the Brush's ID.");
-        self.redo_path_nodes_move(&payload.1);
-        payload.1
-    }
-
-    #[inline]
-    pub fn undo_path_nodes_move(&mut self, nodes_move: &NodesMove)
-    {
-        self.path_mut().undo_nodes_move(nodes_move);
-    }
-
-    #[inline]
-    pub fn redo_path_nodes_move(&mut self, nodes_move: &NodesMove)
-    {
-        self.path_mut().apply_selected_nodes_move(nodes_move);
-    }
-
-    #[inline]
-    pub fn move_path_nodes_at_indexes(&mut self, idxs: impl Iterator<Item = usize>, delta: Vec2)
-    {
-        self.path_mut().move_nodes_at_indexes(idxs, delta);
-    }
-
-    #[inline]
-    pub fn movement_simulator(&self) -> MovementSimulator
-    {
-        self.path().movement_simulator(self.id)
-    }
-
-    #[inline]
-    pub fn overall_selected_path_nodes_movement(&self) -> OverallMovement
-    {
-        self.path().overall_selected_nodes_movement()
     }
 
     //==============================================================
@@ -1753,6 +1604,10 @@ impl Brush
 
     #[inline]
     #[must_use]
+    pub fn selected_sides_amount(&self) -> u8 { self.polygon.selected_sides_amount() }
+
+    #[inline]
+    #[must_use]
     pub fn nearby_vertex(&self, cursor_pos: Vec2, camera_scale: f32) -> Option<Vec2>
     {
         self.polygon
@@ -1946,7 +1801,7 @@ impl Brush
         let old_center = self.center();
         self.polygon.undo_vertexes_move(drawing_resources, vxs_move);
 
-        if !self.has_motor()
+        if !self.has_path()
         {
             return;
         }
@@ -1965,7 +1820,7 @@ impl Brush
         let old_center = self.center();
         self.polygon.apply_vertexes_move_result(drawing_resources, vxs_move);
 
-        if !self.has_motor()
+        if !self.has_path()
         {
             return;
         }
@@ -1989,9 +1844,12 @@ impl Brush
     }
 
     #[inline]
-    pub fn move_vertexes_at_indexes(&mut self, idxs: impl Iterator<Item = usize>, delta: Vec2)
+    pub fn move_vertexes_at_indexes<'a, I: Iterator<Item = &'a u8>>(
+        &mut self,
+        idxs: impl Iterator<Item = (I, Vec2)>
+    )
     {
-        self.polygon.move_vertexes_at_indexes(idxs, delta);
+        self.polygon.move_vertexes_at_indexes(idxs);
     }
 
     //==============================================================
@@ -2300,12 +2158,6 @@ impl Brush
     }
 
     #[inline]
-    pub fn shear_horizontally(&mut self, info: &ShearInfo)
-    {
-        self.polygon.shear_horizontally(info);
-    }
-
-    #[inline]
     pub fn check_vertical_shear(&self, info: &ShearInfo) -> ShearResult
     {
         ShearResult::from_result(self.polygon.check_vertical_shear(info), self)
@@ -2317,9 +2169,6 @@ impl Brush
         assert!(payload.id() == self.id, "ShearPayload's ID is not equal to the Brush's ID.");
         self.polygon.set_y_coordinates(payload.1);
     }
-
-    #[inline]
-    pub fn shear_vertically(&mut self, info: &ShearInfo) { self.polygon.shear_vertically(info); }
 
     //==============================================================
     // Rotate
@@ -2390,14 +2239,14 @@ impl Brush
     #[inline]
     pub fn draw_non_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
     {
-        self.draw_with_color(camera, drawer, Color::NonSelectedBrush);
+        self.draw_with_color(camera, drawer, Color::NonSelectedEntity);
     }
 
     /// Draws the `Brush` with the selected `Color`.
     #[inline]
     pub fn draw_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
     {
-        self.draw_with_color(camera, drawer, Color::SelectedBrush);
+        self.draw_with_color(camera, drawer, Color::SelectedEntity);
     }
 
     /// Draws the `Brush` with the highlight `Color`.
@@ -2412,6 +2261,12 @@ impl Brush
     pub fn draw_highlighted_non_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
     {
         self.draw_with_color(camera, drawer, Color::HighlightedNonSelectedBrush);
+    }
+
+    #[inline]
+    pub fn draw_opaque(&self, camera: &Transform, drawer: &mut EditDrawer)
+    {
+        self.draw_with_color(camera, drawer, Color::Opaque);
     }
 
     #[inline]
@@ -2457,26 +2312,6 @@ impl Brush
     }
 
     #[inline]
-    pub fn draw_path(
-        &self,
-        window: &Window,
-        camera: &Transform,
-        egui_context: &egui::Context,
-        drawer: &mut EditDrawer,
-        show_tooltips: bool
-    )
-    {
-        self.path()
-            .draw(window, camera, egui_context, drawer, self.center(), show_tooltips);
-    }
-
-    #[inline]
-    pub fn draw_semitransparent_path(&self, drawer: &mut EditDrawer)
-    {
-        self.path().draw_semitransparent(drawer, self.center());
-    }
-
-    #[inline]
     pub fn draw_anchors(&self, brushes: Brushes, drawer: &mut EditDrawer)
     {
         let start = self.center();
@@ -2505,151 +2340,6 @@ impl Brush
         for brush in self.mover.anchors_iter().unwrap().map(|id| brushes.get(*id))
         {
             f(brush, camera, drawer);
-        }
-    }
-
-    #[inline]
-    pub fn draw_highlighted_with_path_nodes(
-        &self,
-        window: &Window,
-        camera: &Transform,
-        egui_context: &egui::Context,
-        brushes: Brushes,
-        drawer: &mut EditDrawer,
-        show_tooltips: bool
-    )
-    {
-        self.draw_with_color(camera, drawer, Color::HighlightedSelectedBrush);
-        self.path()
-            .draw(window, camera, egui_context, drawer, self.center(), show_tooltips);
-        self.draw_anchored_brushes(camera, brushes, drawer, Self::draw_highlighted_selected);
-    }
-
-    #[inline]
-    pub fn draw_with_highlighted_path_node(
-        &self,
-        window: &Window,
-        camera: &Transform,
-        egui_context: &egui::Context,
-        brushes: Brushes,
-        drawer: &mut EditDrawer,
-        highlighted_node: usize,
-        show_tooltips: bool
-    )
-    {
-        self.draw_with_color(camera, drawer, Color::HighlightedSelectedBrush);
-        self.path().draw_with_highlighted_path_node(
-            window,
-            camera,
-            egui_context,
-            drawer,
-            self.center(),
-            highlighted_node,
-            show_tooltips
-        );
-        self.draw_anchored_brushes(camera, brushes, drawer, Self::draw_selected);
-    }
-
-    #[inline]
-    pub fn draw_with_path_node_addition(
-        &self,
-        window: &Window,
-        camera: &Transform,
-        egui_context: &egui::Context,
-        brushes: Brushes,
-        drawer: &mut EditDrawer,
-        pos: Vec2,
-        idx: usize,
-        show_tooltips: bool
-    )
-    {
-        self.draw_with_color(camera, drawer, Color::HighlightedSelectedBrush);
-        self.path().draw_with_node_insertion(
-            window,
-            camera,
-            egui_context,
-            drawer,
-            pos,
-            idx,
-            self.center(),
-            show_tooltips
-        );
-        self.draw_anchored_brushes(camera, brushes, drawer, Self::draw_selected);
-    }
-
-    #[inline]
-    pub fn draw_movement_simulation(
-        &self,
-        window: &Window,
-        camera: &Transform,
-        egui_context: &egui::Context,
-        brushes: Brushes,
-        drawer: &mut EditDrawer,
-        show_tooltips: bool,
-        simulator: &MovementSimulator
-    )
-    {
-        assert!(self.id == simulator.id(), "Simulator's ID is not equal to the Brush's ID.");
-
-        let movement_vec = simulator.movement_vec();
-        let center = self.center();
-
-        self.polygon.draw_movement_simulation(camera, drawer, movement_vec);
-        self.path().draw_movement_simulation(
-            window,
-            camera,
-            egui_context,
-            drawer,
-            center,
-            movement_vec,
-            show_tooltips
-        );
-
-        let anchors = return_if_none!(self.anchors_iter());
-        let center = center + movement_vec;
-
-        for id in anchors
-        {
-            let a_center = brushes.get(*id).center() + movement_vec;
-            drawer.square_highlight(a_center, Color::BrushAnchor);
-            drawer.line(a_center, center, Color::BrushAnchor);
-
-            brushes
-                .get(*id)
-                .polygon
-                .draw_movement_simulation(camera, drawer, movement_vec);
-        }
-    }
-
-    #[inline]
-    pub fn draw_map_preview_movement_simulation(
-        &self,
-        camera: &Transform,
-        brushes: Brushes,
-        drawer: &mut MapPreviewDrawer,
-        animators: &Animators,
-        simulator: &MovementSimulator
-    )
-    {
-        assert!(self.id == simulator.id(), "Simulator's ID is not equal to the Brush's ID.");
-
-        let movement_vec = simulator.movement_vec();
-        self.polygon.draw_map_preview_movement_simulation(
-            camera,
-            drawer,
-            animators.get(self.id),
-            movement_vec
-        );
-        let anchors = return_if_none!(self.anchors_iter());
-
-        for id in anchors
-        {
-            brushes.get(*id).polygon.draw_map_preview_movement_simulation(
-                camera,
-                drawer,
-                animators.get(*id),
-                movement_vec
-            );
         }
     }
 
@@ -2712,18 +2402,4 @@ impl BrushViewer
             self.texture.as_mut().unwrap().unsafe_set_animation(animation);
         }
     }
-}
-
-//=======================================================================//
-// FUNCTIONS
-//
-//=======================================================================//
-
-#[inline]
-#[must_use]
-fn calc_path_hull(path: &Path, center: Vec2) -> Hull
-{
-    (path.hull() + center)
-        .merged(&Some(center).into_iter().into())
-        .bumped(2f32)
 }

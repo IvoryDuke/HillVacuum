@@ -11,14 +11,15 @@ use shared::{match_or_panic, return_if_none};
 
 use crate::{
     map::{
-        brush::path::{node_tooltip, FreeDrawNodeDeletionResult, Path},
         drawer::{color::Color, EditDrawer},
-        editor::state::edits_history::EditsHistory
+        editor::state::edits_history::EditsHistory,
+        path::{node_tooltip, FreeDrawNodeDeletionResult}
     },
     utils::{
         math::{AroundEqual, NecessaryPrecisionValue},
         misc::PointInsideUiHighlight
-    }
+    },
+    Path
 };
 
 //=======================================================================//

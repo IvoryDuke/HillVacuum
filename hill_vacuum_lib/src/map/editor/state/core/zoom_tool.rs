@@ -12,13 +12,13 @@ use super::{
 };
 use crate::{
     map::{
+        containers::hv_box,
         drawer::color::Color,
         editor::{
             state::{core::drag_area, editor_state::InputsPresses},
             DrawBundle,
             ToolUpdateBundle
-        },
-        hv_box
+        }
     },
     utils::misc::Camera
 };

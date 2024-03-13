@@ -182,7 +182,4 @@ pub fn line_point_product(l: &[Vec2; 2], p: Vec2) -> f32
 /// Whever `p` is inside the clip edge of `l`.
 #[inline]
 #[must_use]
-pub fn is_point_inside_clip_edge(l: &[Vec2; 2], p: Vec2) -> bool
-{
-    line_point_product(l, p).is_sign_positive()
-}
+pub fn is_point_inside_clip_edge(l: &[Vec2; 2], p: Vec2) -> bool { line_point_product(l, p) > 0f32 }

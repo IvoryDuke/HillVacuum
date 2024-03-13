@@ -282,7 +282,7 @@ pub(in crate::map) trait TextureInterfaceExtra
 //=======================================================================//
 
 #[must_use]
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Sprite
 {
     True
@@ -840,7 +840,7 @@ impl Texture
 
 #[allow(clippy::unsafe_derive_deserialize)]
 #[must_use]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TextureSettings
 {
     texture:      String,

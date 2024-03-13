@@ -11,6 +11,7 @@ use shared::{match_or_panic, return_if_none};
 use crate::{
     map::{
         brush::convex_polygon::{free_draw_tooltip, ConvexPolygon, FreeDrawVertexDeletionResult},
+        containers::{hv_vec, HvVec, Ids},
         drawer::{color::Color, EditDrawer},
         editor::{
             cursor_pos::Cursor,
@@ -22,10 +23,7 @@ use crate::{
             },
             DrawBundle,
             MAP_HALF_SIZE
-        },
-        hv_vec,
-        HvVec,
-        Ids
+        }
     },
     utils::{
         hull::{CircleIterator, Hull, TriangleOrientation},
@@ -694,8 +692,10 @@ impl FreeDrawCursorPolygon
             },
             FreeDrawStatus::Line(l) =>
             {
-                self.0 =
-                    FreeDrawStatus::Polygon(ConvexPolygon::new((*l).into_iter().chain(Some(p))));
+                self.0 = FreeDrawStatus::Polygon(ConvexPolygon::new_sorted(
+                    (*l).into_iter().chain(Some(p)),
+                    None
+                ));
             },
             FreeDrawStatus::Polygon(poly) =>
             {

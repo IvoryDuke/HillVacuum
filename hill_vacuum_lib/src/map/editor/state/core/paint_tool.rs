@@ -179,7 +179,7 @@ impl PaintTool
 
                 if inputs.enter.just_pressed() && manager.selected_entities_amount() != 0
                 {
-                    self.status = Status::SetPivot(return_if_none!(Self::outline(manager, grid)));
+                    self.status = Status::SetPivot(Self::outline(manager, grid).unwrap());
                 }
 
                 if !inputs.left_mouse.just_pressed() || clipboard.selected_prop_index().is_none()

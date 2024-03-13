@@ -139,7 +139,7 @@ impl Manual
                     "Cursor",
                     "A semitransparent square is shown on screen to represent the world position \
                      of the cursor. This is usefull to show where the camera will zoom in/out \
-                     when pressing Ctrl + Mouse wheel.\nIt can be turned off in the options menu."
+                     when pressing Ctrl + Mouse wheel."
                 ),
                 (
                     "Tools",
@@ -159,9 +159,9 @@ impl Manual
                     "Brushes",
                     "Brushes are convex polygonal surfaces.\nThey can have an associated texture \
                      which can either be drawn filling their area or as a sprite. The sprite can \
-                     be displaced independently of the brush surface.\n\nBrushes can also be \
+                     be displaced independently of the brush surface.\nBrushes can also be \
                      assigned a path that describes how it moves in the bidimensional space and \
-                     that can be edited with the Path tool.\n\nFinally, brushes can either \
+                     that can be edited with the Path tool.\nFinally, brushes can either \
                      represent a clipping surface or not by changing the collision setting in the \
                      bottom left area of the UI."
                 ),
@@ -169,18 +169,20 @@ impl Manual
                     "Things",
                     "Things are objects which can be placed around the map. They area \
                      characterized by an ID, a width and height, a name, and a texture which \
-                     represents them.\nThings can either be defined in one or many .ini files to \
-                     be placed in the assets/things/ folder or, if Hill Vacuum is used as a \
-                     library, implementing the MapThing interface for the structs representing an \
-                     object to be placed in the map and using the \"hardcoded_things\" macro to \
-                     insert them in the bevy App.\n\nIf defined in the .ini files, the things \
-                     must follow a similar format:\n[Name]\nwidth = N\nheight = M\nid = \
-                     ID\npreview = TEX\nWhere N and M represent the sizes of the thing's bounding \
-                     box, ID is a unique identifier between 0 and 65534, and TEX is the name of \
-                     the texture to be drawn along with the bounding box.\nIf a thing defined \
-                     through the MapThing interface has the same ID as one loaded from file, the \
-                     latter will overwrite the former.\n\nThings can be reloaded while the \
-                     application is running through the UI button in the Options menu."
+                     represents them.\nThings can also be assigned a path that describes how it \
+                     moves in the bidimensional space and that can be edited with the Path \
+                     tool.\nThings can either be defined in one or many .ini files to be placed \
+                     in the assets/things/ folder or, if HillVacuum is used as a library, \
+                     implementing the MapThing interface for the structs representing an object \
+                     to be placed in the map and using the \"hardcoded_things\" macro to insert \
+                     them in the bevy App.\n\nIf defined in the .ini files, the things must \
+                     follow a similar format:\n[Name]\nwidth = N\nheight = M\nid = ID\npreview = \
+                     TEX\nWhere N and M represent the sizes of the thing's bounding box, ID is a \
+                     unique identifier between 0 and 65534, and TEX is the name of the texture to \
+                     be drawn along with the bounding box.\nIf a thing defined through the \
+                     MapThing interface has the same ID as one loaded from file, the latter will \
+                     overwrite the former.\n\nThings can be reloaded while the application is \
+                     running through the UI button in the Options menu."
                 ),
                 (
                     "Textures",
@@ -210,17 +212,18 @@ impl Manual
                 ),
                 (
                     "Ctrl + C",
-                    "Copy, copies the selected entities, or the path of the brush beneath the \
+                    "Copy, copies the selected entities, or the path of the entity beneath the \
                      cursor, if any, when using the Path tool."
                 ),
                 (
                     "Ctrl + V",
                     "Paste, creates copies of the selected entities, or sets the path of the \
-                     brush beneath the cursor to the copied one, if any, when using the Path tool."
+                     entity beneath the cursor to the copied one, if any, when using the Path \
+                     tool."
                 ),
                 (
                     "Ctrl + X",
-                    "Cut, cuts the selected entities, or cuts the path of the brush beneath the \
+                    "Cut, cuts the selected entities, or cuts the path of the entity beneath the \
                      cursor, if any, when using the Path tool."
                 ),
                 (
@@ -655,6 +658,11 @@ impl Manual
                     "Alt + Up/Down/Left/Right",
                     "Moves the pivot a grid square away in the pressed direction."
                 ),
+                (
+                    RotatePivot,
+                    "Pivot subtool. Changes the position of the rotation pivot either by pressing \
+                     the directional keys or left clicking with the mouse."
+                ),
                 TEXTURE,
                 "Target:\n-Polygon, only the polygons are rotated;\n-Both, both polygons and \
                  associated textures are rotated;\n-Texture, only the textures are rotated."
@@ -731,16 +739,16 @@ impl Manual
                 Path,
                 (
                     "INFO",
-                    "When enabled, the brushes will be split in three groups, red, grey and \
-                     opaque.\nThe red brushes include those that are moving platforms and were \
-                     previously selected, and the brushes anchored to them.\nThe grey brushes \
-                     include those that were previously selected, but not moving platforms and \
-                     are not anchored to another brush. Therefore they are brushes which make for \
-                     moving platforms candidate.\nThe opaque brushes include all other cases, \
-                     that is, brushes that were not selected and\\or cannot be transformed into \
-                     moving platforms.\n\nA path can have overlapping nodes. However, two \
-                     consecutive nodes cannot overlap. Overlapping nodes are clearly shown in the \
-                     tooltips. Therefore, it is highly encouraged to leave them on."
+                    "When enabled, the entities (brushes and things) will be split in three \
+                     groups, red, grey and opaque.\nThe red entities include those that are \
+                     moving and were previously selected, and the brushes anchored to them.\nThe \
+                     grey entities include those that were previously selected, but not moving \
+                     and are not anchored to another brush. Therefore they are entities which \
+                     make for moving candidate.\nThe opaque entities include all other cases, \
+                     that is, entities that were not selected and\\or cannot be transformed into \
+                     moving.\n\nA path can have overlapping nodes. However, two consecutive nodes \
+                     cannot overlap. Overlapping nodes are clearly shown in the tooltips. \
+                     Therefore, it is highly encouraged to leave them on."
                 ),
                 ("Alt + Left mouse", "If a grey brush is clicked the path creation is enabled."),
                 (
@@ -773,7 +781,7 @@ impl Manual
                     "Deletes all selected nodes, unless doing so would generate a path with a \
                      single node or a path with consecutive overlapping nodes.."
                 ),
-                ("Alt + backspace", "Deletes the paths of the red brushes."),
+                ("Alt + backspace", "Deletes the paths of the red entities."),
                 (
                     "Up/Down/Left/Right",
                     "Moves all selected nodes a grid square away in the pressed direction."

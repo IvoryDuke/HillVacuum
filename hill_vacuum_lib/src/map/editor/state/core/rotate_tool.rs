@@ -349,6 +349,10 @@ impl RotateTool
                 {
                     self.pivot += dir;
                 }
+                else if inputs.left_mouse.pressed()
+                {
+                    self.pivot = self.cursor_pos(cursor);
+                }
             },
             Status::Drag(last_pos, start_pos, backup_polygons) =>
             {
@@ -381,7 +385,7 @@ impl RotateTool
                     else
                     {
                         edits_history
-                            .texture_angle_delta(manager.selected_textured_ids().copied(), angle);
+                            .texture_angle_delta(manager.selected_textured_ids().copied(), angle.to_degrees());
                     }
                 }
 

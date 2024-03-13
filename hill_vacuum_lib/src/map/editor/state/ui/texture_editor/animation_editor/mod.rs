@@ -965,6 +965,7 @@ impl AnimationEditor
                                 manager
                             )
                             {
+                                _ = texture.animation_mut_set_dirty();
                                 edits_history.default_animation(texture, prev);
                                 return true;
                             }

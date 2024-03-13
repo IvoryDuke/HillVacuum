@@ -408,7 +408,7 @@ impl EntityTool
                                     if let Some(owner) = brush.anchored()
                                     {
                                         // Remove set anchor.
-                                        manager.remove_anchor(owner, id);
+                                        manager.disanchor(owner, id);
                                         edits_history.disanchor(owner, id);
                                     }
                                     else if manager.selected_brushes_amount() > 1
@@ -486,11 +486,6 @@ impl EntityTool
                 {
                     if settings.entity_editing()
                     {
-                        if item_beneath_cursor.is_some()
-                        {
-                            ds.set_highlighted_entity(None);
-                        }
-
                         manager.despawn_selected_entities(edits_history);
                     }
                     else
@@ -498,6 +493,7 @@ impl EntityTool
                         manager.remove_selected_textures(edits_history);
                     }
 
+                    ds.set_highlighted_entity(self.1.item_beneath_cursor(bundle, manager, settings, inputs));
                     return;
                 }
 
@@ -619,7 +615,7 @@ impl EntityTool
                     return;
                 }
 
-                manager.insert_anchor(brush_id, *id);
+                manager.anchor(brush_id, *id);
                 edits_history.anchor(brush_id, *id);
 
                 self.0 = Status::Inactive(brush_beneath_cursor.into());
@@ -679,7 +675,7 @@ impl EntityTool
 
                 self.0 = if let Some(owner) = brush.anchored()
                 {
-                    manager.remove_anchor(owner, id);
+                    manager.disanchor(owner, id);
                     edits_history.disanchor(owner, id);
                     Status::default()
                 }

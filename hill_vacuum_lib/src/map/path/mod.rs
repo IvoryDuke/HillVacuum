@@ -6,7 +6,7 @@ pub(in crate::map) mod overall_values;
 //
 //=======================================================================//
 
-use std::fmt::Write;
+use std::{fmt::Write, iter::Enumerate};
 
 use bevy::prelude::{Transform, Vec2, Window};
 use bevy_egui::egui;
@@ -17,25 +17,27 @@ use self::{
     nodes::{Node, NodeWorld, NodesWorld, NodesWorldMut},
     overall_values::OverallMovement
 };
-use super::{selectable_vector::select_vectors_in_range, Brush};
+use super::{
+    drawer::MapPreviewDrawer,
+    editor::state::manager::{Animators, Brushes},
+    selectable_vector::select_vectors_in_range,
+    thing::catalog::ThingsCatalog
+};
 use crate::{
     map::{
-        brush::{path::nodes::NodesInsertionIter, selectable_vector::deselect_vectors},
+        containers::{hv_hash_map, hv_hash_set, hv_vec, HvHashMap, HvHashSet},
         drawer::{color::Color, EditDrawer},
         editor::state::grid::Grid,
-        hv_hash_map,
-        hv_hash_set,
-        hv_vec,
+        path::nodes::NodesInsertionIter,
+        selectable_vector::deselect_vectors,
         AssertedInsertRemove,
-        HvHashMap,
-        HvHashSet,
         HvVec,
         OutOfBounds,
         TOOLTIP_OFFSET
     },
     utils::{
         hull::{EntityHull, Hull},
-        identifiers::{EntityId, Id},
+        identifiers::{EntityCenter, EntityId, Id},
         iterators::{FilterSet, PairIterator, SkipIndexIterator, TripletIterator},
         math::{
             lines_and_segments::line_point_product,
@@ -151,7 +153,7 @@ macro_rules! draw_nodes {
 macro_rules! movement_values {
     ($(($value:ident, $opposite:ident)),+) => { paste::paste! { $(
         #[inline]
-        pub(in crate::map::brush) fn [< set_selected_nodes_ $value >](
+        pub(in crate::map) fn [< set_selected_nodes_ $value >](
             &mut self,
             $value: f32
         ) -> Option<MovementValueEdit>
@@ -171,7 +173,7 @@ macro_rules! movement_values {
         }
 
         #[inline]
-        pub(in crate::map::brush) fn [< undo_ $value _edit>](&mut self, edit: &MovementValueEdit)
+        pub(in crate::map) fn [< undo_ $value _edit>](&mut self, edit: &MovementValueEdit)
         {
             for (delta, indexes) in &edit.0
             {
@@ -188,7 +190,7 @@ macro_rules! movement_values {
         }
 
         #[inline]
-        pub(in crate::map::brush) fn [< redo_ $value _edit>](&mut self, edit: &MovementValueEdit)
+        pub(in crate::map) fn [< redo_ $value _edit>](&mut self, edit: &MovementValueEdit)
         {
             for (delta, indexes) in &edit.0
             {
@@ -204,6 +206,417 @@ macro_rules! movement_values {
             }
         }
     )+}};
+}
+
+//=======================================================================//
+
+macro_rules! common_edit_path {
+    ($(($value:ident, $t:ty)),+) => { paste::paste! { $(
+        #[inline]
+        fn [< set_selected_path_nodes_ $value >](&mut self, value: f32) -> Option<$t>
+        {
+            self.path_mut_set_dirty().[< set_selected_nodes_ $value >](value)
+        }
+
+        #[inline]
+        fn [< undo_path_nodes_ $value _edit >](&mut self, edit: &$t)
+        {
+            self.path_mut_set_dirty().[< undo_ $value _edit >](edit)
+        }
+
+        #[inline]
+        fn [< redo_path_nodes_ $value _edit >](&mut self, edit: &$t)
+        {
+            self.path_mut_set_dirty().[< redo_ $value _edit >](edit)
+        }
+    )+}};
+
+    () => {
+        #[inline]
+        fn toggle_path_node_at_index(&mut self, idx: usize) -> bool
+        {
+            self.path_mut_set_dirty().toggle_node_at_index(idx)
+        }
+
+        #[inline]
+        fn exclusively_select_path_node_at_index(&mut self, index: usize) -> crate::map::path::NodeSelectionResult
+        {
+            let center = self.center();
+            self.path_mut_set_dirty()
+                .exclusively_select_path_node_at_index(center, index)
+        }
+
+        #[inline]
+        #[must_use]
+        fn deselect_path_nodes(&mut self) -> Option<HvVec<u8>>
+        {
+            let center = self.center();
+            self.path_mut_set_dirty().deselect_nodes(center)
+        }
+
+        #[inline]
+        fn deselect_path_nodes_no_indexes(&mut self)
+        {
+            let center = self.center();
+            self.path_mut_set_dirty().deselect_nodes_no_indexes(center);
+        }
+
+        #[inline]
+        #[must_use]
+        fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
+        {
+            let center = self.center();
+            self.path_mut_set_dirty().select_nodes_in_range(center, range)
+        }
+
+        #[inline]
+        fn select_all_path_nodes(&mut self) -> Option<HvVec<u8>>
+        {
+            self.path_mut_set_dirty().select_all_nodes()
+        }
+
+        #[inline]
+        #[must_use]
+        fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
+        {
+            let center = self.center();
+            self.path_mut_set_dirty()
+                .exclusively_select_nodes_in_range(center, range)
+        }
+
+        #[inline]
+        fn try_insert_path_node_at_index(&mut self, cursor_pos: Vec2, index: usize) -> bool
+        {
+            let center = self.center();
+            self.path_mut().try_insert_node_at_index(cursor_pos, index, center)
+        }
+
+        #[inline]
+        fn insert_path_node_at_index(&mut self, pos: Vec2, idx: usize)
+        {
+            let center = self.center();
+            self.path_mut().insert_node_at_index(pos, idx, center);
+        }
+
+        #[inline]
+        fn insert_path_nodes_at_indexes(&mut self, nodes: &HvVec<(Vec2, u8)>)
+        {
+            self.path_mut_set_dirty().insert_nodes_at_indexes(nodes);
+        }
+
+        #[inline]
+        fn undo_path_nodes_move(&mut self, nodes_move: &crate::map::path::NodesMove)
+        {
+            self.path_mut().undo_nodes_move(nodes_move);
+        }
+
+        #[inline]
+        fn redo_path_nodes_move(&mut self, nodes_move: &crate::map::path::NodesMove)
+        {
+            self.path_mut().apply_selected_nodes_move(nodes_move);
+        }
+
+        #[inline]
+        fn move_path_nodes_at_indexes(&mut self, snap: &HvVec<(HvVec<u8>, Vec2)>)
+        {
+            self.path_mut().move_nodes_at_indexes(snap);
+        }
+
+        #[inline]
+        fn remove_selected_path_nodes(&mut self, payload: NodesDeletionPayload) -> HvVec<(Vec2, u8)>
+        {
+            assert!(
+                self.id() == payload.id(),
+                "NodesDeletionPayload ID is not equal to the Brush's ID."
+            );
+            let payload = payload.payload();
+
+            self.path_mut_set_dirty()
+                .delete_selected_nodes(payload.iter().rev().map(|(_, idx)| *idx as usize));
+            payload
+        }
+
+        #[inline]
+        fn remove_path_node_at_index(&mut self, idx: usize)
+        {
+            self.path_mut_set_dirty().remove_nodes_at_indexes(Some(idx).into_iter());
+        }
+
+        #[inline]
+        fn redo_selected_path_nodes_deletion(&mut self)
+        {
+            self.path_mut_set_dirty().redo_selected_nodes_deletion();
+        }
+
+        #[inline]
+        #[must_use]
+        fn snap_selected_path_nodes(
+            &mut self,
+            grid: crate::map::editor::state::grid::Grid
+        ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
+        {
+            let center = self.center();
+            self.path_mut().snap_selected_nodes(grid, center)
+        }
+
+        common_edit_path!(
+            (standby_time, crate::map::path::StandbyValueEdit),
+            (max_speed, crate::map::path::MovementValueEdit),
+            (min_speed, crate::map::path::MovementValueEdit),
+            (accel_travel_percentage, crate::map::path::MovementValueEdit),
+            (decel_travel_percentage, crate::map::path::MovementValueEdit)
+        );
+    };
+}
+
+pub(in crate::map) use common_edit_path;
+
+//=======================================================================//
+// TRAITS
+//
+//=======================================================================//
+
+pub(in crate::map) trait Moving: EntityId + EntityCenter
+{
+    #[must_use]
+    fn path(&self) -> Option<&Path>;
+
+    #[must_use]
+    fn has_path(&self) -> bool;
+
+    #[must_use]
+    fn possible_moving(&self) -> bool;
+
+    #[inline]
+    fn path_hull(&self) -> Option<Hull>
+    {
+        if !self.has_path()
+        {
+            return None;
+        }
+
+        calc_path_hull(self.path().unwrap(), self.center()).into()
+    }
+
+    #[inline]
+    fn path_hull_out_of_bounds(&self, center: Vec2) -> bool
+    {
+        if !self.has_path()
+        {
+            return false;
+        }
+
+        calc_path_hull(self.path().unwrap(), center).out_of_bounds()
+    }
+
+    #[inline]
+    fn overall_selected_path_nodes_movement(&self) -> OverallMovement
+    {
+        self.path().unwrap().overall_selected_nodes_movement()
+    }
+
+    #[inline]
+    fn check_selected_path_nodes_move(&self, delta: Vec2) -> IdNodesMoveResult
+    {
+        (self.path().unwrap().check_selected_nodes_move(delta), self.id()).into()
+    }
+
+    #[inline]
+    fn path_nodes_nearby_cursor_pos(&self, cursor_pos: Vec2, camera_scale: f32) -> NearbyNodes
+    {
+        self.path()
+            .unwrap()
+            .nearby_nodes(cursor_pos, self.center(), camera_scale)
+    }
+
+    #[inline]
+    fn check_selected_nodes_deletion(&self) -> IdNodesDeletionResult
+    {
+        (self.path().unwrap().check_selected_nodes_deletion(), self.id()).into()
+    }
+
+    #[inline]
+    fn movement_simulator(&self) -> MovementSimulator
+    {
+        self.path().unwrap().movement_simulator(self.id())
+    }
+
+    #[inline]
+    fn draw_path(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        egui_context: &egui::Context,
+        drawer: &mut EditDrawer,
+        show_tooltips: bool
+    )
+    {
+        self.path().unwrap().draw(
+            window,
+            camera,
+            egui_context,
+            drawer,
+            self.center(),
+            show_tooltips
+        );
+    }
+
+    #[inline]
+    fn draw_semitransparent_path(&self, drawer: &mut EditDrawer)
+    {
+        self.path().unwrap().draw_semitransparent(drawer, self.center());
+    }
+
+    fn draw_highlighted_with_path_nodes(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        egui_context: &egui::Context,
+        brushes: Brushes,
+        catalog: &ThingsCatalog,
+        drawer: &mut EditDrawer,
+        show_tooltips: bool
+    );
+
+    fn draw_with_highlighted_path_node(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        egui_context: &egui::Context,
+        brushes: Brushes,
+        catalog: &ThingsCatalog,
+        drawer: &mut EditDrawer,
+        highlighted_node: usize,
+        show_tooltips: bool
+    );
+
+    fn draw_with_path_node_addition(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        egui_context: &egui::Context,
+        brushes: Brushes,
+        catalog: &ThingsCatalog,
+        drawer: &mut EditDrawer,
+        pos: Vec2,
+        idx: usize,
+        show_tooltips: bool
+    );
+
+    fn draw_movement_simulation(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        egui_context: &egui::Context,
+        brushes: Brushes,
+        catalog: &ThingsCatalog,
+        drawer: &mut EditDrawer,
+        show_tooltips: bool,
+        simulator: &MovementSimulator
+    );
+
+    fn draw_map_preview_movement_simulation(
+        &self,
+        camera: &Transform,
+        brushes: Brushes,
+        catalog: &ThingsCatalog,
+        drawer: &mut MapPreviewDrawer,
+        animators: &Animators,
+        simulator: &MovementSimulator
+    );
+}
+
+//=======================================================================//
+
+pub(in crate::map) trait EditPath: EntityId + Moving
+{
+    fn set_path(&mut self, path: Path);
+
+    fn toggle_path_node_at_index(&mut self, idx: usize) -> bool;
+
+    fn exclusively_select_path_node_at_index(&mut self, index: usize) -> NodeSelectionResult;
+
+    #[must_use]
+    fn deselect_path_nodes(&mut self) -> Option<HvVec<u8>>;
+
+    fn deselect_path_nodes_no_indexes(&mut self);
+
+    #[must_use]
+    fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>;
+
+    #[must_use]
+    fn select_all_path_nodes(&mut self) -> Option<HvVec<u8>>;
+
+    #[must_use]
+    fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>;
+
+    #[must_use]
+    fn try_insert_path_node_at_index(&mut self, cursor_pos: Vec2, index: usize) -> bool;
+
+    fn insert_path_node_at_index(&mut self, pos: Vec2, idx: usize);
+
+    fn insert_path_nodes_at_indexes(&mut self, nodes: &HvVec<(Vec2, u8)>);
+
+    #[inline]
+    fn apply_selected_path_nodes_move(&mut self, payload: NodesMovePayload) -> NodesMove
+    {
+        assert!(payload.0 == self.id(), "NodesMovePayload's ID is not equal to the Entity's ID.");
+        self.redo_path_nodes_move(&payload.1);
+        payload.1
+    }
+
+    fn undo_path_nodes_move(&mut self, nodes_move: &NodesMove);
+
+    fn redo_path_nodes_move(&mut self, nodes_move: &NodesMove);
+
+    fn move_path_nodes_at_indexes(&mut self, snap: &HvVec<(HvVec<u8>, Vec2)>);
+
+    fn remove_selected_path_nodes(&mut self, payload: NodesDeletionPayload) -> HvVec<(Vec2, u8)>;
+
+    fn remove_path_node_at_index(&mut self, idx: usize);
+
+    fn redo_selected_path_nodes_deletion(&mut self);
+
+    #[must_use]
+    fn snap_selected_path_nodes(&mut self, grid: Grid) -> Option<HvVec<(HvVec<u8>, Vec2)>>;
+
+    fn set_selected_path_nodes_standby_time(&mut self, value: f32) -> Option<StandbyValueEdit>;
+
+    fn undo_path_nodes_standby_time_edit(&mut self, edit: &StandbyValueEdit);
+
+    fn redo_path_nodes_standby_time_edit(&mut self, edit: &StandbyValueEdit);
+
+    fn set_selected_path_nodes_max_speed(&mut self, value: f32) -> Option<MovementValueEdit>;
+
+    fn undo_path_nodes_max_speed_edit(&mut self, edit: &MovementValueEdit);
+
+    fn redo_path_nodes_max_speed_edit(&mut self, edit: &MovementValueEdit);
+
+    fn set_selected_path_nodes_min_speed(&mut self, value: f32) -> Option<MovementValueEdit>;
+
+    fn undo_path_nodes_min_speed_edit(&mut self, edit: &MovementValueEdit);
+
+    fn redo_path_nodes_min_speed_edit(&mut self, edit: &MovementValueEdit);
+
+    fn set_selected_path_nodes_accel_travel_percentage(
+        &mut self,
+        value: f32
+    ) -> Option<MovementValueEdit>;
+
+    fn undo_path_nodes_accel_travel_percentage_edit(&mut self, edit: &MovementValueEdit);
+
+    fn redo_path_nodes_accel_travel_percentage_edit(&mut self, edit: &MovementValueEdit);
+
+    fn set_selected_path_nodes_decel_travel_percentage(
+        &mut self,
+        value: f32
+    ) -> Option<MovementValueEdit>;
+
+    fn undo_path_nodes_decel_travel_percentage_edit(&mut self, edit: &MovementValueEdit);
+
+    fn redo_path_nodes_decel_travel_percentage_edit(&mut self, edit: &MovementValueEdit);
+
+    fn take_path(&mut self) -> Path;
 }
 
 //=======================================================================//
@@ -227,7 +640,7 @@ pub(in crate::map) enum FreeDrawNodeDeletionResult
 
 /// The result of the move of a new [`Node`] in a [`Path`].
 #[must_use]
-pub(in crate::map::brush) enum NodesMoveResult
+pub(in crate::map) enum NodesMoveResult
 {
     /// No nodes were moved.
     None,
@@ -235,6 +648,42 @@ pub(in crate::map::brush) enum NodesMoveResult
     Invalid,
     /// Nodes can be moved.
     Valid(NodesMove)
+}
+
+//=======================================================================//
+
+#[must_use]
+pub(in crate::map) enum IdNodesMoveResult
+{
+    None,
+    Invalid,
+    Valid(NodesMovePayload)
+}
+
+impl From<(NodesMoveResult, Id)> for IdNodesMoveResult
+{
+    #[inline]
+    fn from(value: (NodesMoveResult, Id)) -> Self
+    {
+        match value.0
+        {
+            NodesMoveResult::None => Self::None,
+            NodesMoveResult::Invalid => Self::Invalid,
+            NodesMoveResult::Valid(m) => Self::Valid(NodesMovePayload(value.1, m))
+        }
+    }
+}
+
+#[must_use]
+pub(in crate::map) struct NodesMovePayload(Id, NodesMove);
+
+impl EntityId for NodesMovePayload
+{
+    #[inline]
+    fn id(&self) -> Id { self.0 }
+
+    #[inline]
+    fn id_as_ref(&self) -> &Id { &self.0 }
 }
 
 //=======================================================================//
@@ -293,7 +742,7 @@ pub(in crate::map) enum NodeSelectionResult
 
 /// The result of the [`Node`]s deletion process.
 #[must_use]
-pub(in crate::map::brush) enum NodesDeletionResult
+pub(in crate::map) enum NodesDeletionResult
 {
     /// No nodes deleted.
     None,
@@ -301,6 +750,50 @@ pub(in crate::map::brush) enum NodesDeletionResult
     Invalid,
     /// The deletion is valid, contains the positions and indexes of the deleted nodes.
     Valid(HvVec<(Vec2, u8)>)
+}
+
+//=======================================================================//
+
+#[must_use]
+#[derive(Debug)]
+pub(in crate::map) enum IdNodesDeletionResult
+{
+    None,
+    Invalid,
+    Valid(NodesDeletionPayload)
+}
+
+impl From<(NodesDeletionResult, Id)> for IdNodesDeletionResult
+{
+    #[inline]
+    fn from(value: (NodesDeletionResult, Id)) -> Self
+    {
+        match value.0
+        {
+            NodesDeletionResult::None => Self::None,
+            NodesDeletionResult::Invalid => Self::Invalid,
+            NodesDeletionResult::Valid(nodes) => Self::Valid(NodesDeletionPayload(value.1, nodes))
+        }
+    }
+}
+
+#[must_use]
+#[derive(Debug)]
+pub(in crate::map) struct NodesDeletionPayload(Id, HvVec<(Vec2, u8)>);
+
+impl EntityId for NodesDeletionPayload
+{
+    #[inline]
+    fn id(&self) -> Id { self.0 }
+
+    #[inline]
+    fn id_as_ref(&self) -> &Id { &self.0 }
+}
+
+impl NodesDeletionPayload
+{
+    #[inline]
+    pub fn payload(self) -> HvVec<(Vec2, u8)> { self.1 }
 }
 
 //=======================================================================//
@@ -418,6 +911,41 @@ struct DecelerationInfo
     deceleration: f32,
     start:        [Vec2; 2],
     end:          [Vec2; 2]
+}
+
+//=======================================================================//
+
+#[must_use]
+pub(in crate::map) struct NearbyNodes<'a>
+{
+    nodes:        Enumerate<std::slice::Iter<'a, Node>>,
+    cursor_pos:   Vec2,
+    center:       Vec2,
+    camera_scale: f32
+}
+
+impl<'a> Iterator for NearbyNodes<'a>
+{
+    type Item = (u8, bool);
+
+    #[inline]
+    #[must_use]
+    fn next(&mut self) -> Option<Self::Item>
+    {
+        for (i, node) in self.nodes.by_ref()
+        {
+            if !node
+                .world_pos(self.center)
+                .is_point_inside_ui_highlight(self.cursor_pos, self.camera_scale)
+            {
+                continue;
+            }
+
+            return (u8::try_from(i).unwrap(), node.selectable_vector.selected).into();
+        }
+
+        None
+    }
 }
 
 //=======================================================================//
@@ -556,7 +1084,7 @@ impl MovementSimulator
     }
 
     /// Returns the distance between the position of the first [`Node`] and the current position.
-    pub(in crate::map::brush) fn movement_vec(&self) -> Vec2 { self.pos - self.start }
+    pub(in crate::map) fn movement_vec(&self) -> Vec2 { self.pos - self.start }
 
     #[inline]
     fn xceleration_leftover_time(&self, end: Vec2, xceleration: f32, delta_time: f32) -> f32
@@ -650,7 +1178,7 @@ impl MovementSimulator
 
     /// Updates the movement simulation.
     #[inline]
-    pub fn update(&mut self, brush: &Brush, mut delta_time: f32)
+    pub fn update<T: Moving + ?Sized>(&mut self, moving: &T, mut delta_time: f32)
     {
         macro_rules! post_acceleration {
             ($info:ident) => {
@@ -660,7 +1188,7 @@ impl MovementSimulator
                         self.residual_delta_time(self.current_speed, $info.start[0], delta_time)
                     {
                         self.pos = $info.start[0];
-                        self.update(brush, delta_time);
+                        self.update(moving, delta_time);
                         return;
                     }
 
@@ -674,7 +1202,7 @@ impl MovementSimulator
                         XcelerationPhase::Passed => None,
                         XcelerationPhase::Reupdate(delta_time) =>
                         {
-                            self.update(brush, delta_time);
+                            self.update(moving, delta_time);
                             return;
                         }
                     }
@@ -707,7 +1235,7 @@ impl MovementSimulator
                     XcelerationPhase::Passed => self.current_speed.into(),
                     XcelerationPhase::Reupdate(delta_time) =>
                     {
-                        self.update(brush, delta_time);
+                        self.update(moving, delta_time);
                         return;
                     }
                 }
@@ -720,7 +1248,7 @@ impl MovementSimulator
                     XcelerationPhase::Passed => post_acceleration!(decel_info),
                     XcelerationPhase::Reupdate(delta_time) =>
                     {
-                        self.update(brush, delta_time);
+                        self.update(moving, delta_time);
                         return;
                     }
                 }
@@ -751,7 +1279,7 @@ impl MovementSimulator
         self.standby = self.target_node.movement.standby_time();
 
         // Set travel parameters toward the next node.
-        let nodes = brush.path().nodes();
+        let nodes = moving.path().unwrap().nodes();
         self.target_idx = next(self.target_idx, nodes.len());
         self.current_node = std::mem::replace(&mut self.target_node, nodes[self.target_idx]);
         self.current_speed = self.current_node.movement.start_speed();
@@ -762,7 +1290,7 @@ impl MovementSimulator
         // If we have leftover delta_time call recursion.
         if !delta_time.around_equal_narrow(&0f32)
         {
-            self.update(brush, delta_time);
+            self.update(moving, delta_time);
         }
     }
 }
@@ -790,9 +1318,6 @@ impl Buckets
 
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = (&HashVec2, &HvVec<usize>)> { self.0.iter() }
-
-    #[inline]
-    pub fn keys(&self) -> impl Iterator<Item = &HashVec2> { self.0.keys() }
 
     #[inline]
     pub fn bucket_with_index(&self, index: usize) -> HashVec2
@@ -1054,7 +1579,7 @@ impl Path
 
     /// Returns the indexes of the selected [`Node`]s.
     #[inline]
-    pub(in crate::map::brush) fn selected_nodes(&self) -> Option<HvVec<u8>>
+    pub(in crate::map) fn selected_nodes(&self) -> Option<HvVec<u8>>
     {
         hv_vec![collect; self
             .nodes()
@@ -1092,7 +1617,7 @@ impl Path
     /// possible to do so without creating an invalid [`Path`].
     #[inline]
     #[must_use]
-    pub(in crate::map::brush) fn snap_selected_nodes(
+    pub(in crate::map) fn snap_selected_nodes(
         &mut self,
         grid: Grid,
         center: Vec2
@@ -1157,32 +1682,23 @@ impl Path
     }
 
     #[inline]
-    pub(in crate::map::brush) fn nearby_nodes(
+    pub(in crate::map) fn nearby_nodes(
         &self,
         cursor_pos: Vec2,
         center: Vec2,
         camera_scale: f32
-    ) -> impl Iterator<Item = (u8, bool)> + '_
+    ) -> NearbyNodes
     {
-        self.nodes()
-            .iter()
-            .enumerate()
-            .filter(move |(_, node)| {
-                node.world_pos(center)
-                    .is_point_inside_ui_highlight(cursor_pos, camera_scale)
-            })
-            .map(|(index, node)| (u8::try_from(index).unwrap(), node.selectable_vector.selected))
+        NearbyNodes {
+            nodes: self.nodes().iter().enumerate(),
+            cursor_pos,
+            center,
+            camera_scale
+        }
     }
 
     //==============================================================
     // Free draw
-
-    #[inline]
-    fn push(&mut self, node: Node)
-    {
-        self.buckets.insert(self.len(), node.pos());
-        self.nodes.push(node);
-    }
 
     #[inline]
     fn insert(&mut self, index: usize, node: Node)
@@ -1224,12 +1740,14 @@ impl Path
     ) -> FreeDrawNodeDeletionResult
     {
         let pos = pos - center;
-        let i = return_if_none!(
-            self.buckets
-                .keys()
-                .position(|key| key.0.is_point_inside_ui_highlight(pos, camera_scale)),
+        let i = *return_if_none!(
+            self.buckets.iter().find_map(|(p, idxs)| {
+                p.0.is_point_inside_ui_highlight(pos, camera_scale).then_some(idxs)
+            }),
             FreeDrawNodeDeletionResult::None
-        );
+        )
+        .last()
+        .unwrap();
 
         if self.len() == 2
         {
@@ -1240,7 +1758,7 @@ impl Path
             );
         }
 
-        let pos = self.nodes[i].pos();
+        let pos = self.nodes[i].world_pos(center);
         self.remove(i);
         self.update_hull();
         FreeDrawNodeDeletionResult::Path(pos, u8::try_from(i).unwrap())
@@ -1278,11 +1796,10 @@ impl Path
     #[must_use]
     fn is_node_at_index_valid(&self, pos: Vec2, index: usize, center: Vec2) -> bool
     {
-        let pos = pos + center;
         let index = index % self.len();
 
-        !pos.around_equal(&self.nodes[prev(index, self.len())].pos()) &&
-            !pos.around_equal(&self.nodes[index].pos())
+        !pos.around_equal(&self.nodes[prev(index, self.len())].world_pos(center)) &&
+            !pos.around_equal(&self.nodes[index].world_pos(center))
     }
 
     /// Tries to insert a [`Node`] with position `pos` at `idx`.
@@ -1300,7 +1817,6 @@ impl Path
         }
 
         self.insert(index, Node::from_world_pos(pos, false, center));
-
         self.update_hull();
         assert!(self.valid(), "try_insert_node_at_index generated an invalid Path.");
         true
@@ -1310,12 +1826,7 @@ impl Path
     /// # Panic
     /// Panics if inserting the node creates an invalid path.
     #[inline]
-    pub(in crate::map::brush) fn insert_node_at_index(
-        &mut self,
-        pos: Vec2,
-        idx: usize,
-        center: Vec2
-    )
+    pub(in crate::map) fn insert_node_at_index(&mut self, pos: Vec2, idx: usize, center: Vec2)
     {
         assert!(
             self.try_insert_node_at_index(pos, idx, center),
@@ -1327,25 +1838,11 @@ impl Path
     /// # Panic
     /// Panics if the resulting path is invalid.
     #[inline]
-    pub(in crate::map::brush) fn insert_nodes_at_indexes(
-        &mut self,
-        to_insert: impl Iterator<Item = (Vec2, usize, bool)>
-    )
+    pub(in crate::map) fn insert_nodes_at_indexes(&mut self, nodes: &HvVec<(Vec2, u8)>)
     {
-        for (vec, idx, selected) in to_insert
+        for (vec, idx) in nodes
         {
-            assert!(idx <= self.len(), "Index {idx} is higher than the length of the nodes.");
-
-            let node = Node::new(vec, selected);
-
-            if idx == self.len()
-            {
-                self.push(node);
-            }
-            else
-            {
-                self.insert(idx, node);
-            }
+            self.insert(*idx as usize, Node::new(*vec, true));
         }
 
         self.update_hull();
@@ -1356,10 +1853,7 @@ impl Path
     /// # Panic
     /// Panics if the resulting path is invalid.
     #[inline]
-    pub(in crate::map::brush) fn delete_nodes_at_indexes(
-        &mut self,
-        idxs: impl Iterator<Item = usize>
-    )
+    pub(in crate::map) fn remove_nodes_at_indexes(&mut self, idxs: impl Iterator<Item = usize>)
     {
         for idx in idxs
         {
@@ -1367,12 +1861,12 @@ impl Path
         }
 
         self.update_hull();
-        assert!(self.valid(), "delete_nodes_at_indexes generated an invalid Path.");
+        assert!(self.valid(), "remove_nodes_at_indexes generated an invalid Path.");
     }
 
     /// Checks whever deleting the selected [`Node`]s would create a valid path.
     #[inline]
-    pub(in crate::map::brush) fn check_selected_nodes_deletion(&self) -> NodesDeletionResult
+    pub(in crate::map) fn check_selected_nodes_deletion(&self) -> NodesDeletionResult
     {
         let nodes = self.nodes();
 
@@ -1395,20 +1889,20 @@ impl Path
 
         let mut to_be_deleted_nodes = hv_vec![];
 
-        for ([i, j, _], [v_i, v_j, v_k]) in nodes
+        for ([_, j, _], [v_i, v_j, v_k]) in nodes
             .triplet_iter()
             .unwrap()
             .enumerate()
             .filter(|(_, [_, v, _])| v.selectable_vector.selected)
         {
-            to_be_deleted_nodes.push((v_j.pos(), u8::try_from(j).unwrap()));
-
             if !v_i.selectable_vector.selected &&
                 !v_k.selectable_vector.selected &&
                 v_i.pos().around_equal(&v_k.pos())
             {
-                to_be_deleted_nodes.push((v_i.pos(), u8::try_from(i).unwrap()));
+                return NodesDeletionResult::Invalid;
             }
+
+            to_be_deleted_nodes.push((v_j.pos(), u8::try_from(j).unwrap()));
         }
 
         if to_be_deleted_nodes.is_empty()
@@ -1429,7 +1923,7 @@ impl Path
     /// # Panic
     /// Panics if the resulting path is invalid.
     #[inline]
-    pub(in crate::map::brush) fn delete_selected_nodes(
+    pub(in crate::map) fn delete_selected_nodes(
         &mut self,
         deletion_indexes: impl Iterator<Item = usize>
     )
@@ -1443,21 +1937,20 @@ impl Path
         assert!(self.valid(), "delete_selected_nodes generated an invalid Path.");
     }
 
-    /// Deletes the [`Node`]s at positions `to_remove`.
-    /// # Panic
-    /// Panics if the resulting path is invalid, or if there are no nodes in the path with any of
-    /// the positions returned by `to_remove`.
     #[inline]
-    pub(in crate::map::brush) fn delete_nodes(&mut self, to_remove: impl Iterator<Item = Vec2>)
+    pub(in crate::map) fn redo_selected_nodes_deletion(&mut self)
     {
-        for value in to_remove
+        let mut i = 0;
+
+        while i < self.len()
         {
-            let idx = self
-                .nodes
-                .iter()
-                .position(|node| node.pos().around_equal_narrow(&value))
-                .unwrap();
-            self.remove(idx);
+            if self.nodes[i].selectable_vector.selected
+            {
+                self.remove(i);
+                continue;
+            }
+
+            i += 1;
         }
 
         self.update_hull();
@@ -1471,7 +1964,7 @@ impl Path
     /// Returns the indexes of the deselected nodes, if any.
     #[inline]
     #[must_use]
-    pub(in crate::map::brush) fn deselect_nodes(&mut self, center: Vec2) -> Option<HvVec<u8>>
+    pub(in crate::map) fn deselect_nodes(&mut self, center: Vec2) -> Option<HvVec<u8>>
     {
         deselect_vectors!(self.nodes_world_mut(center))
     }
@@ -1479,7 +1972,7 @@ impl Path
     /// Deselects the selected [`Node`]s, but does not return the indexes of the nodes that were
     /// deselected.
     #[inline]
-    pub(in crate::map::brush) fn deselect_nodes_no_indexes(&mut self, center: Vec2)
+    pub(in crate::map) fn deselect_nodes_no_indexes(&mut self, center: Vec2)
     {
         for node in self.nodes_world_mut(center).iter_mut()
         {
@@ -1491,7 +1984,7 @@ impl Path
     /// # Panic
     /// Panics if `idx` is out of bounds.
     #[inline]
-    pub(in crate::map::brush) fn toggle_node_at_index(&mut self, idx: usize) -> bool
+    pub(in crate::map) fn toggle_node_at_index(&mut self, idx: usize) -> bool
     {
         let svec = &mut self.nodes[idx].selectable_vector;
         let selected = svec.selected;
@@ -1502,7 +1995,7 @@ impl Path
     /// Checks whever there is a [`Node`] nearby `cursor_pos` and selects it if not already
     /// selected.
     #[inline]
-    pub(in crate::map::brush) fn exclusively_select_path_node_at_index(
+    pub(in crate::map) fn exclusively_select_path_node_at_index(
         &mut self,
         center: Vec2,
         index: usize
@@ -1534,7 +2027,7 @@ impl Path
     /// Selects all non selected [`Node`]s within range.
     #[inline]
     #[must_use]
-    pub(in crate::map::brush) fn select_nodes_in_range(
+    pub(in crate::map) fn select_nodes_in_range(
         &mut self,
         center: Vec2,
         range: &Hull
@@ -1546,7 +2039,7 @@ impl Path
     /// Selects all [`Node`]s within range, and deselects those that aren't.
     #[inline]
     #[must_use]
-    pub(in crate::map::brush) fn exclusively_select_nodes_in_range(
+    pub(in crate::map) fn exclusively_select_nodes_in_range(
         &mut self,
         center: Vec2,
         range: &Hull
@@ -1569,7 +2062,7 @@ impl Path
 
     #[inline]
     #[must_use]
-    pub(in crate::map::brush) fn select_all_nodes(&mut self) -> Option<HvVec<u8>>
+    pub(in crate::map) fn select_all_nodes(&mut self) -> Option<HvVec<u8>>
     {
         hv_vec![collect; self.nodes
             .iter_mut()
@@ -1606,15 +2099,14 @@ impl Path
     /// # Panic
     /// Panics if the resulting path is invalid, or if any of the indexes is out of bounds.
     #[inline]
-    pub(in crate::map::brush) fn move_nodes_at_indexes(
-        &mut self,
-        idxs: impl Iterator<Item = usize>,
-        delta: Vec2
-    )
+    pub(in crate::map) fn move_nodes_at_indexes(&mut self, snap: &HvVec<(HvVec<u8>, Vec2)>)
     {
-        for idx in idxs
+        for (idxs, delta) in snap
         {
-            self.move_node(idx, delta);
+            for idx in idxs
+            {
+                self.move_node(*idx as usize, *delta);
+            }
         }
 
         self.update_hull();
@@ -1623,7 +2115,7 @@ impl Path
 
     /// Checks whever moving the selected [`Node`]s by `delta` generates a valid path.
     #[inline]
-    pub(in crate::map::brush) fn check_selected_nodes_move(&self, delta: Vec2) -> NodesMoveResult
+    pub(in crate::map) fn check_selected_nodes_move(&self, delta: Vec2) -> NodesMoveResult
     {
         let moved = return_if_none!(self.selected_nodes(), NodesMoveResult::None);
 
@@ -1682,7 +2174,7 @@ impl Path
     /// Panics if the resulting path is invalid, of `nodes_move` is incompatible with the current
     /// state of the path.
     #[inline]
-    pub(in crate::map::brush) fn apply_selected_nodes_move(&mut self, nodes_move: &NodesMove)
+    pub(in crate::map) fn apply_selected_nodes_move(&mut self, nodes_move: &NodesMove)
     {
         for idx in nodes_move.moved.iter().map(|idx| usize::from(*idx))
         {
@@ -1720,7 +2212,7 @@ impl Path
     }
 
     #[inline]
-    pub(in crate::map::brush) fn set_selected_nodes_standby_time(
+    pub(in crate::map) fn set_selected_nodes_standby_time(
         &mut self,
         value: f32
     ) -> Option<StandbyValueEdit>
@@ -1740,7 +2232,7 @@ impl Path
     }
 
     #[inline]
-    pub(in crate::map::brush) fn undo_standby_time_edit(&mut self, edit: &StandbyValueEdit)
+    pub(in crate::map) fn undo_standby_time_edit(&mut self, edit: &StandbyValueEdit)
     {
         for (delta, indexes) in &edit.0
         {
@@ -1754,7 +2246,7 @@ impl Path
     }
 
     #[inline]
-    pub(in crate::map::brush) fn redo_standby_time_edit(&mut self, edit: &StandbyValueEdit)
+    pub(in crate::map) fn redo_standby_time_edit(&mut self, edit: &StandbyValueEdit)
     {
         for (delta, indexes) in &edit.0
         {
@@ -1773,7 +2265,7 @@ impl Path
     /// Returns [`OverallMovement`] and [`OverallStandby`] describing the movement status of the
     /// [`Node`]s.
     #[inline]
-    pub(in crate::map::brush) fn overall_selected_nodes_movement(&self) -> OverallMovement
+    pub(in crate::map) fn overall_selected_nodes_movement(&self) -> OverallMovement
     {
         let nodes = self.nodes().iter().filter(|n| n.selectable_vector.selected);
         let mut overall = OverallMovement::new();
@@ -1913,7 +2405,7 @@ impl Path
 
     /// Draws the path with semitransparent materials.
     #[inline]
-    pub(in crate::map::brush) fn draw_semitransparent(&self, drawer: &mut EditDrawer, center: Vec2)
+    pub(in crate::map) fn draw_semitransparent(&self, drawer: &mut EditDrawer, center: Vec2)
     {
         let nodes = self.nodes_world(center);
         drawer.semitransparent_square_highlight(center, Color::BrushAnchor);
@@ -2098,7 +2590,7 @@ impl Path
 
     /// Draws the path while there is an ongoing movement simulation.
     #[inline]
-    pub(in crate::map::brush) fn draw_movement_simulation(
+    pub(in crate::map) fn draw_movement_simulation(
         &self,
         window: &Window,
         camera: &Transform,
@@ -2326,4 +2818,13 @@ pub(in crate::map) fn node_tooltip(
         color.egui_color(),
         3f32
     );
+}
+
+#[inline]
+#[must_use]
+pub(in crate::map) fn calc_path_hull(path: &Path, center: Vec2) -> Hull
+{
+    (path.hull() + center)
+        .merged(&Some(center).into_iter().into())
+        .bumped(2f32)
 }

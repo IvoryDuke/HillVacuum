@@ -49,7 +49,7 @@ use shared::{continue_if_none, match_or_panic, return_if_no_match, return_if_non
 use super::{editor_state::InputsPresses, edits_history::EditsHistory, manager::EntitiesManager};
 use crate::{
     map::{
-        brush::{convex_polygon::ConvexPolygon, mover::MoverParts, path::Path},
+        brush::{convex_polygon::ConvexPolygon, mover::MoverParts},
         camera::scale_viewport,
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
@@ -69,7 +69,8 @@ use crate::{
     utils::{
         hull::{EntityHull, Hull},
         identifiers::{EntityCenter, EntityId, Id}
-    }
+    },
+    Path
 };
 
 //=======================================================================//
@@ -133,7 +134,12 @@ impl EntityHull for ClipboardData
         {
             ClipboardData::Brush(cp, _, mp) =>
             {
-                let hull = cp.hull();
+                let mut hull = cp.hull();
+
+                if let Some(h) = cp.sprite_hull()
+                {
+                    hull = hull.merged(&h);
+                }
 
                 match mp.path_hull(cp.center())
                 {
@@ -149,24 +155,7 @@ impl EntityHull for ClipboardData
 impl EntityCenter for ClipboardData
 {
     #[inline]
-    fn center(&self) -> Vec2
-    {
-        match self
-        {
-            ClipboardData::Brush(cp, ..) =>
-            {
-                let mut center = cp.center();
-
-                if let Some(c) = cp.sprite_center()
-                {
-                    center = (center + c) / 2f32;
-                }
-
-                center
-            },
-            ClipboardData::Thing(_, _, hull) => hull.center()
-        }
-    }
+    fn center(&self) -> Vec2 { self.hull().center() }
 }
 
 impl ClipboardData
@@ -204,7 +193,7 @@ impl ClipboardData
                 polygon.draw_prop(
                     draw_camera!(bundle, camera_id),
                     &mut bundle.drawer,
-                    Color::NonSelectedBrush,
+                    Color::NonSelectedEntity,
                     delta
                 );
 
@@ -716,7 +705,7 @@ pub(in crate::map::editor::state) struct Clipboard
     /// The quick prop created with the paint tool.
     quick_prop: Prop,
     /// The slotted [`Prop`]s.
-    props: ArrayVec<Prop, 128>,
+    props: HvVec<Prop>,
     /// The index of the [`Prop`] selected in the UI, if any.
     selected_prop: Option<usize>,
     /// The text copied from the UI fields.
@@ -734,7 +723,7 @@ pub(in crate::map::editor::state) struct Clipboard
 
 impl Clipboard
 {
-    const IMPORTS_WAIT_FRAMES: usize = 4;
+    const IMPORTS_WAIT_FRAMES: usize = 2;
 
     //==============================================================
     // New
@@ -747,7 +736,7 @@ impl Clipboard
         Self {
             copy_paste: Prop::default(),
             quick_prop: Prop::default(),
-            props: ArrayVec::new(),
+            props: HvVec::new(),
             selected_prop: None,
             ui_text: String::new(),
             platform_path: None,
@@ -771,7 +760,7 @@ impl Clipboard
         let mut clip = Self {
             copy_paste: Prop::default(),
             quick_prop: Prop::default(),
-            props: ArrayVec::new(),
+            props: HvVec::new(),
             selected_prop: None,
             ui_text: String::new(),
             platform_path: None,
@@ -808,11 +797,6 @@ impl Clipboard
                 Ok(prop) => props.push(prop),
                 Err(_) => return Err("Error loading props")
             };
-        }
-
-        if self.props.len() + props.len() > self.props.capacity()
-        {
-            return Err("Too many props (limit 128)");
         }
 
         self.props_changed = true;
@@ -861,11 +845,11 @@ impl Clipboard
             return;
         }
 
-        self.update_func = Self::update;
+        self.update_func = Self::regular_update;
     }
 
     #[inline]
-    pub fn update(
+    fn regular_update(
         &mut self,
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
@@ -905,6 +889,17 @@ impl Clipboard
             self.imported_props_with_assigned_camera
                 .push((PropScreenshotTimer::new(camera.0.into()), index));
         }
+    }
+
+    #[inline]
+    pub fn update(
+        &mut self,
+        images: &mut Assets<Image>,
+        prop_cameras: &mut PropCamerasMut,
+        user_textures: &mut EguiUserTextures
+    )
+    {
+        (self.update_func)(self, images, prop_cameras, user_textures);
     }
 
     #[allow(clippy::cast_precision_loss)]
@@ -1297,7 +1292,7 @@ impl Clipboard
     #[inline]
     pub fn copy_platform_path(&mut self, manager: &mut EntitiesManager, identifier: Id)
     {
-        self.platform_path = manager.brush(identifier).path().clone().into();
+        self.platform_path = manager.moving(identifier).path().unwrap().clone().into();
     }
 
     /// Pastes the copied [`Path`] in the [`Brush`] with [`Id`] `identifier`.
@@ -1310,20 +1305,19 @@ impl Clipboard
     )
     {
         let path = return_if_none!(&self.platform_path);
-        let brush = manager.brush(identifier);
 
-        if brush.has_sprite()
+        if let Some(p) = manager.moving(identifier).path()
         {
-            if brush.path() == path
+            if *p == *path
             {
                 return;
             }
 
-            manager.replace_selected_motor(identifier, edits_history, path.clone());
+            manager.replace_selected_path(identifier, edits_history, path.clone());
             return;
         }
 
-        manager.create_motor(identifier, path.clone(), edits_history);
+        manager.create_path(identifier, path.clone(), edits_history);
     }
 
     /// Cuts the [`Path`] of the brush with [`Id`] `identifier`.
@@ -1335,8 +1329,8 @@ impl Clipboard
         identifier: Id
     )
     {
-        self.platform_path = manager.brush(identifier).path().clone().into();
-        manager.remove_selected_motor(identifier, edits_history);
+        self.platform_path = manager.moving(identifier).path().unwrap().clone().into();
+        manager.remove_selected_path(identifier, edits_history);
     }
 
     //==============================================================

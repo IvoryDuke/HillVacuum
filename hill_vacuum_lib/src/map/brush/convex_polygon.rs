@@ -20,10 +20,9 @@ use serde::{
 };
 use shared::{continue_if_none, iterate_slice_in_triplets, return_if_none};
 
-use super::{selectable_vector::VectorSelectionResult, Brush, SelectableVector};
+use super::Brush;
 use crate::{
     map::{
-        brush::selectable_vector::{deselect_vectors, select_vectors_in_range},
         drawer::{
             animation::{Animation, Animator, Timing},
             color::Color,
@@ -41,6 +40,12 @@ use crate::{
         },
         editor::state::grid::Grid,
         hv_vec,
+        selectable_vector::{
+            deselect_vectors,
+            select_vectors_in_range,
+            SelectableVector,
+            VectorSelectionResult
+        },
         HvVec,
         OutOfBounds,
         EGUI_CYAN,
@@ -87,7 +92,6 @@ use crate::{
             prev_element_n_steps,
             NoneIfEmpty,
             PointInsideUiHighlight,
-            Toggle,
             VX_HGL_SIDE,
             VX_HGL_SIDE_SQUARED
         },
@@ -821,14 +825,6 @@ impl ShearInfo
             pivot: self.pivot
         }
     }
-
-    #[inline]
-    pub fn inverted(&self) -> Self
-    {
-        let mut inverted = *self;
-        inverted.delta.toggle();
-        inverted
-    }
 }
 
 //=======================================================================//
@@ -1415,17 +1411,10 @@ impl ConvexPolygon
 
     #[inline]
     #[must_use]
-    pub(in crate::map::brush) fn sprite_hull(&self) -> Option<Hull>
+    pub(in crate::map) fn sprite_hull(&self) -> Option<Hull>
     {
         let tex = self.texture.as_ref()?;
         (tex.sprite()).then(|| tex.sprite_hull(self.center))
-    }
-
-    #[inline]
-    #[must_use]
-    pub(in crate::map) fn sprite_center(&self) -> Option<Vec2>
-    {
-        self.sprite_hull().map(|hull| hull.center())
     }
 
     #[inline]
@@ -1625,9 +1614,10 @@ impl ConvexPolygon
     }
 
     #[inline]
-    pub(in crate::map::brush) fn set_texture_settings(&mut self, texture: TextureSettings)
+    pub(in crate::map) fn set_texture_settings(&mut self, texture: TextureSettings)
     {
-        *self.texture_settings_mut_set_dirty() = texture;
+        self.texture = texture.into();
+        self.texture_updated = true;
     }
 
     #[inline]
@@ -1892,7 +1882,7 @@ impl ConvexPolygon
             return;
         }
 
-        target.texture = self.texture.clone();
+        target.texture.clone_from(&self.texture);
         let center = target.center;
         let delta = self.center - center;
         target
@@ -2238,15 +2228,17 @@ impl ConvexPolygon
     }
 
     #[inline]
-    pub(in crate::map::brush) fn move_vertexes_at_indexes(
+    pub(in crate::map::brush) fn move_vertexes_at_indexes<'a, I: Iterator<Item = &'a u8>>(
         &mut self,
-        idxs: impl Iterator<Item = usize>,
-        delta: Vec2
+        idxs: impl Iterator<Item = (I, Vec2)>
     )
     {
-        for i in idxs
+        for (idxs, delta) in idxs
         {
-            self.vertexes[i] += delta;
+            for i in idxs
+            {
+                self.vertexes[*i as usize] += delta;
+            }
         }
 
         self.update_center_hull();
@@ -2266,6 +2258,37 @@ impl ConvexPolygon
     #[inline]
     #[must_use]
     pub const fn selected_vertexes_amount(&self) -> u8 { self.selected_vertexes }
+
+    #[inline]
+    #[must_use]
+    pub fn selected_sides_amount(&self) -> u8
+    {
+        let mut selected_vertexes = 0;
+        let len = self.sides();
+        let (mut j, mut i) = (len - 1, 0);
+
+        while i < len
+        {
+            let svx_j = &self.vertexes[j];
+
+            if svx_j.selected
+            {
+                selected_vertexes += 1;
+                let svx_i = &self.vertexes[i];
+
+                if !svx_i.selected
+                {
+                    selected_vertexes += 1;
+                    i += 1;
+                }
+            }
+
+            j = i;
+            i += 1;
+        }
+
+        selected_vertexes
+    }
 
     #[inline]
     #[must_use]
@@ -2351,15 +2374,18 @@ impl ConvexPolygon
     {
         for (i, svx) in self.vertexes.iter_mut().enumerate()
         {
-            if svx.vec.around_equal_narrow(&vx)
+            if !svx.vec.around_equal_narrow(&vx)
             {
-                if !std::mem::replace(&mut svx.selected, true)
-                {
-                    return u8::try_from(i).unwrap().into();
-                }
+                continue;
+            }
 
+            if std::mem::replace(&mut svx.selected, true)
+            {
                 return None;
             }
+
+            self.selected_vertexes += 1;
+            return u8::try_from(i).unwrap().into();
         }
 
         None
@@ -2453,6 +2479,8 @@ impl ConvexPolygon
         range: &Hull
     ) -> Option<HvVec<u8>>
     {
+        self.selected_vertexes = 0;
+
         let idxs = hv_vec![collect; self.vertexes
             .iter_mut()
             .enumerate()
@@ -2462,11 +2490,14 @@ impl ConvexPolygon
                     range.contains_point(svx.vec)
                 );
 
+                if svx.selected
+                {
+                    self.selected_vertexes += 1;
+                }
+
                 (svx.selected != selected).then(|| u8::try_from(i).unwrap())
             })
         ];
-
-        self.selected_vertexes = u8::try_from(idxs.len()).unwrap();
 
         idxs.none_if_empty()
     }
@@ -2814,7 +2845,6 @@ impl ConvexPolygon
             {
                 deleted_vxs.push((self.vertexes[i].vec, index));
                 self.vertexes.remove(i);
-                self.selected_vertexes -= 1;
             }
             else
             {
@@ -2829,6 +2859,8 @@ impl ConvexPolygon
             "Vertexes deletion generated a polygon with {} sides only.",
             self.sides()
         );
+
+        self.selected_vertexes = 0;
 
         deleted_vxs.none_if_empty().map(|vxs| {
             self.update_center_hull_vertexes(drawing_resources);
@@ -2901,29 +2933,20 @@ impl ConvexPolygon
         let valid = self.vxs_valid();
 
         // Revert changes.
-        for (vx, idx) in merged_vxs
-            .iter()
-            .map(|(vx, idx)| (SelectableVector::with_selected(*vx, false), *idx as usize))
-        {
-            self.vertexes.insert(idx, vx);
-        }
+        let vxs_move = VertexesMove {
+            merged: merged_vxs,
+            moved: moved_vxs,
+            delta
+        };
 
-        // Undo the test move.
-        for idx in moved_vxs.iter().map(|idx| usize::from(*idx))
-        {
-            self.vertexes[idx] -= delta;
-        }
+        self.execute_vertexes_move_undo(&vxs_move);
 
         if !valid
         {
             return VertexesMoveResult::Invalid;
         }
 
-        VertexesMoveResult::Valid(VertexesMove {
-            merged: merged_vxs,
-            moved: moved_vxs,
-            delta
-        })
+        VertexesMoveResult::Valid(vxs_move)
     }
 
     #[inline]
@@ -2940,6 +2963,7 @@ impl ConvexPolygon
 
         for idx in vxs_move.merged.iter().rev().map(|(_, idx)| usize::from(*idx))
         {
+            assert!(!self.vertexes[idx].selected);
             self.vertexes.remove(idx);
         }
 
@@ -2948,11 +2972,7 @@ impl ConvexPolygon
     }
 
     #[inline]
-    pub(in crate::map::brush) fn undo_vertexes_move(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        vxs_move: &VertexesMove
-    )
+    fn execute_vertexes_move_undo(&mut self, vxs_move: &VertexesMove)
     {
         for (vx, idx) in vxs_move.merged.iter()
         {
@@ -2963,7 +2983,16 @@ impl ConvexPolygon
         {
             self.vertexes[idx] -= vxs_move.delta;
         }
+    }
 
+    #[inline]
+    pub(in crate::map::brush) fn undo_vertexes_move(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        vxs_move: &VertexesMove
+    )
+    {
+        self.execute_vertexes_move_undo(vxs_move);
         self.update_center_hull_vertexes(drawing_resources);
         assert!(self.valid(), "undo_vertexes_move generated an invalid polygon.");
     }
@@ -3146,18 +3175,20 @@ impl ConvexPolygon
     {
         for ([j, _], [vx_j, vx_i]) in self.vertexes.pair_iter_mut().unwrap().enumerate()
         {
-            if (side[0].around_equal_narrow(&vx_j.vec) && side[1].around_equal_narrow(&vx_i.vec)) ||
+            if !(side[0].around_equal_narrow(&vx_j.vec) && side[1].around_equal_narrow(&vx_i.vec)) ||
                 (side[1].around_equal_narrow(&vx_j.vec) &&
                     side[0].around_equal_narrow(&vx_i.vec))
             {
-                if !std::mem::replace(&mut vx_j.selected, true)
-                {
-                    self.selected_vertexes += 1;
-                    return u8::try_from(j).unwrap().into();
-                }
+                continue;
+            }
 
+            if std::mem::replace(&mut vx_j.selected, true)
+            {
                 return None;
             }
+
+            self.selected_vertexes += 1;
+            return u8::try_from(j).unwrap().into();
         }
 
         None
@@ -3556,8 +3587,7 @@ impl ConvexPolygon
             {
                 Some(idx) =>
                 {
-                    if is_point_inside_clip_edge(clip_segment, vx) &&
-                        !is_point_on_segment(clip_segment, vx)
+                    if is_point_inside_clip_edge(clip_segment, vx)
                     {
                         self.vertexes.swap_remove(idx);
                     }
@@ -3567,7 +3597,11 @@ impl ConvexPolygon
         }
 
         self.update_fields();
-        assert!(self.valid(), "clip_self generated an invalid polygon.");
+
+        if !self.valid()
+        {
+            return None;
+        }
 
         Some(left_polygon)
     }
@@ -3690,7 +3724,14 @@ impl ConvexPolygon
             ];
         }
 
-        Some(Self::new_cleaned_up(polygon.into_iter()).unwrap())
+        let mut poly = Self::new_cleaned_up(polygon.into_iter()).unwrap();
+
+        if self.texture.is_some() && self.texture == other.texture
+        {
+            poly.texture = self.texture.clone();
+        }
+
+        poly.into()
     }
 
     //==============================================================
@@ -4092,18 +4133,6 @@ impl ConvexPolygon
         assert!(self.valid(), "set_x_coordinates generated an invalid polygon.");
     }
 
-    #[inline]
-    pub(in crate::map::brush) fn shear_horizontally(&mut self, info: &ShearInfo)
-    {
-        for vx in self.vertexes.iter_mut().map(|svx| &mut svx.vec)
-        {
-            vx.x += info.delta * ((vx.y - info.pivot).abs() / info.opposite_dimension);
-        }
-
-        self.update_center_hull();
-        assert!(self.valid(), "shear_horizontally generated an invalid polygon.");
-    }
-
     #[allow(clippy::cast_precision_loss)]
     #[inline]
     pub(in crate::map::brush) fn check_vertical_shear(
@@ -4135,18 +4164,6 @@ impl ConvexPolygon
         }
 
         (new_center, ys).into()
-    }
-
-    #[inline]
-    pub(in crate::map::brush) fn shear_vertically(&mut self, info: &ShearInfo)
-    {
-        for vx in self.vertexes.iter_mut().map(|svx| &mut svx.vec)
-        {
-            vx.y += info.delta * ((vx.x - info.pivot).abs() / info.opposite_dimension);
-        }
-
-        self.update_center_hull();
-        assert!(self.valid(), "shear_vertically generated an invalid polygon.");
     }
 
     #[inline]
@@ -4529,7 +4546,10 @@ impl ConvexPolygon
             self.vertexes().map(|vx| vx + delta),
             center,
             color,
-            self.texture.as_ref(),
+            self.texture
+                .as_ref()
+                .map(|texture| MovingTextureSettings { texture, delta })
+                .as_ref(),
             self.collision
         );
 
@@ -4693,7 +4713,7 @@ impl ConvexPolygon
             },
             VertexHighlightMode::Vertex =>
             {
-                self.draw(camera, drawer, Color::SelectedBrush);
+                self.draw(camera, drawer, Color::SelectedEntity);
 
                 for svx in &self.vertexes
                 {
@@ -4731,7 +4751,7 @@ impl ConvexPolygon
                 self.draw_with_vertex_inserted_at_index(
                     camera,
                     drawer,
-                    Color::SelectedBrush,
+                    Color::SelectedEntity,
                     *new_vx,
                     *idx
                 );
@@ -4822,7 +4842,7 @@ impl ConvexPolygon
 
             if settings.sprite()
             {
-                drawer.sprite(self.center, &settings, Color::SelectedBrush);
+                drawer.sprite(self.center, &settings, Color::SelectedEntity);
                 self.sprite_highlight(drawer, self.center + movement_vec, &settings);
             }
             else
@@ -4831,7 +4851,7 @@ impl ConvexPolygon
                     camera,
                     self.vertexes().map(|vx| vx + movement_vec),
                     self.center,
-                    Color::SelectedBrush,
+                    Color::SelectedEntity,
                     Some(&settings),
                     self.collision
                 );
@@ -4844,7 +4864,7 @@ impl ConvexPolygon
             camera,
             self.vertexes().map(|vx| vx + movement_vec),
             self.center,
-            Color::SelectedBrush,
+            Color::SelectedEntity,
             None::<&TextureSettings>,
             self.collision
         );
@@ -4866,7 +4886,8 @@ impl ConvexPolygon
 
         if settings.sprite()
         {
-            todo!();
+            drawer.sprite(self.center, animator, &settings);
+            return;
         }
 
         drawer.brush(

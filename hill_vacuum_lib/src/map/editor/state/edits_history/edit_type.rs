@@ -9,9 +9,8 @@ use shared::NextValue;
 use crate::{
     map::{
         brush::{
-            convex_polygon::{ConvexPolygon, ShearInfo, TextureSetResult, VertexesMove},
-            mover::{Motor, Mover},
-            path::{MovementValueEdit, NodesMove, Path, StandbyValueEdit},
+            convex_polygon::{ConvexPolygon, TextureSetResult, VertexesMove},
+            mover::Mover,
             Brush
         },
         drawer::{
@@ -20,10 +19,12 @@ use crate::{
             texture::{Sprite, TextureInterface, TextureSettings}
         },
         editor::state::{core::UndoRedoInterface, manager::BrushMut, ui::Ui},
+        path::{MovementValueEdit, NodesMove, StandbyValueEdit},
         thing::ThingId,
         HvVec
     },
-    utils::{hull::Flip, identifiers::Id}
+    utils::{hull::Flip, identifiers::Id},
+    Path
 };
 
 //=======================================================================//
@@ -130,16 +131,12 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     VertexesSelection(HvVec<u8>),
     /// Vertexes snapped to grid.
     VertexesSnap(HvVec<(HvVec<u8>, Vec2)>),
-    /// Polygons horizontally sheared.
-    HorizontalShear(ShearInfo),
-    /// Poygons vertically sheared.
-    VerticalShear(ShearInfo),
     /// Polygons flipped.
     Flip(Flip, bool),
     /// Motor created.
-    MotorCreation(Option<Path>),
+    PathCreation(Option<Path>),
     /// Motor deleted.
-    MotorDeletion(Option<Motor>),
+    PathDeletion(Option<Path>),
     /// Path nodes selection.
     PathNodesSelection(HvVec<u8>),
     /// Path node inserion.
@@ -520,10 +517,6 @@ impl EditType
                             set(brush, drawing_resources, value);
                         }
                     },
-                    Self::Sprite(value, offset_x, offset_y) =>
-                    {
-                        (*value, *offset_x, *offset_y) = brush.set_texture_sprite(drawing_resources, *value).unwrap();
-                    },
                     Self::Animation(value) =>
                     {
                         *value = brush.set_texture_animation(drawing_resources, std::mem::take(value));
@@ -683,13 +676,22 @@ impl EditType
         identifiers: &HvVec<Id>
     )
     {
-        if identifiers.is_empty()
-        {
-            let texture = &mut self
-                .texture(unsafe { std::ptr::from_mut(drawing_resources).as_mut() }.unwrap(), ui)
-                .unwrap();
+        macro_rules! single {
+            () => {
+                identifiers[0]
+            };
+        }
 
-            if self.default_animation_common(texture.animation_mut())
+        macro_rules! moving_mut {
+            () => {
+                interface.moving_mut(single!())
+            };
+        }
+
+        if let Some(texture) = &mut self
+            .texture(unsafe { std::ptr::from_mut(drawing_resources).as_mut() }.unwrap(), ui)
+        {
+            if self.default_animation_common(texture.animation_mut_set_dirty())
             {
                 return;
             }
@@ -699,13 +701,13 @@ impl EditType
                 Self::TListAnimationFrameRemoval(_, index, name, time) =>
                 {
                     texture
-                        .animation_mut()
+                        .animation_mut_set_dirty()
                         .get_list_animation_mut()
                         .insert(*index, name, *time);
                 },
                 Self::TListAnimationNewFrame(..) =>
                 {
-                    texture.animation_mut().get_list_animation_mut().pop();
+                    texture.animation_mut_set_dirty().get_list_animation_mut().pop();
                 },
                 _ => unreachable!()
             };
@@ -718,26 +720,24 @@ impl EditType
             return;
         }
 
-        let single = identifiers[0];
-
         match_and_return!(
             self,
             Self::BrushDraw(cp) =>
             {
-                let (poly, _) = interface.despawn_brush(single, BrushType::Drawn);
+                let (poly, _) = interface.despawn_brush(single!(), BrushType::Drawn);
                 *cp = poly.into();
             },
             Self::BrushSpawn(cp, mover, selected) =>
             {
                 let (poly, m) =
-                    interface.despawn_brush(single, BrushType::from_selection(*selected));
+                    interface.despawn_brush(single!(), BrushType::from_selection(*selected));
                 *cp = poly.into();
                 *mover = m;
             },
             Self::DrawnBrushDespawn(cp) =>
             {
                 interface.spawn_brush(
-                    single,
+                    single!(),
                     std::mem::take(cp).unwrap(),
                     Mover::None,
                     BrushType::Drawn
@@ -746,15 +746,15 @@ impl EditType
             Self::BrushDespawn(cp, mover, selected) =>
             {
                 interface.spawn_brush(
-                    single,
+                    single!(),
                     std::mem::take(cp).unwrap(),
                     std::mem::take(mover),
                     BrushType::from_selection(*selected)
                 );
             },
-            Self::MotorDeletion(motor) =>
+            Self::PathDeletion(path) =>
             {
-                interface.set_motor(single, std::mem::take(motor).unwrap());
+                interface.set_path(single!(), std::mem::take(path).unwrap());
             },
             Self::EntitySelection =>
             {
@@ -795,20 +795,6 @@ impl EditType
             },
             Self::FreeDrawPointInsertion(p, idx) => interface.delete_free_draw_point(*p, *idx as usize),
             Self::FreeDrawPointDeletion(p, idx) => interface.insert_free_draw_point(*p, *idx as usize),
-            Self::HorizontalShear(info) =>
-            {
-                for id in identifiers
-                {
-                    interface.brush_mut(*id).shear_horizontally(&info.inverted());
-                }
-            },
-            Self::VerticalShear(info) =>
-            {
-                for id in identifiers
-                {
-                    interface.brush_mut(*id).shear_vertically(&info.inverted());
-                }
-            },
             Self::Flip(flip, flip_texture) =>
             {
                 let func = match flip
@@ -829,13 +815,73 @@ impl EditType
                     );
                 }
             },
-            Self::MotorCreation(path) => *path = interface.remove_motor(single).take_path().into(),
-            Self::Anchor(anchor) => interface.remove_anchor(single, *anchor),
-            Self::Disanchor(anchor) => interface.insert_anchor(single, *anchor),
-            Self::ThingDraw(..) => interface.despawn_thing(single, true),
-            Self::DrawnThingDespawn(thing, pos) => interface.spawn_thing(single, *thing, *pos, true),
-            Self::ThingSpawn(..) => interface.despawn_thing(single, false),
-            Self::ThingDespawn(thing, pos) => interface.spawn_thing(single, *thing, *pos, false),
+            Self::PathCreation(path) => *path = interface.remove_path(single!()).into(),
+            Self::Anchor(anchor) => interface.remove_anchor(single!(), *anchor),
+            Self::Disanchor(anchor) => interface.insert_anchor(single!(), *anchor),
+            Self::PathNodesSelection(idxs) =>
+            {
+                let mut moving = moving_mut!();
+
+                for idx in idxs
+                {
+                    moving.toggle_path_node_at_index((*idx).into());
+                }
+            },
+            Self::PathNodeInsertion((_, idx)) =>
+            {
+                moving_mut!().remove_path_node_at_index(*idx as usize);
+            },
+            Self::PathNodesMove(nodes_move) =>
+            {
+                let mut moving = moving_mut!();
+
+                for nodes_move in nodes_move.iter().rev()
+                {
+                    moving.undo_path_nodes_move(nodes_move);
+                }
+            },
+            Self::PathNodesDeletion(nodes) =>
+            {
+                moving_mut!().insert_path_nodes_at_indexes(nodes);
+            },
+            Self::PathNodesSnap(snap) =>
+            {
+                for (_, delta) in &mut *snap
+                {
+                    *delta = -*delta;
+                }
+
+                moving_mut!().move_path_nodes_at_indexes(snap);
+
+                for (_, delta) in &mut *snap
+                {
+                    *delta = -*delta;
+                }
+            },
+            Self::PathNodeStandby(edit) =>
+            {
+                moving_mut!().undo_path_nodes_standby_time_edit(edit);
+            },
+            Self::PathNodeMaxSpeed(edit) =>
+            {
+                moving_mut!().undo_path_nodes_max_speed_edit(edit);
+            },
+            Self::PathNodeMinSpeed(edit) =>
+            {
+                moving_mut!().undo_path_nodes_min_speed_edit(edit);
+            },
+            Self::PathNodeAccel(edit) =>
+            {
+                moving_mut!().undo_path_nodes_accel_travel_percentage_edit(edit);
+            },
+            Self::PathNodeDecel(edit) =>
+            {
+                moving_mut!().undo_path_nodes_decel_travel_percentage_edit(edit);
+            },
+            Self::ThingDraw(..) => interface.despawn_thing(single!(), true),
+            Self::DrawnThingDespawn(thing, pos) => interface.spawn_thing(single!(), *thing, *pos, true),
+            Self::ThingSpawn(..) => interface.despawn_thing(single!(), false),
+            Self::ThingDespawn(thing, pos) => interface.spawn_thing(single!(), *thing, *pos, false),
             Self::ThingMove(d) =>
             {
                 for id in identifiers
@@ -856,7 +902,7 @@ impl EditType
                 {
                     Some(tex) =>
                     {
-                        match interface.set_texture(drawing_resources, single, tex)
+                        match interface.set_texture(drawing_resources, single!(), tex)
                         {
                             TextureSetResult::Unchanged => panic!("Texture change undo failed."),
                             TextureSetResult::Changed(prev) => *tex = prev,
@@ -866,13 +912,13 @@ impl EditType
                     None =>
                     {
                         *texture =
-                            interface.remove_texture(single).name().to_owned().into();
+                            interface.remove_texture(single!()).name().to_owned().into();
                     }
                 };
             },
             Self::TextureRemoval(texture) =>
             {
-                interface.set_texture_settings(single, std::mem::take(texture).unwrap());
+                interface.set_texture_settings(single!(), std::mem::take(texture).unwrap());
             },
             Self::TextureScaleDelta(delta) =>
             {
@@ -893,9 +939,13 @@ impl EditType
                 for id in identifiers
                 {
                     let mut brush = interface.brush_mut(*id);
-                    let angle = brush.texture_settings().unwrap().angle() + *delta;
+                    let angle = brush.texture_settings().unwrap().angle() - *delta;
                     _ = brush.set_texture_angle(drawing_resources, angle).unwrap();
                 }
+            },
+            Self::Sprite(value, offset_x, offset_y) =>
+            {
+                (*value, *offset_x, *offset_y) = interface.set_single_sprite(drawing_resources, single!(), value.enabled());
             },
             Self::ListAnimationFrameRemoval(index, name, time) =>
             {
@@ -917,12 +967,12 @@ impl EditType
             }
         );
 
-        if self.thing_common(interface, single)
+        if self.thing_common(interface, single!())
         {
             return;
         }
 
-        let mut brush = interface.brush_mut(single);
+        let mut brush = interface.brush_mut(single!());
 
         if self.brush_common(drawing_resources, &mut brush)
         {
@@ -958,61 +1008,9 @@ impl EditType
             },
             Self::VertexesSnap(snap) =>
             {
-                for (idxs, delta) in snap
-                {
-                    brush.move_vertexes_at_indexes(idxs.iter().map(|idx| *idx as usize), -*delta);
-                }
-            },
-            Self::PathNodesSelection(idxs) =>
-            {
-                for idx in idxs
-                {
-                    brush.toggle_path_node_at_index((*idx).into());
-                }
-            },
-            Self::PathNodeInsertion((_, idx)) =>
-            {
-                brush.delete_path_nodes_at_indexes(Some((*idx).into()).into_iter());
-            },
-            Self::PathNodesMove(nodes_move) =>
-            {
-                for nodes_move in nodes_move.iter().rev()
-                {
-                    brush.undo_path_nodes_move(nodes_move);
-                }
-            },
-            Self::PathNodesDeletion(nodes) =>
-            {
-                brush.insert_path_nodes_at_indexes(
-                    nodes.iter().map(|(vec, idx)| (*vec, (*idx).into(), true))
+                brush.move_vertexes_at_indexes(
+                    snap.iter().map(|(idxs, delta)| (idxs.iter(), -*delta))
                 );
-            },
-            Self::PathNodesSnap(snap) =>
-            {
-                for (idxs, delta) in snap
-                {
-                    brush.move_path_nodes_at_indexes(idxs.iter().map(|idx| *idx as usize), -*delta);
-                }
-            },
-            Self::PathNodeStandby(edit) =>
-            {
-                brush.undo_path_nodes_standby_time_edit(edit);
-            },
-            Self::PathNodeMaxSpeed(edit) =>
-            {
-                brush.undo_path_nodes_max_speed_edit(edit);
-            },
-            Self::PathNodeMinSpeed(edit) =>
-            {
-                brush.undo_path_nodes_min_speed_edit(edit);
-            },
-            Self::PathNodeAccel(edit) =>
-            {
-                brush.undo_path_nodes_accel_travel_percentage_edit(edit);
-            },
-            Self::PathNodeDecel(edit) =>
-            {
-                brush.undo_path_nodes_decel_travel_percentage_edit(edit);
             },
             _ => unreachable!()
         };
@@ -1031,13 +1029,22 @@ impl EditType
         identifiers: &HvVec<Id>
     )
     {
-        if identifiers.is_empty()
-        {
-            let texture = &mut self
-                .texture(unsafe { std::ptr::from_mut(drawing_resources).as_mut() }.unwrap(), ui)
-                .unwrap();
+        macro_rules! single {
+            () => {
+                identifiers[0]
+            };
+        }
 
-            if self.default_animation_common(texture.animation_mut())
+        macro_rules! moving_mut {
+            () => {
+                interface.moving_mut(single!())
+            };
+        }
+
+        if let Some(texture) = &mut self
+            .texture(unsafe { std::ptr::from_mut(drawing_resources).as_mut() }.unwrap(), ui)
+        {
+            if self.default_animation_common(texture.animation_mut_set_dirty())
             {
                 return;
             }
@@ -1046,11 +1053,14 @@ impl EditType
             {
                 Self::TListAnimationFrameRemoval(_, index, ..) =>
                 {
-                    texture.animation_mut().get_list_animation_mut().remove(*index);
+                    texture
+                        .animation_mut_set_dirty()
+                        .get_list_animation_mut()
+                        .remove(*index);
                 },
                 Self::TListAnimationNewFrame(_, name) =>
                 {
-                    texture.animation_mut().get_list_animation_mut().push(name);
+                    texture.animation_mut_set_dirty().get_list_animation_mut().push(name);
                 },
                 _ => unreachable!()
             };
@@ -1063,14 +1073,12 @@ impl EditType
             return;
         }
 
-        let single = identifiers[0];
-
         match_and_return!(
             self,
             Self::BrushDraw(cp) =>
             {
                 interface.spawn_brush(
-                    single,
+                    single!(),
                     std::mem::take(cp).unwrap(),
                     Mover::None,
                     BrushType::Drawn
@@ -1079,7 +1087,7 @@ impl EditType
             Self::BrushSpawn(cp, mover, selected) =>
             {
                 interface.spawn_brush(
-                    single,
+                    single!(),
                     std::mem::take(cp).unwrap(),
                     std::mem::take(mover),
                     BrushType::from_selection(*selected)
@@ -1087,13 +1095,13 @@ impl EditType
             },
             Self::DrawnBrushDespawn(cp) =>
             {
-                let (poly, _) = interface.despawn_brush(single, BrushType::Drawn);
+                let (poly, _) = interface.despawn_brush(single!(), BrushType::Drawn);
                 *cp = poly.into();
             },
             Self::BrushDespawn(cp, mover, selected) =>
             {
                 let (poly, m) =
-                    interface.despawn_brush(single, BrushType::from_selection(*selected));
+                    interface.despawn_brush(single!(), BrushType::from_selection(*selected));
                 *cp = poly.into();
                 *mover = m;
             },
@@ -1136,20 +1144,6 @@ impl EditType
             },
             Self::FreeDrawPointInsertion(p, idx) => interface.insert_free_draw_point(*p, *idx as usize),
             Self::FreeDrawPointDeletion(p, idx) => interface.delete_free_draw_point(*p, *idx as usize),
-            Self::HorizontalShear(info) =>
-            {
-                for id in identifiers
-                {
-                    interface.brush_mut(*id).shear_horizontally(info);
-                }
-            },
-            Self::VerticalShear(info) =>
-            {
-                for id in identifiers
-                {
-                    interface.brush_mut(*id).shear_vertically(info);
-                }
-            },
             Self::Flip(flip, flip_texture) =>
             {
                 let func = match flip
@@ -1170,14 +1164,64 @@ impl EditType
                     );
                 }
             },
-            Self::MotorCreation(path) => interface.set_motor(single, std::mem::take(path).unwrap()),
-            Self::MotorDeletion(motor) => *motor = interface.remove_motor(single).into(),
-            Self::Anchor(anchor) => interface.insert_anchor(single, *anchor),
-            Self::Disanchor(anchor) => interface.remove_anchor(single, *anchor),
-            Self::ThingDraw(thing, pos) => interface.spawn_thing(single, *thing, *pos, true),
-            Self::DrawnThingDespawn(..) => interface.despawn_thing(single, true),
-            Self::ThingSpawn(thing, pos) => interface.spawn_thing(single, *thing, *pos, false),
-            Self::ThingDespawn(..) => interface.despawn_thing(single, false),
+            Self::PathCreation(path) => interface.set_path(single!(), std::mem::take(path).unwrap()),
+            Self::PathDeletion(path) => *path = interface.remove_path(single!()).into(),
+            Self::Anchor(anchor) => interface.insert_anchor(single!(), *anchor),
+            Self::Disanchor(anchor) => interface.remove_anchor(single!(), *anchor),
+            Self::PathNodesSelection(idxs) =>
+            {
+                let mut moving = moving_mut!();
+
+                for idx in idxs
+                {
+                    moving.toggle_path_node_at_index(*idx as usize);
+                }
+            },
+            Self::PathNodeInsertion((pos, idx)) =>
+            {
+                moving_mut!().insert_path_node_at_index(*pos, *idx as usize);
+            },
+            Self::PathNodesMove(nodes_move) =>
+            {
+                let mut moving = moving_mut!();
+
+                for node_move in nodes_move
+                {
+                    moving.redo_path_nodes_move(node_move);
+                }
+            },
+            Self::PathNodesDeletion(_) =>
+            {
+                moving_mut!().redo_selected_path_nodes_deletion();
+            },
+            Self::PathNodesSnap(snap) =>
+            {
+                moving_mut!().move_path_nodes_at_indexes(snap);
+            },
+            Self::PathNodeStandby(edit) =>
+            {
+                moving_mut!().redo_path_nodes_standby_time_edit(edit);
+            },
+            Self::PathNodeMaxSpeed(edit) =>
+            {
+                moving_mut!().redo_path_nodes_max_speed_edit(edit);
+            },
+            Self::PathNodeMinSpeed(edit) =>
+            {
+                moving_mut!().redo_path_nodes_min_speed_edit(edit);
+            },
+            Self::PathNodeAccel(edit) =>
+            {
+                moving_mut!().redo_path_nodes_accel_travel_percentage_edit(edit);
+            },
+            Self::PathNodeDecel(edit) =>
+            {
+                moving_mut!().redo_path_nodes_decel_travel_percentage_edit(edit);
+            },
+            Self::ThingDraw(thing, pos) => interface.spawn_thing(single!(), *thing, *pos, true),
+            Self::DrawnThingDespawn(..) => interface.despawn_thing(single!(), true),
+            Self::ThingSpawn(thing, pos) => interface.spawn_thing(single!(), *thing, *pos, false),
+            Self::ThingDespawn(..) => interface.despawn_thing(single!(), false),
             Self::ThingMove(d) =>
             {
                 for id in identifiers
@@ -1196,7 +1240,7 @@ impl EditType
             {
                 *texture = match interface.set_texture(
                     drawing_resources,
-                    single,
+                    single!(),
                     texture.as_ref().unwrap()
                 )
                 {
@@ -1205,7 +1249,7 @@ impl EditType
                     TextureSetResult::Set => None
                 };
             },
-            Self::TextureRemoval(texture) => *texture = interface.remove_texture(single).into(),
+            Self::TextureRemoval(texture) => *texture = interface.remove_texture(single!()).into(),
             Self::TextureScaleDelta(delta) =>
             {
                 for id in identifiers
@@ -1225,9 +1269,13 @@ impl EditType
                 for id in identifiers
                 {
                     let mut brush = interface.brush_mut(*id);
-                    let angle = brush.texture_settings().unwrap().angle() - *delta;
+                    let angle = brush.texture_settings().unwrap().angle() + *delta;
                     _ = brush.set_texture_angle(drawing_resources, angle).unwrap();
                 }
+            },
+            Self::Sprite(value, offset_x, offset_y) =>
+            {
+                (*value, *offset_x, *offset_y) = interface.set_single_sprite(drawing_resources, single!(), value.enabled());
             },
             Self::ListAnimationFrameRemoval(index, ..) =>
             {
@@ -1245,12 +1293,12 @@ impl EditType
             }
         );
 
-        if self.thing_common(interface, single)
+        if self.thing_common(interface, single!())
         {
             return;
         }
 
-        let mut brush = interface.brush_mut(single);
+        let mut brush = interface.brush_mut(identifiers[0]);
 
         if self.brush_common(drawing_resources, &mut brush)
         {
@@ -1286,59 +1334,9 @@ impl EditType
             },
             Self::VertexesSnap(snap) =>
             {
-                for (idxs, delta) in snap
-                {
-                    brush.move_vertexes_at_indexes(idxs.iter().map(|idx| *idx as usize), *delta);
-                }
-            },
-            Self::PathNodesSelection(idxs) =>
-            {
-                for idx in idxs
-                {
-                    brush.toggle_path_node_at_index((*idx).into());
-                }
-            },
-            Self::PathNodeInsertion((pos, idx)) =>
-            {
-                brush.insert_path_node_at_index(*pos, (*idx).into());
-            },
-            Self::PathNodesMove(nodes_move) =>
-            {
-                for node_move in nodes_move
-                {
-                    brush.redo_path_nodes_move(node_move);
-                }
-            },
-            Self::PathNodesDeletion(nodes) =>
-            {
-                brush.remove_nodes(nodes.iter().rev().map(|(vec, _)| *vec));
-            },
-            Self::PathNodesSnap(snap) =>
-            {
-                for (idxs, delta) in snap
-                {
-                    brush.move_path_nodes_at_indexes(idxs.iter().map(|idx| *idx as usize), *delta);
-                }
-            },
-            Self::PathNodeStandby(edit) =>
-            {
-                brush.redo_path_nodes_standby_time_edit(edit);
-            },
-            Self::PathNodeMaxSpeed(edit) =>
-            {
-                brush.redo_path_nodes_max_speed_edit(edit);
-            },
-            Self::PathNodeMinSpeed(edit) =>
-            {
-                brush.redo_path_nodes_min_speed_edit(edit);
-            },
-            Self::PathNodeAccel(edit) =>
-            {
-                brush.redo_path_nodes_accel_travel_percentage_edit(edit);
-            },
-            Self::PathNodeDecel(edit) =>
-            {
-                brush.redo_path_nodes_decel_travel_percentage_edit(edit);
+                brush.move_vertexes_at_indexes(
+                    snap.iter().map(|(idxs, delta)| (idxs.iter(), *delta))
+                );
             },
             _ => unreachable!()
         };

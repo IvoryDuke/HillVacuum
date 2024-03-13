@@ -15,7 +15,6 @@ use bevy::{
     a11y::AccessibilityPlugin,
     core_pipeline::CorePipelinePlugin,
     input::InputPlugin,
-    log::LogPlugin,
     prelude::*,
     render::{
         pipelined_rendering::PipelinedRenderingPlugin,
@@ -39,17 +38,17 @@ use proc_macros::str_array;
 pub use crate::map::{
     brush::{
         mover::{Motor, Mover},
-        path::{
-            nodes::{Movement, Node},
-            Path
-        },
         BrushViewer as Brush
     },
     drawer::{
-        animation::{Animation, AtlasAnimation, ListAnimation},
+        animation::{Animation, Atlas, List},
         texture::{Sprite, TextureInterface, TextureSettings}
     },
-    thing::{catalog::HardcodedThings, MapThing, Thing},
+    path::{
+        nodes::{Movement, Node},
+        Path
+    },
+    thing::{catalog::HardcodedThings, MapThing, Thing, ThingViewer as ThingInstance},
     Exporter
 };
 
@@ -59,7 +58,7 @@ pub use crate::map::{
 //=======================================================================//
 
 /// The name of the application.
-const NAME: &str = "Hill Vacuum";
+const NAME: &str = "HillVacuum";
 /// The folder where the assets are stored.
 const ASSETS_PATH: &str = "assets/";
 str_array!(INDEXES, 128);
@@ -129,7 +128,7 @@ impl HardcodedActions
     /// A string representation of the key presses required to initiate the action.
     #[inline]
     #[must_use]
-    pub fn key_combo(self) -> &'static str
+    pub const fn key_combo(self) -> &'static str
     {
         match self
         {
@@ -218,7 +217,6 @@ impl Plugin for HillVacuumPlugin
     fn build(&self, app: &mut App)
     {
         app.add_plugins((
-            LogPlugin::default(),
             AssetPlugin {
                 file_path: ASSETS_PATH.to_owned(),
                 processed_file_path: "processed_assets/".to_owned(),

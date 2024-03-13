@@ -101,7 +101,7 @@ where
                     (None, None) => Ordering::Equal,
                     (None, Some(_)) => Ordering::Less,
                     (Some(_), None) => Ordering::Greater,
-                    (Some(a), Some(b)) => a.total_cmp(&b)
+                    (Some(a), Some(b)) => a.total_cmp(&b).reverse()
                 }
             });
         }

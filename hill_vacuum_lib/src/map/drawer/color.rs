@@ -29,9 +29,9 @@ pub(in crate::map) enum Color
     /// The color of the selected brush hull lines extensions.
     HullExtensions,
     /// The color of the brushes that are not selected.
-    NonSelectedBrush,
+    NonSelectedEntity,
     /// The color of the selected brushes.
-    SelectedBrush,
+    SelectedEntity,
     /// The color of the non selected vertexes.
     NonSelectedVertex,
     /// The color of the selected vertexes.
@@ -51,7 +51,7 @@ pub(in crate::map) enum Color
     /// The color of the brush that will be subtracted from the other selected brushes.
     SubtractorBrush,
     /// The color of brushes that are not relevant to the purposes of the tool being used.
-    OpaqueBrush,
+    Opaque,
     /// The color of the path tool path nodes.
     PathNode,
     /// The color of the lines showing the brushes tied together.
@@ -84,9 +84,9 @@ impl Color
         GridLines,
         OriginGridLines,
         HullExtensions,
-        ClippedPolygonsNotToSpawn | OpaqueBrush,
-        NonSelectedBrush,
-        SelectedBrush,
+        ClippedPolygonsNotToSpawn | Opaque,
+        NonSelectedEntity,
+        SelectedEntity,
         SubtracteeBrush,
         ClippedPolygonsToSpawn,
         HighlightedSelectedBrush | HighlightedNonSelectedBrush,
@@ -120,8 +120,8 @@ impl Color
             Self::GridLines | Self::ClippedPolygonsNotToSpawn => Color::DARK_GRAY,
             Self::OriginGridLines => Color::WHITE,
             Self::HullExtensions => Color::INDIGO,
-            Self::NonSelectedBrush => Color::ANTIQUE_WHITE,
-            Self::SelectedBrush |
+            Self::NonSelectedEntity => Color::ANTIQUE_WHITE,
+            Self::SelectedEntity |
             Self::SubtractorBrush |
             Self::SelectedVertex |
             Self::SelectedPathNode |
@@ -131,7 +131,7 @@ impl Color
             Self::HighlightedNonSelectedBrush | Self::ToolCursor => Color::ORANGE,
             Self::HighlightedSelectedBrush | Self::HighlightedPath => Color::GREEN,
             Self::ClippedPolygonsToSpawn | Self::SubtracteeBrush | Self::PathNode => Color::GOLD,
-            Self::OpaqueBrush => Color::rgb(0.6, 0.6, 0.6),
+            Self::Opaque => Color::rgb(0.6, 0.6, 0.6),
             Self::BrushAnchor => Color::rgb(0.7, 0.34, 0.05),
             Self::SpriteAnchor => Color::rgb(1f32, 0.03, 0.91),
             Self::Hull => Color::AQUAMARINE,

@@ -9,10 +9,11 @@ use bevy::prelude::Vec2;
 
 use super::{
     angles::vector_angle_cosine,
-    points::{vertexes_orientation, VertexesOrientation}
+    points::{vertexes_orientation, VertexesOrientation},
+    HashVec2
 };
 use crate::{
-    map::HvVec,
+    map::containers::{HvHashSet, HvVec},
     utils::{
         math::{
             lines_and_segments::{is_point_inside_clip_edge, lines_intersection},
@@ -30,12 +31,12 @@ use crate::{
 /// # Panics
 /// Panics if there are issues comparing calculated cosines.
 #[inline]
-pub fn convex_hull(vertexes: impl ExactSizeIterator<Item = Vec2>) -> impl Iterator<Item = Vec2>
+pub fn convex_hull(vertexes: HvHashSet<HashVec2>) -> Option<impl Iterator<Item = Vec2>>
 {
     let mut convex_hull = Vec::with_capacity(vertexes.len());
     let mut pivot = (Vec2::new(f32::MAX, f32::MAX), 0);
 
-    for vx in vertexes
+    for vx in vertexes.into_iter().map(|vx| vx.0)
     {
         convex_hull.push((vx, 0f32));
 
@@ -62,8 +63,7 @@ pub fn convex_hull(vertexes: impl ExactSizeIterator<Item = Vec2>) -> impl Iterat
         {
             convex_hull[j].1 = vector_angle_cosine(convex_hull[j].0 - pivot.0);
 
-            #[allow(clippy::float_cmp)]
-            if convex_hull[i].1 == convex_hull[j].1
+            if convex_hull[i].1.around_equal_narrow(&convex_hull[j].1)
             {
                 if (convex_hull[i].0 - pivot.0).length_squared() <
                     (convex_hull[j].0 - pivot.0).length_squared()
@@ -109,6 +109,12 @@ pub fn convex_hull(vertexes: impl ExactSizeIterator<Item = Vec2>) -> impl Iterat
             VertexesOrientation::Collinear | VertexesOrientation::Clockwise =>
             {
                 convex_hull.remove(i);
+
+                if convex_hull.is_empty()
+                {
+                    return None;
+                }
+
                 k = i;
                 i = prev(k, convex_hull.len());
                 j = prev(i, convex_hull.len());
@@ -120,9 +126,14 @@ pub fn convex_hull(vertexes: impl ExactSizeIterator<Item = Vec2>) -> impl Iterat
         vertexes_orientation(&[convex_hull[j], convex_hull[i], convex_hull[0]])
     {
         convex_hull.remove(i);
+
+        if convex_hull.is_empty()
+        {
+            return None;
+        }
     }
 
-    convex_hull.into_iter()
+    convex_hull.into_iter().into()
 }
 
 //=======================================================================//

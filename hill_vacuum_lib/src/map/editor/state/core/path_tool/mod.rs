@@ -19,23 +19,12 @@ use super::{
 };
 use crate::{
     map::{
-        brush::{
-            path::{MovementSimulator, NodeSelectionResult, NodesMove, Path},
-            Brush,
-            NodesDeletionResult,
-            NodesMoveResult
-        },
         drawer::color::Color,
         editor::{
             cursor_pos::Cursor,
             state::{
                 clipboard::Clipboard,
-                core::{
-                    drag_area,
-                    is_anchored_to_selected_platform,
-                    is_moving_brush,
-                    tool::subtools_buttons
-                },
+                core::{drag_area, tool::subtools_buttons},
                 editor_state::InputsPresses,
                 edits_history::EditsHistory,
                 grid::Grid,
@@ -47,14 +36,24 @@ use crate::{
             ToolUpdateBundle
         },
         hv_vec,
+        path::{
+            EditPath,
+            IdNodesDeletionResult,
+            IdNodesMoveResult,
+            MovementSimulator,
+            Moving,
+            NodeSelectionResult,
+            NodesMove
+        },
         HvVec
     },
     utils::{
         hull::Hull,
-        identifiers::{EntityId, Id},
+        identifiers::{EntityCenter, EntityId, Id},
         iterators::FilterSet,
         misc::{Camera, TakeValue, Toggle}
-    }
+    },
+    Path
 };
 
 //=======================================================================//
@@ -72,7 +71,7 @@ enum Status
     PathConnection(Option<Path>, Option<ItemBeneathCursor>),
     Simulation(HvVec<MovementSimulator>, bool),
     FreeDrawUi(Option<Id>),
-    AddNodeUi
+    AddNodeUi(Option<ItemBeneathCursor>)
 }
 
 impl Default for Status
@@ -92,7 +91,7 @@ impl EnabledTool for Status
         tool == match self
         {
             Status::FreeDrawUi(_) => SubTool::PathFreeDraw,
-            Status::AddNodeUi => SubTool::PathAddNode,
+            Status::AddNodeUi(_) => SubTool::PathAddNode,
             Status::Simulation(..) => SubTool::PathSimulation,
             _ => return false
         }
@@ -117,8 +116,8 @@ enum PathEditing
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum ItemBeneathCursor
 {
-    SelectedPlatform(Id),
-    PossiblePlatform(Id),
+    SelectedMoving(Id),
+    PossibleMoving(Id),
     PathNode(Id, u8)
 }
 
@@ -130,9 +129,7 @@ impl EntityId for ItemBeneathCursor
     #[inline]
     fn id_as_ref(&self) -> &Id
     {
-        let (ItemBeneathCursor::SelectedPlatform(id) |
-        ItemBeneathCursor::PossiblePlatform(id) |
-        ItemBeneathCursor::PathNode(id, _)) = self;
+        let (Self::SelectedMoving(id) | Self::PossibleMoving(id) | Self::PathNode(id, _)) = self;
         id
     }
 }
@@ -146,42 +143,62 @@ impl Selector
 {
     #[inline]
     #[must_use]
-    fn new() -> Self { Self(ItemSelector::new(Self::selector)) }
-
-    #[inline]
-    fn selector(
-        manager: &EntitiesManager,
-        cursor_pos: Vec2,
-        camera_scale: f32,
-        items: &mut ItemsBeneathCursor<ItemBeneathCursor>
-    )
+    fn new() -> Self
     {
-        for brush in manager.selected_paths_at_pos(cursor_pos, camera_scale).iter()
+        #[inline]
+        fn selector(
+            manager: &EntitiesManager,
+            cursor_pos: Vec2,
+            camera_scale: f32,
+            items: &mut ItemsBeneathCursor<ItemBeneathCursor>
+        )
         {
-            let id = brush.id();
-
-            for (idx, selected) in brush.path_nodes_nearby_cursor_pos(cursor_pos, camera_scale)
+            for entity in manager.selected_movings_at_pos(cursor_pos, camera_scale).iter()
             {
-                items.push(ItemBeneathCursor::PathNode(id, idx), selected);
+                let id = entity.id();
+
+                for (idx, selected) in entity.path_nodes_nearby_cursor_pos(cursor_pos, camera_scale)
+                {
+                    items.push(ItemBeneathCursor::PathNode(id, idx), selected);
+                }
+            }
+
+            for brush in manager
+                .selected_brushes_at_pos(cursor_pos, None)
+                .iter()
+                .filter(|brush| brush.anchored().is_none() && brush.contains_point(cursor_pos))
+            {
+                let id = brush.id();
+
+                if brush.has_path()
+                {
+                    items.push(ItemBeneathCursor::SelectedMoving(id), true);
+                }
+                else
+                {
+                    items.push(ItemBeneathCursor::PossibleMoving(id), false);
+                }
+            }
+
+            for thing in manager
+                .selected_things_at_pos(cursor_pos, None)
+                .iter()
+                .filter(|thing| thing.contains_point(cursor_pos))
+            {
+                let id = thing.id();
+
+                if thing.has_path()
+                {
+                    items.push(ItemBeneathCursor::SelectedMoving(id), true);
+                }
+                else
+                {
+                    items.push(ItemBeneathCursor::PossibleMoving(id), false);
+                }
             }
         }
 
-        for brush in manager
-            .selected_brushes_at_pos(cursor_pos, None)
-            .iter()
-            .filter(|brush| brush.anchored().is_none() && brush.contains_point(cursor_pos))
-        {
-            let id = brush.id();
-
-            if manager.is_platform(id)
-            {
-                items.push(ItemBeneathCursor::SelectedPlatform(id), true);
-            }
-            else if brush.no_motor_nor_anchored()
-            {
-                items.push(ItemBeneathCursor::PossiblePlatform(id), false);
-            }
-        }
+        Self(ItemSelector::new(selector))
     }
 
     #[inline]
@@ -266,10 +283,7 @@ impl PathTool
     #[must_use]
     pub const fn copy_paste_available(&self) -> bool
     {
-        matches!(
-            self.status,
-            Status::Inactive(..) | Status::AddNodeUi | Status::FreeDrawUi(_) | Status::PreDrag(..)
-        )
+        matches!(self.status, Status::Inactive(..) | Status::AddNodeUi(_) | Status::FreeDrawUi(_))
     }
 
     #[inline]
@@ -305,7 +319,7 @@ impl PathTool
         let value = match status
         {
             Status::PreDrag(..) | Status::Drag(..) | Status::Inactive(_) => cursor.world(),
-            Status::SingleEditing(..) | Status::AddNodeUi => cursor.world_snapped(),
+            Status::SingleEditing(..) | Status::AddNodeUi(_) => cursor.world_snapped(),
             _ => return None
         };
 
@@ -322,7 +336,7 @@ impl PathTool
 
     #[inline]
     #[must_use]
-    pub fn path_beneath_cursor(
+    pub fn selected_moving_beneath_cursor(
         &mut self,
         bundle: &StateUpdateBundle,
         manager: &EntitiesManager,
@@ -334,7 +348,27 @@ impl PathTool
             .and_then(|item| {
                 match item
                 {
-                    ItemBeneathCursor::SelectedPlatform(id) => id.into(),
+                    ItemBeneathCursor::SelectedMoving(id) => id.into(),
+                    _ => None
+                }
+            })
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn possible_moving_beneath_cursor(
+        &mut self,
+        bundle: &StateUpdateBundle,
+        manager: &EntitiesManager,
+        inputs: &InputsPresses
+    ) -> Option<Id>
+    {
+        self.selector
+            .item_beneath_cursor(manager, bundle.cursor, bundle.camera.scale(), inputs)
+            .and_then(|item| {
+                match item
+                {
+                    ItemBeneathCursor::PossibleMoving(id) => id.into(),
                     _ => None
                 }
             })
@@ -348,7 +382,7 @@ impl PathTool
     {
         if matches!(
             self.status,
-            Status::AddNodeUi |
+            Status::AddNodeUi(_) |
                 Status::FreeDrawUi(_) |
                 Status::Simulation(..) |
                 Status::SingleEditing(_, PathEditing::FreeDraw(..))
@@ -402,8 +436,8 @@ impl PathTool
                             // See if we should enable node insertion.
                             match return_if_none!(item_beneath_cursor)
                             {
-                                ItemBeneathCursor::SelectedPlatform(_) => (),
-                                ItemBeneathCursor::PossiblePlatform(id) =>
+                                ItemBeneathCursor::SelectedMoving(_) => (),
+                                ItemBeneathCursor::PossibleMoving(id) =>
                                 {
                                     self.status = Status::SingleEditing(
                                         id,
@@ -448,8 +482,8 @@ impl PathTool
                     {
                         // Deselect selected nodes.
                         edits_history.path_nodes_selection_cluster(
-                            manager.selected_platforms_mut().filter_map(|mut brush| {
-                                brush.deselect_path_nodes().map(|idxs| (brush.id(), idxs))
+                            manager.selected_movings_mut().filter_map(|mut entity| {
+                                entity.deselect_path_nodes().map(|idxs| (entity.id(), idxs))
                             })
                         );
                     },
@@ -465,16 +499,25 @@ impl PathTool
                     }
                 );
 
-                if inputs.enter.just_pressed() && manager.selected_platforms_amount() != 0
+                if inputs.enter.just_pressed() && manager.selected_moving_amount() != 0
                 {
-                    // Initiate platforms simulation.
+                    // Initiate paths simulation.
                     self.enable_simulation(manager);
                     return;
                 }
 
                 if inputs.back.just_pressed()
                 {
-                    Self::delete(manager, inputs, edits_history);
+                    if Self::delete(manager, inputs, edits_history)
+                    {
+                        ds.set_highlighted_entity(self.selector.item_beneath_cursor(
+                            manager,
+                            bundle.cursor,
+                            bundle.camera.scale(),
+                            inputs
+                        ));
+                    }
+
                     return;
                 }
 
@@ -549,7 +592,7 @@ impl PathTool
                 {
                     for sim in simulators
                     {
-                        sim.update(manager.brush(sim.id()), bundle.delta_time);
+                        sim.update(manager.moving(sim.id()), bundle.delta_time);
                     }
                 }
             },
@@ -557,7 +600,7 @@ impl PathTool
             {
                 match item_beneath_cursor
                 {
-                    Some(ItemBeneathCursor::PossiblePlatform(id)) => *hgl_e = id.into(),
+                    Some(ItemBeneathCursor::PossibleMoving(id)) => *hgl_e = id.into(),
                     _ =>
                     {
                         *hgl_e = None;
@@ -573,15 +616,17 @@ impl PathTool
                     );
                 }
             },
-            Status::AddNodeUi =>
+            Status::AddNodeUi(hgl_e) =>
             {
+                *hgl_e = item_beneath_cursor;
+
                 if !inputs.left_mouse.just_pressed()
                 {
                     return;
                 }
 
                 let (id, idx) = return_if_no_match!(
-                    item_beneath_cursor,
+                    *hgl_e,
                     Some(ItemBeneathCursor::PathNode(id, idx)),
                     (id, idx)
                 );
@@ -593,8 +638,7 @@ impl PathTool
                 if !matches!(
                     item_beneath_cursor,
                     Some(
-                        ItemBeneathCursor::PossiblePlatform(_) |
-                            ItemBeneathCursor::SelectedPlatform(_)
+                        ItemBeneathCursor::PossibleMoving(_) | ItemBeneathCursor::SelectedMoving(_)
                     )
                 )
                 {
@@ -612,17 +656,17 @@ impl PathTool
 
                 match item_beneath_cursor
                 {
-                    ItemBeneathCursor::SelectedPlatform(id) =>
+                    ItemBeneathCursor::SelectedMoving(id) =>
                     {
-                        manager.replace_selected_motor(
+                        manager.replace_selected_path(
                             id,
                             edits_history,
                             std::mem::take(path).unwrap()
                         );
                     },
-                    ItemBeneathCursor::PossiblePlatform(id) =>
+                    ItemBeneathCursor::PossibleMoving(id) =>
                     {
-                        manager.create_motor(id, std::mem::take(path).unwrap(), edits_history);
+                        manager.create_path(id, std::mem::take(path).unwrap(), edits_history);
                     },
                     ItemBeneathCursor::PathNode(..) => unreachable!()
                 };
@@ -645,7 +689,7 @@ impl PathTool
     #[inline]
     pub fn undo_redo_despawn(&mut self, manager: &EntitiesManager, identifier: Id)
     {
-        assert!(!manager.is_selected_platform(identifier), "Brush is not a selected platform.");
+        assert!(!manager.is_selected_moving(identifier), "Brush is not a selected platform.");
 
         match &mut self.status
         {
@@ -654,13 +698,6 @@ impl PathTool
                 if ds.highlighted_entity().unwrap().id() == identifier
                 {
                     ds.set_highlighted_entity(None);
-                }
-            },
-            Status::SingleEditing(id, _) =>
-            {
-                if identifier == *id
-                {
-                    self.status = Status::default();
                 }
             },
             _ => ()
@@ -677,7 +714,7 @@ impl PathTool
     ) -> bool
     {
         let selected = manager
-            .brush_mut(identifier)
+            .moving_mut(identifier)
             .toggle_path_node_at_index(index as usize);
         edits_history.path_nodes_selection(identifier, hv_vec![index]);
         selected
@@ -692,7 +729,7 @@ impl PathTool
     )
     {
         match manager
-            .brush_mut(identifier)
+            .moving_mut(identifier)
             .exclusively_select_path_node_at_index(index as usize)
         {
             NodeSelectionResult::Selected => (),
@@ -713,17 +750,17 @@ impl PathTool
     {
         let func = if shift_pressed
         {
-            Brush::select_path_nodes_in_range
+            EditPath::select_path_nodes_in_range
         }
         else
         {
-            Brush::exclusively_select_path_nodes_in_range
+            EditPath::exclusively_select_path_nodes_in_range
         };
 
         edits_history.path_nodes_selection_cluster(
             manager
-                .selected_paths_intersect_range_mut(range)
-                .filter_map(|mut brush| func(&mut brush, range).map(|vxs| (brush.id(), vxs)))
+                .selected_movings_intersect_range_mut(range)
+                .filter_map(|mut entity| func(&mut *entity, range).map(|vxs| (entity.id(), vxs)))
         );
     }
 
@@ -736,13 +773,13 @@ impl PathTool
     {
         let mut move_payloads = hv_vec![];
 
-        for brush in manager.selected_platforms()
+        for moving in manager.selected_moving()
         {
-            match brush.check_selected_path_nodes_move(delta)
+            match moving.check_selected_path_nodes_move(delta)
             {
-                NodesMoveResult::None => (),
-                NodesMoveResult::Invalid => return false,
-                NodesMoveResult::Valid(pl) => move_payloads.push(pl)
+                IdNodesMoveResult::None => (),
+                IdNodesMoveResult::Invalid => return false,
+                IdNodesMoveResult::Valid(pl) => move_payloads.push(pl)
             };
         }
 
@@ -751,13 +788,13 @@ impl PathTool
         for payload in move_payloads
         {
             let id = payload.id();
-            let mut brush = manager.brush_mut(id);
-            let nodes_move = brush.apply_selected_path_nodes_move(payload);
+            let mut moving = manager.moving_mut(id);
+            let nodes_move = moving.apply_selected_path_nodes_move(payload);
 
             let mov = cumulative_move
                 .iter_mut()
                 .rev()
-                .find_map(|(id, mov)| (*id == brush.id()).then_some(mov));
+                .find_map(|(id, mov)| (*id == moving.id()).then_some(mov));
 
             match mov
             {
@@ -795,7 +832,7 @@ impl PathTool
             {
                 if inputs.enter.just_pressed()
                 {
-                    manager.create_motor(id, return_if_none!(path.path(), false), edits_history);
+                    manager.create_path(id, return_if_none!(path.path(), false), edits_history);
                     return true;
                 }
 
@@ -804,31 +841,31 @@ impl PathTool
                     path.remove(
                         edits_history,
                         cursor_pos,
-                        manager.brush(id).center(),
+                        manager.moving(id).center(),
                         bundle.camera.scale()
                     );
                 }
                 else if inputs.left_mouse.just_pressed()
                 {
-                    path.push(edits_history, cursor_pos, manager.brush(id).center());
+                    path.push(edits_history, cursor_pos, manager.moving(id).center());
                 }
             },
             PathEditing::AddNode { idx, pos } =>
             {
                 *pos = cursor_pos;
-                let mut brush = manager.brush_mut(id);
+                let mut moving = manager.moving_mut(id);
 
                 if inputs.left_mouse.pressed()
                 {
                     return false;
                 }
 
-                if !brush.try_insert_path_node_at_index(*pos, *idx as usize)
+                if moving.try_insert_path_node_at_index(*pos, *idx as usize)
                 {
-                    return true;
+                    edits_history.path_node_insertion(id, *pos, *idx);
                 }
 
-                edits_history.path_node_insertion(id, *pos, *idx);
+                return true;
             }
         };
 
@@ -836,42 +873,45 @@ impl PathTool
     }
 
     #[inline]
+    #[must_use]
     fn delete(
         manager: &mut EntitiesManager,
         inputs: &InputsPresses,
         edits_history: &mut EditsHistory
-    )
+    ) -> bool
     {
         // Delete motors.
         if inputs.alt_pressed()
         {
-            manager.remove_selected_motors(edits_history);
-            return;
+            manager.remove_selected_paths(edits_history);
+            return true;
         }
 
         // Delete all selected nodes if that's fine.
         let mut payloads = hv_vec![];
 
-        for brush in manager.selected_platforms()
+        for moving in manager.selected_moving()
         {
-            match brush.check_selected_nodes_deletion()
+            match moving.check_selected_nodes_deletion()
             {
-                NodesDeletionResult::None => continue,
-                NodesDeletionResult::Invalid => return,
-                NodesDeletionResult::Valid(payload) => payloads.push(payload)
+                IdNodesDeletionResult::None => continue,
+                IdNodesDeletionResult::Invalid => return false,
+                IdNodesDeletionResult::Valid(payload) => payloads.push(payload)
             };
         }
 
         if payloads.is_empty()
         {
-            return;
+            return false;
         }
 
         edits_history.path_nodes_deletion_cluster(
             payloads
                 .into_iter()
-                .map(|p| (p.id(), manager.brush_mut(p.id()).delete_selected_path_nodes(p)))
+                .map(|p| (p.id(), manager.moving_mut(p.id()).remove_selected_path_nodes(p)))
         );
+
+        true
     }
 
     #[inline]
@@ -883,7 +923,7 @@ impl PathTool
             (*id, path)
         );
 
-        path.remove_index(index, manager.brush(id).center());
+        path.remove_index(index, manager.moving(id).center());
     }
 
     #[inline]
@@ -895,13 +935,13 @@ impl PathTool
             (*id, path)
         );
 
-        path.insert_at_index(p, index, manager.brush(id).center());
+        path.insert_at_index(p, index, manager.moving(id).center());
     }
 
     #[inline]
     pub fn enable_simulation(&mut self, manager: &EntitiesManager)
     {
-        if self.nodes_editor.interacting() || manager.selected_platforms_amount() == 0
+        if self.nodes_editor.interacting() || manager.selected_moving_amount() == 0
         {
             return;
         }
@@ -911,7 +951,7 @@ impl PathTool
             return;
         }
 
-        self.status = Status::Simulation(manager.movement_simulators(), false);
+        self.status = Status::Simulation(manager.selected_movement_simulators(), false);
     }
 
     //==============================================================
@@ -926,21 +966,22 @@ impl PathTool
             drawer,
             camera,
             cursor,
+            things_catalog,
             ..
         } = bundle;
 
         let brushes = manager.brushes();
 
-        macro_rules! draw_brushes {
+        macro_rules! draw_entities {
             ($($filters:expr)?) => {{
-                for brush in manager.visible_paths(window, camera).iter()
-                    $(.filter_set_with_predicate($filters, |brush| brush.id()))?
+                for entity in manager.visible_paths(window, camera).iter()
+                    $(.filter_set_with_predicate($filters, |entity| entity.id()))?
                 {
-                    let id = brush.id();
+                    let id = entity.id();
 
-                    if manager.is_selected_platform(id)
+                    if manager.is_selected_moving(id)
                     {
-                        brush.draw_path(
+                        entity.draw_path(
                             window,
                             camera,
                             egui_context,
@@ -950,7 +991,7 @@ impl PathTool
                     }
                     else
                     {
-                        brush.draw_semitransparent_path(drawer);
+                        entity.draw_semitransparent_path(drawer);
                     }
                 }
 
@@ -959,7 +1000,7 @@ impl PathTool
                 {
                     let id = brush.id();
 
-                    if manager.is_selected_platform(id) || is_anchored_to_selected_platform!(manager, id)
+                    if manager.is_selected_moving(id) || is_anchored_to_selected_moving(manager, id)
                     {
                         brush.draw_selected(camera, drawer);
                     }
@@ -969,17 +1010,36 @@ impl PathTool
                     }
                     else
                     {
-                        brush.draw_with_color(camera, drawer, Color::OpaqueBrush);
+                        brush.draw_opaque(camera, drawer);
+                    }
+                }
+
+                for thing in manager.visible_things(window, camera).iter()
+                    $(.filter_set_with_predicate($filters, |thing| thing.id()))?
+                {
+                    let id = thing.id();
+
+                    if manager.is_selected_moving(id)
+                    {
+                        thing.draw_selected(drawer, things_catalog);
+                    }
+                    else if manager.is_selected(id)
+                    {
+                        thing.draw_non_selected(drawer, things_catalog);
+                    }
+                    else
+                    {
+                        thing.draw_opaque(drawer, things_catalog);
                     }
                 }
             }};
         }
 
-        macro_rules! draw_brushes_with_highlight {
+        macro_rules! draw_entities_with_highlight {
             ($hgl_e:expr) => {
                 if $hgl_e.is_none()
                 {
-                    draw_brushes!();
+                    draw_entities!();
                 }
                 else
                 {
@@ -987,28 +1047,39 @@ impl PathTool
 
                     match hgl_e
                     {
-                        ItemBeneathCursor::SelectedPlatform(id) =>
+                        ItemBeneathCursor::SelectedMoving(id) =>
                         {
-                            manager.brush(id).draw_highlighted_with_path_nodes(
+                            manager.moving(id).draw_highlighted_with_path_nodes(
                                 window,
                                 camera,
                                 egui_context,
                                 brushes,
+                                things_catalog,
                                 drawer,
                                 show_tooltips
                             );
                         },
-                        ItemBeneathCursor::PossiblePlatform(id) =>
+                        ItemBeneathCursor::PossibleMoving(id) =>
                         {
-                            manager.brush(id).draw_highlighted_non_selected(camera, drawer);
+                            if manager.is_thing(id)
+                            {
+                                manager
+                                    .thing(id)
+                                    .draw_highlighted_non_selected(drawer, things_catalog);
+                            }
+                            else
+                            {
+                                manager.brush(id).draw_highlighted_non_selected(camera, drawer);
+                            }
                         },
                         ItemBeneathCursor::PathNode(id, idx) =>
                         {
-                            manager.brush(id).draw_with_highlighted_path_node(
+                            manager.moving(id).draw_with_highlighted_path_node(
                                 window,
                                 camera,
                                 egui_context,
                                 brushes,
+                                things_catalog,
                                 drawer,
                                 idx as usize,
                                 show_tooltips
@@ -1016,7 +1087,7 @@ impl PathTool
                         }
                     };
 
-                    draw_brushes!(hgl_e.id());
+                    draw_entities!(hgl_e.id());
                 }
             };
         }
@@ -1030,41 +1101,50 @@ impl PathTool
         {
             Status::Inactive(ds) =>
             {
-                draw_brushes_with_highlight!(ds.highlighted_entity());
+                draw_entities_with_highlight!(ds.highlighted_entity());
                 drawer.hull(&return_if_none!(ds.hull()), Color::Hull);
             },
-            Status::PreDrag(_, hgl_e) =>
+            Status::PreDrag(_, hgl_e) | Status::AddNodeUi(hgl_e) =>
             {
-                draw_brushes_with_highlight!(*hgl_e);
+                draw_entities_with_highlight!(*hgl_e);
             },
-            Status::Drag(..) | Status::AddNodeUi =>
-            {
-                draw_brushes!();
-            },
+            Status::Drag(..) => draw_entities!(),
             Status::SingleEditing(id, editing) =>
             {
                 match editing
                 {
                     PathEditing::FreeDraw(path) =>
                     {
-                        let brush = manager.brush(*id);
-                        brush.draw_highlighted_selected(camera, drawer);
+                        let center = if manager.is_thing(*id)
+                        {
+                            let thing = manager.thing(*id);
+                            thing.draw_highlighted_selected(drawer, things_catalog);
+                            thing.center()
+                        }
+                        else
+                        {
+                            let brush = manager.brush(*id);
+                            brush.draw_highlighted_selected(camera, drawer);
+                            brush.center()
+                        };
+
                         path.draw_with_knot(
                             window,
                             camera,
                             egui_context,
                             drawer,
                             show_tooltips,
-                            brush.center()
+                            center
                         );
                     },
                     PathEditing::AddNode { pos, idx } =>
                     {
-                        manager.brush(*id).draw_with_path_node_addition(
+                        manager.moving(*id).draw_with_path_node_addition(
                             window,
                             camera,
                             egui_context,
                             brushes,
+                            things_catalog,
                             drawer,
                             *pos,
                             *idx as usize,
@@ -1073,43 +1153,44 @@ impl PathTool
                     }
                 }
 
-                draw_brushes!(*id);
+                draw_entities!(*id);
             },
             Status::Simulation(simulators, _) =>
             {
                 for simulator in simulators
                 {
-                    manager.brush(simulator.id()).draw_movement_simulation(
+                    manager.moving(simulator.id()).draw_movement_simulation(
                         window,
                         camera,
                         egui_context,
                         brushes,
+                        things_catalog,
                         drawer,
                         show_tooltips,
                         simulator
                     );
                 }
 
-                for brush in manager
+                for moving in manager
                     .visible_paths(window, camera)
                     .iter()
-                    .filter(|brush| !is_moving_brush!(manager, brush.id()))
+                    .filter(|moving| !is_moving(manager, moving.id()))
                 {
-                    brush.draw_semitransparent_path(drawer);
+                    moving.draw_semitransparent_path(drawer);
                 }
 
                 for brush in manager
                     .visible_brushes(window, camera)
                     .iter()
-                    .filter(|brush| !is_moving_brush!(manager, brush.id()))
+                    .filter(|brush| !is_moving(manager, brush.id()))
                 {
-                    brush.draw_with_color(camera, drawer, Color::OpaqueBrush);
+                    brush.draw_opaque(camera, drawer);
                 }
 
                 for brush in manager
                     .visible_sprite_highlights(window, camera)
                     .iter()
-                    .filter(|brush| !is_moving_brush!(manager, brush.id()))
+                    .filter(|brush| !is_moving(manager, brush.id()))
                 {
                     brush.draw_sprite_highlight(drawer);
                 }
@@ -1117,31 +1198,47 @@ impl PathTool
                 for brush in manager
                     .visible_sprites(window, camera)
                     .iter()
-                    .filter(|brush| !is_moving_brush!(manager, brush.id()))
+                    .filter(|brush| !is_moving(manager, brush.id()))
                 {
-                    brush.draw_sprite(drawer, Color::OpaqueBrush);
+                    brush.draw_sprite(drawer, Color::Opaque);
                 }
-
-                let brushes = manager.brushes();
 
                 for brush in manager
                     .visible_anchors(window, camera)
                     .iter()
-                    .filter(|brush| !is_moving_brush!(manager, brush.id()))
+                    .filter(|brush| !is_moving(manager, brush.id()))
                 {
                     brush.draw_anchors(brushes, drawer);
+                }
+
+                for thing in manager
+                    .visible_things(window, camera)
+                    .iter()
+                    .filter(|thing| !is_moving(manager, thing.id()))
+                {
+                    thing.draw_opaque(drawer, things_catalog);
                 }
             },
             Status::FreeDrawUi(hgl_e) =>
             {
                 if let Some(hgl_e) = hgl_e
                 {
-                    manager.brush(*hgl_e).draw_highlighted_non_selected(camera, drawer);
-                    draw_brushes!(*hgl_e);
+                    if manager.is_thing(*hgl_e)
+                    {
+                        manager
+                            .thing(*hgl_e)
+                            .draw_highlighted_non_selected(drawer, things_catalog);
+                    }
+                    else
+                    {
+                        manager.brush(*hgl_e).draw_highlighted_non_selected(camera, drawer);
+                    }
+
+                    draw_entities!(*hgl_e);
                 }
                 else
                 {
-                    draw_brushes!();
+                    draw_entities!();
                 }
             },
             Status::PathConnection(path, hgl_e) =>
@@ -1155,7 +1252,7 @@ impl PathTool
                     false
                 );
 
-                draw_brushes_with_highlight!(hgl_e);
+                draw_entities_with_highlight!(hgl_e);
             }
         };
     }
@@ -1202,12 +1299,12 @@ impl PathTool
                 PathFreeDraw,
                 Status::FreeDrawUi(None),
                 Status::FreeDrawUi(_),
-                Status::AddNodeUi | Status::Simulation(..)
+                Status::AddNodeUi(_) | Status::Simulation(..)
             ),
             (
                 PathAddNode,
-                Status::AddNodeUi,
-                Status::AddNodeUi,
+                Status::AddNodeUi(None),
+                Status::AddNodeUi(_),
                 Status::FreeDrawUi(_) | Status::Simulation(..)
             )
         );
@@ -1219,7 +1316,7 @@ impl PathTool
 
         match &self.status
         {
-            Status::Inactive(..) | Status::FreeDrawUi(_) | Status::AddNodeUi =>
+            Status::Inactive(..) | Status::FreeDrawUi(_) | Status::AddNodeUi(_) =>
             {
                 self.nodes_editor.force_simulation(manager, edits_history);
                 self.enable_simulation(manager);
@@ -1228,4 +1325,36 @@ impl PathTool
             _ => ()
         };
     }
+}
+
+//=======================================================================//
+// FUNCTIONS
+//
+//=======================================================================//
+
+#[inline]
+#[must_use]
+fn is_anchored_to_selected_moving(manager: &EntitiesManager, identifier: Id) -> bool
+{
+    match manager.brush(identifier).anchored()
+    {
+        Some(id) => manager.is_selected_moving(id),
+        None => false
+    }
+}
+
+//=======================================================================//
+
+#[inline]
+#[must_use]
+fn is_moving(manager: &EntitiesManager, identifier: Id) -> bool
+{
+    let sel_mov = manager.is_selected_moving(identifier);
+
+    if manager.is_thing(identifier)
+    {
+        return sel_mov;
+    }
+
+    sel_mov || is_anchored_to_selected_moving(manager, identifier)
 }

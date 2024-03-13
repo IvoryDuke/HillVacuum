@@ -3,6 +3,7 @@
 //
 //=======================================================================//
 
+use bevy::math::UVec2;
 use bevy_egui::egui;
 use shared::{return_if_none, TEXTURE_HEIGHT_RANGE};
 
@@ -12,6 +13,7 @@ use super::{
 };
 use crate::{
     map::{
+        containers::{hv_hash_set, Ids},
         drawer::color::Color,
         editor::{
             state::{
@@ -19,6 +21,7 @@ use crate::{
                 core::tool::subtools_buttons,
                 editor_state::{InputsPresses, ToolsSettings},
                 edits_history::EditsHistory,
+                format_texture_preview,
                 manager::EntitiesManager,
                 ui::{
                     overall_value_field::MinusPlusOverallValueField,
@@ -30,9 +33,8 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
-        hv_hash_set,
-        AssertedInsertRemove,
-        Ids
+        thing::ThingInterface,
+        AssertedInsertRemove
     },
     utils::{
         identifiers::{EntityId, Id},
@@ -253,7 +255,7 @@ impl ThingTool
 
         for brush in manager.visible_brushes(window, camera).iter()
         {
-            brush.draw_with_color(camera, drawer, Color::OpaqueBrush);
+            brush.draw_opaque(camera, drawer);
         }
     }
 
@@ -344,6 +346,7 @@ impl ThingTool
                 );
                 overall_value!(strip, "Angle", angle, f32, 0f32, 360f32);
             });
+
         has_focus
     }
 
@@ -372,12 +375,19 @@ impl ThingTool
             things_catalog,
             "things",
             thing,
-            PREVIEW_SIZE.y + 26f32,
+            PREVIEW_SIZE.y + 28f32,
             PREVIEW_SIZE,
-            |ui: &mut egui::Ui, texture: (usize, egui::TextureId, &str), frame| {
+            |ui: &mut egui::Ui,
+             texture: (usize, egui::TextureId, UVec2, &str),
+             frame: egui::Vec2| {
                 ui.vertical(|ui| {
-                    let response = ui.add(egui::ImageButton::new((texture.1, frame)));
-                    ui.label(texture.2);
+                    ui.set_width(frame.x);
+
+                    let response =
+                        format_texture_preview!(ImageButton, ui, texture.1, texture.2, frame.x);
+                    ui.vertical_centered(|ui| {
+                        ui.label(texture.3);
+                    });
                     response
                 })
                 .inner

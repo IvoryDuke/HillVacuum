@@ -93,7 +93,7 @@ impl<'world, 'state, 'a, 'b, 'c> StateUpdateBundle<'world, 'state, 'a, 'b, 'c>
     #[inline]
     pub fn update_window_title(&mut self)
     {
-        self.window.title = window_title(self.config.open_file.file_stem().unwrap());
+        self.window.title = window_title(self.config.open_file.file_stem());
     }
 }
 
@@ -206,7 +206,7 @@ impl Editor
                 {
                     Ok(file) =>
                     {
-                        window.title = window_title(path.file_stem().unwrap().to_str().unwrap());
+                        window.title = window_title(path.file_stem().unwrap().to_str());
                         file.into()
                     },
                     Err(_) => None
@@ -310,8 +310,8 @@ impl Editor
         if !window.focused
         {
             key_inputs.reset_all();
-            egui_context.input_mut(|w| {
-                w.events.clear();
+            egui_context.input_mut(|i| {
+                i.events.clear();
             });
         }
 
@@ -634,10 +634,11 @@ impl Editor
                 meshes,
                 meshes_query,
                 &mut self.drawing_resources,
+                self.state.tools_settings(),
                 elapsed_time,
                 camera.scale(),
                 paint_tool_camera.scale(),
-                self.state.tools_settings()
+                self.state.show_collision_overlay()
             ),
             camera,
             prop_cameras,
@@ -677,4 +678,11 @@ impl Editor
 /// Returns the title of the window based on the opened file.
 #[inline]
 #[must_use]
-fn window_title(open_file: &str) -> String { format!("{NAME} - {open_file}") }
+fn window_title(open_file: Option<&str>) -> String
+{
+    match open_file
+    {
+        Some(file) => format!("{NAME} - {file}"),
+        None => NAME.to_owned()
+    }
+}

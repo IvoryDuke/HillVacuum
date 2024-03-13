@@ -13,6 +13,7 @@ use super::{
     drag_area::{DragArea, DragAreaTrait},
     draw_non_selected_brushes,
     path_tool::path_creation::PathCreation,
+    selected_vertexes,
     tool::{subtools_buttons, ChangeConditions, EnabledTool, SubTool},
     ActiveTool
 };
@@ -20,13 +21,12 @@ use crate::{
     map::{
         brush::{
             convex_polygon::{VertexHighlightMode, VertexesDeletionResult, VertexesMove},
-            path::Path,
-            selectable_vector::VectorSelectionResult,
             Brush,
             SplitPayload,
             SplitResult,
             VertexesMoveResult
         },
+        containers::{hv_hash_map, hv_hash_set, hv_vec, HvHashMap, HvVec, Ids},
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             cursor_pos::Cursor,
@@ -42,13 +42,8 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
-        hv_hash_map,
-        hv_hash_set,
-        hv_vec,
-        AssertedInsertRemove,
-        HvHashMap,
-        HvVec,
-        Ids
+        selectable_vector::VectorSelectionResult,
+        AssertedInsertRemove
     },
     utils::{
         hull::{EntityHull, Hull},
@@ -56,7 +51,8 @@ use crate::{
         iterators::FilterSet,
         math::HashVec2,
         misc::{Camera, TakeValue}
-    }
+    },
+    Path
 };
 
 //=======================================================================//
@@ -108,11 +104,16 @@ impl EnabledTool for Status
 //
 //=======================================================================//
 
+selected_vertexes!(selected_vertexes_amount);
+
+//=======================================================================//
+
 #[must_use]
 #[derive(Debug)]
 struct BrushesWithSelectedVertexes
 {
     ids:            Ids,
+    selected_vxs:   SelectedVertexes,
     splittable_ids: HvHashMap<Id, SplitPayload>,
     error_id:       Option<Id>
 }
@@ -124,10 +125,15 @@ impl BrushesWithSelectedVertexes
     {
         Self {
             ids:            hv_hash_set![],
+            selected_vxs:   SelectedVertexes::default(),
             splittable_ids: hv_hash_map![],
             error_id:       None
         }
     }
+
+    #[inline]
+    #[must_use]
+    fn vx_merge_available(&self) -> bool { self.selected_vxs.vx_merge_available() }
 
     #[inline]
     #[must_use]
@@ -159,6 +165,8 @@ impl BrushesWithSelectedVertexes
         let id = brush.id();
         self.ids.insert(id);
 
+        self.selected_vxs.insert(brush);
+
         match brush.check_split()
         {
             SplitResult::None => (),
@@ -184,6 +192,7 @@ impl BrushesWithSelectedVertexes
 
         if self.ids.remove(id)
         {
+            self.selected_vxs.remove(brush);
             self.splittable_ids.remove(id);
             self.check_error_removal(*id);
         }
@@ -196,6 +205,7 @@ impl BrushesWithSelectedVertexes
 
         if self.ids.remove(&identifier)
         {
+            self.selected_vxs.remove_id(manager, identifier);
             self.splittable_ids.remove(&identifier);
             self.check_error_removal(identifier);
         }
@@ -295,6 +305,9 @@ impl VertexTool
     #[inline]
     #[must_use]
     fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world() }
+
+    #[inline]
+    pub fn vx_merge_available(&self) -> bool { self.1.vx_merge_available() }
 
     #[inline]
     pub fn split_available(&self) -> bool { self.1.split_available() }
@@ -432,7 +445,8 @@ impl VertexTool
                 let dir = return_if_none!(inputs.directional_keys_vector(grid.size()), None);
                 let mut vxs_move = hv_vec![];
 
-                if Self::move_vertexes(bundle, manager, edits_history, dir, &mut vxs_move)
+                if self.1.selected_vxs.any_selected_vx() &&
+                    Self::move_vertexes(bundle, manager, edits_history, dir, &mut vxs_move)
                 {
                     edits_history.vertexes_move(vxs_move);
                 }
@@ -633,7 +647,7 @@ impl VertexTool
         edits_history.vertexes_selection_cluster(
             manager
                 .selected_brushes_mut_at_pos(vx, None)
-                .filter_set_with_predicate(id, |brush| brush.id())
+                .filter_set_with_predicate(id, EntityId::id)
                 .filter_map(|mut brush| {
                     brush.try_exclusively_select_vertex(vx).map(|idxs| (brush.id(), idxs))
                 })
@@ -715,34 +729,23 @@ impl VertexTool
         {
             let id = payload.id();
 
-            for idx in payload.moved_indexes()
             {
-                let vx = HashVec2(manager.brush(id).vertex_at_index(idx.into()) + delta);
+                let brush = manager.brush(id);
 
-                if moved_vertexes.contains(&vx)
+                for idx in payload.moved_indexes()
                 {
-                    continue;
+                    moved_vertexes.insert(HashVec2(brush.vertex_at_index(idx.into()) + delta));
                 }
-
-                moved_vertexes.insert(vx);
-
-                edits_history.vertexes_selection_cluster(
-                    manager
-                        .selected_brushes_mut_at_pos(vx.0, None)
-                        .filter_set_with_predicate(id, |brush| brush.id())
-                        .filter_map(|mut brush| {
-                            brush.try_select_vertex(vx.0).map(|idx| (brush.id(), hv_vec![idx]))
-                        })
-                );
             }
 
-            let mut brush = manager.brush_mut(id);
-            let vx_move = brush.apply_vertexes_move_result(bundle.drawing_resources, payload);
+            let vx_move = manager
+                .brush_mut(id)
+                .apply_vertexes_move_result(bundle.drawing_resources, payload);
 
             let mov = cumulative_move
                 .iter_mut()
                 .rev()
-                .find_map(|(id, mov)| (*id == brush.id()).then_some(mov));
+                .find_map(|(i, mov)| (*i == id).then_some(mov));
 
             match mov
             {
@@ -756,6 +759,17 @@ impl VertexTool
                 None => cumulative_move.push((id, hv_vec![vx_move]))
             };
         }
+
+        let mut selections = hv_vec![];
+
+        for pos in moved_vertexes
+        {
+            selections.extend(manager.selected_brushes_mut_at_pos(pos.0, None).filter_map(
+                |mut brush| brush.try_select_vertex(pos.0).map(|idx| (brush.id(), hv_vec![idx]))
+            ));
+        }
+
+        edits_history.vertexes_selection_cluster(selections.into_iter());
 
         true
     }

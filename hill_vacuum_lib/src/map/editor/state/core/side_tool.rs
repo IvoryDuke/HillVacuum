@@ -12,6 +12,7 @@ use super::{
     drag::Drag,
     drag_area::DragArea,
     draw_non_selected_brushes,
+    selected_vertexes,
     tool::{subtools_buttons, ChangeConditions, EnabledTool, SubTool},
     ActiveTool,
     VertexesToggle
@@ -33,6 +34,7 @@ use crate::{
             XtrusionPayload,
             XtrusionResult
         },
+        containers::{hv_hash_set, hv_vec, HvVec, Ids},
         drawer::color::Color,
         editor::{
             cursor_pos::Cursor,
@@ -47,11 +49,7 @@ use crate::{
             DrawBundle,
             StateUpdateBundle,
             ToolUpdateBundle
-        },
-        hv_hash_set,
-        hv_vec,
-        HvVec,
-        Ids
+        }
     },
     utils::{
         hull::{EntityHull, Hull},
@@ -169,11 +167,16 @@ impl EnabledTool for Status
 //
 //=======================================================================//
 
+selected_vertexes!(selected_sides_amount);
+
+//=======================================================================//
+
 #[must_use]
 #[derive(Debug)]
 struct BrushesWithSelectedSides
 {
     ids:               Ids,
+    selected_vxs:      SelectedVertexes,
     one_selected_side: Ids,
     error_id:          Option<Id>
 }
@@ -185,10 +188,15 @@ impl BrushesWithSelectedSides
     {
         Self {
             ids:               hv_hash_set![],
+            selected_vxs:      SelectedVertexes::default(),
             one_selected_side: hv_hash_set![],
             error_id:          None
         }
     }
+
+    #[inline]
+    #[must_use]
+    fn vx_merge_available(&self) -> bool { self.selected_vxs.vx_merge_available() }
 
     #[inline]
     #[must_use]
@@ -202,6 +210,8 @@ impl BrushesWithSelectedSides
     fn insert(&mut self, brush: &Brush)
     {
         let id = brush.id();
+
+        self.selected_vxs.insert(brush);
 
         match brush.selected_vertexes_amount()
         {
@@ -226,6 +236,7 @@ impl BrushesWithSelectedSides
 
         if self.ids.remove(id)
         {
+            self.selected_vxs.remove(brush);
             self.one_selected_side.remove(id);
         }
     }
@@ -237,6 +248,7 @@ impl BrushesWithSelectedSides
 
         if self.ids.remove(&identifier)
         {
+            self.selected_vxs.remove_id(manager, identifier);
             self.one_selected_side.remove(&identifier);
         }
     }
@@ -245,6 +257,7 @@ impl BrushesWithSelectedSides
     fn clear(&mut self)
     {
         self.ids.clear();
+        self.selected_vxs.clear();
         self.one_selected_side.clear();
         self.error_id = None;
     }
@@ -371,6 +384,9 @@ impl SideTool
     fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world() }
 
     #[inline]
+    pub fn vx_merge_available(&self) -> bool { self.1.vx_merge_available() }
+
+    #[inline]
     #[must_use]
     pub fn xtrusion_available(&self) -> bool { self.1.xtrusion_available() }
 
@@ -490,7 +506,8 @@ impl SideTool
                 let dir = return_if_none!(inputs.directional_keys_vector(grid.size()));
                 let mut vxs_move = hv_vec![];
 
-                if Self::move_sides(bundle, manager, edits_history, dir, &mut vxs_move)
+                if self.1.selected_vxs.any_selected_vx() &&
+                    Self::move_sides(bundle, manager, edits_history, dir, &mut vxs_move)
                 {
                     edits_history.vertexes_move(vxs_move);
                 }
@@ -654,7 +671,7 @@ impl SideTool
         edits_history.vertexes_selection_cluster(
             manager
                 .selected_brushes_mut()
-                .filter_set_with_predicate(id, |brush| brush.id())
+                .filter_set_with_predicate(id, EntityId::id)
                 .filter_map(|mut brush| {
                     brush
                         .try_exclusively_select_side(&side)
@@ -736,41 +753,26 @@ impl SideTool
         {
             let id = payload.id();
 
-            for [j, i] in payload.paired_moved_indexes().unwrap()
             {
                 let brush = manager.brush(id);
-                let vx_j = HashVec2(brush.vertex_at_index((*j).into()) + delta);
-                let vx_i = HashVec2(brush.vertex_at_index((*i).into()) + delta);
 
-                if moved_sides.contains(&(vx_j, vx_i))
+                for [j, i] in payload.paired_moved_indexes().unwrap()
                 {
-                    continue;
-                }
-
-                moved_sides.insert((vx_j, vx_i));
-
-                for vx in [vx_j.0, vx_i.0]
-                {
-                    edits_history.vertexes_selection_cluster(
-                        manager
-                            .selected_brushes_mut_at_pos(vx, None)
-                            .filter_set_with_predicate(id, |brush| brush.id())
-                            .filter_map(|mut brush| {
-                                brush
-                                    .try_select_side(&[vx_j.0, vx_i.0])
-                                    .map(|idx| (brush.id(), hv_vec![idx]))
-                            })
-                    );
+                    moved_sides.insert((
+                        HashVec2(brush.vertex_at_index((*j).into()) + delta),
+                        HashVec2(brush.vertex_at_index((*i).into()) + delta)
+                    ));
                 }
             }
 
-            let mut brush = manager.brush_mut(id);
-            let vx_move = brush.apply_vertexes_move_result(bundle.drawing_resources, payload);
+            let vx_move = manager
+                .brush_mut(id)
+                .apply_vertexes_move_result(bundle.drawing_resources, payload);
 
             let mov = cumulative_move
                 .iter_mut()
                 .rev()
-                .find_map(|(id, mov)| (*id == brush.id()).then_some(mov));
+                .find_map(|(i, mov)| (*i == id).then_some(mov));
 
             match mov
             {
@@ -784,6 +786,24 @@ impl SideTool
                 None => cumulative_move.push((id, hv_vec![vx_move]))
             };
         }
+
+        let mut selections = hv_vec![];
+
+        for (vx_j, vx_i) in moved_sides
+        {
+            for vx in [vx_j.0, vx_i.0]
+            {
+                selections.extend(manager.selected_brushes_mut_at_pos(vx, None).filter_map(
+                    |mut brush| {
+                        brush
+                            .try_select_side(&[vx_j.0, vx_i.0])
+                            .map(|idx| (brush.id(), hv_vec![idx]))
+                    }
+                ));
+            }
+        }
+
+        edits_history.vertexes_selection_cluster(selections.into_iter());
 
         true
     }
@@ -1183,7 +1203,7 @@ impl SideTool
 
                         for cp in left_polygons.iter().chain(right_polygons.iter())
                         {
-                            cp.draw(bundle.camera, &mut bundle.drawer, Color::SelectedBrush);
+                            cp.draw(bundle.camera, &mut bundle.drawer, Color::SelectedEntity);
                         }
                     },
                     XtrusionMode::Extrusion(polygons) =>
@@ -1192,7 +1212,7 @@ impl SideTool
 
                         for (_, _, cp) in polygons
                         {
-                            cp.draw(bundle.camera, &mut bundle.drawer, Color::SelectedBrush);
+                            cp.draw(bundle.camera, &mut bundle.drawer, Color::SelectedEntity);
                         }
                     }
                 }

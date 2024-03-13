@@ -153,9 +153,10 @@ impl ActuallyLostFocus for egui::Response
             return true;
         }
 
-        let mut clicked = false;
-        self.ctx.input(|i| clicked = i.pointer.primary_clicked());
-        clicked && !self.contains_pointer()
+        self.has_focus() &&
+            self.ctx
+                .input(|i| i.pointer.primary_clicked() || i.pointer.secondary_clicked()) &&
+            !self.contains_pointer()
     }
 }
 
@@ -212,9 +213,9 @@ pub(in crate::map::editor::state) enum Command
     DecreaseGridSize,
     ShifGrid,
     ToggleTooltips,
-    ToggleCursor,
     ToggleCursorSnap,
     ToggleMapPreview,
+    ToggleCollision,
     ReloadTextures,
     ReloadThings,
     QuickZoom,
@@ -483,7 +484,7 @@ impl Ui
         });
 
         // Top bar.
-        let mut command = self.menu_bar(bundle, core);
+        let mut command = self.menu_bar(bundle, manager, core);
 
         // Manual menu.
         self.manual.draw(bundle, &self.tools_buttons);
@@ -504,8 +505,6 @@ impl Ui
         let us_context = unsafe { std::ptr::from_mut(bundle.egui_context).as_mut().unwrap() };
 
         // Panels.
-        let mut tab_focus_hog = None;
-
         self.right_panel_layer_id = egui::SidePanel::right("sub_tools")
             .resizable(false)
             .exact_width(RIGHT_SIDE_PANEL_WIDTH)
@@ -524,11 +523,6 @@ impl Ui
                         tool_change_conditions
                     );
                 });
-
-                tab_focus_hog = ui
-                    .add_visible(false, egui::Separator::default().spacing(0f32))
-                    .id
-                    .into();
             })
             .response
             .layer_id;
@@ -561,24 +555,8 @@ impl Ui
             .response
             .layer_id;
 
-        // Paint Tool
+        // Bottom panel
         focused |= core.bottom_panel(bundle, manager, inputs, edits_history, clipboard);
-
-        // Final touches
-        if !focused
-        {
-            bundle.egui_context.memory_mut(|w| {
-                let id = tab_focus_hog.unwrap();
-
-                w.request_focus(id);
-                w.set_focus_lock_filter(id, egui::EventFilter {
-                    tab:               true,
-                    escape:            true,
-                    horizontal_arrows: true,
-                    vertical_arrows:   true
-                });
-            });
-        }
 
         // Output.
         Interaction {
@@ -628,7 +606,12 @@ impl Ui
 
     #[inline]
     #[must_use]
-    fn menu_bar(&mut self, bundle: &mut StateUpdateBundle, core: &mut Core) -> Command
+    fn menu_bar(
+        &mut self,
+        bundle: &mut StateUpdateBundle,
+        manager: &EntitiesManager,
+        core: &mut Core
+    ) -> Command
     {
         let mut command = Command::None;
 
@@ -646,6 +629,8 @@ impl Ui
                 let undo_redo = core.undo_redo_available();
                 let reload = !core.map_preview();
                 let export = bundle.config.exporter.is_some();
+                let quick_snap = manager.selected_brushes_amount() != 0;
+                let quick_zoom = manager.selected_entities_amount() != 0;
 
                 macro_rules! menu_button {
                     (
@@ -764,7 +749,7 @@ impl Ui
                     ("Redo", undo_redo, {
                         command = Command::Redo;
                     }, HardcodedActions::Redo.key_combo()),
-                    ("Quick snap", {
+                    ("Quick snap", quick_snap, {
                         command = Command::QuickSnap;
                     }, format!("Alt+{}", Tool::Snap.keycode_str(&bundle.config.binds))),
                     ("Texture editor", {
@@ -781,7 +766,7 @@ impl Ui
                     ("Zoom out", {
                         bundle.camera.zoom_out();
                     }, HardcodedActions::ZoomOut.key_combo()),
-                    ("Quick zoom", {
+                    ("Quick zoom", quick_zoom, {
                         command = Command::QuickZoom;
                     }, format!("Alt+{}", Tool::Zoom.keycode_str(&bundle.config.binds))),
                     ("Fullscreen", {
@@ -810,12 +795,12 @@ impl Ui
                     ("Toggle tooltips", {
                         command = Command::ToggleTooltips;
                     }, Bind::ToggleTooltips.keycode_str(&bundle.config.binds)),
-                    ("Toggle cursor", {
-                        command = Command::ToggleCursor;
-                    }),
                     ("Toggle cursor snap", {
                         command = Command::ToggleCursorSnap;
                     }, Bind::ToggleCursorSnap.keycode_str(&bundle.config.binds)),
+                    ("Toggle collision overlay", {
+                        command = Command::ToggleCollision;
+                    }, Bind::ToggleCollision.keycode_str(&bundle.config.binds)),
                     ("Controls", {
                         self.controls_window.toggle();
                     }),

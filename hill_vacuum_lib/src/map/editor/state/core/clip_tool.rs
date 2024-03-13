@@ -226,7 +226,7 @@ impl ClipTool
 
                 if inputs.alt_pressed() && manager.selected_brushes_amount() > 1
                 {
-                    Self::set_clip_side(manager, clip_side, cursor_pos, bundle.camera.scale());
+                    Self::set_clip_side(manager, clip_side, bundle.cursor, bundle.camera.scale());
 
                     if !left_mouse_just_pressed
                     {
@@ -281,7 +281,7 @@ impl ClipTool
             Status::PickSideUi(clip_side) =>
             {
                 *clip_side = None;
-                Self::set_clip_side(manager, clip_side, cursor_pos.unwrap(), bundle.camera.scale());
+                Self::set_clip_side(manager, clip_side, bundle.cursor, bundle.camera.scale());
 
                 if inputs.left_mouse.just_pressed()
                 {
@@ -295,10 +295,12 @@ impl ClipTool
     fn set_clip_side(
         manager: &EntitiesManager,
         clip_side: &mut Option<ClipSide>,
-        cursor_pos: Vec2,
+        cursor: &Cursor,
         camera_scale: f32
     )
     {
+        let cursor_pos = cursor.world();
+
         let (id, side) = return_if_none!(manager
             .selected_brushes_at_pos(cursor_pos, camera_scale)
             .iter()
@@ -369,7 +371,7 @@ impl ClipTool
         edits_history: &mut EditsHistory
     )
     {
-        let (status, left_polygons, right_polygons) = match_or_panic!(
+        let (status, mut left_polygons, right_polygons) = match_or_panic!(
             &mut self.0,
             Status::PostClip {
                 status,
@@ -383,6 +385,14 @@ impl ClipTool
         {
             PostClipStatus::Both =>
             {
+                if left_polygons[0].has_sprite()
+                {
+                    for poly in &mut left_polygons
+                    {
+                        _ = poly.remove_texture();
+                    }
+                }
+
                 manager
                     .spawn_brushes(left_polygons.into_iter().chain(right_polygons), edits_history);
             },
@@ -496,7 +506,6 @@ impl ClipTool
                                 &mut bundle.drawer,
                                 Color::ClippedPolygonsToSpawn
                             );
-                            draw_sprite_with_highlight(cp, bundle, Color::ClippedPolygonsToSpawn);
                         }
 
                         for cp in right_polygons

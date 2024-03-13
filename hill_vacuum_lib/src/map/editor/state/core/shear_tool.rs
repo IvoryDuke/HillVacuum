@@ -10,7 +10,11 @@ use shared::return_if_none;
 use super::{drag::Drag, draw_selected_and_non_selected_brushes, ActiveTool};
 use crate::{
     map::{
-        brush::{convex_polygon::ShearInfo, ShearResult},
+        brush::{
+            convex_polygon::{ConvexPolygon, ShearInfo},
+            ShearResult
+        },
+        containers::HvVec,
         editor::{
             hv_vec,
             state::{
@@ -25,7 +29,7 @@ use crate::{
     },
     utils::{
         hull::{Hull, Side},
-        identifiers::EntityId,
+        identifiers::{EntityId, Id},
         misc::Camera
     }
 };
@@ -39,7 +43,7 @@ use crate::{
 enum Status
 {
     Keyboard,
-    Drag(Drag, Option<(bool, ShearInfo)>)
+    Drag(Drag, Option<ShearInfo>, HvVec<(Id, ConvexPolygon)>)
 }
 
 //=======================================================================//
@@ -110,43 +114,47 @@ impl ShearTool
 
                 if let Some(delta) = inputs.directional_keys_vector(grid.size())
                 {
-                    let (vertical, info) = return_if_none!(Self::shear_brushes(
+                    let mut backup_polygons = hv_vec![];
+
+                    _ = return_if_none!(Self::shear_brushes(
                         manager,
                         grid,
                         self.selected_side,
                         &mut self.outline,
-                        delta
+                        delta,
+                        &mut backup_polygons
                     ));
 
-                    Self::push_edit(manager, edits_history, vertical, &info);
+                    Self::push_edit(edits_history, backup_polygons);
                 }
                 else if inputs.left_mouse.just_pressed()
                 {
                     self.check_shear_corner_proximity(cursor.world_snapped(), camera.scale());
                 }
             },
-            Status::Drag(drag, info) =>
+            Status::Drag(drag, info, backup_polygons) =>
             {
                 drag.conditional_update(cursor, grid, |delta| {
-                    let (v, i) = return_if_none!(
+                    let i = return_if_none!(
                         Self::shear_brushes(
                             manager,
                             grid,
                             self.selected_side,
                             &mut self.outline,
-                            delta
+                            delta,
+                            backup_polygons
                         ),
                         false
                     );
 
                     match info
                     {
-                        Some((_, info)) =>
+                        Some(info) =>
                         {
                             let delta = if delta.y == 0f32 { delta.x } else { delta.y };
                             *info = info.with_delta(info.delta() + delta);
                         },
-                        None => *info = (v, i).into()
+                        None => *info = i.into()
                     };
 
                     true
@@ -157,11 +165,11 @@ impl ShearTool
                     return;
                 }
 
-                if let Some((vertical, info)) = info
+                if let Some(info) = info
                 {
                     if info.delta() != 0f32
                     {
-                        Self::push_edit(manager, edits_history, *vertical, info);
+                        Self::push_edit(edits_history, std::mem::take(backup_polygons));
                     }
                 }
 
@@ -171,20 +179,11 @@ impl ShearTool
     }
 
     #[inline]
-    fn push_edit(
-        manager: &EntitiesManager,
-        edits_history: &mut EditsHistory,
-        vertical: bool,
-        info: &ShearInfo
-    )
+    fn push_edit(edits_history: &mut EditsHistory, backup_polygons: HvVec<(Id, ConvexPolygon)>)
     {
-        if vertical
+        for (id, polygon) in backup_polygons
         {
-            edits_history.vertical_shear(manager.selected_brushes_ids().copied(), info);
-        }
-        else
-        {
-            edits_history.horizontal_shear(manager.selected_brushes_ids().copied(), info);
+            edits_history.polygon_edit(id, polygon);
         }
     }
 
@@ -194,13 +193,13 @@ impl ShearTool
         grid: Grid,
         selected_side: Side,
         outline: &mut Hull,
-        delta: Vec2
-    ) -> Option<(bool, ShearInfo)>
+        delta: Vec2,
+        backup_polygons: &mut HvVec<(Id, ConvexPolygon)>
+    ) -> Option<ShearInfo>
     {
         macro_rules! shear {
-            ($xy:ident, $dimension:ident, $pivot:ident, $check:ident, $shear:ident $(, $vertical:ident)?) => {{
+            ($xy:ident, $dimension:ident, $pivot:ident, $check:ident, $shear:ident) => {{
                 let info = ShearInfo::new(delta.$xy, outline.$dimension(), outline.$pivot());
-                $($vertical = true;)?
                 let mut payloads = hv_vec![capacity; manager.selected_brushes_amount()];
 
                 let valid = manager.test_operation_validity(|manager| {
@@ -222,6 +221,12 @@ impl ShearTool
                     return None;
                 }
 
+                if backup_polygons.is_empty()
+                {
+                    backup_polygons
+                        .extend(manager.selected_brushes().map(|brush| (brush.id(), brush.polygon())));
+                }
+
                 for payload in payloads.into_iter()
                 {
                     manager.brush_mut(payload.id()).$shear(payload);
@@ -231,24 +236,23 @@ impl ShearTool
             }};
         }
 
-        let mut vertical = false;
         let info = match selected_side
         {
             Side::Top => shear!(x, height, bottom, check_horizontal_shear, set_x_coordinates),
             Side::Right =>
             {
-                shear!(y, width, left, check_vertical_shear, set_y_coordinates, vertical)
+                shear!(y, width, left, check_vertical_shear, set_y_coordinates)
             },
             Side::Bottom => shear!(x, height, top, check_horizontal_shear, set_x_coordinates),
             Side::Left =>
             {
-                shear!(y, width, right, check_vertical_shear, set_y_coordinates, vertical)
+                shear!(y, width, right, check_vertical_shear, set_y_coordinates)
             }
         };
 
         *outline = Self::outline(manager, grid);
 
-        (vertical, info).into()
+        info.into()
     }
 
     #[inline]
@@ -279,7 +283,7 @@ impl ShearTool
     fn check_shear_corner_proximity(&mut self, cursor_pos: Vec2, camera_scale: f32)
     {
         self.selected_side = return_if_none!(self.outline.nearby_side(cursor_pos, camera_scale));
-        self.status = Status::Drag(Drag::new(cursor_pos), None);
+        self.status = Status::Drag(Drag::new(cursor_pos), None, hv_vec![]);
     }
 
     #[inline]

@@ -15,12 +15,12 @@ use self::{
     points::{Corner, Intersections, Sides, Vertex, Vertexes}
 };
 use crate::{
-    map::{hv_hash_map, hv_vec, HvHashMap, HvVec},
+    map::{containers::hv_hash_map, hv_vec, HvHashMap, HvVec},
     utils::{
         hull::{EntityHull, Hull},
         identifiers::{EntityId, Id},
         math::AroundEqual,
-        misc::{vertex_highlight_side_length, vertex_highlight_square}
+        misc::bumped_vertex_highlight_square
     }
 };
 
@@ -113,9 +113,7 @@ impl QuadTree
     #[inline]
     pub fn entities_near_pos(&self, entities: &mut QuadTreeIds, pos: Vec2, camera_scale: f32)
     {
-        let pos_hull = vertex_highlight_square(camera_scale) -
-            Vec2::splat(vertex_highlight_side_length(camera_scale) / 2f32) +
-            pos;
+        let pos_hull = bumped_vertex_highlight_square(camera_scale) + pos;
 
         for pos in pos_hull.vertexes()
         {

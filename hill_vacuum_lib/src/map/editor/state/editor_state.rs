@@ -636,6 +636,7 @@ pub(in crate::map::editor) struct State
     cursor_snap:        bool,
     /// Whever a grey semitransparent rectangle should be drawn on the map beneath the cursor.
     show_cursor:        bool,
+    show_collision:     bool,
     /// Whever textures are currently being reloaded.
     reloading_textures: bool,
     #[cfg(feature = "debug")]
@@ -685,6 +686,7 @@ impl State
                 show_tooltips: true,
                 cursor_snap: true,
                 show_cursor: true,
+                show_collision: true,
                 reloading_textures: false,
                 #[cfg(feature = "debug")]
                 show_debug_lines: false
@@ -716,6 +718,7 @@ impl State
                     show_tooltips: true,
                     cursor_snap: true,
                     show_cursor: true,
+                    show_collision: true,
                     reloading_textures: false,
                     #[cfg(feature = "debug")]
                     show_debug_lines: false
@@ -749,6 +752,7 @@ impl State
             show_tooltips: true,
             cursor_snap: true,
             show_cursor: true,
+            show_collision: true,
             reloading_textures: false,
             #[cfg(feature = "debug")]
             show_debug_lines: false
@@ -789,6 +793,10 @@ impl State
     #[inline]
     #[must_use]
     pub const fn map_preview(&self) -> bool { self.core.map_preview() }
+
+    #[inline]
+    #[must_use]
+    pub const fn show_collision_overlay(&self) -> bool { self.show_collision }
 
     /// Checks whever any hardcoded keyboard input was pressed and executes the necessary piece of
     /// code. Returns true if that was the case.
@@ -967,6 +975,7 @@ impl State
         self.edits_history = EditsHistory::default();
         self.inputs = InputsPresses::default();
         bundle.config.open_file.clear();
+        bundle.update_window_title();
 
         Ok(())
     }
@@ -1643,9 +1652,9 @@ impl State
             Command::DecreaseGridSize => self.decrease_grid_size(),
             Command::ShifGrid => self.shift_grid(),
             Command::ToggleTooltips => self.toggle_tooltips(),
-            Command::ToggleCursor => self.toggle_cursor(),
             Command::ToggleCursorSnap => self.toggle_cursor_snap(),
             Command::ToggleMapPreview => self.toggle_map_preview(bundle.drawing_resources),
+            Command::ToggleCollision => self.toggle_collision(),
             Command::ReloadTextures => self.start_texture_reload(bundle.next_tex_load),
             Command::ReloadThings => self.reload_things(bundle.things_catalog),
             Command::QuickZoom =>
@@ -1698,6 +1707,10 @@ impl State
             else if Bind::ToggleTooltips.just_pressed(bundle.key_inputs, &bundle.config.binds)
             {
                 self.toggle_tooltips();
+            }
+            else if Bind::ToggleCollision.just_pressed(bundle.key_inputs, &bundle.config.binds)
+            {
+                self.toggle_collision();
             }
             else if HardcodedActions::Fullscreen.pressed(bundle.key_inputs)
             {
@@ -1786,6 +1799,11 @@ impl State
             self.inputs.clear();
         }
 
+        if self.inputs.esc.just_pressed()
+        {
+            self.toggle_map_preview(bundle.drawing_resources);
+        }
+
         ui_interaction.hovered
     }
 
@@ -1838,8 +1856,7 @@ impl State
             &mut self.edits_history,
             &self.tools_settings,
             self.grid,
-            tool_change_conditions,
-            self.inputs.alt_pressed()
+            tool_change_conditions
         );
     }
 
@@ -1859,10 +1876,6 @@ impl State
     #[inline]
     fn shift_grid(&mut self) { self.grid.toggle_shift(&mut self.manager); }
 
-    /// Toggles the cursor visibility.
-    #[inline]
-    fn toggle_cursor(&mut self) { self.show_cursor.toggle(); }
-
     /// Toggles the cursor grid snap.
     #[inline]
     fn toggle_cursor_snap(&mut self) { self.cursor_snap.toggle(); }
@@ -1877,6 +1890,9 @@ impl State
     {
         self.core.toggle_map_preview(drawing_resources, &self.manager);
     }
+
+    #[inline]
+    fn toggle_collision(&mut self) { self.show_collision.toggle(); }
 
     /// Reloads the things.
     #[inline]

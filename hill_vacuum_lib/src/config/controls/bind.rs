@@ -27,6 +27,7 @@ bind_enum!(
     DecreaseGridSize,
     ShiftGrid,
     ToggleCursorSnap,
+    ToggleCollision,
     TextureEditor
 );
 
@@ -45,12 +46,13 @@ impl Bind
             Self::Right => "Right",
             Self::Up => "Up",
             Self::Down => "Down",
-            Self::ToggleGrid => ";",
+            Self::ToggleGrid => ".",
             Self::ToggleTooltips => "\'",
             Self::IncreaseGridSize => "[",
             Self::DecreaseGridSize => "]",
             Self::ShiftGrid => "/",
             Self::ToggleCursorSnap => "\\",
+            Self::ToggleCollision => "=",
             Self::Square => "Q",
             Self::Triangle => "T",
             Self::Circle => "R",
@@ -80,7 +82,7 @@ impl Bind
     /// `KeyCode` associated with [`Bind`].
     #[inline]
     #[must_use]
-    pub fn keycode(self, binds: &BindsKeyCodes) -> Option<KeyCode> { binds.get(self) }
+    pub const fn keycode(self, binds: &BindsKeyCodes) -> Option<KeyCode> { binds.get(self) }
 
     /// Returns a `str` representing this [`Bind`]'s associated `Keycode`.
     #[inline]
