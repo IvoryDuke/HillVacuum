@@ -6,6 +6,7 @@
 use std::{hash::Hash, ops::Index, slice::Chunks};
 
 use hashbrown::Equivalent;
+use serde::{Deserialize, Serialize};
 
 use super::{containers::hv_hash_map, HvHashMap, HvVec};
 
@@ -16,12 +17,28 @@ use super::{containers::hv_hash_map, HvHashMap, HvVec};
 
 /// A hashmap that can also be indexed.
 #[must_use]
+#[allow(clippy::unsafe_derive_deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(in crate::map) struct IndexedMap<K, T>
 where
     K: Hash + Eq
 {
     vec: HvVec<T>,
     map: HvHashMap<K, usize>
+}
+
+impl<K, T> Default for IndexedMap<K, T>
+where
+    K: Hash + Eq
+{
+    #[inline]
+    fn default() -> Self
+    {
+        Self {
+            vec: HvVec::default(),
+            map: HvHashMap::default()
+        }
+    }
 }
 
 impl<K, T> Index<usize> for IndexedMap<K, T>
@@ -43,7 +60,7 @@ where
 
     /// Creates a new [`IndexedMap`] from a vector of elements.
     #[inline]
-    pub fn new<F: Fn(&T) -> K>(vec: HvVec<T>, f: F) -> Self
+    pub fn new<F: FnMut(&T) -> K>(vec: HvVec<T>, mut f: F) -> Self
     {
         let map = hv_hash_map![collect; vec.iter().enumerate().map(|(i, item)| (f(item), i))];
         Self { vec, map }
@@ -94,6 +111,26 @@ where
     {
         self.map.get(k).copied()
     }
+
+    //==============================================================
+    // Iterators
+
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = (&K, &T)>
+    {
+        self.map.iter().map(|(k, i)| (k, &self.vec[*i]))
+    }
+
+    #[inline]
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&K, &mut T)>
+    {
+        self.map.iter().map(|(k, i)| {
+            (k, &mut unsafe { std::ptr::addr_of_mut!(self.vec).as_mut().unwrap() }[*i])
+        })
+    }
+
+    #[inline]
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut T> { self.vec.iter_mut() }
 
     /// Returns a [`Chunks`] iterator to the element of the map with `chunk_size`.
     #[inline]

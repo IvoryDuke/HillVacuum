@@ -73,17 +73,16 @@ macro_rules! list_texture {
         $texture_setter:expr,
         $time_setter:expr
     ) => {
-        $response |= set_list_texture(
-            &mut $strip,
-            $drawing_resources,
-            $clipboard,
-            $inputs,
-            $texture,
-            $index,
-            $texture_setter
-        );
-
-        $response |= set_list_time(&mut $strip, $clipboard, $inputs, $time, $index, $time_setter);
+        $response |=
+            set_list_texture(
+                &mut $strip,
+                $drawing_resources,
+                $clipboard,
+                $inputs,
+                $texture,
+                $index,
+                $texture_setter
+            ) | set_list_time(&mut $strip, $clipboard, $inputs, $time, $index, $time_setter);
     };
 }
 

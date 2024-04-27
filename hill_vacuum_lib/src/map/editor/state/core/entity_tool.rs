@@ -493,7 +493,9 @@ impl EntityTool
                         manager.remove_selected_textures(edits_history);
                     }
 
-                    ds.set_highlighted_entity(self.1.item_beneath_cursor(bundle, manager, settings, inputs));
+                    ds.set_highlighted_entity(
+                        self.1.item_beneath_cursor(bundle, manager, settings, inputs)
+                    );
                     return;
                 }
 
@@ -550,7 +552,6 @@ impl EntityTool
                 {
                     if manager.duplicate_selected_entities(
                         bundle.drawing_resources,
-                        bundle.things_catalog,
                         edits_history,
                         drag.delta()
                     )
@@ -762,12 +763,7 @@ impl EntityTool
         direction: Vec2
     )
     {
-        if !manager.duplicate_selected_entities(
-            bundle.drawing_resources,
-            bundle.things_catalog,
-            edits_history,
-            direction
-        )
+        if !manager.duplicate_selected_entities(bundle.drawing_resources, edits_history, direction)
         {
             return;
         }

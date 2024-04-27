@@ -115,9 +115,8 @@ enum XtrusionMode
     Xtrusion(HvVec<XtrusionPayload>),
     Intrusion
     {
-        payloads:       HvVec<XtrusionPayload>,
-        left_polygons:  HvVec<ConvexPolygon>,
-        right_polygons: HvVec<ConvexPolygon>
+        payloads: HvVec<XtrusionPayload>,
+        polygons: HvVec<(ConvexPolygon, Id)>
     },
     Extrusion(HvVec<(Id, XtrusionInfo, ConvexPolygon)>)
 }
@@ -571,22 +570,9 @@ impl SideTool
 
                         self.0 = Status::default();
                     },
-                    XtrusionMode::Intrusion {
-                        payloads,
-                        left_polygons,
-                        right_polygons
-                    } =>
+                    XtrusionMode::Intrusion { payloads, polygons } =>
                     {
-                        Self::intrude_sides(
-                            bundle,
-                            manager,
-                            payloads,
-                            left_polygons,
-                            right_polygons,
-                            line,
-                            drag,
-                            grid
-                        );
+                        Self::intrude_sides(bundle, manager, payloads, polygons, line, drag, grid);
 
                         if !inputs.left_mouse.pressed()
                         {
@@ -859,7 +845,7 @@ impl SideTool
 
         edits_history.vertexes_selection_cluster(
             manager
-                .selected_brushes_intersect_range_mut(range)
+                .selected_brushes_mut()
                 .filter_map(|mut brush| func(&mut brush, range).map(|idxs| (brush.id(), idxs)))
         );
     }
@@ -871,10 +857,9 @@ impl SideTool
         manager: &mut EntitiesManager,
         payloads: &HvVec<XtrusionPayload>,
         delta: Vec2
-    ) -> Option<(HvVec<ConvexPolygon>, HvVec<ConvexPolygon>)>
+    ) -> Option<HvVec<(ConvexPolygon, Id)>>
     {
-        let mut left_polygons = hv_vec![capacity; payloads.len()];
-        let mut right_polygons = hv_vec![capacity; payloads.len()];
+        let mut polygons = hv_vec![capacity; payloads.len() * 2];
 
         let valid = manager.test_operation_validity(|manager| {
             payloads.iter().find_map(|payload| {
@@ -890,8 +875,8 @@ impl SideTool
                     Some([left, mut right]) =>
                     {
                         right.deselect_vertexes_no_indexes();
-                        left_polygons.push(left);
-                        right_polygons.push(right);
+                        polygons.push((left, id));
+                        polygons.push((right, id));
                         None
                     }
                 }
@@ -903,7 +888,7 @@ impl SideTool
             return None;
         }
 
-        Some((left_polygons, right_polygons))
+        polygons.into()
     }
 
     #[inline]
@@ -929,7 +914,7 @@ impl SideTool
                 if delta_against_normal
                 {
                     // Intrusion.
-                    let (left_polygons, right_polygons) = return_if_none!(
+                    let polygons = return_if_none!(
                         Self::intrusion_polygons(bundle, manager, payloads, delta),
                         false
                     );
@@ -937,8 +922,7 @@ impl SideTool
                     // Update the edits history.
                     XtrusionMode::Intrusion {
                         payloads: payloads.take_value(),
-                        left_polygons,
-                        right_polygons
+                        polygons
                     }
                 }
                 else
@@ -986,19 +970,15 @@ impl SideTool
         bundle: &ToolUpdateBundle,
         manager: &mut EntitiesManager,
         payloads: &HvVec<XtrusionPayload>,
-        left_polygons: &mut HvVec<ConvexPolygon>,
-        right_polygons: &mut HvVec<ConvexPolygon>,
+        polygons: &mut HvVec<(ConvexPolygon, Id)>,
         line: &[Vec2; 2],
         drag: &mut XTrusionDrag,
         grid: Grid
     )
     {
         drag.conditional_update(bundle.cursor, grid, line, |delta| {
-            let (l_polys, r_polys) =
+            *polygons =
                 return_if_none!(Self::intrusion_polygons(bundle, manager, payloads, delta), false);
-
-            *left_polygons = l_polys;
-            *right_polygons = r_polys;
             true
         });
     }
@@ -1053,26 +1033,20 @@ impl SideTool
         edits_history: &mut EditsHistory
     )
     {
-        let (payloads, left_polygons, right_polygons) = match_or_panic!(
+        let (payloads, polygons) = match_or_panic!(
             &mut self.0,
             Status::Xtrusion {
-                mode: XtrusionMode::Intrusion {
-                    payloads,
-                    left_polygons,
-                    right_polygons
-                },
+                mode: XtrusionMode::Intrusion { payloads, polygons },
                 ..
             },
-            (payloads, left_polygons, right_polygons)
+            (payloads, polygons)
         );
 
-        manager.spawn_brushes(
-            left_polygons
-                .take_value()
-                .into_iter()
-                .chain(right_polygons.take_value()),
-            edits_history
-        );
+        for (polygon, id) in polygons.take_value()
+        {
+            let properties = manager.brush(id).properties();
+            manager.spawn_brush(polygon, edits_history, properties);
+        }
 
         for payload in payloads
         {
@@ -1106,8 +1080,12 @@ impl SideTool
         );
 
         manager.deselect_selected_entities(edits_history);
-        manager
-            .spawn_brushes(polygons.take_value().into_iter().map(|(_, _, cp)| cp), edits_history);
+
+        for (id, _, cp) in polygons.take_value()
+        {
+            let properties = manager.brush(id).properties();
+            manager.spawn_brush(cp, edits_history, properties);
+        }
 
         self.0 = Status::default();
         self.1.clear();
@@ -1176,11 +1154,7 @@ impl SideTool
                     {
                         draw_selected_brushes(bundle, manager, show_tooltips);
                     },
-                    XtrusionMode::Intrusion {
-                        payloads,
-                        left_polygons,
-                        right_polygons
-                    } =>
+                    XtrusionMode::Intrusion { payloads, polygons } =>
                     {
                         for brush in manager.selected_brushes()
                         {
@@ -1201,7 +1175,7 @@ impl SideTool
                             );
                         }
 
-                        for cp in left_polygons.iter().chain(right_polygons.iter())
+                        for (cp, _) in polygons
                         {
                             cp.draw(bundle.camera, &mut bundle.drawer, Color::SelectedEntity);
                         }
@@ -1238,7 +1212,12 @@ impl SideTool
 
         if merge_clicked
         {
-            ActiveTool::merge_vertexes(manager, edits_history, true);
+            ActiveTool::merge_vertexes(
+                bundle.default_properties.brushes,
+                manager,
+                edits_history,
+                true
+            );
             return;
         }
 

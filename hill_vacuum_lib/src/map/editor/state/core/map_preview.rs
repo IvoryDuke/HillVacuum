@@ -55,7 +55,7 @@ impl MapPreviewTool
     {
         for sim in &mut self.movement
         {
-            sim.update(manager.brush(sim.id()), bundle.delta_time);
+            sim.update(manager.moving(sim.id()), bundle.delta_time);
         }
 
         self.animators

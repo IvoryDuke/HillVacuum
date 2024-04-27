@@ -17,7 +17,7 @@ use is_executable::IsExecutable;
 use shared::FILE_EXTENSION;
 
 use self::controls::{default_binds, BindsKeyCodes};
-use crate::EditorState;
+use crate::{error_message, EditorState};
 
 //=======================================================================//
 // CONSTANTS
@@ -119,12 +119,9 @@ impl FromWorld for IniConfig
     #[must_use]
     fn from_world(world: &mut World) -> Self
     {
-        if !Path::new(CONFIG_FILE_NAME).exists()
+        if !Path::new(CONFIG_FILE_NAME).exists() && create_default_config_file().is_err()
         {
-            if let Err(err) = create_default_config_file()
-            {
-                panic!("{err}");
-            }
+            error_message("Error saving the default config file.");
         }
 
         let mut ini_config = Ini::new_cs();
@@ -206,9 +203,9 @@ fn save_config(
             .map(|path| path.as_os_str().to_str().unwrap().to_owned())
     );
 
-    if let Err(err) = ini_config.0.write(CONFIG_FILE_NAME)
+    if ini_config.0.write(CONFIG_FILE_NAME).is_err()
     {
-        eprintln!("Error while saving config file: {err}");
+        error_message("Error while saving config file.");
     }
 
     app_exit_events.send(AppExit);

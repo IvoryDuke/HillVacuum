@@ -9,17 +9,18 @@ pub mod catalog;
 use bevy::{prelude::Vec2, transform::components::Transform, window::Window};
 use bevy_egui::egui;
 use serde::{Deserialize, Serialize};
-use shared::{draw_height_to_world, TEXTURE_HEIGHT_RANGE};
+use shared::{draw_height_to_world, return_if_none, TEXTURE_HEIGHT_RANGE};
 
 use self::catalog::ThingsCatalog;
 use super::{
-    containers::HvVec,
+    containers::{HvHashMap, HvVec},
     drawer::{color::Color, EditDrawer, MapPreviewDrawer},
     editor::state::{
         clipboard::{ClipboardData, CopyToClipboard},
         manager::{Animators, Brushes}
     },
     path::{common_edit_path, EditPath, MovementSimulator, Moving, NodesDeletionPayload, Path},
+    properties::{Properties, PropertiesRefactor, Value},
     OutOfBounds
 };
 use crate::utils::{
@@ -52,9 +53,11 @@ pub trait ThingInterface
     #[must_use]
     fn pos(&self) -> Vec2;
 
+    /// The draw height of `self` as a float.
     #[must_use]
     fn draw_height_f32(&self) -> f32;
 
+    /// The angle of `self`.
     #[must_use]
     fn angle(&self) -> f32;
 }
@@ -99,7 +102,7 @@ pub struct Thing
 
 impl Thing
 {
-    /// Returns a new [`Thing`] with the requested parameters, unless width or height are equal or
+    /// Returns a new [`Thing`] with the requested properties, unless width or height are equal or
     /// less than zero.
     #[must_use]
     #[inline]
@@ -134,9 +137,12 @@ impl Thing
 
 //=======================================================================//
 
+/// A translated [`ThingInstance`].
 struct MovedThingInstance<'a>
 {
-    thing: &'a ThingInstance,
+    /// The original [`ThingInstance`].
+    thing: &'a ThingInstanceData,
+    /// The translation vector.
     delta: Vec2
 }
 
@@ -155,7 +161,7 @@ impl<'a> ThingInterface for MovedThingInstance<'a>
     fn pos(&self) -> Vec2 { self.thing.pos + self.delta }
 
     #[inline]
-    fn draw_height_f32(&self) -> f32 { self.thing.draw_height_f32() }
+    fn draw_height_f32(&self) -> f32 { draw_height_to_world(self.thing.draw_height) }
 
     #[inline]
     fn angle(&self) -> f32 { self.thing.angle }
@@ -163,13 +169,11 @@ impl<'a> ThingInterface for MovedThingInstance<'a>
 
 //=======================================================================//
 
-/// An instance of a [`Thing`] which can be placed in a map.
 #[must_use]
-#[derive(Clone, Serialize, Deserialize)]
-pub(in crate::map) struct ThingInstance
+#[derive(Debug, Clone, Serialize, Deserialize)]
+
+pub(in crate::map) struct ThingInstanceData
 {
-    /// The id.
-    id:          Id,
     /// The [`ThingId`] of the [`Thing`] it represents.
     thing:       ThingId,
     /// The position on the map.
@@ -180,15 +184,82 @@ pub(in crate::map) struct ThingInstance
     draw_height: i8,
     /// The bounding box.
     hull:        Hull,
-    center:      Vec2,
+    /// The path describing the [`ThingInstance`] movement, if any.
     path:        Option<Path>,
-    path_edited: bool
+    properties:  Properties
+}
+
+impl EntityHull for ThingInstanceData
+{
+    #[inline]
+    fn hull(&self) -> Hull { self.hull }
+}
+
+impl ThingInstanceData
+{
+    #[inline]
+    pub fn thing(&self) -> ThingId { self.thing }
+
+    #[inline]
+    #[must_use]
+    fn create_hull(pos: Vec2, thing: &Thing) -> Hull
+    {
+        let half_width = thing.width / 2f32;
+        let half_height = thing.height / 2f32;
+
+        Hull::from_opposite_vertexes(
+            pos + Vec2::new(-half_width, half_height),
+            pos + Vec2::new(half_width, -half_height)
+        )
+        .unwrap()
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn path_hull(&self) -> Option<Hull>
+    {
+        self.path.as_ref().map(|path| path.hull() + self.pos)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn set_thing(&mut self, thing: &Thing) -> Option<ThingId>
+    {
+        self.hull = ThingInstanceData::create_hull(self.pos, thing);
+
+        if thing.id == self.thing
+        {
+            return None;
+        }
+
+        std::mem::replace(&mut self.thing, thing.id).into()
+    }
+
+    #[inline]
+    pub fn draw_prop(&self, drawer: &mut EditDrawer, catalog: &ThingsCatalog, delta: Vec2)
+    {
+        drawer.thing(catalog, &MovedThingInstance { thing: self, delta }, Color::NonSelectedEntity);
+        return_if_none!(&self.path).draw_prop(drawer, self.pos + delta);
+    }
+}
+
+//=======================================================================//
+
+/// An instance of a [`Thing`] which can be placed in a map.
+#[must_use]
+#[derive(Clone, Serialize, Deserialize)]
+
+pub(in crate::map) struct ThingInstance
+{
+    /// The id.
+    id:   Id,
+    data: ThingInstanceData
 }
 
 impl EntityHull for ThingInstance
 {
     #[inline]
-    fn hull(&self) -> Hull { self.hull }
+    fn hull(&self) -> Hull { self.data.hull }
 }
 
 impl EntityId for ThingInstance
@@ -203,7 +274,7 @@ impl EntityId for ThingInstance
 impl EntityCenter for ThingInstance
 {
     #[inline]
-    fn center(&self) -> Vec2 { self.center }
+    fn center(&self) -> Vec2 { self.data.pos }
 }
 
 impl CopyToClipboard for ThingInstance
@@ -211,17 +282,32 @@ impl CopyToClipboard for ThingInstance
     #[inline]
     fn copy_to_clipboard(&self) -> ClipboardData
     {
-        ClipboardData::Thing(self.thing, self.id, self.hull)
+        ClipboardData::Thing(self.data.clone(), self.id)
     }
+}
+
+impl ThingInterface for ThingInstance
+{
+    #[inline]
+    fn thing(&self) -> ThingId { self.data.thing }
+
+    #[inline]
+    fn pos(&self) -> Vec2 { self.data.pos }
+
+    #[inline]
+    fn draw_height_f32(&self) -> f32 { draw_height_to_world(self.data.draw_height) }
+
+    #[inline]
+    fn angle(&self) -> f32 { self.data.angle }
 }
 
 impl Moving for ThingInstance
 {
     #[inline]
-    fn path(&self) -> Option<&Path> { self.path.as_ref() }
+    fn path(&self) -> Option<&Path> { self.data.path.as_ref() }
 
     #[inline]
-    fn has_path(&self) -> bool { self.path.is_some() }
+    fn has_path(&self) -> bool { self.data.path.is_some() }
 
     #[inline]
     fn possible_moving(&self) -> bool { !self.has_path() }
@@ -321,7 +407,7 @@ impl Moving for ThingInstance
         drawer.thing(
             catalog,
             &MovedThingInstance {
-                thing: self,
+                thing: &self.data,
                 delta: movement_vec
             },
             Color::SelectedEntity
@@ -332,7 +418,7 @@ impl Moving for ThingInstance
             camera,
             egui_context,
             drawer,
-            self.center,
+            self.data.pos,
             movement_vec,
             show_tooltips
         );
@@ -352,25 +438,10 @@ impl Moving for ThingInstance
         assert!(self.id == simulator.id(), "Simulator's ID is not equal to the Thing's ID.");
 
         drawer.thing(catalog, &MovedThingInstance {
-            thing: self,
+            thing: &self.data,
             delta: simulator.movement_vec()
         });
     }
-}
-
-impl ThingInterface for ThingInstance
-{
-    #[inline]
-    fn thing(&self) -> ThingId { self.thing }
-
-    #[inline]
-    fn pos(&self) -> Vec2 { self.pos }
-
-    #[inline]
-    fn draw_height_f32(&self) -> f32 { draw_height_to_world(self.draw_height) }
-
-    #[inline]
-    fn angle(&self) -> f32 { self.angle }
 }
 
 impl EditPath for ThingInstance
@@ -380,75 +451,63 @@ impl EditPath for ThingInstance
     #[inline]
     fn set_path(&mut self, path: Path)
     {
-        assert!(self.path.is_none());
-
-        self.path_edited = true;
-        self.path = path.into();
+        assert!(self.data.path.is_none());
+        self.data.path = path.into();
     }
 
     #[inline]
-    fn take_path(&mut self) -> Path
-    {
-        self.path_edited = true;
-        std::mem::take(&mut self.path).unwrap()
-    }
+    fn take_path(&mut self) -> Path { std::mem::take(&mut self.data.path).unwrap() }
 }
 
 impl ThingInstance
 {
     /// Returns a new [`ThingInstance`].
     #[inline]
-    pub fn new(id: Id, thing: &Thing, pos: Vec2) -> Self
+    pub fn new(id: Id, thing: &Thing, pos: Vec2, default_properties: Properties) -> Self
     {
-        let hull = Self::create_hull(pos, thing);
+        let hull = ThingInstanceData::create_hull(pos, thing);
 
         Self {
             id,
-            thing: thing.id,
-            pos,
-            draw_height: 0,
-            angle: 0f32,
-            hull,
-            center: hull.center(),
-            path: None,
-            path_edited: false
+            data: ThingInstanceData {
+                thing: thing.id,
+                pos,
+                draw_height: 0,
+                angle: 0f32,
+                hull,
+                path: None,
+                properties: default_properties
+            }
         }
     }
 
-    /// Computes the bounding box.
     #[inline]
-    #[must_use]
-    fn create_hull(pos: Vec2, thing: &Thing) -> Hull
-    {
-        let half_width = thing.width / 2f32;
-        let half_height = thing.height / 2f32;
+    pub fn from_parts(id: Id, data: ThingInstanceData) -> Self { Self { id, data } }
 
-        Hull::from_opposite_vertexes(
-            pos + Vec2::new(-half_width, half_height),
-            pos + Vec2::new(half_width, -half_height)
-        )
-        .unwrap()
-    }
+    #[inline]
+    pub fn data(&self) -> &ThingInstanceData { &self.data }
+
+    #[inline]
+    pub fn take_data(self) -> ThingInstanceData { self.data }
 
     /// Returns the draw height.
     #[inline]
     #[must_use]
-    pub fn draw_height(&self) -> i8 { self.draw_height }
+    pub fn draw_height(&self) -> i8 { self.data.draw_height }
+
+    #[inline]
+    pub fn properties(&self) -> &Properties { &self.data.properties }
 
     /// Whever the bounding box contains the point `p`.
     #[inline]
     #[must_use]
-    pub fn contains_point(&self, p: Vec2) -> bool { self.hull.contains_point(p) }
+    pub fn contains_point(&self, p: Vec2) -> bool { self.data.hull.contains_point(p) }
 
+    /// Returns a mutable reference to the thing's [`Path`].
+    /// # Panics
+    /// Panics if `self` has no associated [`Path`].
     #[inline]
-    fn path_mut(&mut self) -> &mut Path { self.path.as_mut().unwrap() }
-
-    #[inline]
-    fn path_mut_set_dirty(&mut self) -> &mut Path
-    {
-        self.path_edited = true;
-        self.path_mut()
-    }
+    fn path_mut(&mut self) -> &mut Path { self.data.path.as_mut().unwrap() }
 
     /// Check whever changing the [`ThingId`] would cause `self` to have an out of bounds bounding
     /// box.
@@ -456,41 +515,30 @@ impl ThingInstance
     #[must_use]
     pub fn check_thing_change(&self, thing: &Thing) -> bool
     {
-        let hull = Self::create_hull(self.pos, thing);
+        let hull = ThingInstanceData::create_hull(self.data.pos, thing);
         !hull.out_of_bounds() && !self.path_hull_out_of_bounds(hull.center())
     }
 
     /// Sets `self` to represent an instance of another [`Thing`].
     #[inline]
     #[must_use]
-    pub fn set_thing(&mut self, thing: &Thing) -> Option<ThingId>
-    {
-        self.hull = Self::create_hull(self.pos, thing);
-        self.center = self.hull.center();
-
-        if thing.id == self.thing
-        {
-            return None;
-        }
-
-        std::mem::replace(&mut self.thing, thing.id).into()
-    }
+    pub fn set_thing(&mut self, thing: &Thing) -> Option<ThingId> { self.data.set_thing(thing) }
 
     /// Check whever `self` can be moved without being out of bounds.
     #[inline]
     #[must_use]
     pub fn check_move(&self, delta: Vec2) -> bool
     {
-        !(self.hull + delta).out_of_bounds() && !self.path_hull_out_of_bounds(self.center + delta)
+        !(self.data.hull + delta).out_of_bounds() &&
+            !self.path_hull_out_of_bounds(self.data.pos + delta)
     }
 
     /// Moves `self` by the vector `delta`.
     #[inline]
     pub fn move_by_delta(&mut self, delta: Vec2)
     {
-        self.hull += delta;
-        self.pos += delta;
-        self.center += delta;
+        self.data.hull += delta;
+        self.data.pos += delta;
     }
 
     /// Sets the draw height to `height`.
@@ -500,31 +548,40 @@ impl ThingInstance
     {
         let height = height.clamp(*TEXTURE_HEIGHT_RANGE.start(), *TEXTURE_HEIGHT_RANGE.end());
 
-        if height == self.draw_height
+        if height == self.data.draw_height
         {
             return None;
         }
 
-        std::mem::replace(&mut self.draw_height, height).into()
+        std::mem::replace(&mut self.data.draw_height, height).into()
     }
 
+    /// Sets the angle of `self`.
     #[inline]
     #[must_use]
     pub fn set_angle(&mut self, angle: f32) -> Option<f32>
     {
         let angle = angle.floor().rem_euclid(360f32);
 
-        if angle.around_equal_narrow(&self.angle)
+        if angle.around_equal_narrow(&self.data.angle)
         {
             return None;
         }
 
-        std::mem::replace(&mut self.angle, angle).into()
+        std::mem::replace(&mut self.data.angle, angle).into()
     }
 
     #[inline]
-    #[must_use]
-    pub fn was_path_edited(&mut self) -> bool { std::mem::replace(&mut self.path_edited, false) }
+    pub fn set_property(&mut self, key: &str, value: &Value) -> Option<Value>
+    {
+        self.data.properties.set(key, value)
+    }
+
+    #[inline]
+    pub fn refactor_properties(&mut self, refactor: &PropertiesRefactor)
+    {
+        self.data.properties.refactor(refactor);
+    }
 
     /// Draws `self` with the non selected color.
     #[inline]
@@ -567,45 +624,53 @@ impl ThingInstance
     {
         drawer.thing(catalog, self);
     }
-
-    /// Draws `self` as required to appear in a prop preview.
-    #[inline]
-    pub fn draw_prop(&self, drawer: &mut EditDrawer, catalog: &ThingsCatalog, delta: Vec2)
-    {
-        drawer.thing(catalog, &MovedThingInstance { thing: self, delta }, Color::NonSelectedEntity);
-    }
 }
 
 //=======================================================================//
 
+/// An instance of a [`Thing`] placed on the map.
 pub struct ThingViewer
 {
+    /// The unique id.
     pub id:          Id,
+    /// The id of the [`Thing`].
     pub thing_id:    ThingId,
+    /// The position of the center.
     pub pos:         Vec2,
+    /// The angle.
     pub angle:       f32,
+    /// The draw height.
     pub draw_height: f32,
-    pub path:        Option<Path>
+    /// The optional associated [`Path`].
+    pub path:        Option<Path>,
+    pub properties:  HvHashMap<String, Value>
 }
 
 impl ThingViewer
 {
+    /// Creates a new [`ThingViewer`].
     #[inline]
-    pub(in crate::map) fn new(mut thing: ThingInstance) -> Self
+    pub(in crate::map) fn new(thing: ThingInstance) -> Self
     {
         let id = thing.id;
-        let thing_id = thing.thing;
-        let pos = thing.pos;
-        let angle = thing.angle;
         let draw_height = thing.draw_height_f32();
+        let ThingInstanceData {
+            thing,
+            pos,
+            angle,
+            path,
+            properties,
+            ..
+        } = thing.data;
 
         Self {
             id,
-            thing_id,
+            thing_id: thing,
             pos,
             angle,
             draw_height,
-            path: std::mem::take(&mut thing.path)
+            path,
+            properties: properties.take()
         }
     }
 }

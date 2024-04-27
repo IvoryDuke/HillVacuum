@@ -18,26 +18,26 @@ use crate::{
 //
 //=======================================================================//
 
-/// The data concerning the travel of a [`Brush`] from one [`Node`] to the next one.
+/// The data concerning the travel of an entity from one [`Node`] to the next one.
 #[must_use]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Movement
 {
-    /// The maximum speed a [`Brush`] is going to travel from this [`Node`] to the next one.
+    /// The maximum speed an entity is going to travel from this [`Node`] to the next one.
     /// It's a value higher than `min_speed`.
     max_speed:               f32,
-    /// The minimum speed a [`Brush`] is going to travel from this [`Node`] to the next one.
+    /// The minimum speed an entity is going to travel from this [`Node`] to the next one.
     /// It's a value higher than or equal to 0 and less than or equal to `max_speed`.
     min_speed:               f32,
-    /// The percentage of the travel that the [`Brush`] is going to take to go from the minimum
+    /// The percentage of the travel that the entity is going to take to go from the minimum
     /// speed to the maximum speed. It is a value between 0 and 1, and is never higher than (1
     /// - `decel_travel_percentage`).
     accel_travel_percentage: f32,
-    /// The percentage of the travel that the [`Brush`] is going to take to go from the maximum
+    /// The percentage of the travel that the entity is going to take to go from the maximum
     /// speed to the minimum speed. It is a value between 0 and 1, and is never higher than (1
     /// - `accel_travel_percentage`).
     decel_travel_percentage: f32,
-    /// The time that has to pass before the [`Brush`] should start moving.
+    /// The time that has to pass before the entity should start moving.
     standby_time:            f32
 }
 
@@ -100,23 +100,31 @@ impl Movement
     #[must_use]
     pub const fn min_speed(&self) -> f32 { self.min_speed }
 
+    /// The time of the travel spent accelerating from the minimum to the maximum speed represented
+    /// by a value between 0 and 100.
     #[inline]
     #[must_use]
     pub const fn accel_travel_percentage(&self) -> f32 { self.accel_travel_percentage }
 
+    /// The time of the travel spent accelerating from the minimum to the maximum speed represented
+    /// by a value between 0 and 1.
     #[inline]
     #[must_use]
     pub fn scaled_accel_travel_percentage(&self) -> f32 { self.accel_travel_percentage / 100f32 }
 
+    /// The time of the travel spent decelerating from the maximum to the minimum speed represented
+    /// by a value between 0 and 100.
     #[inline]
     #[must_use]
     pub const fn decel_travel_percentage(&self) -> f32 { self.decel_travel_percentage }
 
+    /// The time of the travel spent decelerating from the maximum to the minimum speed represented
+    /// by a value between 0 and 1.
     #[inline]
     #[must_use]
     pub fn scaled_decel_travel_percentage(&self) -> f32 { self.decel_travel_percentage / 100f32 }
 
-    /// Returns the standby time, that is the time that has to pass before the [`Brush`] should
+    /// Returns the standby time, that is the time that has to pass before the entity should
     /// start moving to the next [`Node`].
     #[inline]
     #[must_use]
@@ -154,10 +162,11 @@ impl Movement
         Vec2::new(delta, opposite - std::mem::replace(&mut self.max_speed, opposite)).into()
     }
 
-    /// Returns the percetage of the travel to the next [`Node`] dedicated to going from the maximum
+    /// Sets the percentage of the travel to the next [`Node`] dedicated to going from the maximum
     /// to the minimum speed. If needed, adjusts the deceleration value to make sure that the
-    /// sum of acceleration and deceleration is at most 1. # Panics
-    /// Panics if `value` is not between 0 and 1.
+    /// sum of acceleration and deceleration is at most 1.
+    /// # Panics
+    /// Panics if `value` is not between 0 and 100.
     #[inline]
     #[must_use]
     pub(in crate::map) fn set_accel_travel_percentage(&mut self, value: f32) -> Option<Vec2>
@@ -179,7 +188,7 @@ impl Movement
     /// to the maximum speed. If needed, adjusts the acceleration value to make sure that the
     /// sum of acceleration and deceleration is at most 1.
     /// # Panics
-    /// Panics if `value` is not between 0 and 1.
+    /// Panics if `value` is not between 0 and 100.
     #[inline]
     #[must_use]
     pub(in crate::map) fn set_decel_travel_percentage(&mut self, value: f32) -> Option<Vec2>
@@ -197,8 +206,9 @@ impl Movement
             .into()
     }
 
-    /// Sets the standby time, that is the time that has to pass before the [`Brush`] should start
-    /// moving to the next [`Node`]. # Panics
+    /// Sets the standby time, that is the time that has to pass before the entity should start
+    /// moving to the next [`Node`].
+    /// # Panics
     /// Panics if `value` is less than 0.
     #[inline]
     #[must_use]
@@ -214,7 +224,7 @@ impl Movement
         (value - std::mem::replace(&mut self.standby_time, value)).into()
     }
 
-    /// The speed the [`Brush`] should start moving. If there is no speed up it is the maximum
+    /// The speed the entity should start moving. If there is no speed up it is the maximum
     /// speed, otherwise the minimum speed.
     #[inline]
     #[must_use]
@@ -236,14 +246,14 @@ impl Movement
 //
 //=======================================================================//
 
-/// A node of the travel [`Path`] of a moving [`Brush`].
-/// The position of the Node is relative to the center of the [`Brush`].
+/// A node of the travel [`Path`] of a moving entity.
+/// The position of the Node is relative to the center of the entity.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Node
 {
-    /// The position in 2D space with respect to the center of the [`Brush`].
+    /// The position in 2D space with respect to the center of the entity.
     pub selectable_vector: SelectableVector,
-    /// The data concerning how the moving [`Brush`] should travel to the next [`Node`].
+    /// The data concerning how the moving entity should travel to the next [`Node`].
     pub movement:          Movement
 }
 
@@ -271,7 +281,7 @@ impl Node
     }
 
     /// Creates a new [`Node`] from a non relative position.
-    /// `center` is the center of the [`Brush`] this [`Node`] is being assigned to.
+    /// `center` is the center of the entity this [`Node`] is being assigned to.
     #[inline]
     #[must_use]
     pub(in crate::map::path) fn from_world_pos(pos: Vec2, selected: bool, center: Vec2) -> Self
@@ -279,10 +289,12 @@ impl Node
         Self::new(pos - center, selected)
     }
 
+    /// The position of the node with respect to the center of the entity it is associated with.
     #[inline]
     #[must_use]
     pub const fn pos(&self) -> Vec2 { self.selectable_vector.vec }
 
+    /// The position of the node.
     #[inline]
     #[must_use]
     pub fn world_pos(&self, center: Vec2) -> Vec2 { self.selectable_vector.vec + center }
@@ -296,7 +308,7 @@ pub(in crate::map) struct NodeWorld(pub Vec2, pub bool);
 
 impl NodeWorld
 {
-    /// Creates a new [`NodeWorld`]. `center` is the center of the [`Brush`] `node` belongs to.
+    /// Creates a new [`NodeWorld`]. `center` is the center of the entity `node` belongs to.
     #[inline]
     #[must_use]
     fn new(node: &Node, center: Vec2) -> Self
@@ -319,7 +331,7 @@ pub(in crate::map) struct NodeWorldMut<'a>(pub Vec2, pub &'a mut bool);
 
 impl<'a> NodeWorldMut<'a>
 {
-    /// Returns a new [`NodeWorldMut`]. `center` is the center of the [`Brush`] `node` belongs to.
+    /// Returns a new [`NodeWorldMut`]. `center` is the center of the entity `node` belongs to.
     #[inline]
     #[must_use]
     fn new(node: &'a mut Node, center: Vec2) -> Self
@@ -335,7 +347,7 @@ pub(in crate::map) struct NodesWorld<'a>
 {
     /// The [`Node`]s.
     slice:  &'a HvVec<Node>,
-    /// The center of the [`Brush`] the [`Node`]s belong to.
+    /// The center of the entity the [`Node`]s belong to.
     center: Vec2
 }
 
@@ -364,13 +376,13 @@ pub(in crate::map) struct NodesWorldMut<'a>
 {
     /// The [`Node`]s.
     slice:  &'a mut HvVec<Node>,
-    /// The center of the [`Brush`] the [`Node`]s belong to.
+    /// The center of the entity the [`Node`]s belong to.
     center: Vec2
 }
 
 impl<'a> NodesWorldMut<'a>
 {
-    /// Creates a new [`NodesWorldMut`]. `center` is the center of the [`Brush`] the [`Node`]s
+    /// Creates a new [`NodesWorldMut`]. `center` is the center of the entity the [`Node`]s
     /// belong to.
     #[inline]
     #[must_use]
@@ -394,7 +406,7 @@ pub(in crate::map) struct NodesInsertionIter<'a>
 {
     /// The [`Node`]s of the [`Path`] the new [`Node`] is being inserted into.
     slice:             &'a HvVec<Node>,
-    /// The center of the [`Brush`] the [`Path`] belongs to.
+    /// The center of the entity the [`Path`] belongs to.
     center:            Vec2,
     /// The new [`Node`] being inserted expressed in world coordinates.
     new_node:          NodeWorld,

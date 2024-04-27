@@ -84,23 +84,11 @@ pub(in crate::map) use hv_vec;
 /// Creates a new [`HvHashMap`] based on the parameters.
 macro_rules! hv_hash_map {
     [] => {{
-        #[cfg(feature = "arena_alloc")]
-        let map = crate::map::containers::HvHashMap::new_in(crate::map::containers::blink_alloc());
-
-        #[cfg(not(feature = "arena_alloc"))]
-        let map = hashbrown::HashMap::new();
-
-        map
+        crate::map::containers::HvHashMap::new()
     }};
 
     [capacity; $n:expr] => {{
-        #[cfg(feature = "arena_alloc")]
-        let map = crate::map::containers::HvHashMap::with_capacity_in($n, crate::map::containers::blink_alloc());
-
-        #[cfg(not(feature = "arena_alloc"))]
-        let map = hashbrown::HashMap::with_capacity($n);
-
-        map
+        crate::map::containers::HvHashMap::with_capacity($n)
     }};
 
     [$(($k:expr, $v:expr)),+] => ({
@@ -110,9 +98,9 @@ macro_rules! hv_hash_map {
     });
 
     [collect; $x:expr] => ({
-        let mut vec = crate::map::containers::hv_hash_map![];
-        vec.extend($x);
-        vec
+        let mut map = crate::map::containers::hv_hash_map![];
+        map.extend($x);
+        map
     });
 }
 
@@ -490,11 +478,80 @@ impl<T> HvVec<T>
 
 #[cfg(feature = "arena_alloc")]
 /// hashbrown [`HashMap`] alias.
-pub(in crate::map) type HvHashMap<K, V> =
-    hashbrown::HashMap<K, V, DefaultHashBuilder, &'static BlinkAlloc>;
+#[derive(Debug, Clone)]
+pub struct HvHashMap<K, V>(hashbrown::HashMap<K, V, DefaultHashBuilder, &'static BlinkAlloc>);
+
 #[cfg(not(feature = "arena_alloc"))]
 /// hashbrown [`HashMap`] alias.
-pub(in crate::map) type HvHashMap<K, V> = hashbrown::HashMap<K, V, DefaultHashBuilder>;
+#[derive(Debug, Clone)]
+pub struct HvHashMap<K, V>(hashbrown::HashMap<K, V, DefaultHashBuilder>);
+
+impl<K, V> Default for HvHashMap<K, V>
+{
+    #[inline]
+    fn default() -> Self { hv_hash_map![] }
+}
+
+impl<K, V> IntoIterator for HvHashMap<K, V>
+{
+    #[cfg(feature = "arena_alloc")]
+    type IntoIter = hashbrown::hash_map::IntoIter<K, V, &'static BlinkAlloc>;
+    #[cfg(not(feature = "arena_alloc"))]
+    type IntoIter = hashbrown::hash_map::IntoIter<K, V>;
+    type Item = (K, V);
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter { self.0.into_iter() }
+}
+
+impl<'a, K, V> IntoIterator for &'a HvHashMap<K, V>
+{
+    type IntoIter = hashbrown::hash_map::Iter<'a, K, V>;
+    type Item = (&'a K, &'a V);
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter { self.iter() }
+}
+
+impl<'a, K, V> IntoIterator for &'a mut HvHashMap<K, V>
+{
+    type IntoIter = hashbrown::hash_map::IterMut<'a, K, V>;
+    type Item = (&'a K, &'a mut V);
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter { self.iter_mut() }
+}
+
+impl<K: std::hash::Hash + std::cmp::Eq, V> Extend<(K, V)> for HvHashMap<K, V>
+{
+    #[inline]
+    fn extend<A: IntoIterator<Item = (K, V)>>(&mut self, iter: A) { self.0.extend(iter); }
+}
+
+impl<K: std::hash::Hash + std::cmp::Eq + Serialize, V: Serialize> Serialize for HvHashMap<K, V>
+{
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer
+    {
+        serializer.collect_seq(self)
+    }
+}
+
+impl<'de, K, V> Deserialize<'de> for HvHashMap<K, V>
+where
+    K: std::hash::Hash + std::cmp::Eq + Deserialize<'de>,
+    V: Deserialize<'de>
+{
+    #[inline]
+    fn deserialize<D>(deserializer: D) -> Result<HvHashMap<K, V>, D::Error>
+    where
+        D: Deserializer<'de>
+    {
+        Vec::<(K, V)>::deserialize(deserializer).map(|vec| hv_hash_map![collect; vec])
+    }
+}
 
 impl<'a, K: std::hash::Hash + std::cmp::Eq + Copy, V: Copy> ReplaceValues<(&'a K, &'a V)>
     for HvHashMap<K, V>
@@ -502,8 +559,8 @@ impl<'a, K: std::hash::Hash + std::cmp::Eq + Copy, V: Copy> ReplaceValues<(&'a K
     #[inline]
     fn replace_values<I: IntoIterator<Item = (&'a K, &'a V)>>(&mut self, iter: I)
     {
-        self.clear();
-        self.extend(iter.into_iter().map(|(k, v)| (*k, *v)));
+        self.0.clear();
+        self.0.extend(iter.into_iter().map(|(k, v)| (*k, *v)));
     }
 }
 
@@ -512,6 +569,108 @@ impl<K: std::hash::Hash + std::cmp::Eq, V> TakeValue for HvHashMap<K, V>
     #[inline]
     #[must_use]
     fn take_value(&mut self) -> Self { std::mem::replace(self, hv_hash_map![]) }
+}
+
+impl<K, V> HvHashMap<K, V>
+{
+    #[inline]
+    pub fn new() -> Self
+    {
+        #[cfg(feature = "arena_alloc")]
+        let map = hashbrown::HashMap::new_in(blink_alloc());
+
+        #[cfg(not(feature = "arena_alloc"))]
+        let map = hashbrown::HashMap::new();
+
+        Self(map)
+    }
+
+    #[inline]
+    pub fn with_capacity(capacity: usize) -> Self
+    {
+        #[cfg(feature = "arena_alloc")]
+        let map = hashbrown::HashMap::with_capacity_in(capacity, blink_alloc());
+
+        #[cfg(not(feature = "arena_alloc"))]
+        let map = hashbrown::HashMap::with_capacity(capacity);
+
+        Self(map)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn len(&self) -> usize { self.0.len() }
+
+    #[inline]
+    #[must_use]
+    pub fn is_empty(&self) -> bool { self.0.is_empty() }
+
+    #[inline]
+    pub fn clear(&mut self) { self.0.clear() }
+
+    #[inline]
+    pub fn iter(&self) -> hashbrown::hash_map::Iter<'_, K, V> { self.0.iter() }
+
+    #[inline]
+    pub fn iter_mut(&mut self) -> hashbrown::hash_map::IterMut<'_, K, V> { self.0.iter_mut() }
+
+    #[inline]
+    pub fn keys(&self) -> hashbrown::hash_map::Keys<'_, K, V> { self.0.keys() }
+
+    #[inline]
+    pub fn values(&self) -> hashbrown::hash_map::Values<'_, K, V> { self.0.values() }
+
+    #[inline]
+    pub fn values_mut(&mut self) -> hashbrown::hash_map::ValuesMut<'_, K, V> { self.0.values_mut() }
+}
+
+impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
+{
+    #[inline]
+    pub fn contains_key<Q>(&self, k: &Q) -> bool
+    where
+        Q: ?Sized + Hash + Equivalent<K>
+    {
+        self.0.contains_key(k)
+    }
+
+    #[inline]
+    pub fn insert(&mut self, k: K, v: V) -> Option<V> { self.0.insert(k, v) }
+
+    #[inline]
+    pub fn remove<Q>(&mut self, k: &Q) -> Option<V>
+    where
+        Q: ?Sized + Hash + Equivalent<K>
+    {
+        self.0.remove(k)
+    }
+
+    #[inline]
+    pub fn get<Q: ?Sized + Hash + Equivalent<K>>(&self, k: &Q) -> Option<&V> { self.0.get(k) }
+
+    #[inline]
+    pub fn get_mut<Q>(&mut self, k: &Q) -> Option<&mut V>
+    where
+        Q: ?Sized + Hash + Equivalent<K>
+    {
+        self.0.get_mut(k)
+    }
+
+    #[inline]
+    pub fn get_many_mut<Q, const N: usize>(&mut self, ks: [&Q; N]) -> Option<[&'_ mut V; N]>
+    where
+        Q: ?Sized + Hash + Equivalent<K>
+    {
+        self.0.get_many_mut(ks)
+    }
+
+    #[inline]
+    pub fn retain<F>(&mut self, f: F)
+    where
+        F: FnMut(&K, &mut V) -> bool
+    {
+        self.0.retain(f);
+    }
 }
 
 //=======================================================================//

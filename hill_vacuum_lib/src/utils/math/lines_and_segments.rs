@@ -31,7 +31,8 @@ pub enum LineEquation
 //=======================================================================//
 
 /// Returns the length of the segment connecting a point `p` to the closest point on the line
-/// described by `a` and `b`. # Panics
+/// described by `a` and `b`.
+/// # Panics
 /// Panics if `a` and `b` represent the same point.
 #[inline]
 #[must_use]

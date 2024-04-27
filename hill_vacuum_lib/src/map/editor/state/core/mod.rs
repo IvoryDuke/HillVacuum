@@ -41,10 +41,7 @@ use super::{
 };
 use crate::{
     map::{
-        brush::{
-            convex_polygon::{ConvexPolygon, TextureSetResult},
-            mover::Mover
-        },
+        brush::{convex_polygon::TextureSetResult, BrushData},
         containers::HvBox,
         drawer::{
             drawing_resources::DrawingResources,
@@ -57,7 +54,8 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
-        thing::{catalog::ThingsCatalog, ThingId}
+        properties::Value,
+        thing::{catalog::ThingsCatalog, ThingId, ThingInstanceData}
     },
     utils::identifiers::{EntityId, Id},
     Path
@@ -214,7 +212,7 @@ macro_rules! bottom_area {
                     paste::paste! {
                         let mut clicked = None;
 
-                        let rows = textures_gallery!(
+                        let rows = crate::map::editor::state::ui::textures_gallery!(
                             ui,
                             PREVIEW_FRAME.x,
                             |textures_per_row| { $source.[< chunked_ $object s >](textures_per_row $(, $drawing_resources)?) },
@@ -385,16 +383,10 @@ impl<'a> UndoRedoInterface<'a>
     }
 
     #[inline]
-    pub fn spawn_brush(
-        &mut self,
-        identifier: Id,
-        polygon: ConvexPolygon,
-        mover: Mover,
-        b_type: BrushType
-    )
+    pub fn spawn_brush(&mut self, identifier: Id, data: BrushData, b_type: BrushType)
     {
         self.manager
-            .spawn_from_parts(identifier, polygon, mover, b_type.selected());
+            .spawn_brush_from_parts(identifier, data, b_type.selected());
 
         if b_type.drawn()
         {
@@ -404,9 +396,9 @@ impl<'a> UndoRedoInterface<'a>
     }
 
     #[inline]
-    pub fn despawn_brush(&mut self, identifier: Id, b_type: BrushType) -> (ConvexPolygon, Mover)
+    pub fn despawn_brush(&mut self, identifier: Id, b_type: BrushType) -> BrushData
     {
-        let parts = self.manager.despawn_brush_into_parts(identifier, b_type.selected());
+        let data = self.manager.despawn_brush_into_parts(identifier, b_type.selected());
 
         match self.active_tool
         {
@@ -420,7 +412,7 @@ impl<'a> UndoRedoInterface<'a>
             ActiveTool::Subtract(t) => t.undo_redo_despawn(self.manager, identifier),
             ActiveTool::Path(t) =>
             {
-                if b_type.selected() && parts.1.has_path()
+                if b_type.selected() && data.has_path()
                 {
                     t.undo_redo_despawn(self.manager, identifier);
                 }
@@ -428,7 +420,7 @@ impl<'a> UndoRedoInterface<'a>
             _ => ()
         };
 
-        parts
+        data
     }
 
     #[inline]
@@ -559,9 +551,9 @@ impl<'a> UndoRedoInterface<'a>
     pub fn thing_mut(&mut self, identifier: Id) -> ThingMut { self.manager.thing_mut(identifier) }
 
     #[inline]
-    pub fn spawn_thing(&mut self, identifier: Id, thing: ThingId, pos: Vec2, drawn: bool)
+    pub fn spawn_thing(&mut self, identifier: Id, data: ThingInstanceData, drawn: bool)
     {
-        self.manager.insert_thing(self.things_catalog, identifier, thing, pos);
+        self.manager.spawn_thing_from_parts(identifier, data);
 
         if drawn
         {
@@ -571,14 +563,48 @@ impl<'a> UndoRedoInterface<'a>
     }
 
     #[inline]
-    pub fn despawn_thing(&mut self, identifier: Id, drawn: bool)
+    pub fn despawn_thing(&mut self, identifier: Id, drawn: bool) -> ThingInstanceData
     {
-        self.manager.remove_thing(identifier);
+        let thing = self.manager.remove_thing(identifier);
 
         if drawn
         {
-            return_if_no_match!(self.active_tool, ActiveTool::Thing(t), t)
-                .undo_redo_despawn(self.manager, identifier);
+            if let ActiveTool::Thing(t) = self.active_tool
+            {
+                t.undo_redo_despawn(self.manager, identifier);
+            }
+        }
+
+        thing.take_data()
+    }
+
+    #[inline]
+    pub fn toggle_overall_collision_update(&mut self)
+    {
+        self.manager.toggle_overall_collision_update();
+    }
+
+    #[inline]
+    pub fn toggle_overall_things_info_update(&mut self)
+    {
+        self.manager.toggle_overall_things_info_update();
+    }
+
+    #[inline]
+    pub fn toggle_overall_node_update(&mut self) { self.manager.toggle_overall_node_update(); }
+
+    #[inline]
+    pub fn set_property(&mut self, identifier: Id, key: &str, value: &Value) -> Value
+    {
+        if self.manager.is_thing(identifier)
+        {
+            self.manager.toggle_overall_things_property_update(key);
+            self.manager.thing_mut(identifier).set_property(key, value).unwrap()
+        }
+        else
+        {
+            self.manager.toggle_overall_brushes_property_update(key);
+            self.manager.brush_mut(identifier).set_property(key, value).unwrap()
         }
     }
 }
@@ -785,12 +811,6 @@ impl Core
     }
 
     #[inline]
-    pub fn update_overall_thing_info(&mut self, manager: &EntitiesManager)
-    {
-        self.active_tool.update_overall_thing_info(manager);
-    }
-
-    #[inline]
     pub fn update(
         &mut self,
         bundle: &mut ToolUpdateBundle,
@@ -881,7 +901,7 @@ impl Core
         grid_shifted: bool
     )
     {
-        if manager.selected_brushes_amount() == 0
+        if !manager.any_selected_brushes()
         {
             return;
         }

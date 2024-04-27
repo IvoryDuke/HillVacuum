@@ -44,23 +44,18 @@ use bevy_egui::{
     EguiUserTextures
 };
 use serde::{Deserialize, Serialize};
-use shared::{continue_if_none, match_or_panic, return_if_no_match, return_if_none, NextValue};
+use shared::{continue_if_no_match, continue_if_none, match_or_panic, return_if_none, NextValue};
 
 use super::{editor_state::InputsPresses, edits_history::EditsHistory, manager::EntitiesManager};
 use crate::{
+    error_message,
     map::{
-        brush::{convex_polygon::ConvexPolygon, mover::MoverParts},
+        brush::BrushData,
         camera::scale_viewport,
         drawer::{color::Color, drawing_resources::DrawingResources},
-        editor::{
-            draw_camera,
-            state::error_message,
-            DrawBundle,
-            StateUpdateBundle,
-            ToolUpdateBundle
-        },
+        editor::{draw_camera, DrawBundle, StateUpdateBundle, ToolUpdateBundle},
         hv_vec,
-        thing::{catalog::ThingsCatalog, ThingId},
+        thing::{catalog::ThingsCatalog, ThingInstanceData},
         HvVec,
         MapHeader,
         OutOfBounds,
@@ -105,9 +100,9 @@ pub(in crate::map) trait CopyToClipboard
 pub(in crate::map) enum ClipboardData
 {
     // A brush that may still exist in the world.
-    Brush(ConvexPolygon, Id, MoverParts),
+    Brush(BrushData, Id),
     // A thing that may still exist in the world.
-    Thing(ThingId, Id, Hull)
+    Thing(ThingInstanceData, Id)
 }
 
 impl EntityId for ClipboardData
@@ -120,7 +115,7 @@ impl EntityId for ClipboardData
     {
         match self
         {
-            ClipboardData::Brush(_, id, _) | ClipboardData::Thing(_, id, _) => id
+            ClipboardData::Brush(_, id) | ClipboardData::Thing(_, id) => id
         }
     }
 }
@@ -132,22 +127,31 @@ impl EntityHull for ClipboardData
     {
         match self
         {
-            ClipboardData::Brush(cp, _, mp) =>
+            ClipboardData::Brush(data, _) =>
             {
-                let mut hull = cp.hull();
+                let mut hull = data.polygon_hull();
 
-                if let Some(h) = cp.sprite_hull()
+                if let Some(h) = data.sprite_hull()
                 {
                     hull = hull.merged(&h);
                 }
 
-                match mp.path_hull(cp.center())
+                match data.path_hull()
                 {
                     Some(h) => hull.merged(&h),
                     None => hull
                 }
             },
-            ClipboardData::Thing(_, _, hull) => *hull
+            ClipboardData::Thing(data, _) =>
+            {
+                let hull = data.hull();
+
+                match data.path_hull()
+                {
+                    Some(h) => hull.merged(&h),
+                    None => hull
+                }
+            }
         }
     }
 }
@@ -163,48 +167,26 @@ impl ClipboardData
     /// Whever `self` is out of bounds if moved by the amount `delta`.
     #[inline]
     #[must_use]
-    fn out_of_bounds(&self, delta: Vec2) -> bool
-    {
-        match self
-        {
-            ClipboardData::Brush(poly, _, parts) =>
-            {
-                !poly.check_move(delta, true) ||
-                    parts.path_hull_out_of_bounds(poly.center() + delta)
-            },
-            ClipboardData::Thing(_, _, hull) => (*hull + delta).out_of_bounds()
-        }
-    }
+    fn out_of_bounds(&self, delta: Vec2) -> bool { (self.hull() + delta).out_of_bounds() }
 
     /// Draws the [`ClipboardData`] at its position moved by `delta`
     #[inline]
-    fn draw(
-        &self,
-        bundle: &mut DrawBundle,
-        manager: &EntitiesManager,
-        delta: Vec2,
-        camera_id: Option<bevy::prelude::Entity>
-    )
+    fn draw(&self, bundle: &mut DrawBundle, delta: Vec2, camera_id: Option<bevy::prelude::Entity>)
     {
         match self
         {
-            ClipboardData::Brush(polygon, _, mover) =>
+            ClipboardData::Brush(data, _) =>
             {
-                polygon.draw_prop(
+                data.draw_prop(
                     draw_camera!(bundle, camera_id),
                     &mut bundle.drawer,
                     Color::NonSelectedEntity,
                     delta
                 );
-
-                return_if_no_match!(mover, MoverParts::Other(Some(path), _), path)
-                    .draw_prop(&mut bundle.drawer, polygon.center() + delta);
             },
-            ClipboardData::Thing(_, id, _) =>
+            ClipboardData::Thing(data, _) =>
             {
-                manager
-                    .thing(*id)
-                    .draw_prop(&mut bundle.drawer, bundle.things_catalog, delta);
+                data.draw_prop(&mut bundle.drawer, bundle.things_catalog, delta);
             }
         };
     }
@@ -392,18 +374,15 @@ impl Prop
         {
             let index = match &item
             {
-                ClipboardData::Brush(_, _, MoverParts::None) | ClipboardData::Thing(..) =>
+                ClipboardData::Thing(..) => self.data.len(),
+                ClipboardData::Brush(data, _) =>
                 {
-                    self.data.len()
-                },
-                ClipboardData::Brush(_, _, MoverParts::Anchored(_)) =>
-                {
-                    anchored += 1;
-                    anchors
-                },
-                ClipboardData::Brush(_, _, MoverParts::Other(_, ids)) =>
-                {
-                    if ids.is_some()
+                    if data.is_anchored()
+                    {
+                        anchored += 1;
+                        anchors
+                    }
+                    else if data.has_anchors()
                     {
                         anchors += 1;
                         0
@@ -422,14 +401,14 @@ impl Prop
         let anchored_brushes = &mut anchored_brushes[..anchored];
         self.anchored_range = anchors..anchors + anchored;
 
-        for mover in anchor_brushes
+        for data in anchor_brushes
             .iter_mut()
-            .map(|item| match_or_panic!(item, ClipboardData::Brush(_, _, mover), mover))
+            .map(|item| match_or_panic!(item, ClipboardData::Brush(data, _), data))
         {
-            assert!(mover.has_anchors(), "Mover has no anchors.");
+            assert!(data.has_anchors(), "Mover has no anchors.");
             let mut to_remove = hv_vec![];
 
-            for id in mover.anchors().unwrap().iter().copied()
+            for id in data.anchors().unwrap().iter().copied()
             {
                 if anchored_brushes.iter().any(|item| item.id() == id)
                 {
@@ -441,25 +420,21 @@ impl Prop
 
             for id in to_remove
             {
-                mover.remove_anchor(id);
+                data.remove_anchor(id);
             }
         }
 
-        for mover in anchored_brushes.iter_mut().map(|item| {
-            match_or_panic!(
-                item,
-                ClipboardData::Brush(_, _, mover @ MoverParts::Anchored(_)),
-                mover
-            )
-        })
+        for data in anchored_brushes
+            .iter_mut()
+            .map(|item| match_or_panic!(item, ClipboardData::Brush(data, _), data))
         {
-            *mover = MoverParts::None;
+            data.disanchor();
         }
 
         anchor_brushes.sort_by(|a, b| {
             match (a, b)
             {
-                (ClipboardData::Brush(_, _, a), ClipboardData::Brush(_, _, b)) =>
+                (ClipboardData::Brush(a, _), ClipboardData::Brush(b, _)) =>
                 {
                     a.has_anchors().cmp(&b.has_anchors()).reverse()
                 },
@@ -471,7 +446,7 @@ impl Prop
 
         for item in anchor_brushes
         {
-            if !match_or_panic!(item, ClipboardData::Brush(_, _, mover), mover).has_anchors()
+            if !match_or_panic!(item, ClipboardData::Brush(data, _), data).has_anchors()
             {
                 break;
             }
@@ -479,9 +454,72 @@ impl Prop
             self.anchor_owners += 1;
         }
 
+        self.reset_data_center();
+    }
+
+    #[inline]
+    fn reset_data_center(&mut self)
+    {
         self.data_center = Hull::from_hulls_iter(self.data.iter().map(EntityHull::hull))
             .unwrap()
             .center();
+    }
+
+    #[inline]
+    #[must_use]
+    fn reload_things(&mut self, catalog: &ThingsCatalog) -> bool
+    {
+        let mut changed = false;
+
+        for data in &mut self.data
+        {
+            let data = continue_if_no_match!(data, ClipboardData::Thing(data, _), data);
+            _ = data.set_thing(catalog.thing_or_error(data.thing()));
+            changed = true;
+        }
+
+        if changed
+        {
+            self.reset_data_center();
+            return true;
+        }
+
+        false
+    }
+
+    #[inline]
+    #[must_use]
+    fn reload_textures(&mut self, drawing_resources: &DrawingResources) -> bool
+    {
+        let mut changed = false;
+
+        for data in &mut self.data
+        {
+            if let ClipboardData::Brush(data, _) = data
+            {
+                if !data.has_texture()
+                {
+                    continue;
+                }
+
+                _ = data.set_texture(
+                    drawing_resources,
+                    drawing_resources
+                        .texture_or_error(data.texture_name().unwrap())
+                        .name()
+                );
+            }
+
+            changed = true;
+        }
+
+        if changed
+        {
+            self.reset_data_center();
+            return true;
+        }
+
+        false
     }
 
     //==============================================================
@@ -492,7 +530,6 @@ impl Prop
     fn spawn(
         &mut self,
         drawing_resources: &DrawingResources,
-        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         delta: Vec2
@@ -502,7 +539,6 @@ impl Prop
         fn spawn_regular(
             prop: &mut Prop,
             drawing_resources: &DrawingResources,
-            things_catalog: &ThingsCatalog,
             manager: &mut EntitiesManager,
             edits_history: &mut EditsHistory,
             range: Rev<Range<usize>>,
@@ -514,15 +550,14 @@ impl Prop
                 let item = &mut prop.data[i];
                 let new_id = manager.spawn_pasted_entity(
                     drawing_resources,
-                    things_catalog,
-                    item,
                     edits_history,
+                    item.clone(),
                     delta
                 );
 
                 match item
                 {
-                    ClipboardData::Brush(_, id, _) | ClipboardData::Thing(_, id, _) => *id = new_id
+                    ClipboardData::Brush(_, id) | ClipboardData::Thing(_, id) => *id = new_id
                 };
             }
         }
@@ -538,7 +573,6 @@ impl Prop
         spawn_regular(
             self,
             drawing_resources,
-            things_catalog,
             manager,
             edits_history,
             (self.anchored_range.end..self.data.len()).rev(),
@@ -549,33 +583,27 @@ impl Prop
         {
             let item = &mut self.data[i];
             let old_id = item.id();
-            let new_id = manager.spawn_pasted_entity(
-                drawing_resources,
-                things_catalog,
-                item,
-                edits_history,
-                delta
-            );
+            let new_id =
+                manager.spawn_pasted_entity(drawing_resources, edits_history, item.clone(), delta);
 
             match item
             {
-                ClipboardData::Brush(_, id, _) | ClipboardData::Thing(_, id, _) => *id = new_id
+                ClipboardData::Brush(_, id) | ClipboardData::Thing(_, id) => *id = new_id
             };
 
-            let mover =
+            let data =
                 continue_if_none!(self.data[0..self.anchor_owners].iter_mut().find_map(|item| {
-                    let mover = match_or_panic!(item, ClipboardData::Brush(_, _, mover), mover);
-                    mover.contains_anchor(old_id).then_some(mover)
+                    let data = match_or_panic!(item, ClipboardData::Brush(data, _), data);
+                    data.contains_anchor(old_id).then_some(data)
                 }));
 
-            mover.remove_anchor(old_id);
-            mover.insert_anchor(new_id);
+            data.remove_anchor(old_id);
+            data.insert_anchor(new_id);
         }
 
         spawn_regular(
             self,
             drawing_resources,
-            things_catalog,
             manager,
             edits_history,
             (0..self.anchored_range.start).rev(),
@@ -588,7 +616,6 @@ impl Prop
     fn spawn_copy(
         &mut self,
         drawing_resources: &DrawingResources,
-        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         cursor_pos: Vec2
@@ -607,7 +634,7 @@ impl Prop
             }
         }
 
-        self.spawn(drawing_resources, things_catalog, manager, edits_history, delta);
+        self.spawn(drawing_resources, manager, edits_history, delta);
     }
 
     /// Spawns a copy of `self` as if it were a brush of a image editing software.
@@ -615,19 +642,12 @@ impl Prop
     fn paint_copy(
         &mut self,
         drawing_resources: &DrawingResources,
-        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         cursor_pos: Vec2
     )
     {
-        self.spawn(
-            drawing_resources,
-            things_catalog,
-            manager,
-            edits_history,
-            self.spawn_delta(cursor_pos)
-        );
+        self.spawn(drawing_resources, manager, edits_history, self.spawn_delta(cursor_pos));
     }
 
     //==============================================================
@@ -638,7 +658,6 @@ impl Prop
     pub(in crate::map::editor::state) fn draw(
         &self,
         bundle: &mut DrawBundle,
-        manager: &EntitiesManager,
         camera_id: Option<bevy::prelude::Entity>
     )
     {
@@ -646,7 +665,7 @@ impl Prop
 
         for item in &self.data
         {
-            item.draw(bundle, manager, delta, camera_id);
+            item.draw(bundle, delta, camera_id);
         }
 
         bundle.drawer.prop_square_highlight(
@@ -753,6 +772,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
+        catalog: &ThingsCatalog,
         header: &MapHeader,
         file: &mut BufReader<File>
     ) -> Result<Self, &'static str>
@@ -771,7 +791,7 @@ impl Clipboard
             update_func: Self::delay_update
         };
 
-        match clip.import_props(images, prop_cameras, user_textures, header.props, file)
+        match clip.import_props(images, prop_cameras, user_textures, catalog, header.props, file)
         {
             Ok(()) => Ok(clip),
             Err(err) => Err(err)
@@ -784,6 +804,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
+        catalog: &ThingsCatalog,
         props_amount: usize,
         file: &mut BufReader<File>
     ) -> Result<(), &'static str>
@@ -792,9 +813,13 @@ impl Clipboard
 
         for _ in 0..props_amount
         {
-            match ciborium::from_reader(&mut *file)
+            match ciborium::from_reader::<Prop, _>(&mut *file)
             {
-                Ok(prop) => props.push(prop),
+                Ok(mut prop) =>
+                {
+                    _ = prop.reload_things(catalog);
+                    props.push(prop);
+                },
                 Err(_) => return Err("Error loading props")
             };
         }
@@ -805,31 +830,81 @@ impl Clipboard
 
         for prop in props
         {
-            let camera = prop_cameras.next();
-            let idx = self.props.len();
+            let index = self.props.len();
             self.props.push(prop);
-
-            if self.imported_props_with_assigned_camera.is_full()
-            {
-                assert!(camera.is_none());
-                self.imported_props_with_no_camera.push(idx);
-                continue;
-            }
-
-            let mut camera = camera.unwrap();
-
-            Self::assign_camera_to_prop(
-                images,
-                &mut (&mut camera.1, &mut camera.2),
-                user_textures,
-                &mut self.props[idx]
-            );
-            self.imported_props_with_assigned_camera
-                .push((PropScreenshotTimer::new(camera.0.into()), idx));
+            self.queue_prop_screenshot(images, user_textures, prop_cameras.next(), index);
         }
 
         Ok(())
     }
+
+    #[inline]
+    fn queue_prop_screenshot(
+        &mut self,
+        images: &mut Assets<Image>,
+        user_textures: &mut EguiUserTextures,
+        camera: Option<(
+            bevy::prelude::Entity,
+            bevy::prelude::Mut<bevy::prelude::Camera>,
+            bevy::prelude::Mut<bevy::prelude::Transform>
+        )>,
+        index: usize
+    )
+    {
+        if self.imported_props_with_assigned_camera.is_full()
+        {
+            assert!(camera.is_none());
+            self.imported_props_with_no_camera.push(index);
+            return;
+        }
+
+        let mut camera = camera.unwrap();
+
+        Self::assign_camera_to_prop(
+            images,
+            &mut (&mut camera.1, &mut camera.2),
+            user_textures,
+            &mut self.props[index]
+        );
+        self.imported_props_with_assigned_camera
+            .push((PropScreenshotTimer::new(camera.0.into()), index));
+    }
+
+    //==============================================================
+    // Info
+
+    /// Whever `self` was edited.
+    #[inline]
+    #[must_use]
+    pub fn props_changed(&self) -> bool { self.props_changed }
+
+    /// Returns true if there is data to be pasted.
+    #[inline]
+    #[must_use]
+    pub fn has_copy_data(&self) -> bool { self.copy_paste.has_data() }
+
+    /// The amount of slotted props stored.
+    #[inline]
+    #[must_use]
+    pub fn props_amount(&self) -> usize { self.props.len() }
+
+    /// The index of the selected [`Prop`], if any.
+    #[inline]
+    #[must_use]
+    pub const fn selected_prop_index(&self) -> Option<usize> { self.selected_prop }
+
+    /// Whever the quick prop stored contains entities.
+    #[inline]
+    #[must_use]
+    pub fn has_quick_prop(&self) -> bool { self.quick_prop.has_data() }
+
+    /// Whever there are no [`Prop`]s stored.
+    #[inline]
+    #[must_use]
+    pub fn no_props(&self) -> bool { self.props.is_empty() && !self.has_quick_prop() }
+
+    //==============================================================
+    // Update
 
     #[inline]
     fn delay_update(
@@ -941,41 +1016,48 @@ impl Clipboard
         Ok(())
     }
 
-    //==============================================================
-    // Info
-
-    /// Whever `self` was edited.
     #[inline]
-    #[must_use]
-    pub fn props_changed(&self) -> bool { self.props_changed }
+    pub fn reload_things(&mut self, bundle: &mut StateUpdateBundle)
+    {
+        let mut prop_cameras = bundle.prop_cameras.iter_mut();
 
-    /// Returns true if there is data to be pasted.
+        for i in 0..self.props.len()
+        {
+            let prop = &mut self.props[i];
+
+            if prop.reload_things(bundle.things_catalog)
+            {
+                self.queue_prop_screenshot(
+                    bundle.images,
+                    bundle.user_textures,
+                    prop_cameras.next(),
+                    i
+                );
+            }
+        }
+    }
+
     #[inline]
-    #[must_use]
-    pub fn has_copy_data(&self) -> bool { self.copy_paste.has_data() }
+    pub fn reload_textures(
+        &mut self,
+        images: &mut Assets<Image>,
+        user_textures: &mut EguiUserTextures,
+        prop_cameras: &mut PropCamerasMut,
+        drawing_resources: &DrawingResources
+    )
+    {
+        let mut prop_cameras = prop_cameras.iter_mut();
 
-    /// The amount of slotted props stored.
-    #[inline]
-    #[must_use]
-    pub fn props_amount(&self) -> usize { self.props.len() }
+        for i in 0..self.props.len()
+        {
+            let prop = &mut self.props[i];
 
-    /// The index of the selected [`Prop`], if any.
-    #[inline]
-    #[must_use]
-    pub const fn selected_prop_index(&self) -> Option<usize> { self.selected_prop }
-
-    /// Whever the quick prop stored contains entities.
-    #[inline]
-    #[must_use]
-    pub fn has_quick_prop(&self) -> bool { self.quick_prop.has_data() }
-
-    /// Whever there are no [`Prop`]s stored.
-    #[inline]
-    #[must_use]
-    pub fn no_props(&self) -> bool { self.props.is_empty() && !self.has_quick_prop() }
-
-    //==============================================================
-    // Update
+            if prop.reload_textures(drawing_resources)
+            {
+                self.queue_prop_screenshot(images, user_textures, prop_cameras.next(), i);
+            }
+        }
+    }
 
     /// Resets the state changed flag.
     #[inline]
@@ -1017,13 +1099,8 @@ impl Clipboard
         cursor_pos: Vec2
     )
     {
-        self.copy_paste.spawn_copy(
-            bundle.drawing_resources,
-            bundle.things_catalog,
-            manager,
-            edits_history,
-            cursor_pos
-        );
+        self.copy_paste
+            .spawn_copy(bundle.drawing_resources, manager, edits_history, cursor_pos);
     }
 
     /// Stores `prop` as the quick [`Prop`].
@@ -1145,13 +1222,8 @@ impl Clipboard
         cursor_pos: Vec2
     )
     {
-        self.quick_prop.paint_copy(
-            bundle.drawing_resources,
-            bundle.things_catalog,
-            manager,
-            edits_history,
-            cursor_pos
-        );
+        self.quick_prop
+            .paint_copy(bundle.drawing_resources, manager, edits_history, cursor_pos);
     }
 
     /// Spawns the selected [`Prop`] on the map.
@@ -1166,7 +1238,6 @@ impl Clipboard
     {
         self.props[self.selected_prop.unwrap()].paint_copy(
             bundle.drawing_resources,
-            bundle.things_catalog,
             manager,
             edits_history,
             cursor_pos
@@ -1292,7 +1363,9 @@ impl Clipboard
     #[inline]
     pub fn copy_platform_path(&mut self, manager: &mut EntitiesManager, identifier: Id)
     {
-        self.platform_path = manager.moving(identifier).path().unwrap().clone().into();
+        let mut path = manager.moving(identifier).path().unwrap().clone();
+        path.deselect_nodes_no_indexes();
+        self.platform_path = path.into();
     }
 
     /// Pastes the copied [`Path`] in the [`Brush`] with [`Id`] `identifier`.
@@ -1329,7 +1402,7 @@ impl Clipboard
         identifier: Id
     )
     {
-        self.platform_path = manager.moving(identifier).path().unwrap().clone().into();
+        self.copy_platform_path(manager, identifier);
         manager.remove_selected_path(identifier, edits_history);
     }
 
@@ -1356,14 +1429,14 @@ impl Clipboard
     }
 
     #[inline]
-    pub fn draw_props_to_photograph(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
+    pub fn draw_props_to_photograph(&self, bundle: &mut DrawBundle)
     {
         for (timer, idx) in self
             .imported_props_with_assigned_camera
             .iter()
             .take(PROP_CAMERAS_AMOUNT)
         {
-            self.props[*idx].draw(bundle, manager, (timer.id()).into());
+            self.props[*idx].draw(bundle, (timer.id()).into());
         }
     }
 }

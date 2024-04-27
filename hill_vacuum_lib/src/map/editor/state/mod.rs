@@ -48,18 +48,3 @@ macro_rules! format_texture_preview {
 }
 
 use format_texture_preview;
-
-//=======================================================================//
-// FUNCTIONS
-//
-//=======================================================================//
-
-#[inline]
-fn error_message(error: &str)
-{
-    rfd::MessageDialog::new()
-        .set_title("ERROR")
-        .set_description(error)
-        .set_buttons(rfd::MessageButtons::Ok)
-        .show();
-}

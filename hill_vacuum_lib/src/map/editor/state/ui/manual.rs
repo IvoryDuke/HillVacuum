@@ -39,7 +39,7 @@ impl WindowCloserInfo for Manual
 
         self.0
             .layer_id()
-            .map(|id| WindowCloser::Manual((id, close as fn(&mut Self))))
+            .map(|id| WindowCloser::Manual(id, close as fn(&mut Self)))
     }
 }
 
@@ -185,9 +185,20 @@ impl Manual
                      running through the UI button in the Options menu."
                 ),
                 (
+                    "Properties",
+                    "Properties are custom user defined values which can be associated to brushes \
+                     and things.\nSuch values can be defined through the \"brush_properties\" and \
+                     \"thing_properties\" macros defining the pairs (name, default_value) of the \
+                     properties.\nProperties can be edited per-entity using the properties \
+                     window.\n\n!!! If a saved map contains properties that differ in type and/or \
+                     name from the ones defined in the aforementioned resources, a warning window \
+                     will appear on screen when trying to load the .hv file, asking whever you'd \
+                     like to use the app or map ones."
+                ),
+                (
                     "Textures",
                     "Textures must be placed in the assets/textures/ folder to be loaded.\nThe \
-                     texture editor can be opened at any time to edit the parameters of the \
+                     texture editor can be opened at any time to edit the properties of the \
                      textures of the selected brushes.\nEntity, scale, and rotate tool also \
                      feature texture editing capabilities. These capabilities can be either \
                      enabled through the dedicated \"Target\" UI element in the bottom left area, \

@@ -98,7 +98,7 @@ impl WindowCloserInfo for ControlsWindow
 
         self.window
             .layer_id()
-            .map(|id| WindowCloser::Controls((id, close as fn(&mut Self))))
+            .map(|id| WindowCloser::Controls(id, close as fn(&mut Self)))
     }
 }
 
@@ -128,11 +128,9 @@ impl ControlsWindow
             egui::Window::new("Controls")
                 .vscroll(true)
                 .collapsible(false)
-                .resizable(false),
+                .max_width(250f32)
+                .min_width(250f32),
             |ui| {
-                ui.set_width(250f32);
-                ui.visuals_mut().faint_bg_color = egui::Color32::from_gray(35);
-
                 egui::Grid::new("binds_grid")
                     .num_columns(2)
                     .spacing([40f32, 4f32])

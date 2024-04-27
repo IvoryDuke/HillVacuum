@@ -28,6 +28,7 @@ use crate::{
 //
 //=======================================================================//
 
+/// Returns a list of points describing the convex hull of `vertexes`.
 /// # Panics
 /// Panics if there are issues comparing calculated cosines.
 #[inline]
@@ -138,6 +139,7 @@ pub fn convex_hull(vertexes: HvHashSet<HashVec2>) -> Option<impl Iterator<Item =
 
 //=======================================================================//
 
+/// Returns the left half, if any, of the polygon represented by `input` cut by `clip_segment`.
 /// # Panics
 /// May panic in some extreme conditions due to poor floating numbers rounding.
 #[inline]
@@ -188,118 +190,3 @@ pub fn clip_polygon(
 
     (output.len() >= 3).then_some(output)
 }
-
-// #[inline]
-// pub fn ear_clipping(input: Vec<Vec2>) -> impl Iterator<Item = Vec<Vec2>>
-// {
-// #[derive(Debug)]
-// enum Angle
-// {
-//     Convex(f32),
-//     Concave
-// }
-
-// let input_len = input.len();
-// let mut triangles = Vec::with_capacity(input_len - 2);
-
-// if input_len == 3
-// {
-//     triangles.push(input);
-//     return triangles.into_iter();
-// }
-
-// // Calculate the cosines of the internal vertexes.
-// let mut vxs_cosines = Vec::with_capacity(input_len);
-
-// for [vx_i, vx_j, vx_k] in input.triplet_iter().unwrap()
-// {
-//     if are_vxs_ccw(&[*vx_i, *vx_j, *vx_k])
-//     {
-//         vxs_cosines
-//             .push((*vx_j, Angle::Convex(vectors_angle_cosine(*vx_j - *vx_i, *vx_k -
-// *vx_j))));     }
-//     else
-//     {
-//         vxs_cosines.push((*vx_j, Angle::Concave));
-//     }
-// }
-
-// std::mem::drop(input);
-
-// // Extract the triangles.
-// loop
-// {
-//     let mut max_cos = (None, f32::MIN);
-//     let len = vxs_cosines.len();
-
-//     'outer: for ([i, j, k], [vx_i, vx_j, vx_k]) in
-//         vxs_cosines.triplet_iter().unwrap().enumerate()
-//     {
-//         let cos = continue_if_no_match!(vx_j.1, Angle::Convex(cos), cos);
-
-//         if cos <= max_cos.1
-//         {
-//             continue;
-//         }
-
-//         // This is the triangle's side which is not one of the polygon's sides and must
-//         // be checked for intersections.
-//         let check_side = [vx_k.0, vx_i.0];
-//         let mut l = k;
-//         let mut m = next(l, len);
-
-//         while l != i
-//         {
-//             if let Some((_, t)) =
-//                 segments_intersection(&check_side, &[vxs_cosines[l].0, vxs_cosines[m].0])
-//             {
-//                 if t.around_equal(&0f32) && t.around_equal(&1f32)
-//                 {
-//                     continue 'outer;
-//                 }
-//             }
-
-//             l = m;
-//             m = next(m, len);
-//         }
-
-//         max_cos.1 = cos;
-//         max_cos.0 = (i, j, k).into();
-//     }
-
-//     let (i, mut j, k) = max_cos.0.unwrap();
-
-//     triangles.push(vec![vxs_cosines[i].0, vxs_cosines[j].0, vxs_cosines[k].0]);
-
-//     // Remove the vertex and update the cosines of the next and prev vertexes.
-//     vxs_cosines.remove(j);
-//     let len = vxs_cosines.len();
-
-//     if len < 4
-//     {
-//         break;
-//     }
-
-//     j %= len;
-
-//     for idx in [j, prev(j, len)]
-//     {
-//         let next = next(idx, len);
-//         let prev = prev(idx, len);
-
-//         if are_vxs_ccw(&[vxs_cosines[prev].0, vxs_cosines[idx].0, vxs_cosines[next].0])
-//         {
-//             vxs_cosines[idx].1 = Angle::Convex(vectors_angle_cosine(
-//                 vxs_cosines[idx].0 - vxs_cosines[prev].0,
-//                 vxs_cosines[next].0 - vxs_cosines[idx].0
-//             ));
-//             continue;
-//         }
-
-//         vxs_cosines[idx].1 = Angle::Concave;
-//     }
-// }
-
-// triangles.push(vec![vxs_cosines[0].0, vxs_cosines[1].0, vxs_cosines[2].0]);
-// triangles.into_iter()
-// }

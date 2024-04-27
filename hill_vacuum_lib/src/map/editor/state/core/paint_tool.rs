@@ -23,7 +23,7 @@ use crate::{
             edits_history::EditsHistory,
             grid::Grid,
             manager::EntitiesManager,
-            ui::{centered_window, textures_gallery, ToolsButtons}
+            ui::{centered_window, ToolsButtons}
         },
         DrawBundle,
         StateUpdateBundle,
@@ -177,7 +177,7 @@ impl PaintTool
                     clipboard.delete_selected_prop(prop_cameras);
                 }
 
-                if inputs.enter.just_pressed() && manager.selected_entities_amount() != 0
+                if inputs.enter.just_pressed() && manager.any_selected_entities()
                 {
                     self.status = Status::SetPivot(Self::outline(manager, grid).unwrap());
                 }
@@ -399,7 +399,7 @@ impl PaintTool
         match &self.status
         {
             Status::SetPivot(hull) => bundle.drawer.hull(hull, Color::Hull),
-            Status::PropCreationScreenshot(_, prop) => prop.draw(bundle, manager, None),
+            Status::PropCreationScreenshot(_, prop) => prop.draw(bundle, None),
             _ => ()
         };
     }

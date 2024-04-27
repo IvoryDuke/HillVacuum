@@ -11,7 +11,7 @@ use crate::utils::overall_value::{OverallValue, OverallValueInterface, UiOverall
 //
 //=======================================================================//
 
-/// The overall movement parameters of the selected [`Node`]s.
+/// The overall movement properties of the selected [`Node`]s.
 #[must_use]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(in crate::map) struct OverallMovement
@@ -108,6 +108,7 @@ pub(in crate::map) struct UiOverallMovement
     pub accel_travel_percentage: UiOverallValue<f32>,
     /// The overall deceleration.
     pub decel_travel_percentage: UiOverallValue<f32>,
+    /// The overall standby time.
     pub standby_time:            UiOverallValue<f32>
 }
 

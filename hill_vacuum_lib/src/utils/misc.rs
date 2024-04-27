@@ -378,6 +378,7 @@ pub struct Blinker
 
 impl Blinker
 {
+    /// Returns a new [`Blinker`].
     #[inline]
     pub const fn new(interval: f32) -> Self
     {
@@ -388,10 +389,12 @@ impl Blinker
         }
     }
 
+    /// Whever the [`Blinker`] is in the on state.
     #[inline]
     #[must_use]
     pub const fn on(&self) -> bool { self.onoff }
 
+    /// Updates the state of the [`Blinker`].
     #[inline]
     pub fn update(&mut self, delta_time: f32) -> bool
     {
@@ -433,6 +436,7 @@ pub fn to_world_coordinates<T: Camera>(p: Vec2, window: &Window, camera: &T) -> 
 #[must_use]
 pub fn vertex_highlight_side_length(camera_scale: f32) -> f32 { camera_scale * VX_HGL_SIDE }
 
+/// Returns a slightly increased length of the vertex highlight side.
 #[inline]
 #[must_use]
 pub fn bumped_vertex_highlight_side_length(camera_scale: f32) -> f32
@@ -440,6 +444,7 @@ pub fn bumped_vertex_highlight_side_length(camera_scale: f32) -> f32
     vertex_highlight_side_length(camera_scale) * 4f32
 }
 
+/// Returns a [`Hull`] describing a square with side `side_length` with center at the origin.
 #[inline]
 #[must_use]
 fn square(side_length: f32) -> Hull
@@ -447,7 +452,7 @@ fn square(side_length: f32) -> Hull
     Hull::new(side_length, -side_length, -side_length, side_length)
 }
 
-/// Returns the scaled squared length of the vertex highlight side.
+/// Returns a [`Hull`] representing a vertex highlight with center at the origin.
 #[inline]
 #[must_use]
 pub fn vertex_highlight_square(camera_scale: f32) -> Hull
@@ -455,6 +460,7 @@ pub fn vertex_highlight_square(camera_scale: f32) -> Hull
     square(vertex_highlight_side_length(camera_scale))
 }
 
+/// Returns a [`Hull`] representing a slightly buffed vertex highlight with center at the origin.
 #[inline]
 #[must_use]
 pub fn bumped_vertex_highlight_square(camera_scale: f32) -> Hull

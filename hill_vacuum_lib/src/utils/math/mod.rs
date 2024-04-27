@@ -13,13 +13,6 @@ use std::hash::Hash;
 use bevy::prelude::Vec2;
 
 //=======================================================================//
-// CONSTANTS
-//
-//=======================================================================//
-
-pub const EPSILON: f32 = 1f32 / 128f32;
-
-//=======================================================================//
 // TRAITS
 //
 //=======================================================================//
@@ -39,7 +32,7 @@ pub trait AroundEqual
 impl AroundEqual for f32
 {
     #[inline]
-    fn around_equal(&self, other: &Self) -> bool { (*self - *other).abs() < EPSILON }
+    fn around_equal(&self, other: &Self) -> bool { (*self - *other).abs() < 1f32 / 128f32 }
 
     #[inline]
     fn around_equal_narrow(&self, other: &Self) -> bool { (*self - *other).abs() < f32::EPSILON }

@@ -39,7 +39,7 @@ use crate::{
     },
     utils::{
         identifiers::{EntityId, Id},
-        misc::{Camera, TakeValue}
+        misc::TakeValue
     }
 };
 
@@ -202,8 +202,6 @@ impl DrawTool
         settings: &mut ToolsSettings
     )
     {
-        let ToolUpdateBundle { camera, cursor, .. } = bundle;
-
         if inputs.back.just_pressed()
         {
             manager.despawn_drawn_brushes(&mut self.drawn_brushes, edits_history);
@@ -214,33 +212,26 @@ impl DrawTool
         {
             Shape::Square(cb) =>
             {
-                cb.update(manager, &mut self.drawn_brushes, inputs, edits_history, cursor);
+                cb.update(bundle, manager, &mut self.drawn_brushes, inputs, edits_history);
             },
             Shape::Triangle(cb) =>
             {
-                cb.update(manager, &mut self.drawn_brushes, inputs, edits_history, cursor);
+                cb.update(bundle, manager, &mut self.drawn_brushes, inputs, edits_history);
             },
             Shape::Circle(cb) =>
             {
                 cb.update(
+                    bundle,
                     manager,
                     &mut self.drawn_brushes,
                     inputs,
                     edits_history,
-                    cursor,
                     settings
                 );
             },
             Shape::FreeDraw(cb) =>
             {
-                cb.update(
-                    manager,
-                    &mut self.drawn_brushes,
-                    inputs,
-                    edits_history,
-                    cursor,
-                    camera.scale()
-                );
+                cb.update(bundle, manager, &mut self.drawn_brushes, inputs, edits_history);
             }
         };
     }

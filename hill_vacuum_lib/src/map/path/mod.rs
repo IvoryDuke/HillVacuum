@@ -215,19 +215,19 @@ macro_rules! common_edit_path {
         #[inline]
         fn [< set_selected_path_nodes_ $value >](&mut self, value: f32) -> Option<$t>
         {
-            self.path_mut_set_dirty().[< set_selected_nodes_ $value >](value)
+            self.path_mut().[< set_selected_nodes_ $value >](value)
         }
 
         #[inline]
         fn [< undo_path_nodes_ $value _edit >](&mut self, edit: &$t)
         {
-            self.path_mut_set_dirty().[< undo_ $value _edit >](edit)
+            self.path_mut().[< undo_ $value _edit >](edit)
         }
 
         #[inline]
         fn [< redo_path_nodes_ $value _edit >](&mut self, edit: &$t)
         {
-            self.path_mut_set_dirty().[< redo_ $value _edit >](edit)
+            self.path_mut().[< redo_ $value _edit >](edit)
         }
     )+}};
 
@@ -235,15 +235,14 @@ macro_rules! common_edit_path {
         #[inline]
         fn toggle_path_node_at_index(&mut self, idx: usize) -> bool
         {
-            self.path_mut_set_dirty().toggle_node_at_index(idx)
+            self.path_mut().toggle_node_at_index(idx)
         }
 
         #[inline]
         fn exclusively_select_path_node_at_index(&mut self, index: usize) -> crate::map::path::NodeSelectionResult
         {
             let center = self.center();
-            self.path_mut_set_dirty()
-                .exclusively_select_path_node_at_index(center, index)
+            self.path_mut().exclusively_select_path_node_at_index(center, index)
         }
 
         #[inline]
@@ -251,14 +250,13 @@ macro_rules! common_edit_path {
         fn deselect_path_nodes(&mut self) -> Option<HvVec<u8>>
         {
             let center = self.center();
-            self.path_mut_set_dirty().deselect_nodes(center)
+            self.path_mut().deselect_nodes(center)
         }
 
         #[inline]
         fn deselect_path_nodes_no_indexes(&mut self)
         {
-            let center = self.center();
-            self.path_mut_set_dirty().deselect_nodes_no_indexes(center);
+            self.path_mut().deselect_nodes_no_indexes();
         }
 
         #[inline]
@@ -266,13 +264,13 @@ macro_rules! common_edit_path {
         fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
         {
             let center = self.center();
-            self.path_mut_set_dirty().select_nodes_in_range(center, range)
+            self.path_mut().select_nodes_in_range(center, range)
         }
 
         #[inline]
         fn select_all_path_nodes(&mut self) -> Option<HvVec<u8>>
         {
-            self.path_mut_set_dirty().select_all_nodes()
+            self.path_mut().select_all_nodes()
         }
 
         #[inline]
@@ -280,8 +278,7 @@ macro_rules! common_edit_path {
         fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
         {
             let center = self.center();
-            self.path_mut_set_dirty()
-                .exclusively_select_nodes_in_range(center, range)
+            self.path_mut().exclusively_select_nodes_in_range(center, range)
         }
 
         #[inline]
@@ -301,7 +298,7 @@ macro_rules! common_edit_path {
         #[inline]
         fn insert_path_nodes_at_indexes(&mut self, nodes: &HvVec<(Vec2, u8)>)
         {
-            self.path_mut_set_dirty().insert_nodes_at_indexes(nodes);
+            self.path_mut().insert_nodes_at_indexes(nodes);
         }
 
         #[inline]
@@ -327,25 +324,24 @@ macro_rules! common_edit_path {
         {
             assert!(
                 self.id() == payload.id(),
-                "NodesDeletionPayload ID is not equal to the Brush's ID."
+                "NodesDeletionPayload ID is not equal to the entity's ID."
             );
             let payload = payload.payload();
 
-            self.path_mut_set_dirty()
-                .delete_selected_nodes(payload.iter().rev().map(|(_, idx)| *idx as usize));
+            self.path_mut().delete_selected_nodes(payload.iter().rev().map(|(_, idx)| *idx as usize));
             payload
         }
 
         #[inline]
         fn remove_path_node_at_index(&mut self, idx: usize)
         {
-            self.path_mut_set_dirty().remove_nodes_at_indexes(Some(idx).into_iter());
+            self.path_mut().remove_nodes_at_indexes(Some(idx).into_iter());
         }
 
         #[inline]
         fn redo_selected_path_nodes_deletion(&mut self)
         {
-            self.path_mut_set_dirty().redo_selected_nodes_deletion();
+            self.path_mut().redo_selected_nodes_deletion();
         }
 
         #[inline]
@@ -378,15 +374,19 @@ pub(in crate::map) use common_edit_path;
 
 pub(in crate::map) trait Moving: EntityId + EntityCenter
 {
+    /// Returns a reference to the associated [`Path`], if any.
     #[must_use]
     fn path(&self) -> Option<&Path>;
 
+    /// Whever the entity has a [`Path`].
     #[must_use]
     fn has_path(&self) -> bool;
 
+    /// Whever the entity could have a [`Path`].
     #[must_use]
     fn possible_moving(&self) -> bool;
 
+    /// The [`Hull`] encompassing the nodes of the [`Path`] and the center of the entity. if any.
     #[inline]
     fn path_hull(&self) -> Option<Hull>
     {
@@ -398,6 +398,8 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
         calc_path_hull(self.path().unwrap(), self.center()).into()
     }
 
+    /// Whever the [`Hull`] encompassing the nodes of the [`Path`] are out of bounds if the entity
+    /// has center at `center`.
     #[inline]
     fn path_hull_out_of_bounds(&self, center: Vec2) -> bool
     {
@@ -409,18 +411,27 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
         calc_path_hull(self.path().unwrap(), center).out_of_bounds()
     }
 
+    /// Returns the `OverallMovement` describing the movement settings of the selected nodes.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     #[inline]
     fn overall_selected_path_nodes_movement(&self) -> OverallMovement
     {
         self.path().unwrap().overall_selected_nodes_movement()
     }
 
+    /// Whever the selected nodes of the [`Path`] can be legally moved by `delta`.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     #[inline]
     fn check_selected_path_nodes_move(&self, delta: Vec2) -> IdNodesMoveResult
     {
         (self.path().unwrap().check_selected_nodes_move(delta), self.id()).into()
     }
 
+    /// Returns the nodes near `cursor_pos`.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     #[inline]
     fn path_nodes_nearby_cursor_pos(&self, cursor_pos: Vec2, camera_scale: f32) -> NearbyNodes
     {
@@ -429,18 +440,27 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
             .nearby_nodes(cursor_pos, self.center(), camera_scale)
     }
 
+    /// Whever the selected nodes of the [`Path`] can be legally deleted.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     #[inline]
     fn check_selected_nodes_deletion(&self) -> IdNodesDeletionResult
     {
         (self.path().unwrap().check_selected_nodes_deletion(), self.id()).into()
     }
 
+    /// Returns the [`MovementSimulator`] necessary to animate the entity.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     #[inline]
     fn movement_simulator(&self) -> MovementSimulator
     {
         self.path().unwrap().movement_simulator(self.id())
     }
 
+    /// Draws the [`Path`].
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     #[inline]
     fn draw_path(
         &self,
@@ -461,12 +481,18 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
         );
     }
 
+    /// Draws the [`Path`] with semitransparent materials.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     #[inline]
     fn draw_semitransparent_path(&self, drawer: &mut EditDrawer)
     {
         self.path().unwrap().draw_semitransparent(drawer, self.center());
     }
 
+    /// Draws the entity highlighted with an highlighted [`Path`].
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn draw_highlighted_with_path_nodes(
         &self,
         window: &Window,
@@ -478,6 +504,9 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
         show_tooltips: bool
     );
 
+    /// Draws the entity highlighted with an highlighted [`Path`] and marked `highlighted_node`.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn draw_with_highlighted_path_node(
         &self,
         window: &Window,
@@ -490,6 +519,9 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
         show_tooltips: bool
     );
 
+    /// Draws the entity and its [`Path`] with an extra node.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn draw_with_path_node_addition(
         &self,
         window: &Window,
@@ -503,6 +535,9 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
         show_tooltips: bool
     );
 
+    /// Draws the movement simulation.
+    /// # Panics
+    /// Panics if the entity has no [`Path`] or if `simulator` is associated to another entity.
     fn draw_movement_simulation(
         &self,
         window: &Window,
@@ -515,6 +550,9 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
         simulator: &MovementSimulator
     );
 
+    /// Draws the movement simulation in map preview mode.
+    /// # Panics
+    /// Panics if the entity has no [`Path`] or if `simulator` is associated to another entity.
     fn draw_map_preview_movement_simulation(
         &self,
         camera: &Transform,
@@ -530,33 +568,71 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
 
 pub(in crate::map) trait EditPath: EntityId + Moving
 {
+    /// Binds a [`Path`] to the entity.
     fn set_path(&mut self, path: Path);
 
+    /// Toggles the selection of the [`Node`] at index `idx`.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn toggle_path_node_at_index(&mut self, idx: usize) -> bool;
 
+    /// Only selectes the [`Node`] at `index` and returns a [`NodeSelectionResult`] describing what
+    /// occurred.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn exclusively_select_path_node_at_index(&mut self, index: usize) -> NodeSelectionResult;
 
+    /// Deselects the [`Nodes`] of the [`Path`] and returns the indexes of the deselected nodes.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     #[must_use]
     fn deselect_path_nodes(&mut self) -> Option<HvVec<u8>>;
 
+    /// Deselects the [`Nodes`] of the [`Path`].
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn deselect_path_nodes_no_indexes(&mut self);
 
+    /// Selects the [`Nodes`] of the [`Path`] within range and returns the indexes of the selected
+    /// nodes.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     #[must_use]
     fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>;
 
+    /// Selects all the [`Nodes`] of the [`Path`] and returns the indexes of the selected nodes.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     #[must_use]
     fn select_all_path_nodes(&mut self) -> Option<HvVec<u8>>;
 
+    /// Exclusively the [`Nodes`] of the [`Path`] and returns the indexes of the deselected nodes.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     #[must_use]
     fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>;
 
+    /// Tries to insert a [`Node`] with position `cursor_pos` at `index`, returns whever the
+    /// operation was successfull.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     #[must_use]
     fn try_insert_path_node_at_index(&mut self, cursor_pos: Vec2, index: usize) -> bool;
 
+    /// Insert a [`Node`] with position `pos` at `index` into the [`Path`].
+    /// # Panics
+    /// Panics if the entity has no [`Path`] or if the inserted node generated an invalid path.
     fn insert_path_node_at_index(&mut self, pos: Vec2, idx: usize);
 
+    /// Inserts some [`Node`]s with certain position at a certain index in the [`Path`].
+    /// # Panics
+    /// Panics if the entity has no [`Path`] or the resulting path was invalid.
     fn insert_path_nodes_at_indexes(&mut self, nodes: &HvVec<(Vec2, u8)>);
 
+    /// Executes the [`Path`]'s [`Node`]s move described by `payload` and returns the wrapped
+    /// [`NodesMove`].
+    /// # Panics
+    /// Panics if the entity has no [`Path`] or the resulting path was invalid.
     #[inline]
     fn apply_selected_path_nodes_move(&mut self, payload: NodesMovePayload) -> NodesMove
     {
@@ -565,57 +641,132 @@ pub(in crate::map) trait EditPath: EntityId + Moving
         payload.1
     }
 
+    /// Undoes the [`Path`]'s [`Node`]s move described by `nodes_move`.
+    /// # Panics
+    /// Panics if the entity has no [`Path`] or the resulting path was invalid.
     fn undo_path_nodes_move(&mut self, nodes_move: &NodesMove);
 
+    /// Redoes the [`Path`]'s [`Node`]s move described by `nodes_move`.
+    /// # Panics
+    /// Panics if the entity has no [`Path`] or the resulting path was invalid.
     fn redo_path_nodes_move(&mut self, nodes_move: &NodesMove);
 
+    /// Undoes a [`Path`] [`Node`]s snap.
+    /// # Panics
+    /// Panics if the entity has no [`Path`] or the resulting path was invalid.
     fn move_path_nodes_at_indexes(&mut self, snap: &HvVec<(HvVec<u8>, Vec2)>);
 
+    /// Removes the selected [`Path`] [`Node`]s as described by `payload` and returns the list of
+    /// removed indexes and positions.
+    /// # Panics
+    /// Panics if the entity has no [`Path`] or the resulting path was invalid.
     fn remove_selected_path_nodes(&mut self, payload: NodesDeletionPayload) -> HvVec<(Vec2, u8)>;
 
+    /// Redoes the [`Path`]'s [`Node`] at `idx`.
+    /// # Panics
+    /// Panics if the entity has no [`Path`] or the resulting path was invalid.
     fn remove_path_node_at_index(&mut self, idx: usize);
 
+    /// Redoes the selected [`Path`]'s [`Node`]s deletion.
+    /// # Panics
+    /// Panics if the entity has no [`Path`] or the resulting path was invalid.
     fn redo_selected_path_nodes_deletion(&mut self);
 
+    /// Snaps the selected [`Path`]'s [`Node`]s to the grid. Returns how the nodes were moved.
+    /// # Panics
+    /// Panics if the entity has no [`Path`] or the resulting path was invalid.
     #[must_use]
     fn snap_selected_path_nodes(&mut self, grid: Grid) -> Option<HvVec<(HvVec<u8>, Vec2)>>;
 
+    /// Sets the standy time of the selected [`Path`]'s [`Node`]s to `value`, returns a
+    /// [`StandbyValueEdit`] describing the outcome.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn set_selected_path_nodes_standby_time(&mut self, value: f32) -> Option<StandbyValueEdit>;
 
+    /// Undoes the [`Path`]'s [`Node`]s standby time edit.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn undo_path_nodes_standby_time_edit(&mut self, edit: &StandbyValueEdit);
 
+    /// Redoes the [`Path`]'s [`Node`]s standby time edit.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn redo_path_nodes_standby_time_edit(&mut self, edit: &StandbyValueEdit);
 
+    /// Sets the max speed of the selected [`Path`]'s [`Node`]s to `value` and returns a
+    /// [`MovementValueEdit`] describing the outcome.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn set_selected_path_nodes_max_speed(&mut self, value: f32) -> Option<MovementValueEdit>;
 
+    /// Undoes the [`Path`]'s [`Node`]s max speed edit.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn undo_path_nodes_max_speed_edit(&mut self, edit: &MovementValueEdit);
 
+    /// Redoes the [`Path`]'s [`Node`]s max speed edit.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn redo_path_nodes_max_speed_edit(&mut self, edit: &MovementValueEdit);
 
+    /// Sets the min speed of the selected [`Path`]'s [`Node`]s to `value` and returns a
+    /// [`MovementValueEdit`] describing the outcome.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn set_selected_path_nodes_min_speed(&mut self, value: f32) -> Option<MovementValueEdit>;
 
+    /// Undoes the [`Path`]'s [`Node`]s min speed edit.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn undo_path_nodes_min_speed_edit(&mut self, edit: &MovementValueEdit);
 
+    /// Redoes the [`Path`]'s [`Node`]s min speed edit.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn redo_path_nodes_min_speed_edit(&mut self, edit: &MovementValueEdit);
 
+    /// Sets the acceleration travel percentage of the selected [`Path`]'s [`Node`]s to `value` and
+    /// returns a [`MovementValueEdit`] describing the outcome.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn set_selected_path_nodes_accel_travel_percentage(
         &mut self,
         value: f32
     ) -> Option<MovementValueEdit>;
 
+    /// Undoes the [`Path`]'s [`Node`]s accel travel percentage edit.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn undo_path_nodes_accel_travel_percentage_edit(&mut self, edit: &MovementValueEdit);
 
+    /// Redoes the [`Path`]'s [`Node`]s accel travel percentage edit.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn redo_path_nodes_accel_travel_percentage_edit(&mut self, edit: &MovementValueEdit);
 
+    /// Sets the deceleration travel percentage of the selected [`Path`]'s [`Node`]s to `value` and
+    /// returns a [`MovementValueEdit`] describing the outcome.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn set_selected_path_nodes_decel_travel_percentage(
         &mut self,
         value: f32
     ) -> Option<MovementValueEdit>;
 
+    /// Undoes the [`Path`]'s [`Node`]s decel travel percentage edit.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn undo_path_nodes_decel_travel_percentage_edit(&mut self, edit: &MovementValueEdit);
 
+    /// Redoes the [`Path`]'s [`Node`]s decel travel percentage edit.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn redo_path_nodes_decel_travel_percentage_edit(&mut self, edit: &MovementValueEdit);
 
+    /// Removes the [`Path`] from the entity and returns it.
+    /// # Panics
+    /// Panics if the entity has no [`Path`].
     fn take_path(&mut self) -> Path;
 }
 
@@ -638,7 +789,7 @@ pub(in crate::map) enum FreeDrawNodeDeletionResult
 
 //=======================================================================//
 
-/// The result of the move of a new [`Node`] in a [`Path`].
+/// The result of the move of the selected [`Node`]s of a [`Path`].
 #[must_use]
 pub(in crate::map) enum NodesMoveResult
 {
@@ -652,11 +803,15 @@ pub(in crate::map) enum NodesMoveResult
 
 //=======================================================================//
 
+/// The result of the move of the selected [`Node`]s of the [`Path`] with its associated id.
 #[must_use]
 pub(in crate::map) enum IdNodesMoveResult
 {
+    /// No nodes were moved.
     None,
+    /// Moving the Nodes generate an invalid [`Path`].
     Invalid,
+    /// Nodes can be moved.
     Valid(NodesMovePayload)
 }
 
@@ -674,6 +829,7 @@ impl From<(NodesMoveResult, Id)> for IdNodesMoveResult
     }
 }
 
+/// The struct describing how the nodes of the [`Path`] of an entity should be moved.
 #[must_use]
 pub(in crate::map) struct NodesMovePayload(Id, NodesMove);
 
@@ -733,8 +889,8 @@ pub(in crate::map) enum NodeSelectionResult
 {
     /// The node beneath the cursor was already selected.
     Selected,
-    /// The node beneath the cursor was not selected, it was exclusively selected, and the vertexes
-    /// at indexes were deselected.
+    /// The node beneath the cursor was not previously selected, it was exclusively selected, and
+    /// the vertexes at indexes were deselected.
     NotSelected(HvVec<u8>)
 }
 
@@ -754,12 +910,16 @@ pub(in crate::map) enum NodesDeletionResult
 
 //=======================================================================//
 
+/// The result of the deletion of the selected [`Node`]s of the [`Path`] with its associated id.
 #[must_use]
 #[derive(Debug)]
 pub(in crate::map) enum IdNodesDeletionResult
 {
+    /// No nodes deleted.
     None,
+    /// Deleting the nodes creates an invalid [`Path`].
     Invalid,
+    /// The deletion is valid, contains the positions and indexes of the deleted nodes.
     Valid(NodesDeletionPayload)
 }
 
@@ -777,6 +937,7 @@ impl From<(NodesDeletionResult, Id)> for IdNodesDeletionResult
     }
 }
 
+/// The struct describing which nodes of the [`Path`] of an entity should be removed.
 #[must_use]
 #[derive(Debug)]
 pub(in crate::map) struct NodesDeletionPayload(Id, HvVec<(Vec2, u8)>);
@@ -798,11 +959,16 @@ impl NodesDeletionPayload
 
 //=======================================================================//
 
+/// The state of the acceleration/deceleration phase of the travel of an entity from one node to the
+/// next.
 #[must_use]
 enum XcelerationPhase
 {
+    /// Ongoing.
     Ongoing(f32),
+    /// Concluded and there is some leftover time.
     Reupdate(f32),
+    /// Just finished.
     Passed
 }
 
@@ -811,6 +977,7 @@ enum XcelerationPhase
 //
 //=======================================================================//
 
+/// An hashable [`f32`].
 #[derive(PartialEq, Debug)]
 struct HashF32(f32);
 
@@ -824,6 +991,8 @@ impl std::hash::Hash for HashF32
 
 //=======================================================================//
 
+/// A struct containing the values of the standby time of the selected [`Node`]s of a [`Path`]
+/// before they were changed.
 #[must_use]
 #[derive(Debug)]
 pub(in crate::map) struct StandbyValueEdit(HvHashMap<HashF32, HvHashSet<usize>>);
@@ -841,9 +1010,11 @@ impl NoneIfEmpty for StandbyValueEdit
 
 impl StandbyValueEdit
 {
+    /// Returns a new [`StandbyValueEdit`].
     #[inline]
     fn new() -> Self { Self(hv_hash_map![]) }
 
+    /// Inserts the standby time of the [`Node`] of a [`Path`] at index [`index`].
     #[inline]
     fn insert(&mut self, index: usize, value: f32)
     {
@@ -859,6 +1030,8 @@ impl StandbyValueEdit
 
 //=======================================================================//
 
+/// A struct containing the values of the edited movement value and its opposite of the selected
+/// [`Node`]s of a [`Path`] before they were changed.
 #[must_use]
 #[derive(Debug)]
 pub(in crate::map) struct MovementValueEdit(HvHashMap<HashVec2, HvHashSet<usize>>);
@@ -876,9 +1049,11 @@ impl NoneIfEmpty for MovementValueEdit
 
 impl MovementValueEdit
 {
+    /// Returns a new [`MovementValueEdit`].
     #[inline]
     fn new() -> Self { Self(hv_hash_map![]) }
 
+    /// Inserts the values of the [`Node`] at `index` before the edit.
     #[inline]
     fn insert(&mut self, index: usize, value: Vec2)
     {
@@ -894,33 +1069,45 @@ impl MovementValueEdit
 
 //=======================================================================//
 
+/// The information required for the acceleration phase of the travel.
 #[must_use]
 #[derive(Clone, Copy, Debug)]
 struct AccelerationInfo
 {
+    /// The acceleration.
     acceleration: f32,
+    /// The segment describing the finish line of the acceleration.
     end:          [Vec2; 2]
 }
 
 //=======================================================================//
 
+/// The information required for the deceleration phase of the travel.
 #[must_use]
 #[derive(Clone, Copy, Debug)]
 struct DecelerationInfo
 {
+    /// The deceleration.
     deceleration: f32,
+    /// The segment describing the start line of the deceleration.
     start:        [Vec2; 2],
+    /// The segment describing the finish line of the deceleration.
     end:          [Vec2; 2]
 }
 
 //=======================================================================//
 
+/// An iterator returning the [`Path`] [`Node`]s near the cursor.
 #[must_use]
 pub(in crate::map) struct NearbyNodes<'a>
 {
+    /// All the [`Node`]s.
     nodes:        Enumerate<std::slice::Iter<'a, Node>>,
+    /// The position of the cursor.
     cursor_pos:   Vec2,
+    /// The center of the entity owning the [`Path`].
     center:       Vec2,
+    /// The current camera scale.
     camera_scale: f32
 }
 
@@ -950,29 +1137,29 @@ impl<'a> Iterator for NearbyNodes<'a>
 
 //=======================================================================//
 
-/// A struct that allows the path tool to simulate the movement of a [`Brush`] that owns a
+/// A struct that allows the path tool to simulate the movement of an entity that owns a
 /// [`Path`].
 #[must_use]
 #[derive(Clone, Copy, Debug)]
 pub(in crate::map) struct MovementSimulator
 {
-    /// The [`Id`] of the Brush.
+    /// The [`Id`] of the entity.
     id:              Id,
     /// The start position (first [`Node`]).
     start:           Vec2,
     /// The current position.
     pos:             Vec2,
-    /// The direction the Brush must move to reach the next move.
+    /// The direction the entity must move to reach the next move.
     dir:             Vec2,
     /// The index of the Node to reach.
     target_idx:      usize,
-    /// The Node the Brush is currently traveling from.
+    /// The Node the entity is currently traveling from.
     current_node:    Node,
-    /// The Node the Brush is currently traveling to.
+    /// The Node the entity is currently traveling to.
     target_node:     Node,
-    /// The distance that separates the Nodes the Brush is traveling to-from.
+    /// The distance that separates the Nodes the entity is traveling to-from.
     travel_distance: f32,
-    /// The time that has to pass before the Brush can start moving from the current start Node.
+    /// The time that has to pass before the entity can start moving from the current start Node.
     standby:         f32,
     /// The current move speed.
     current_speed:   f32,
@@ -1003,6 +1190,7 @@ impl MovementSimulator
     // v^2 = v0^2 + 2 * a * (x - x0)
     // a = 0.5 * (v^2 - v0^2) / (x - x0)
 
+    /// Returns the values relative to the travel from one [`Node`] to the next.
     #[inline]
     #[must_use]
     fn distance_accel_decel(
@@ -1086,6 +1274,7 @@ impl MovementSimulator
     /// Returns the distance between the position of the first [`Node`] and the current position.
     pub(in crate::map) fn movement_vec(&self) -> Vec2 { self.pos - self.start }
 
+    /// How much more time must pass before the current xceleration phase is over.
     #[inline]
     fn xceleration_leftover_time(&self, end: Vec2, xceleration: f32, delta_time: f32) -> f32
     {
@@ -1097,6 +1286,8 @@ impl MovementSimulator
         delta_time - ((delta - self.current_speed) / xceleration)
     }
 
+    /// Updates the acceleration phase and returns an [`XcelerationPhase`] describing the update
+    /// status.
     #[inline]
     fn acceleration_phase(&mut self, info: &AccelerationInfo, delta_time: f32) -> XcelerationPhase
     {
@@ -1131,6 +1322,8 @@ impl MovementSimulator
         XcelerationPhase::Reupdate(delta_time)
     }
 
+    /// Updates the deceleration phase and returns an [`XcelerationPhase`] describing the update
+    /// status.
     #[inline]
     fn deceleration_phase(&mut self, info: &DecelerationInfo, delta_time: f32) -> XcelerationPhase
     {
@@ -1165,6 +1358,7 @@ impl MovementSimulator
         XcelerationPhase::Reupdate(delta_time)
     }
 
+    /// How much time must pass before the target is reached.
     #[inline]
     #[must_use]
     fn residual_delta_time(&self, speed: f32, end: Vec2, delta_time: f32) -> Option<f32>
@@ -1278,7 +1472,7 @@ impl MovementSimulator
         // Set the standby.
         self.standby = self.target_node.movement.standby_time();
 
-        // Set travel parameters toward the next node.
+        // Set travel properties toward the next node.
         let nodes = moving.path().unwrap().nodes();
         self.target_idx = next(self.target_idx, nodes.len());
         self.current_node = std::mem::replace(&mut self.target_node, nodes[self.target_idx]);
@@ -1297,6 +1491,7 @@ impl MovementSimulator
 
 //=======================================================================//
 
+/// A struct sorting the [`Node`]s of a [`Path`] in buckets based on their position.
 #[must_use]
 #[derive(Debug, Clone)]
 struct Buckets(HvHashMap<HashVec2, HvVec<usize>>);
@@ -1309,16 +1504,22 @@ impl TakeValue for Buckets
 
 impl Buckets
 {
+    /// Returns an empty [`Buckets`].
     #[inline]
     pub fn new() -> Self { Self(hv_hash_map![]) }
 
+    /// Returns the indexes of the [`Node`]s at `pos`, if any.
     #[inline]
     #[must_use]
     pub fn get(&self, pos: Vec2) -> Option<&HvVec<usize>> { self.0.get(&HashVec2(pos)) }
 
+    /// Returns an iterator to the grouped [`Node`]s.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = (&HashVec2, &HvVec<usize>)> { self.0.iter() }
 
+    /// Returns the position of the bucket containing `index`.
+    /// # Panics
+    /// Panics if `index` is not contained.
     #[inline]
     pub fn bucket_with_index(&self, index: usize) -> HashVec2
     {
@@ -1328,6 +1529,9 @@ impl Buckets
             .unwrap()
     }
 
+    /// Inserts the `index` of a [`Node`] at `pos`.
+    /// # Panics
+    /// Panics if `index` is already contained.
     #[inline]
     pub fn insert(&mut self, index: usize, pos: Vec2)
     {
@@ -1353,6 +1557,9 @@ impl Buckets
         };
     }
 
+    /// Removes the `index` of a [`Node`] at `pos`.
+    /// # Panics
+    /// Panics if the values are not contained.
     #[inline]
     pub fn remove(&mut self, index: usize, pos: Vec2)
     {
@@ -1378,6 +1585,7 @@ impl Buckets
         }
     }
 
+    /// Removes and re-inserts the [`Node`] at `index` which was moved to a new position.
     #[inline]
     fn move_index(&mut self, index: usize, pos: Vec2, new_pos: Vec2)
     {
@@ -1388,13 +1596,16 @@ impl Buckets
 
 //=======================================================================//
 
-/// A path describing how a [`Brush`] moves in space over time.
+/// A path describing how a entity moves in space over time.
 #[must_use]
 #[derive(Debug, Clone)]
 pub struct Path
 {
+    /// The [`Node`]s describing the travel.
     nodes:   HvVec<Node>,
+    /// The [`Hull`] describing the area encompassing the path and the center of the owning entity.
     hull:    Hull,
+    /// The nodes sorted in buckets for more efficient arrows drawing.
     buckets: Buckets
 }
 
@@ -1500,7 +1711,7 @@ impl Path
     //==============================================================
     // New
 
-    /// Creates a new [`Path`] from two points and the position of the [`Brush`] center.
+    /// Creates a new [`Path`] from two points and the position of the entity center.
     #[inline]
     pub(in crate::map) fn new(points: &[Vec2; 2], center: Vec2) -> Self
     {
@@ -1542,6 +1753,7 @@ impl Path
         NodesWorldMut::new(&mut self.nodes, center)
     }
 
+    /// Whever the [`Node`]s of the [`Path`] are valid.
     #[inline]
     #[must_use]
     fn nodes_valid(&self) -> bool
@@ -1564,7 +1776,7 @@ impl Path
             })
     }
 
-    /// Returns a [`MovementSimulator`] that allows to show how the [`Brush`] moves along the path
+    /// Returns a [`MovementSimulator`] that allows to show how the entity moves along the path
     /// [`Node`]s.
     #[inline]
     pub(in crate::map) fn movement_simulator(&self, id: Id) -> MovementSimulator
@@ -1592,6 +1804,7 @@ impl Path
         .none_if_empty()
     }
 
+    /// Returns the position of the [`Node`] at `index`.
     #[inline]
     #[must_use]
     pub(in crate::map) fn node_at_index_pos(&self, index: usize) -> Vec2
@@ -1602,6 +1815,7 @@ impl Path
     //==============================================================
     // Update
 
+    /// Returns the [`Hull`] encompassing all the [`Node`]s.
     #[inline]
     fn nodes_hull(nodes: &HvVec<Node>) -> Hull
     {
@@ -1681,6 +1895,7 @@ impl Path
         Some(moved_nodes)
     }
 
+    /// Returns the [`Node`]s near `cursor_pos`.
     #[inline]
     pub(in crate::map) fn nearby_nodes(
         &self,
@@ -1700,6 +1915,7 @@ impl Path
     //==============================================================
     // Free draw
 
+    /// Inserts a new [`Node`] at `index`.
     #[inline]
     fn insert(&mut self, index: usize, node: Node)
     {
@@ -1707,6 +1923,7 @@ impl Path
         self.buckets.insert(index, node.pos());
     }
 
+    /// Removes the [`Node`] at `index`.
     #[inline]
     fn remove(&mut self, index: usize)
     {
@@ -1792,6 +2009,7 @@ impl Path
     //==============================================================
     // Insert / Remove
 
+    /// Whever inserting a new [`Node`] with position `pos` at `index` creates a valid [`Path`].
     #[inline]
     #[must_use]
     fn is_node_at_index_valid(&self, pos: Vec2, index: usize, center: Vec2) -> bool
@@ -1803,6 +2021,8 @@ impl Path
     }
 
     /// Tries to insert a [`Node`] with position `pos` at `idx`.
+    /// # Panic
+    /// Panics if inserting the node creates an invalid path.
     #[inline]
     pub(in crate::map) fn try_insert_node_at_index(
         &mut self,
@@ -1937,6 +2157,9 @@ impl Path
         assert!(self.valid(), "delete_selected_nodes generated an invalid Path.");
     }
 
+    /// Redoes the deletion of the selected [`Node`]s.
+    /// # Panic
+    /// Panics if inserting the node creates an invalid path.
     #[inline]
     pub(in crate::map) fn redo_selected_nodes_deletion(&mut self)
     {
@@ -1972,17 +2195,16 @@ impl Path
     /// Deselects the selected [`Node`]s, but does not return the indexes of the nodes that were
     /// deselected.
     #[inline]
-    pub(in crate::map) fn deselect_nodes_no_indexes(&mut self, center: Vec2)
+    pub(in crate::map) fn deselect_nodes_no_indexes(&mut self)
     {
-        for node in self.nodes_world_mut(center).iter_mut()
+        for node in &mut self.nodes
         {
-            *node.1 = false;
+            node.selectable_vector.selected = false;
         }
     }
 
-    /// Toggles the selection status of the [`Node`] at index `idx`.
-    /// # Panic
-    /// Panics if `idx` is out of bounds.
+    /// Toggles the selection status of the [`Node`] at index `idx` and returns whever it was
+    /// selected.
     #[inline]
     pub(in crate::map) fn toggle_node_at_index(&mut self, idx: usize) -> bool
     {
@@ -1993,7 +2215,7 @@ impl Path
     }
 
     /// Checks whever there is a [`Node`] nearby `cursor_pos` and selects it if not already
-    /// selected.
+    /// selected. Returns a [`NodeSelectionResult`] describing the outcome.
     #[inline]
     pub(in crate::map) fn exclusively_select_path_node_at_index(
         &mut self,
@@ -2024,7 +2246,8 @@ impl Path
         NodeSelectionResult::NotSelected(idxs)
     }
 
-    /// Selects all non selected [`Node`]s within range.
+    /// Selects all non selected [`Node`]s within range and returns the indexes of the nodes whose
+    /// selection was changed.
     #[inline]
     #[must_use]
     pub(in crate::map) fn select_nodes_in_range(
@@ -2033,10 +2256,16 @@ impl Path
         range: &Hull
     ) -> Option<HvVec<u8>>
     {
+        if !range.intersects(&(self.hull + center))
+        {
+            return self.deselect_nodes(center);
+        }
+
         select_vectors_in_range!(self.nodes_world_mut(center), range)
     }
 
-    /// Selects all [`Node`]s within range, and deselects those that aren't.
+    /// Exclusively selects all [`Node`]s within range and returns the indexes of the nodes whose
+    /// selection was changed.
     #[inline]
     #[must_use]
     pub(in crate::map) fn exclusively_select_nodes_in_range(
@@ -2045,6 +2274,11 @@ impl Path
         range: &Hull
     ) -> Option<HvVec<u8>>
     {
+        if !range.intersects(&(self.hull + center))
+        {
+            return self.deselect_nodes(center);
+        }
+
         hv_vec![collect; self.nodes_world_mut(center)
             .iter_mut()
             .enumerate()
@@ -2060,6 +2294,7 @@ impl Path
         .none_if_empty()
     }
 
+    /// Selects all the [`Node`]s and returns the indexes of the nodes that were selected.
     #[inline]
     #[must_use]
     pub(in crate::map) fn select_all_nodes(&mut self) -> Option<HvVec<u8>>
@@ -2083,6 +2318,9 @@ impl Path
     //==============================================================
     // Move
 
+    /// Translates the [`Path`] by the vector `delta`.
+    /// # Panics
+    /// Panics if the generated [`Path`] is invalid.
     #[inline]
     pub(in crate::map) fn translate(&mut self, delta: Vec2)
     {
@@ -2114,6 +2352,7 @@ impl Path
     }
 
     /// Checks whever moving the selected [`Node`]s by `delta` generates a valid path.
+    /// Returns a [`NodesMoveResult`] describing the outcome.
     #[inline]
     pub(in crate::map) fn check_selected_nodes_move(&self, delta: Vec2) -> NodesMoveResult
     {
@@ -2160,6 +2399,7 @@ impl Path
         })
     }
 
+    /// Move the [`Node`] at `index` by `delta`.
     #[inline]
     fn move_node(&mut self, index: usize, delta: Vec2)
     {
@@ -2171,8 +2411,7 @@ impl Path
 
     /// Moves the path [`Node`]s according to the data contained in `nodes_move`.
     /// # Panic
-    /// Panics if the resulting path is invalid, of `nodes_move` is incompatible with the current
-    /// state of the path.
+    /// Panics if the resulting path is invalid.
     #[inline]
     pub(in crate::map) fn apply_selected_nodes_move(&mut self, nodes_move: &NodesMove)
     {
@@ -2192,8 +2431,7 @@ impl Path
 
     /// Reverts the [`Node`]s move described in `nodes_move`.
     /// # Panic
-    /// Panics if the resulting path is invalid, of `nodes_move` is incompatible with the current
-    /// state of the path.
+    /// Panics if the resulting path is invalid.
     #[inline]
     pub(in crate::map) fn undo_nodes_move(&mut self, nodes_move: &NodesMove)
     {
@@ -2211,6 +2449,30 @@ impl Path
         assert!(self.valid(), "undo_nodes_move generated an invalid Path.");
     }
 
+    //==============================================================
+    // Movement
+
+    /// Returns [`OverallMovement`] describing the movement status of the
+    /// [`Node`]s.
+    #[inline]
+    pub(in crate::map) fn overall_selected_nodes_movement(&self) -> OverallMovement
+    {
+        let nodes = self.nodes().iter().filter(|n| n.selectable_vector.selected);
+        let mut overall = OverallMovement::new();
+
+        for node in nodes
+        {
+            if overall.stack(&node.movement)
+            {
+                break;
+            }
+        }
+
+        overall
+    }
+
+    /// Sets the standby time of the selected [`Node`]s and returns a [`StandbyValueEdit`]
+    /// describing the outcome.
     #[inline]
     pub(in crate::map) fn set_selected_nodes_standby_time(
         &mut self,
@@ -2231,6 +2493,7 @@ impl Path
         edit.none_if_empty()
     }
 
+    /// Undoes a standby time edit.
     #[inline]
     pub(in crate::map) fn undo_standby_time_edit(&mut self, edit: &StandbyValueEdit)
     {
@@ -2245,6 +2508,7 @@ impl Path
         }
     }
 
+    /// Redoes a standby time edit.
     #[inline]
     pub(in crate::map) fn redo_standby_time_edit(&mut self, edit: &StandbyValueEdit)
     {
@@ -2260,30 +2524,9 @@ impl Path
     }
 
     //==============================================================
-    // Movement
-
-    /// Returns [`OverallMovement`] and [`OverallStandby`] describing the movement status of the
-    /// [`Node`]s.
-    #[inline]
-    pub(in crate::map) fn overall_selected_nodes_movement(&self) -> OverallMovement
-    {
-        let nodes = self.nodes().iter().filter(|n| n.selectable_vector.selected);
-        let mut overall = OverallMovement::new();
-
-        for node in nodes
-        {
-            if overall.stack(&node.movement)
-            {
-                break;
-            }
-        }
-
-        overall
-    }
-
-    //==============================================================
     // Draw
 
+    /// Returns the coordinates of a shifted arrow.
     #[inline]
     fn shifted_arrowed_line_points(drawer: &EditDrawer, start: Vec2, end: Vec2) -> (Vec2, Vec2)
     {
@@ -2294,6 +2537,7 @@ impl Path
         (start + dir + perp, end - dir + perp)
     }
 
+    /// Draws a shifted arrowed line.
     #[inline]
     fn shifted_arrowed_line(drawer: &mut EditDrawer, start: Vec2, end: Vec2, color: Color)
     {
@@ -2301,6 +2545,7 @@ impl Path
         drawer.arrowed_line(start, end, color);
     }
 
+    /// Draws a semitransparent shifted arrowed line.
     #[inline]
     fn shifted_semitransparent_arrowed_line(
         drawer: &mut EditDrawer,
@@ -2313,7 +2558,7 @@ impl Path
         drawer.semitransparent_arrowed_line(start, end, color);
     }
 
-    /// Draws the line going from the center of the [`Brush`] to the first node.
+    /// Draws the line going from the center of the entity to the first [`Node`].
     #[inline]
     fn draw_knot(&self, drawer: &mut EditDrawer, center: Vec2, color: Option<Color>)
     {
@@ -2322,7 +2567,7 @@ impl Path
         drawer.line(center, self.nodes_world(center).first().0, color);
     }
 
-    /// Draws the path.
+    /// Draws the path with the requested color.
     #[inline]
     fn draw_with_color(
         &self,
@@ -2344,6 +2589,7 @@ impl Path
         }
     }
 
+    /// Draws the [`Path`].
     #[inline]
     pub(in crate::map) fn draw(
         &self,
@@ -2369,6 +2615,7 @@ impl Path
         );
     }
 
+    /// Draws the [`Path`] for the [`Prop`] screenshot.
     #[inline]
     pub(in crate::map) fn draw_prop(&self, drawer: &mut EditDrawer, center: Vec2)
     {
@@ -2377,6 +2624,7 @@ impl Path
         self.draw_semitransparent_nodes_no_highlights(drawer, center, Color::PathNode);
     }
 
+    /// Draws the [`Path`] with an highlighted [`Node`].
     #[inline]
     pub(in crate::map) fn draw_with_highlighted_path_node(
         &self,
@@ -2413,7 +2661,7 @@ impl Path
         self.draw_semitransparent_nodes(drawer, center, Color::PathNode);
     }
 
-    /// Draws the path including the nodes being inserted into it.
+    /// Draws the path including the [`Node`] being inserted into it.
     #[inline]
     pub(in crate::map) fn draw_with_node_insertion(
         &self,
@@ -2553,6 +2801,7 @@ impl Path
         self.draw_free_draw(window, camera, egui_context, drawer, center, show_tooltips);
     }
 
+    /// Draws the [`Path`] in free draw mode.
     #[inline]
     pub(in crate::map) fn draw_free_draw(
         &self,
@@ -2619,6 +2868,7 @@ impl Path
         );
     }
 
+    /// Pushes a new index onto `tooltip_text`.
     #[inline]
     fn push_new_index(tooltip_text: &mut String, node: &NodeWorld, index: usize)
     {
@@ -2630,6 +2880,7 @@ impl Path
         });
     }
 
+    /// Draws a tooltip.
     #[inline]
     fn tooltip(
         window: &Window,
@@ -2647,6 +2898,7 @@ impl Path
         text.clear();
     }
 
+    /// Draws the tooltip of a bucket of overlapping [`Node`]s.
     #[inline]
     fn bucket_tooltip<'a, F, I>(
         &self,
@@ -2679,6 +2931,7 @@ impl Path
         Self::tooltip(window, camera, egui_context, drawer, pos, tooltip_text, color);
     }
 
+    /// Draws a standard bucket tooltip.
     #[inline]
     fn regular_bucket_tooltip<'a, I>(
         &self,
@@ -2708,6 +2961,7 @@ impl Path
         );
     }
 
+    /// Draws all the [`Path`]'s tooltips.
     #[inline]
     fn tooltips(
         &self,
@@ -2820,6 +3074,10 @@ pub(in crate::map) fn node_tooltip(
     );
 }
 
+//=======================================================================//
+
+/// Returns the slightly buffed [`Hull`] encompassing the [`Path`] and the center of the owning
+/// entity.
 #[inline]
 #[must_use]
 pub(in crate::map) fn calc_path_hull(path: &Path, center: Vec2) -> Hull

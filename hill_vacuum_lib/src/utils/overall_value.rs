@@ -7,7 +7,7 @@
 
 use std::str::FromStr;
 
-use shared::{return_if_no_match, return_if_none};
+use shared::return_if_no_match;
 
 use super::misc::ReplaceValues;
 
@@ -61,6 +61,7 @@ pub enum OverallValue<T>
 where
     T: PartialEq + Clone
 {
+    /// No elements.
     #[default]
     None,
     /// At least one element has value different from the rest.
@@ -126,9 +127,11 @@ where
 
 impl<T: PartialEq + Clone> OverallValue<T>
 {
+    /// Returns a uniform [`OverallValue`] with `value`.
     #[inline]
     pub const fn new(value: T) -> Self { Self::Uniform(value) }
 
+    /// Whever `self` described at least one value.
     #[inline]
     #[must_use]
     pub const fn is_some(&self) -> bool { !matches!(self, Self::None) }
@@ -140,6 +143,7 @@ impl<T: PartialEq + Clone> OverallValue<T>
 #[derive(Clone, Debug)]
 enum UiValueEnum<T: ToString + FromStr>
 {
+    /// No elements.
     None(String),
     /// At least one element has value different from the rest.
     NonUniform(String),
@@ -274,12 +278,25 @@ impl<T: ToString + FromStr + PartialEq> UiOverallValue<T>
 
                 if let Ok(new_value) = buffer.parse::<T>()
                 {
-                    if new_value == *value
+                    let new_value = match f(new_value)
                     {
-                        return false;
-                    }
+                        Some(v) =>
+                        {
+                            if v == *value
+                            {
+                                return false;
+                            }
 
-                    *buffer = return_if_none!(f(new_value), false).to_string();
+                            v
+                        },
+                        None =>
+                        {
+                            self.reset_buffer();
+                            return false;
+                        }
+                    };
+
+                    *buffer = new_value.to_string();
                     value_str.replace_values(buffer.chars());
                     return true;
                 }

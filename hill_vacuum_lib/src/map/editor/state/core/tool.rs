@@ -52,6 +52,7 @@ use crate::{
             ToolUpdateBundle
         },
         hv_vec,
+        properties::DefaultProperties,
         thing::catalog::ThingsCatalog,
         HvVec
     },
@@ -169,7 +170,7 @@ impl Snap
     #[must_use]
     fn new(active_tool: &ActiveTool, manager: &EntitiesManager) -> Self
     {
-        if active_tool.ongoing_multi_frame_changes() || manager.selected_brushes_amount() == 0
+        if active_tool.ongoing_multi_frame_changes() || !manager.any_selected_brushes()
         {
             return Self::None;
         }
@@ -603,12 +604,6 @@ impl ActiveTool
         return_if_no_match!(self, Self::Path(t), t).update_overall_node(manager);
     }
 
-    #[inline]
-    pub fn update_overall_thing_info(&mut self, manager: &EntitiesManager)
-    {
-        return_if_no_match!(self, Self::Thing(t), t).update_overall_thing_info(manager);
-    }
-
     //==============================================================
     // Undo/Redo
 
@@ -640,11 +635,14 @@ impl ActiveTool
             },
             Self::Path(_) =>
             {
-                edits_history.path_nodes_selection_cluster(
+                if edits_history.path_nodes_selection_cluster(
                     manager.selected_movings_mut().filter_map(|mut brush| {
                         brush.select_all_path_nodes().map(|idxs| (brush.id(), idxs))
                     })
-                );
+                )
+                {
+                    manager.toggle_overall_node_update();
+                }
             },
             _ => manager.select_all_entities(edits_history)
         };
@@ -813,17 +811,23 @@ impl ActiveTool
             Tool::Flip => FlipTool::tool(manager),
             Tool::Intersection =>
             {
-                self.intersection_tool(manager, edits_history, settings, grid);
+                self.intersection_tool(
+                    bundle.default_properties.brushes,
+                    manager,
+                    edits_history,
+                    settings,
+                    grid
+                );
                 return;
             },
             Tool::Merge =>
             {
-                self.merge_tool(manager, edits_history);
+                self.merge_tool(bundle.default_properties.brushes, manager, edits_history);
                 return;
             },
             Tool::Path => PathTool::tool(self.drag_selection()),
             Tool::Paint => PaintTool::tool(),
-            Tool::Thing => ThingTool::tool(manager)
+            Tool::Thing => ThingTool::tool()
         };
     }
 
@@ -886,7 +890,7 @@ impl ActiveTool
                 {
                     Some(polys) =>
                     {
-                        wall_brushes.extend(polys);
+                        wall_brushes.push((hv_vec![collect; polys], brush.properties()));
                         None
                     },
                     None => brush.id().into()
@@ -905,13 +909,17 @@ impl ActiveTool
         }
 
         self.draw_tool_despawn(manager, edits_history, move |manager, edits_history| {
-            manager.replace_selected_brushes(wall_brushes.into_iter(), edits_history);
+            for (brushes, properties) in wall_brushes
+            {
+                manager.replace_selected_brushes(brushes.into_iter(), edits_history, properties);
+            }
         });
     }
 
     #[inline]
     fn intersection_tool(
         &mut self,
+        brushes_default_properties: &DefaultProperties,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         settings: &ToolsSettings,
@@ -956,7 +964,11 @@ impl ActiveTool
 
             if success
             {
-                manager.spawn_brushes(Some(intersection_polygon).into_iter(), edits_history);
+                manager.spawn_brushes(
+                    Some(intersection_polygon).into_iter(),
+                    edits_history,
+                    brushes_default_properties.instance()
+                );
             }
         });
 
@@ -965,6 +977,7 @@ impl ActiveTool
 
     #[inline]
     pub fn merge_vertexes(
+        brushes_default_properties: &DefaultProperties,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         sides: bool
@@ -994,11 +1007,20 @@ impl ActiveTool
 
         let vertexes = return_if_none!(convex_hull(vertexes));
         manager.deselect_selected_entities(edits_history);
-        manager.spawn_brush(ConvexPolygon::from(hv_vec![collect; vertexes]), edits_history);
+        manager.spawn_brush(
+            ConvexPolygon::from(hv_vec![collect; vertexes]),
+            edits_history,
+            brushes_default_properties.instance()
+        );
     }
 
     #[inline]
-    fn merge_tool(&mut self, manager: &mut EntitiesManager, edits_history: &mut EditsHistory)
+    fn merge_tool(
+        &mut self,
+        brushes_default_properties: &DefaultProperties,
+        manager: &mut EntitiesManager,
+        edits_history: &mut EditsHistory
+    )
     {
         // Place all vertexes of the selected brushes in one vector.
         let mut vertexes = HvHashSet::new();
@@ -1048,7 +1070,11 @@ impl ActiveTool
                 poly.set_texture_settings(texture);
             }
 
-            manager.replace_selected_brushes(Some(poly).into_iter(), edits_history);
+            manager.replace_selected_brushes(
+                Some(poly).into_iter(),
+                edits_history,
+                brushes_default_properties.instance()
+            );
         });
     }
 
@@ -1106,14 +1132,14 @@ impl ActiveTool
             },
             Self::Paint(_) =>
             {
-                if manager.selected_entities_amount() != 0 || clipboard.props_amount() != 0
+                if manager.any_selected_entities() || clipboard.props_amount() != 0
                 {
                     return;
                 }
             },
             Self::Path(_) =>
             {
-                if manager.selected_entities_amount() != 0
+                if manager.any_selected_entities()
                 {
                     return;
                 }
@@ -1331,10 +1357,7 @@ impl ActiveTool
         {
             match tool
             {
-                ActiveTool::Thing(t) =>
-                {
-                    return t.left_panel(ui, manager, inputs, edits_history, clipboard, settings);
-                },
+                ActiveTool::Thing(_) => ThingTool::left_panel(ui, settings),
                 ActiveTool::Entity(t) => t.ui(ui, settings),
                 ActiveTool::Rotate(t) => t.ui(ui, settings),
                 ActiveTool::Draw(t) => t.ui(ui, settings),
