@@ -1,7 +1,9 @@
+pub(in crate::map::editor) mod checkbox;
 mod controls_window;
 mod manual;
 mod minus_plus_buttons;
 pub(in crate::map::editor::state) mod overall_value_field;
+mod properties_window;
 mod texture_editor;
 mod tooltip;
 mod window;
@@ -15,11 +17,12 @@ use arrayvec::ArrayVec;
 use bevy::prelude::{AssetServer, Transform, Vec2};
 use bevy_egui::{egui, EguiUserTextures};
 use is_executable::IsExecutable;
-use shared::{continue_if_none, return_if_none, NextValue};
+use shared::{return_if_none, NextValue};
 
 use self::{
     controls_window::ControlsWindow,
     manual::Manual,
+    properties_window::PropertiesWindow,
     texture_editor::TextureEditor,
     tooltip::Tooltip
 };
@@ -39,13 +42,10 @@ use crate::{
     embedded_assets::embedded_asset_path,
     map::{
         drawer::drawing_resources::DrawingResources,
-        editor::{cursor_pos::Cursor, StateUpdateBundle}
+        editor::{cursor_pos::Cursor, StateUpdateBundle},
+        properties::DefaultProperties
     },
-    utils::{
-        identifiers::EntityId,
-        misc::{Camera, FromToStr, Toggle},
-        overall_value::{OverallValue, OverallValueInterface}
-    },
+    utils::misc::{Camera, FromToStr, Toggle},
     HardcodedActions
 };
 
@@ -251,9 +251,10 @@ impl Command
 #[derive(Clone, Copy)]
 enum WindowCloser
 {
-    TextureEditor((egui::LayerId, fn(&mut TextureEditor))),
-    Controls((egui::LayerId, fn(&mut ControlsWindow))),
-    Manual((egui::LayerId, fn(&mut Manual)))
+    TextureEditor(egui::LayerId, fn(&mut TextureEditor)),
+    Controls(egui::LayerId, fn(&mut ControlsWindow)),
+    Properties(egui::LayerId, fn(&mut PropertiesWindow)),
+    Manual(egui::LayerId, fn(&mut Manual))
 }
 
 impl WindowCloser
@@ -262,7 +263,10 @@ impl WindowCloser
     #[must_use]
     fn layer_id(self) -> egui::LayerId
     {
-        let (Self::TextureEditor((id, _)) | Self::Controls((id, _)) | Self::Manual((id, _))) = self;
+        let (Self::TextureEditor(id, _) |
+        Self::Controls(id, _) |
+        Self::Properties(id, _) |
+        Self::Manual(id, _)) = self;
         id
     }
 
@@ -281,6 +285,7 @@ impl WindowCloser
         let mut windows = [
             ui.texture_editor.window_closer(),
             ui.controls_window.window_closer(),
+            ui.properties_window.window_closer(),
             ui.manual.window_closer()
         ]
         .into_iter()
@@ -319,9 +324,10 @@ impl WindowCloser
 
         match return_if_none!(topmost_window)
         {
-            Self::TextureEditor(closer) => closer.1(&mut ui.texture_editor),
-            Self::Controls(closer) => closer.1(&mut ui.controls_window),
-            Self::Manual(closer) => closer.1(&mut ui.manual)
+            Self::TextureEditor(_, closer) => closer(&mut ui.texture_editor),
+            Self::Controls(_, closer) => closer(&mut ui.controls_window),
+            Self::Properties(_, closer) => closer(&mut ui.properties_window),
+            Self::Manual(_, closer) => closer(&mut ui.manual)
         };
     }
 }
@@ -426,30 +432,38 @@ pub(in crate::map::editor::state) struct Ui
     left_panel_layer_id:  egui::LayerId,
     right_panel_layer_id: egui::LayerId,
     controls_window:      ControlsWindow,
+    properties_window:    PropertiesWindow,
     texture_editor:       TextureEditor,
-    manual:               Manual,
-    collision:            OverallValue<bool>
+    manual:               Manual
 }
 
 impl Ui
 {
     #[inline]
     #[must_use]
-    pub fn new(asset_server: &AssetServer, user_textures: &mut EguiUserTextures) -> Self
+    pub fn new(
+        asset_server: &AssetServer,
+        user_textures: &mut EguiUserTextures,
+        brushes_default_properties: &DefaultProperties,
+        things_default_properties: &DefaultProperties
+    ) -> Self
     {
         Self {
             tools_buttons:        ToolsButtons::new(asset_server, user_textures),
             left_panel_layer_id:  egui::LayerId::background(),
             right_panel_layer_id: egui::LayerId::background(),
             controls_window:      ControlsWindow::default(),
+            properties_window:    PropertiesWindow::new(
+                brushes_default_properties,
+                things_default_properties
+            ),
             texture_editor:       TextureEditor::default(),
-            manual:               Manual::default(),
-            collision:            OverallValue::None
+            manual:               Manual::default()
         }
     }
 
     #[inline]
-    pub fn placeholder() -> Self
+    pub unsafe fn placeholder() -> Self
     {
         Self {
             tools_buttons:        ToolsButtons {
@@ -459,9 +473,9 @@ impl Ui
             left_panel_layer_id:  egui::LayerId::background(),
             right_panel_layer_id: egui::LayerId::background(),
             controls_window:      ControlsWindow::default(),
+            properties_window:    PropertiesWindow::placeholder(),
             texture_editor:       TextureEditor::default(),
-            manual:               Manual::default(),
-            collision:            OverallValue::None
+            manual:               Manual::default()
         }
     }
 
@@ -500,8 +514,11 @@ impl Ui
                 .draw(bundle, manager, edits_history, clipboard, inputs, settings)
         };
 
-        // Controls menu.
-        focused |= self.controls_window.show(bundle);
+        // Controls and properties menus.
+        focused |= self.controls_window.show(bundle) |
+            self.properties_window
+                .show(bundle, manager, edits_history, clipboard, inputs);
+
         let us_context = unsafe { std::ptr::from_mut(bundle.egui_context).as_mut().unwrap() };
 
         // Panels.
@@ -547,8 +564,6 @@ impl Ui
                 // Camera info.
                 Self::camera_info(bundle.camera, ui);
 
-                self.collision(manager, edits_history, ui);
-
                 // Extra tool info.
                 focused |= core.tool_ui(manager, inputs, edits_history, clipboard, ui, settings);
             })
@@ -588,14 +603,39 @@ impl Ui
     }
 
     #[inline]
-    pub fn update_overall_collision(&mut self, manager: &EntitiesManager)
+    pub fn update_overall_brushes_collision(&mut self, manager: &EntitiesManager)
     {
-        self.collision = OverallValue::None;
+        self.properties_window.update_overall_brushes_collision(manager);
+    }
 
-        for brush in manager.selected_brushes()
-        {
-            _ = self.collision.stack(&brush.collision());
-        }
+    #[inline]
+    pub fn update_overall_total_brush_properties(&mut self, manager: &EntitiesManager)
+    {
+        self.properties_window.update_overall_total_brush_properties(manager);
+    }
+
+    #[inline]
+    pub fn update_overall_brushes_property(&mut self, manager: &EntitiesManager, k: &str)
+    {
+        self.properties_window.update_overall_brushes_property(manager, k);
+    }
+
+    #[inline]
+    pub fn update_overall_things_info(&mut self, manager: &EntitiesManager)
+    {
+        self.properties_window.update_overall_things_info(manager);
+    }
+
+    #[inline]
+    pub fn update_overall_total_things_properties(&mut self, manager: &EntitiesManager)
+    {
+        self.properties_window.update_overall_total_things_properties(manager);
+    }
+
+    #[inline]
+    pub fn update_overall_things_property(&mut self, manager: &EntitiesManager, k: &str)
+    {
+        self.properties_window.update_overall_things_property(manager, k);
     }
 
     #[inline]
@@ -629,8 +669,8 @@ impl Ui
                 let undo_redo = core.undo_redo_available();
                 let reload = !core.map_preview();
                 let export = bundle.config.exporter.is_some();
-                let quick_snap = manager.selected_brushes_amount() != 0;
-                let quick_zoom = manager.selected_entities_amount() != 0;
+                let quick_snap = manager.any_selected_brushes();
+                let quick_zoom = manager.any_selected_entities();
 
                 macro_rules! menu_button {
                     (
@@ -754,7 +794,10 @@ impl Ui
                     }, format!("Alt+{}", Tool::Snap.keycode_str(&bundle.config.binds))),
                     ("Texture editor", {
                         self.texture_editor.toggle();
-                    }, bundle.config.binds.get(Bind::TextureEditor).unwrap().to_str())
+                    }, bundle.config.binds.get(Bind::TextureEditor).map_or("", FromToStr::to_str)),
+                    ("Properties", {
+                        self.properties_window.toggle();
+                    }, bundle.config.binds.get(Bind::PropertiesEditor).map_or("", FromToStr::to_str))
                 );
 
                 submenu!(
@@ -937,49 +980,6 @@ impl Ui
             pos.y,
             camera.scale()
         )));
-    }
-
-    #[inline]
-    fn collision(
-        &mut self,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        ui: &mut egui::Ui
-    )
-    {
-        ui.separator();
-        ui.label("COLLISION");
-
-        ui.horizontal(|ui| {
-            ui.label("Enabled:");
-
-            let checked = match self.collision
-            {
-                OverallValue::None | OverallValue::NonUniform => false,
-                OverallValue::Uniform(checked) => checked
-            };
-
-            let mut new_checked = checked;
-
-            if !ui
-                .add_enabled(
-                    self.collision.is_some(),
-                    egui::Checkbox::without_text(&mut new_checked)
-                )
-                .clicked() ||
-                checked == new_checked
-            {
-                return;
-            }
-
-            for mut brush in manager.selected_brushes_mut()
-            {
-                edits_history
-                    .collision(brush.id(), continue_if_none!(brush.set_collision(new_checked)));
-            }
-
-            self.collision = new_checked.into();
-        });
     }
 }
 

@@ -212,7 +212,7 @@ pub fn enum_iter(input: TokenStream) -> TokenStream
 /// const ARRAY: [&'static str; 4] = ["i_0", "i_1", "i_2", "i_3"];
 /// ```
 /// # Panics
-/// Panics if `stream` is not properly formatted.
+/// Panics if `input` is not properly formatted.
 #[proc_macro]
 pub fn str_array(input: TokenStream) -> TokenStream
 {

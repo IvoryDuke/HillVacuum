@@ -58,7 +58,7 @@ pub fn draw_tooltip(
     rounding: f32
 )
 {
-    egui::Area::new(label)
+    egui::Area::new(label.into())
         .fixed_pos(pos)
         .order(order)
         .show(egui_context, |ui| {

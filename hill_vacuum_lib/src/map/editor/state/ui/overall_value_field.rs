@@ -27,6 +27,21 @@ pub(in crate::map::editor::state) struct Response
     pub value_changed: bool
 }
 
+impl std::ops::BitOr for Response
+{
+    type Output = Self;
+
+    #[inline]
+    fn bitor(self, rhs: Self) -> Self::Output
+    {
+        Self {
+            has_focus:     self.has_focus | rhs.has_focus,
+            interacting:   self.interacting | rhs.interacting,
+            value_changed: self.value_changed | rhs.value_changed
+        }
+    }
+}
+
 impl std::ops::BitOrAssign for Response
 {
     #[inline]
@@ -41,7 +56,7 @@ impl std::ops::BitOrAssign for Response
 //=======================================================================//
 
 #[must_use]
-pub(in crate::map::editor::state) struct OverallValueField<T: ToString + FromStr>(PhantomData<T>);
+pub(in crate::map) struct OverallValueField<T: ToString + FromStr>(PhantomData<T>);
 
 impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
 {

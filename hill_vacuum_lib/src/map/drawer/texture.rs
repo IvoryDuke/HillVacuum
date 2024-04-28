@@ -592,9 +592,9 @@ impl OverallValueInterface<Option<&TextureSettings>> for OverallTextureSettings
             uniform |= !v_0.merge(*v_1);
         }
 
-        uniform |= !self.height.merge(other.height);
-        uniform |= !self.sprite.merge(other.sprite);
-        uniform |= !self.animation.merge(other.animation);
+        uniform |= !self.height.merge(other.height) |
+            !self.sprite.merge(other.sprite) |
+            !self.animation.merge(other.animation);
 
         !uniform
     }
@@ -765,7 +765,7 @@ impl Texture
     }
 
     #[inline]
-    pub fn placeholder() -> Self
+    pub unsafe fn placeholder() -> Self
     {
         Self {
             name:      String::new(),

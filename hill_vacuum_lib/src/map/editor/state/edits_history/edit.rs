@@ -6,10 +6,10 @@
 use super::edit_type::EditType;
 use crate::{
     map::{
-        brush::mover::Mover,
         drawer::drawing_resources::DrawingResources,
         editor::state::{core::UndoRedoInterface, ui::Ui},
         hv_vec,
+        properties::Value,
         HvVec
     },
     utils::identifiers::Id
@@ -22,13 +22,16 @@ use crate::{
 
 /// A map edit which can be undone and redone, and be made of multiple sub-edits.
 #[derive(Debug)]
-pub(in crate::map::editor::state::edits_history) struct Edit(HvVec<(HvVec<Id>, EditType)>);
+pub(in crate::map::editor::state::edits_history) struct Edit(
+    HvVec<(HvVec<Id>, EditType)>,
+    Option<String>
+);
 
 impl Default for Edit
 {
     #[inline]
     #[must_use]
-    fn default() -> Self { Self(hv_vec![]) }
+    fn default() -> Self { Self(hv_vec![], None) }
 }
 
 impl Edit
@@ -156,7 +159,8 @@ impl Edit
                 EditType::ListAnimationTime(..) |
                 EditType::ListAnimationFrameRemoval(..) |
                 EditType::AnimationMoveDown(..) |
-                EditType::AnimationMoveUp(..)
+                EditType::AnimationMoveUp(..) |
+                EditType::Property(..)
         )
         {
             assert!(
@@ -179,6 +183,17 @@ impl Edit
         }
 
         self.0.insert(0, (identifiers, edit));
+    }
+
+    #[inline]
+    pub fn push_property(&mut self, key: &str, iter: impl Iterator<Item = (Id, Value)>)
+    {
+        assert!(std::mem::replace(&mut self.1, key.to_owned().into()).is_none());
+
+        for (id, value) in iter
+        {
+            self.0.push((hv_vec![id], EditType::Property(value)));
+        }
     }
 
     /// Remove all contained sub-edits.
@@ -219,22 +234,22 @@ impl Edit
 
             match &mut x.1
             {
-                EditType::BrushDraw(cp) =>
+                EditType::BrushDraw(data) =>
                 {
-                    x.1 = EditType::BrushSpawn(std::mem::take(cp), Mover::None, true);
+                    x.1 = EditType::BrushSpawn(std::mem::take(data), true);
                 },
-                EditType::DrawnBrushDespawn(cp) =>
+                EditType::DrawnBrushDespawn(data) =>
                 {
-                    x.1 = EditType::BrushDespawn(std::mem::take(cp), Mover::None, true);
+                    x.1 = EditType::BrushDespawn(std::mem::take(data), true);
                 },
                 EditType::PolygonEdit(cp) => cp.deselect_vertexes_no_indexes(),
-                EditType::ThingDraw(thing, pos) =>
+                EditType::ThingDraw(thing) =>
                 {
-                    x.1 = EditType::ThingSpawn(*thing, *pos);
+                    x.1 = EditType::ThingSpawn(std::mem::take(thing));
                 },
-                EditType::DrawnThingDespawn(thing, pos) =>
+                EditType::DrawnThingDespawn(thing) =>
                 {
-                    x.1 = EditType::ThingDespawn(*thing, *pos);
+                    x.1 = EditType::ThingDespawn(std::mem::take(thing));
                 },
                 _ => ()
             }
@@ -273,7 +288,7 @@ impl Edit
     {
         for (ids, ed_type) in self.0.iter_mut().rev()
         {
-            ed_type.undo(interface, drawing_resources, ui, ids);
+            ed_type.undo(interface, drawing_resources, ui, ids, self.1.as_ref());
         }
     }
 
@@ -288,7 +303,7 @@ impl Edit
     {
         for (ids, ed_type) in &mut self.0
         {
-            ed_type.redo(interface, drawing_resources, ui, ids);
+            ed_type.redo(interface, drawing_resources, ui, ids, self.1.as_ref());
         }
     }
 }

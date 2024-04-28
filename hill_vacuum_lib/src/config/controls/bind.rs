@@ -28,7 +28,8 @@ bind_enum!(
     ShiftGrid,
     ToggleCursorSnap,
     ToggleCollision,
-    TextureEditor
+    TextureEditor,
+    PropertiesEditor
 );
 
 impl Bind
@@ -75,7 +76,8 @@ impl Bind
             Self::Flip => "F",
             Self::TextureEditor => "X",
             Self::Paint => "P",
-            Self::Thing => "G"
+            Self::Thing => "G",
+            Self::PropertiesEditor => "O"
         }
     }
 

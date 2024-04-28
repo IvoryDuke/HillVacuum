@@ -165,47 +165,39 @@ impl NodesEditor
             .spacing([10f32, 4f32])
             .striped(true)
             .show(ui, |ui| {
-                let mut focused = self.standby_time(
-                    manager,
-                    edits_history,
-                    clipboard,
-                    inputs,
-                    ui,
-                    simulation_active
-                );
-                focused |= self.max_speed(
-                    manager,
-                    edits_history,
-                    clipboard,
-                    inputs,
-                    ui,
-                    simulation_active
-                );
-                focused |= self.min_speed(
-                    manager,
-                    edits_history,
-                    clipboard,
-                    inputs,
-                    ui,
-                    simulation_active
-                );
-                focused |= self.accel_travel_percentage(
-                    manager,
-                    edits_history,
-                    clipboard,
-                    inputs,
-                    ui,
-                    simulation_active
-                );
-                focused |= self.decel_travel_percentage(
-                    manager,
-                    edits_history,
-                    clipboard,
-                    inputs,
-                    ui,
-                    simulation_active
-                );
-                focused
+                self.standby_time(manager, edits_history, clipboard, inputs, ui, simulation_active)
+                    | self.max_speed(
+                        manager,
+                        edits_history,
+                        clipboard,
+                        inputs,
+                        ui,
+                        simulation_active,
+                    )
+                    | self.min_speed(
+                        manager,
+                        edits_history,
+                        clipboard,
+                        inputs,
+                        ui,
+                        simulation_active,
+                    )
+                    | self.accel_travel_percentage(
+                        manager,
+                        edits_history,
+                        clipboard,
+                        inputs,
+                        ui,
+                        simulation_active,
+                    )
+                    | self.decel_travel_percentage(
+                        manager,
+                        edits_history,
+                        clipboard,
+                        inputs,
+                        ui,
+                        simulation_active,
+                    )
             })
             .inner
     }
@@ -215,9 +207,9 @@ impl NodesEditor
     {
         let mut overall = OverallMovement::new();
 
-        for brush in manager.selected_moving()
+        for moving in manager.selected_moving()
         {
-            if overall.merge(brush.overall_selected_path_nodes_movement())
+            if overall.merge(moving.overall_selected_path_nodes_movement())
             {
                 break;
             }

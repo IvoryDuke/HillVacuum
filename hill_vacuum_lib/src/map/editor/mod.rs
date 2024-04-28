@@ -1,5 +1,5 @@
 mod cursor_pos;
-pub(in crate::map) mod state;
+pub mod state;
 
 //=======================================================================//
 // IMPORTS
@@ -27,6 +27,7 @@ use super::{
         EditDrawer,
         MapPreviewDrawer
     },
+    properties::{BrushProperties, DefaultProperties, ThingProperties},
     thing::catalog::ThingsCatalog
 };
 use crate::{
@@ -65,26 +66,38 @@ use draw_camera;
 //
 //=======================================================================//
 
+#[must_use]
+struct AllDefaultProperties<'a>
+{
+    brushes:     &'a DefaultProperties,
+    things:      &'a DefaultProperties,
+    map_brushes: &'a mut DefaultProperties,
+    map_things:  &'a mut DefaultProperties
+}
+
+//=======================================================================//
+
 /// A bundle of variables required to update the state of the [`Editor`].
 #[must_use]
 struct StateUpdateBundle<'world, 'state, 'a, 'b, 'c>
 {
-    window:            &'a mut Window,
-    images:            &'a mut Assets<Image>,
-    camera:            &'b mut Transform,
-    prop_cameras:      &'a mut PropCamerasMut<'world, 'state, 'c>,
-    elapsed_time:      f32,
-    delta_time:        f32,
-    mouse_buttons:     &'a ButtonInput<MouseButton>,
-    key_inputs:        &'a ButtonInput<KeyCode>,
-    egui_context:      &'a mut egui::Context,
-    user_textures:     &'a mut EguiUserTextures,
-    config:            &'a mut Config,
-    cursor:            &'b Cursor,
-    things_catalog:    &'b mut ThingsCatalog,
-    drawing_resources: &'b mut DrawingResources,
-    next_editor_state: &'a mut NextState<EditorState>,
-    next_tex_load:     &'a mut NextState<TextureLoadingProgress>
+    window:             &'a mut Window,
+    images:             &'a mut Assets<Image>,
+    camera:             &'b mut Transform,
+    prop_cameras:       &'a mut PropCamerasMut<'world, 'state, 'c>,
+    elapsed_time:       f32,
+    delta_time:         f32,
+    mouse_buttons:      &'a ButtonInput<MouseButton>,
+    key_inputs:         &'a ButtonInput<KeyCode>,
+    egui_context:       &'a mut egui::Context,
+    user_textures:      &'a mut EguiUserTextures,
+    config:             &'a mut Config,
+    cursor:             &'b Cursor,
+    things_catalog:     &'b mut ThingsCatalog,
+    drawing_resources:  &'b mut DrawingResources,
+    default_properties: &'b mut AllDefaultProperties<'b>,
+    next_editor_state:  &'a mut NextState<EditorState>,
+    next_tex_load:      &'a mut NextState<TextureLoadingProgress>
 }
 
 impl<'world, 'state, 'a, 'b, 'c> StateUpdateBundle<'world, 'state, 'a, 'b, 'c>
@@ -103,16 +116,18 @@ impl<'world, 'state, 'a, 'b, 'c> StateUpdateBundle<'world, 'state, 'a, 'b, 'c>
 #[must_use]
 struct ToolUpdateBundle<'world, 'state, 'a, 'b, 'c>
 {
-    window:            &'a Window,
-    images:            &'a mut Assets<Image>,
-    delta_time:        f32,
-    camera:            &'a mut Transform,
-    prop_cameras:      &'a mut PropCamerasMut<'world, 'state, 'c>,
-    paint_tool_camera: (&'a mut bevy::prelude::Camera, &'a mut Transform),
-    user_textures:     &'a mut EguiUserTextures,
-    things_catalog:    &'b ThingsCatalog,
-    drawing_resources: &'b DrawingResources,
-    cursor:            &'b Cursor
+    window:                     &'a Window,
+    images:                     &'a mut Assets<Image>,
+    delta_time:                 f32,
+    camera:                     &'a mut Transform,
+    prop_cameras:               &'a mut PropCamerasMut<'world, 'state, 'c>,
+    paint_tool_camera:          (&'a mut bevy::prelude::Camera, &'a mut Transform),
+    user_textures:              &'a mut EguiUserTextures,
+    things_catalog:             &'b ThingsCatalog,
+    drawing_resources:          &'b DrawingResources,
+    cursor:                     &'b Cursor,
+    brushes_default_properties: &'b DefaultProperties,
+    things_default_properties:  &'b DefaultProperties
 }
 
 //=======================================================================//
@@ -163,18 +178,23 @@ struct DrawBundleMapPreview<'w, 's, 'a, 'b>
 pub(in crate::map) struct Editor
 {
     /// The current state.
-    state:             State,
+    state: State,
     /// The position of the cursor on the map.
-    cursor_pos:        Cursor,
+    cursor_pos: Cursor,
     /// The catalog of the loaded [`Thing`]s.
-    things_catalog:    ThingsCatalog,
+    things_catalog: ThingsCatalog,
     /// The resources to draw the map on screen.
-    drawing_resources: DrawingResources
+    drawing_resources: DrawingResources,
+    brushes_default_properties: DefaultProperties,
+    things_default_properties: DefaultProperties,
+    map_brushes_default_properties: DefaultProperties,
+    map_things_default_properties: DefaultProperties
 }
 
 impl Editor
 {
     /// Creates a new [`Editor`].
+    #[allow(clippy::too_many_arguments)]
     #[inline]
     pub fn new(
         window: &mut Window,
@@ -186,7 +206,9 @@ impl Editor
         user_textures: &mut EguiUserTextures,
         config: &Config,
         texture_loader: &mut TextureLoader,
-        hardcoded_things: Option<Res<HardcodedThings>>
+        hardcoded_things: Option<Res<HardcodedThings>>,
+        brush_properties: Option<ResMut<BrushProperties>>,
+        thing_properties: Option<ResMut<ThingProperties>>
     ) -> Self
     {
         let mut drawing_resources = DrawingResources::new(
@@ -214,6 +236,25 @@ impl Editor
             },
             None => None
         };
+
+        let brushes_default_properties = brush_properties
+            .map_or(DefaultProperties::default(), |mut d_p| {
+                DefaultProperties::new(std::mem::take(&mut d_p.0))
+            });
+        let things_default_properties = thing_properties
+            .map_or(DefaultProperties::default(), |mut d_p| {
+                DefaultProperties::new(std::mem::take(&mut d_p.0))
+            });
+        let mut map_brushes_default_properties = brushes_default_properties.clone();
+        let mut map_things_default_properties = things_default_properties.clone();
+
+        let mut default_properties = AllDefaultProperties {
+            brushes:     &brushes_default_properties,
+            things:      &things_default_properties,
+            map_brushes: &mut map_brushes_default_properties,
+            map_things:  &mut map_things_default_properties
+        };
+
         let state = State::new(
             asset_server,
             images,
@@ -221,6 +262,7 @@ impl Editor
             user_textures,
             &mut drawing_resources,
             &things_catalog,
+            &mut default_properties,
             file
         );
 
@@ -228,18 +270,28 @@ impl Editor
             state,
             cursor_pos: Cursor::default(),
             things_catalog,
-            drawing_resources
+            drawing_resources,
+            brushes_default_properties,
+            things_default_properties,
+            map_brushes_default_properties,
+            map_things_default_properties
         }
     }
 
     #[inline]
-    pub fn placeholder() -> Self
+    pub unsafe fn placeholder() -> Self
     {
-        Self {
-            state:             State::placeholder(),
-            cursor_pos:        Cursor::default(),
-            things_catalog:    ThingsCatalog::default(),
-            drawing_resources: DrawingResources::placeholder()
+        unsafe {
+            Self {
+                state: State::placeholder(),
+                cursor_pos: Cursor::default(),
+                things_catalog: ThingsCatalog::default(),
+                drawing_resources: DrawingResources::placeholder(),
+                brushes_default_properties: DefaultProperties::default(),
+                things_default_properties: DefaultProperties::default(),
+                map_brushes_default_properties: DefaultProperties::default(),
+                map_things_default_properties: DefaultProperties::default()
+            }
         }
     }
 
@@ -277,6 +329,12 @@ impl Editor
                 cursor: &self.cursor_pos,
                 things_catalog: &mut self.things_catalog,
                 drawing_resources: &mut self.drawing_resources,
+                default_properties: &mut AllDefaultProperties {
+                    brushes:     &self.brushes_default_properties,
+                    things:      &self.things_default_properties,
+                    map_brushes: &mut self.map_brushes_default_properties,
+                    map_things:  &mut self.map_things_default_properties
+                },
                 next_editor_state,
                 next_tex_load
             },
@@ -331,6 +389,12 @@ impl Editor
             cursor: &self.cursor_pos,
             things_catalog: &mut self.things_catalog,
             drawing_resources: &mut self.drawing_resources,
+            default_properties: &mut AllDefaultProperties {
+                brushes:     &self.brushes_default_properties,
+                things:      &self.things_default_properties,
+                map_brushes: &mut self.map_brushes_default_properties,
+                map_things:  &mut self.map_things_default_properties
+            },
             next_editor_state,
             next_tex_load
         })
@@ -364,7 +428,9 @@ impl Editor
             user_textures,
             cursor: &self.cursor_pos,
             things_catalog: &self.things_catalog,
-            drawing_resources: &self.drawing_resources
+            drawing_resources: &self.drawing_resources,
+            brushes_default_properties: &self.map_brushes_default_properties,
+            things_default_properties: &self.map_things_default_properties
         });
     }
 
@@ -657,12 +723,20 @@ impl Editor
     #[inline]
     pub fn reload_textures(
         &mut self,
+        prop_cameras: &mut PropCamerasMut,
+        images: &mut Assets<Image>,
         materials: &mut Assets<ColorMaterial>,
+        user_textures: &mut EguiUserTextures,
         textures: Vec<(Texture, egui::TextureId)>
     )
     {
         self.drawing_resources.reload_textures(materials, textures);
-        self.state.finish_textures_reload(&self.drawing_resources);
+        self.state.finish_textures_reload(
+            prop_cameras,
+            images,
+            user_textures,
+            &self.drawing_resources
+        );
     }
 
     /// Shutdown cleanup.

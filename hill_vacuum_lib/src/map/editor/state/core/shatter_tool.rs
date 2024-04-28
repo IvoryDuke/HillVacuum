@@ -118,6 +118,7 @@ impl ShatterTool
         let ToolUpdateBundle { camera, cursor, .. } = bundle;
 
         let id = return_if_none!(self.0);
+        let properties = manager.brush(id).properties();
 
         manager.spawn_brushes(
             return_if_none!(manager.brush(id).shatter(
@@ -125,7 +126,8 @@ impl ShatterTool
                 Self::cursor_pos(cursor),
                 camera.scale()
             )),
-            edits_history
+            edits_history,
+            properties
         );
         manager.despawn_selected_brush(id, edits_history);
 

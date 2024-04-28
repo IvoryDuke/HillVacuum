@@ -5,7 +5,7 @@
 
 use bevy::math::UVec2;
 use bevy_egui::egui;
-use shared::{return_if_none, TEXTURE_HEIGHT_RANGE};
+use shared::return_if_none;
 
 use super::{
     bottom_area,
@@ -17,29 +17,20 @@ use crate::{
         drawer::color::Color,
         editor::{
             state::{
-                clipboard::Clipboard,
                 core::tool::subtools_buttons,
                 editor_state::{InputsPresses, ToolsSettings},
                 edits_history::EditsHistory,
                 format_texture_preview,
                 manager::EntitiesManager,
-                ui::{
-                    overall_value_field::MinusPlusOverallValueField,
-                    textures_gallery,
-                    ToolsButtons
-                }
+                ui::ToolsButtons
             },
             DrawBundle,
             StateUpdateBundle,
             ToolUpdateBundle
         },
-        thing::ThingInterface,
         AssertedInsertRemove
     },
-    utils::{
-        identifiers::{EntityId, Id},
-        overall_value::{OverallValue, OverallValueInterface, OverallValueToUi, UiOverallValue}
-    }
+    utils::identifiers::{EntityId, Id}
 };
 
 //=======================================================================//
@@ -83,58 +74,21 @@ impl EnabledTool for Status
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct ThingTool
 {
-    drawn_things:        Ids,
-    max_ui_height:       f32,
-    overall_draw_height: UiOverallValue<i8>,
-    overall_angle:       UiOverallValue<f32>,
-    status:              Status
+    drawn_things:  Ids,
+    max_ui_height: f32,
+    status:        Status
 }
 
 impl ThingTool
 {
     #[inline]
-    pub fn tool(manager: &EntitiesManager) -> ActiveTool
+    pub fn tool() -> ActiveTool
     {
         ActiveTool::Thing(ThingTool {
-            drawn_things:        hv_hash_set![],
-            max_ui_height:       0f32,
-            overall_draw_height: Self::overall_height(manager),
-            overall_angle:       Self::overall_angle(manager),
-            status:              Status::default()
+            drawn_things:  hv_hash_set![],
+            max_ui_height: 0f32,
+            status:        Status::default()
         })
-    }
-
-    #[inline]
-    fn overall_height(manager: &EntitiesManager) -> UiOverallValue<i8>
-    {
-        let mut overall = OverallValue::None;
-
-        for thing in manager.selected_things()
-        {
-            _ = overall.stack(&thing.draw_height());
-        }
-
-        overall.ui()
-    }
-
-    #[inline]
-    fn overall_angle(manager: &EntitiesManager) -> UiOverallValue<f32>
-    {
-        let mut overall = OverallValue::None;
-
-        for thing in manager.selected_things()
-        {
-            _ = overall.stack(&thing.angle());
-        }
-
-        overall.ui()
-    }
-
-    #[inline]
-    pub fn update_overall_thing_info(&mut self, manager: &EntitiesManager)
-    {
-        self.overall_draw_height = Self::overall_height(manager);
-        self.overall_angle = Self::overall_angle(manager);
     }
 
     #[inline]
@@ -158,12 +112,9 @@ impl ThingTool
         if inputs.left_mouse.just_pressed()
         {
             self.drawn_things.asserted_insert(manager.spawn_selected_thing(
-                bundle.things_catalog,
+                bundle,
                 edits_history,
-                settings.thing_pivot.spawn_pos(
-                    bundle.things_catalog.selected_thing(),
-                    bundle.cursor.world_snapped()
-                )
+                settings
             ));
         }
         else if inputs.back.just_pressed()
@@ -260,65 +211,11 @@ impl ThingTool
     }
 
     #[inline]
-    #[must_use]
-    pub fn left_panel(
-        &mut self,
-        ui: &mut egui::Ui,
-        manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
-        edits_history: &mut EditsHistory,
-        clipboard: &mut Clipboard,
-        settings: &mut ToolsSettings
-    ) -> bool
+    pub fn left_panel(ui: &mut egui::Ui, settings: &mut ToolsSettings)
     {
         const LABEL_WIDTH: f32 = 50f32;
 
         ui.spacing_mut().item_spacing.x = 2f32;
-        let mut has_focus = false;
-
-        macro_rules! overall_value {
-            ($strip:ident, $label:literal, $value:ident, $t:ty, $min:expr, $max:expr) => {
-                paste::paste! {
-                    $strip.strip(|strip| {
-                        strip
-                            .size(egui_extras::Size::exact(LABEL_WIDTH))
-                            .size(egui_extras::Size::exact(64f32))
-                            .size(egui_extras::Size::remainder())
-                            .horizontal(|mut strip| {
-                                const ONE: $t = 1 as $t;
-
-                                strip.cell(|ui| {
-                                    ui.label($label);
-                                });
-
-                                has_focus = MinusPlusOverallValueField::new((16f32, 19f32).into())
-                                    .show(
-                                        &mut strip,
-                                        clipboard,
-                                        inputs,
-                                        &mut self.[< overall_ $value >],
-                                        ONE,
-                                        |value: $t, _| value.clamp($min, $max),
-                                        |value| {
-                                            edits_history.[< thing_ $value _cluster >](
-                                                manager.selected_things_mut().filter_map(
-                                                    |mut thing| {
-                                                        thing
-                                                            .[< set_ $value >](value)
-                                                            .map(|value| (thing.id(), value))
-                                                    }
-                                                )
-                                            );
-
-                                            value.into()
-                                        }
-                                    )
-                                    .has_focus;
-                            });
-                    });
-                }
-            };
-        }
 
         egui_extras::StripBuilder::new(ui)
             .sizes(egui_extras::Size::exact(18f32), 4)
@@ -335,19 +232,7 @@ impl ThingTool
                             settings.thing_pivot.ui(&mut strip);
                         });
                 });
-
-                overall_value!(
-                    strip,
-                    "Height",
-                    draw_height,
-                    i8,
-                    *TEXTURE_HEIGHT_RANGE.start(),
-                    *TEXTURE_HEIGHT_RANGE.end()
-                );
-                overall_value!(strip, "Angle", angle, f32, 0f32, 360f32);
             });
-
-        has_focus
     }
 
     #[allow(clippy::cast_precision_loss)]

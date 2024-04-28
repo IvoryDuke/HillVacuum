@@ -62,7 +62,6 @@ pub(in crate::map::editor::state::manager) struct Trees
     brushes_at_pos:            RefCell<DirtyQuadTreeIdsNearPos>,
     visible_brushes:           RefCell<VisibleQuadTreeIds>,
     brushes_in_range:          RefCell<QuadTreeIds>,
-    brushes_intersect_range:   RefCell<QuadTreeIds>,
     visible_paths:             RefCell<VisibleQuadTreeIds>,
     paths_at_pos:              RefCell<DirtyQuadTreeIdsNearPos>,
     visible_anchors:           RefCell<VisibleQuadTreeIds>,
@@ -92,7 +91,6 @@ impl Trees
             brushes_at_pos:            DirtyQuadTreeIdsNearPos::new().into(),
             visible_brushes:           VisibleQuadTreeIds::new().into(),
             brushes_in_range:          QuadTreeIds::new().into(),
-            brushes_intersect_range:   QuadTreeIds::new().into(),
             visible_paths:             VisibleQuadTreeIds::new().into(),
             paths_at_pos:              DirtyQuadTreeIdsNearPos::new().into(),
             visible_anchors:           VisibleQuadTreeIds::new().into(),
@@ -302,14 +300,6 @@ impl Trees
     }
 
     #[inline]
-    pub fn brushes_intersect_range(&self, range: &Hull) -> Ref<'_, QuadTreeIds>
-    {
-        self.brushes_tree
-            .entities_intersect_range(&mut self.brushes_intersect_range.borrow_mut(), range);
-        self.brushes_intersect_range.borrow()
-    }
-
-    #[inline]
     pub fn paths_at_pos(&self, cursor_pos: Vec2, camera_scale: f32) -> Ref<'_, QuadTreeIds>
     {
         self.paths_at_pos.borrow_mut().update(
@@ -321,14 +311,6 @@ impl Trees
         );
 
         Ref::map(self.paths_at_pos.borrow(), |v| &v.ids)
-    }
-
-    #[inline]
-    pub fn paths_intersect_range(&self, range: &Hull) -> Ref<'_, QuadTreeIds>
-    {
-        self.paths_tree
-            .entities_intersect_range(&mut self.brushes_intersect_range.borrow_mut(), range);
-        self.brushes_intersect_range.borrow()
     }
 
     #[inline]

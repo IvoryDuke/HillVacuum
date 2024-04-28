@@ -3,8 +3,9 @@ mod camera;
 pub mod containers;
 pub mod drawer;
 mod editor;
-mod ordered_map;
+mod indexed_map;
 pub mod path;
+pub mod properties;
 mod selectable_vector;
 pub mod thing;
 
@@ -49,6 +50,7 @@ use self::{
         state::clipboard::{Prop, PropCameras, PropCamerasMut},
         Editor
     },
+    properties::{BrushProperties, ThingProperties},
     thing::ThingInstance
 };
 use crate::{
@@ -243,9 +245,9 @@ impl Plugin for MapEditorPlugin
         app
             // UI
             .add_plugins(EguiPlugin)
-            .add_systems(PreUpdate, egui_clear_tab.after(EguiSet::ProcessInput).before(EguiSet::BeginFrame))
+            .add_systems(PreUpdate, clean_egui_inputs.after(EguiSet::ProcessInput).before(EguiSet::BeginFrame))
             // Init resources
-            .insert_non_send_resource(Editor::placeholder())
+            .insert_non_send_resource(unsafe { Editor::placeholder() })
             .insert_state(TextureLoadingProgress::default())
             .insert_resource(ClearColor(Color::Clear.bevy_color()))
             .insert_resource(WinitSettings::default())
@@ -261,7 +263,7 @@ impl Plugin for MapEditorPlugin
                 OnEnter(TextureLoadingProgress::Complete),
                 (store_loaded_textures, apply_state_transition::<EditorState>).chain()
             )
-            // Handle brush creation and editing
+            // Handle entity creation and editing
             .add_systems(
                 Update,
                 (
@@ -280,7 +282,7 @@ impl Plugin for MapEditorPlugin
                     .after(EditorSet::Update)
                     .run_if(in_state(EditorState::Run))
             )
-            // Shutdowm
+            // Shutdown
             .add_systems(OnEnter(EditorState::ShutDown), cleanup);
     }
 }
@@ -305,6 +307,10 @@ struct MapHeader
 
 /// The struct used to read a map file and generate the brushes and things to be used to generate
 /// another file format.
+/// ```
+/// let exporter = hill_vacuum::Exporter::new(&std::env::args().collect::<Vec<_>>()[0]);
+/// // Your code.
+/// ```
 #[must_use]
 pub struct Exporter(pub HvVec<BrushViewer>, pub HvVec<ThingViewer>);
 
@@ -510,6 +516,7 @@ pub(in crate::map) fn initialize(
 
     let mut visuals = egui::Visuals::dark();
     visuals.override_text_color = egui::Color32::WHITE.into();
+    visuals.faint_bg_color = egui::Color32::from_gray(35);
     ctx.set_visuals(visuals);
 
     DrawingResources::init(ctx);
@@ -518,7 +525,7 @@ pub(in crate::map) fn initialize(
 //=======================================================================//
 
 #[inline]
-fn egui_clear_tab(mut input: Query<&mut EguiInput>)
+fn clean_egui_inputs(mut input: Query<&mut EguiInput>)
 {
     let events = &mut input.get_single_mut().unwrap().0.events;
     let mut iter = events.iter_mut().enumerate();
@@ -564,6 +571,8 @@ fn store_loaded_textures(
     config: Res<Config>,
     mut texture_loader: ResMut<TextureLoader>,
     hardcoded_things: Option<Res<HardcodedThings>>,
+    brush_properties: Option<ResMut<BrushProperties>>,
+    thing_properties: Option<ResMut<ThingProperties>>,
     state: Res<State<EditorState>>,
     mut next_state: ResMut<NextState<EditorState>>
 )
@@ -580,14 +589,22 @@ fn store_loaded_textures(
             &mut user_textures,
             &config,
             &mut texture_loader,
-            hardcoded_things
+            hardcoded_things,
+            brush_properties,
+            thing_properties
         );
 
         next_state.set(EditorState::Run);
         return;
     }
 
-    editor.reload_textures(&mut materials, texture_loader.loaded_textures());
+    editor.reload_textures(
+        &mut prop_cameras,
+        &mut images,
+        &mut materials,
+        &mut user_textures,
+        texture_loader.loaded_textures()
+    );
 }
 
 //=======================================================================//

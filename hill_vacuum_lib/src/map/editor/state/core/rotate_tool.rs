@@ -384,8 +384,10 @@ impl RotateTool
                     }
                     else
                     {
-                        edits_history
-                            .texture_angle_delta(manager.selected_textured_ids().copied(), angle.to_degrees());
+                        edits_history.texture_angle_delta(
+                            manager.selected_textured_ids().copied(),
+                            angle.to_degrees()
+                        );
                     }
                 }
 

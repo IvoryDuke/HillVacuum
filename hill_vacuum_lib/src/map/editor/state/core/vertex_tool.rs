@@ -245,7 +245,9 @@ impl BrushesWithSelectedVertexes
                 brush.split(drawing_resources, p)
             };
 
-            self.ids.asserted_insert(manager.spawn_brush(polygon, edits_history));
+            let properties = manager.brush(p.id()).properties();
+            self.ids
+                .asserted_insert(manager.spawn_brush(polygon, edits_history, properties));
         }
 
         self.splittable_ids.clear();
@@ -824,7 +826,7 @@ impl VertexTool
 
         edits_history.vertexes_selection_cluster(
             manager
-                .selected_brushes_intersect_range_mut(range)
+                .selected_brushes_mut()
                 .filter_map(|mut brush| func(&mut brush, range).map(|vxs| (brush.id(), vxs)))
         );
     }
@@ -989,7 +991,12 @@ impl VertexTool
 
         if merge_clicked
         {
-            ActiveTool::merge_vertexes(manager, edits_history, false);
+            ActiveTool::merge_vertexes(
+                bundle.default_properties.brushes,
+                manager,
+                edits_history,
+                false
+            );
             return;
         }
 

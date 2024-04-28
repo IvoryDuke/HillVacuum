@@ -18,7 +18,8 @@ use crate::{
     map::{
         containers::{hv_hash_map, hv_vec},
         drawer::drawing_resources::DrawingResources,
-        ordered_map::IndexedMap,
+        indexed_map::IndexedMap,
+        properties::DefaultProperties,
         AssertedInsertRemove,
         HvHashMap,
         HvVec
@@ -62,11 +63,13 @@ impl Default for ThingsCatalog
 
 impl ThingsCatalog
 {
+    /// The identifier reserved to the [`Thing`] representing errors.
     const ERROR_ID: u16 = u16::MAX;
 
     //==============================================================
     // New
 
+    /// Returns a new [`ThingsCatalog`].
     #[inline]
     pub fn new(hardcoded_things: Option<Res<HardcodedThings>>) -> Self
     {
@@ -91,6 +94,7 @@ impl ThingsCatalog
         }
     }
 
+    /// The [`Thing`] representing an error.
     #[inline]
     fn error_thing() -> Thing
     {
@@ -186,13 +190,17 @@ impl ThingsCatalog
     #[must_use]
     pub fn is_empty(&self) -> bool { self.things.is_empty() }
 
+    /// The [`Thing`] associated with `thing`, if any.
     #[inline]
     pub fn thing(&self, thing: ThingId) -> Option<&Thing> { self.things.get(&thing) }
 
+    /// The [`Thing`] representing an error.
     #[inline]
     pub fn error(&self) -> &Thing { &self.error }
 
     /// Returns a reference to the [`Thing`] with the associated [`ThingId`].
+    /// # Panics
+    /// Panics if there is no [`Thing`] with such id.
     #[inline]
     pub fn thing_or_error(&self, thing: ThingId) -> &Thing
     {
@@ -223,9 +231,15 @@ impl ThingsCatalog
 
     /// Generates a [`ThingInstance`] from the provided values.
     #[inline]
-    pub fn thing_instance(&self, id: Id, thing: ThingId, pos: Vec2) -> ThingInstance
+    pub fn thing_instance(
+        &self,
+        id: Id,
+        thing: ThingId,
+        pos: Vec2,
+        default_properties: &DefaultProperties
+    ) -> ThingInstance
     {
-        ThingInstance::new(id, self.thing_or_error(thing), pos)
+        ThingInstance::new(id, self.thing_or_error(thing), pos, default_properties.instance())
     }
 
     /// Sets the selected thing index.
@@ -279,7 +293,7 @@ impl ThingsCatalog
 
 //=======================================================================//
 
-/// A resource containing all the [`Thing`] to be hardcoded into the editor.
+/// A resource containing all the [`Thing`]s to be hardcoded into the editor.
 #[must_use]
 #[derive(Resource, Default)]
 pub struct HardcodedThings(Vec<Thing>);

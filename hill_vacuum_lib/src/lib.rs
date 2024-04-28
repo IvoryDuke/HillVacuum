@@ -48,6 +48,7 @@ pub use crate::map::{
         nodes::{Movement, Node},
         Path
     },
+    properties::{BrushProperties, ThingProperties, ToValue, Value},
     thing::{catalog::HardcodedThings, MapThing, Thing, ThingViewer as ThingInstance},
     Exporter
 };
@@ -278,4 +279,19 @@ impl Plugin for HillVacuumPlugin
             .insert_state(EditorState::default())
             .insert_resource(Msaa::Sample4);
     }
+}
+
+//=======================================================================//
+// FUNCTIONS
+//
+//=======================================================================//
+
+#[inline]
+pub fn error_message(error: &str)
+{
+    rfd::MessageDialog::new()
+        .set_title("ERROR")
+        .set_description(error)
+        .set_buttons(rfd::MessageButtons::Ok)
+        .show();
 }

@@ -1456,11 +1456,9 @@ impl ConvexPolygon
         if self.has_sprite()
         {
             let center = self.center;
-            self.texture_settings_mut_set_dirty().move_offset(
-                drawing_resources,
-                old_center - center,
-                center
-            );
+            self.texture_updated = true;
+            self.texture_settings_mut()
+                .move_offset(drawing_resources, old_center - center, center);
         }
     }
 
@@ -1512,7 +1510,8 @@ impl ConvexPolygon
         }
 
         let center = self.center;
-        let texture = self.texture_settings_mut_set_dirty();
+        self.texture_updated = true;
+        let texture = self.texture_settings_mut();
         let sprite = texture.sprite();
 
         if !move_texture
@@ -1561,14 +1560,19 @@ impl ConvexPolygon
     }
 
     #[inline]
-    fn texture_settings_mut_set_dirty(&mut self) -> &mut TextureSettings
-    {
-        self.texture_updated = true;
-        self.texture.as_mut().unwrap()
-    }
+    fn texture_settings_mut(&mut self) -> &mut TextureSettings { self.texture.as_mut().unwrap() }
 
     #[inline]
-    fn texture_settings_mut(&mut self) -> &mut TextureSettings { self.texture.as_mut().unwrap() }
+    #[must_use]
+    fn set_texture_updated<T>(&mut self, value: Option<T>) -> Option<T>
+    {
+        if value.is_some()
+        {
+            self.texture_updated = true;
+        }
+
+        value
+    }
 
     #[inline]
     #[must_use]
@@ -1593,9 +1597,7 @@ impl ConvexPolygon
         texture: &str
     ) -> TextureSetResult
     {
-        self.texture_updated = true;
-
-        match &mut self.texture
+        let result = match &mut self.texture
         {
             Some(tex_set) =>
             {
@@ -1610,7 +1612,14 @@ impl ConvexPolygon
                 self.texture = Some(drawing_resources.texture_or_error(texture).into());
                 TextureSetResult::Set
             }
+        };
+
+        if !matches!(result, TextureSetResult::Unchanged)
+        {
+            self.texture_updated = true;
         }
+
+        result
     }
 
     #[inline]
@@ -1641,7 +1650,8 @@ impl ConvexPolygon
     )
     {
         let center = self.center;
-        let texture = self.texture_settings_mut_set_dirty();
+        self.texture_updated = true;
+        let texture = self.texture_settings_mut();
         let x = if texture.sprite() { value.x } else { -value.x };
         _ = texture.set_offset_x(drawing_resources, texture.offset_x() + x, center);
         _ = texture.set_offset_y(drawing_resources, texture.offset_y() + value.y, center);
@@ -1669,8 +1679,11 @@ impl ConvexPolygon
     ) -> Option<f32>
     {
         let center = self.center;
-        self.texture_settings_mut_set_dirty()
-            .set_offset_x(drawing_resources, value, center)
+        let result = self
+            .texture_settings_mut()
+            .set_offset_x(drawing_resources, value, center);
+
+        self.set_texture_updated(result)
     }
 
     #[inline]
@@ -1695,8 +1708,11 @@ impl ConvexPolygon
     ) -> Option<f32>
     {
         let center = self.center;
-        self.texture_settings_mut_set_dirty()
-            .set_offset_y(drawing_resources, value, center)
+        let result = self
+            .texture_settings_mut()
+            .set_offset_y(drawing_resources, value, center);
+
+        self.set_texture_updated(result)
     }
 
     #[inline]
@@ -1720,8 +1736,11 @@ impl ConvexPolygon
     ) -> Option<f32>
     {
         let center = self.center;
-        self.texture_settings_mut_set_dirty()
-            .set_scale_x(drawing_resources, value, center)
+        let result = self
+            .texture_settings_mut()
+            .set_scale_x(drawing_resources, value, center);
+
+        self.set_texture_updated(result)
     }
 
     #[inline]
@@ -1731,7 +1750,8 @@ impl ConvexPolygon
     )
     {
         let center = self.center;
-        let texture = self.texture_settings_mut_set_dirty();
+        self.texture_updated = true;
+        let texture = self.texture_settings_mut();
         let scale = texture.scale_x();
         _ = texture.set_scale_x(drawing_resources, -scale, center);
     }
@@ -1744,6 +1764,7 @@ impl ConvexPolygon
     ) -> bool
     {
         let center = self.center;
+        self.texture_updated = true;
         self.texture_settings_mut()
             .check_scale_y(drawing_resources, value, center)
     }
@@ -1757,8 +1778,11 @@ impl ConvexPolygon
     ) -> Option<f32>
     {
         let center = self.center;
-        self.texture_settings_mut_set_dirty()
-            .set_scale_y(drawing_resources, value, center)
+        let result = self
+            .texture_settings_mut()
+            .set_scale_y(drawing_resources, value, center);
+
+        self.set_texture_updated(result)
     }
 
     #[inline]
@@ -1768,7 +1792,8 @@ impl ConvexPolygon
     )
     {
         let center = self.center;
-        let texture = self.texture_settings_mut_set_dirty();
+        self.texture_updated = true;
+        let texture = self.texture_settings_mut();
         let scale = texture.scale_y();
         _ = texture.set_scale_y(drawing_resources, -scale, center);
     }
@@ -1777,42 +1802,46 @@ impl ConvexPolygon
     #[must_use]
     pub(in crate::map::brush) fn set_texture_scroll_x(&mut self, value: f32) -> Option<f32>
     {
-        let prev = &mut self.texture_settings_mut_set_dirty().scroll_x;
+        let prev = &mut self.texture_settings_mut().scroll_x;
 
         if value.around_equal_narrow(prev)
         {
             return None;
         }
 
-        std::mem::replace(prev, value).into()
+        let result = std::mem::replace(prev, value).into();
+        self.set_texture_updated(result)
     }
 
     #[inline]
     #[must_use]
     pub(in crate::map::brush) fn set_texture_scroll_y(&mut self, value: f32) -> Option<f32>
     {
-        let prev = &mut self.texture_settings_mut_set_dirty().scroll_y;
+        let prev = &mut self.texture_settings_mut().scroll_y;
 
         if value.around_equal_narrow(prev)
         {
             return None;
         }
 
-        std::mem::replace(prev, value).into()
+        let result = std::mem::replace(prev, value).into();
+        self.set_texture_updated(result)
     }
 
     #[inline]
     #[must_use]
     pub(in crate::map::brush) fn set_texture_parallax_x(&mut self, value: f32) -> Option<f32>
     {
-        self.texture_settings_mut_set_dirty().set_parallax_x(value)
+        let result = self.texture_settings_mut().set_parallax_x(value);
+        self.set_texture_updated(result)
     }
 
     #[inline]
     #[must_use]
     pub(in crate::map::brush) fn set_texture_parallax_y(&mut self, value: f32) -> Option<f32>
     {
-        self.texture_settings_mut_set_dirty().set_parallax_y(value)
+        let result = self.texture_settings_mut().set_parallax_y(value);
+        self.set_texture_updated(result)
     }
 
     #[inline]
@@ -1836,8 +1865,11 @@ impl ConvexPolygon
     ) -> Option<f32>
     {
         let center = self.center;
-        self.texture_settings_mut_set_dirty()
-            .set_angle(drawing_resources, value, center)
+        let result = self
+            .texture_settings_mut()
+            .set_angle(drawing_resources, value, center);
+
+        self.set_texture_updated(result)
     }
 
     #[allow(clippy::cast_possible_truncation)]
@@ -1846,7 +1878,8 @@ impl ConvexPolygon
     #[must_use]
     pub(in crate::map::brush) fn set_texture_height(&mut self, value: i8) -> Option<i8>
     {
-        self.texture_settings_mut_set_dirty().set_height(value)
+        let result = self.texture_settings_mut().set_height(value);
+        self.set_texture_updated(result)
     }
 
     #[inline]
@@ -1870,8 +1903,11 @@ impl ConvexPolygon
     ) -> Option<(Sprite, f32, f32)>
     {
         let center = self.center;
-        self.texture_settings_mut_set_dirty()
-            .set_sprite(drawing_resources, value, center)
+        let result = self
+            .texture_settings_mut()
+            .set_sprite(drawing_resources, value, center);
+
+        self.set_texture_updated(result)
     }
 
     #[inline]
@@ -1885,8 +1921,9 @@ impl ConvexPolygon
         target.texture.clone_from(&self.texture);
         let center = target.center;
         let delta = self.center - center;
+        target.texture_updated = true;
         target
-            .texture_settings_mut_set_dirty()
+            .texture_settings_mut()
             .move_offset(drawing_resources, delta, center);
     }
 
@@ -1916,7 +1953,8 @@ impl ConvexPolygon
     ) -> Animation
     {
         let center = self.center;
-        self.texture_settings_mut_set_dirty()
+        self.texture_updated = true;
+        self.texture_settings_mut()
             .set_animation(drawing_resources, animation, center)
     }
 
@@ -1928,7 +1966,8 @@ impl ConvexPolygon
     ) -> Animation
     {
         let center = self.center;
-        self.texture_settings_mut_set_dirty()
+        self.texture_updated = true;
+        self.texture_settings_mut()
             .set_list_animation(drawing_resources, texture, center)
     }
 
@@ -1939,7 +1978,8 @@ impl ConvexPolygon
     ) -> Animation
     {
         let center = self.center;
-        self.texture_settings_mut_set_dirty()
+        self.texture_updated = true;
+        self.texture_settings_mut()
             .generate_list_animation(drawing_resources, center)
     }
 
@@ -1968,11 +2008,13 @@ impl ConvexPolygon
     ) -> Option<u32>
     {
         let center = self.center;
-        self.texture_settings_mut_set_dirty().set_atlas_animation_x_partition(
+        let result = self.texture_settings_mut().set_atlas_animation_x_partition(
             drawing_resources,
             value,
             center
-        )
+        );
+
+        self.set_texture_updated(result)
     }
 
     #[inline]
@@ -2000,11 +2042,13 @@ impl ConvexPolygon
     ) -> Option<u32>
     {
         let center = self.center;
-        self.texture_settings_mut_set_dirty().set_atlas_animation_y_partition(
+        let result = self.texture_settings_mut().set_atlas_animation_y_partition(
             drawing_resources,
             value,
             center
-        )
+        );
+
+        self.set_texture_updated(result)
     }
 
     #[inline]
@@ -2018,28 +2062,29 @@ impl ConvexPolygon
     #[must_use]
     pub(in crate::map::brush) fn set_atlas_animation_len(&mut self, value: usize) -> Option<usize>
     {
-        self.texture_settings_mut_set_dirty().set_atlas_animation_len(value)
+        let result = self.texture_settings_mut().set_atlas_animation_len(value);
+        self.set_texture_updated(result)
     }
 
     #[inline]
     pub(in crate::map::brush) fn set_atlas_animation_timing(&mut self, timing: Timing) -> Timing
     {
-        self.texture_settings_mut_set_dirty()
-            .set_atlas_animation_timing(timing)
+        self.texture_updated = true;
+        self.texture_settings_mut().set_atlas_animation_timing(timing)
     }
 
     #[inline]
     pub(in crate::map::brush) fn set_atlas_animation_uniform_timing(&mut self) -> Option<Timing>
     {
-        self.texture_settings_mut_set_dirty()
-            .set_atlas_animation_uniform_timing()
+        let result = self.texture_settings_mut().set_atlas_animation_uniform_timing();
+        self.set_texture_updated(result)
     }
 
     #[inline]
     pub(in crate::map::brush) fn set_atlas_animation_per_frame_timing(&mut self) -> Option<Timing>
     {
-        self.texture_settings_mut_set_dirty()
-            .set_atlas_animation_per_frame_timing()
+        let result = self.texture_settings_mut().set_atlas_animation_per_frame_timing();
+        self.set_texture_updated(result)
     }
 
     #[inline]
@@ -2049,8 +2094,8 @@ impl ConvexPolygon
         value: f32
     ) -> Option<f32>
     {
-        self.texture_settings_mut_set_dirty()
-            .set_atlas_animation_uniform_time(value)
+        let result = self.texture_settings_mut().set_atlas_animation_uniform_time(value);
+        self.set_texture_updated(result)
     }
 
     #[inline]
@@ -2061,22 +2106,25 @@ impl ConvexPolygon
         value: f32
     ) -> Option<f32>
     {
-        self.texture_settings_mut_set_dirty()
-            .set_atlas_animation_frame_time(index, value)
+        let result = self
+            .texture_settings_mut()
+            .set_atlas_animation_frame_time(index, value);
+        self.set_texture_updated(result)
     }
 
     #[inline]
     pub(in crate::map::brush) fn move_down_atlas_animation_frame_time(&mut self, index: usize)
     {
-        self.texture_settings_mut_set_dirty()
+        self.texture_updated = true;
+        self.texture_settings_mut()
             .move_down_atlas_animation_frame_time(index);
     }
 
     #[inline]
     pub(in crate::map::brush) fn move_up_atlas_animation_frame_time(&mut self, index: usize)
     {
-        self.texture_settings_mut_set_dirty()
-            .move_up_atlas_animation_frame_time(index);
+        self.texture_updated = true;
+        self.texture_settings_mut().move_up_atlas_animation_frame_time(index);
     }
 
     #[inline]
@@ -2087,8 +2135,8 @@ impl ConvexPolygon
         texture: &str
     ) -> Option<String>
     {
-        self.texture_settings_mut_set_dirty()
-            .set_list_animation_texture(index, texture)
+        let result = self.texture_settings_mut().set_list_animation_texture(index, texture);
+        self.set_texture_updated(result)
     }
 
     #[inline]
@@ -2106,22 +2154,22 @@ impl ConvexPolygon
         time: f32
     ) -> Option<f32>
     {
-        self.texture_settings_mut_set_dirty()
-            .set_list_animation_time(index, time)
+        let result = self.texture_settings_mut().set_list_animation_time(index, time);
+        self.set_texture_updated(result)
     }
 
     #[inline]
     pub(in crate::map::brush) fn move_up_list_animation_frame(&mut self, index: usize)
     {
-        self.texture_settings_mut_set_dirty()
-            .move_up_list_animation_frame(index);
+        self.texture_updated = true;
+        self.texture_settings_mut().move_up_list_animation_frame(index);
     }
 
     #[inline]
     pub(in crate::map::brush) fn move_down_list_animation_frame(&mut self, index: usize)
     {
-        self.texture_settings_mut_set_dirty()
-            .move_down_list_animation_frame(index);
+        self.texture_updated = true;
+        self.texture_settings_mut().move_down_list_animation_frame(index);
     }
 
     #[inline]
@@ -2132,28 +2180,30 @@ impl ConvexPolygon
         time: f32
     )
     {
-        self.texture_settings_mut_set_dirty()
+        self.texture_updated = true;
+        self.texture_settings_mut()
             .insert_list_animation_frame(index, texture, time);
     }
 
     #[inline]
     pub(in crate::map::brush) fn pop_list_animation_frame(&mut self)
     {
-        self.texture_settings_mut_set_dirty().pop_list_animation_frame();
+        self.texture_updated = true;
+        self.texture_settings_mut().pop_list_animation_frame();
     }
 
     #[inline]
     pub(in crate::map::brush) fn remove_list_animation_frame(&mut self, index: usize)
     {
-        self.texture_settings_mut_set_dirty()
-            .remove_list_animation_frame(index);
+        self.texture_updated = true;
+        self.texture_settings_mut().remove_list_animation_frame(index);
     }
 
     #[inline]
     pub(in crate::map::brush) fn push_list_animation_frame(&mut self, texture: &str)
     {
-        self.texture_settings_mut_set_dirty()
-            .push_list_animation_frame(texture);
+        self.texture_updated = true;
+        self.texture_settings_mut().push_list_animation_frame(texture);
     }
 
     //==============================================================
@@ -2462,6 +2512,11 @@ impl ConvexPolygon
         range: &Hull
     ) -> Option<HvVec<u8>>
     {
+        if !range.intersects(&self.hull)
+        {
+            return self.deselect_vertexes();
+        }
+
         let idxs = select_vectors_in_range!(VertexesSelectionIterMut(&mut self.vertexes), range);
 
         if let Some(idxs) = &idxs
@@ -2479,6 +2534,11 @@ impl ConvexPolygon
         range: &Hull
     ) -> Option<HvVec<u8>>
     {
+        if !range.intersects(&self.hull)
+        {
+            return self.deselect_vertexes();
+        }
+
         self.selected_vertexes = 0;
 
         let idxs = hv_vec![collect; self.vertexes
@@ -3240,6 +3300,11 @@ impl ConvexPolygon
     pub(in crate::map::brush) fn select_sides_in_range(&mut self, range: &Hull)
         -> Option<HvVec<u8>>
     {
+        if !self.hull.intersects(range)
+        {
+            return self.deselect_vertexes();
+        }
+
         let mut idxs = hv_vec![];
 
         for ([j, _], [vx_j, vx_i]) in self.vertexes.pair_iter_mut().unwrap().enumerate()
@@ -3269,6 +3334,11 @@ impl ConvexPolygon
         range: &Hull
     ) -> Option<HvVec<u8>>
     {
+        if !self.hull.intersects(range)
+        {
+            return self.deselect_vertexes();
+        }
+
         let mut idxs = hv_vec![];
 
         for ([j, _], [vx_j, vx_i]) in self.vertexes.pair_iter_mut().unwrap().enumerate()
@@ -3614,7 +3684,7 @@ impl ConvexPolygon
         &self,
         drawing_resources: &DrawingResources,
         grid_size: f32
-    ) -> Option<impl Iterator<Item = Self>>
+    ) -> Option<impl ExactSizeIterator<Item = Self>>
     {
         let mut walls = hv_vec![capacity; self.sides()];
         let mut leftover = self.clone();
@@ -3659,7 +3729,7 @@ impl ConvexPolygon
         drawing_resources: &DrawingResources,
         cursor_pos: Vec2,
         camera_scale: f32
-    ) -> Option<impl Iterator<Item = Self>>
+    ) -> Option<impl ExactSizeIterator<Item = Self>>
     {
         let (capacity, mut i, mut j, common_vx) = {
             if let Some(idx) = self.nearby_vertex(cursor_pos, camera_scale)
@@ -3728,7 +3798,7 @@ impl ConvexPolygon
 
         if self.texture.is_some() && self.texture == other.texture
         {
-            poly.texture = self.texture.clone();
+            poly.texture.clone_from(&self.texture);
         }
 
         poly.into()
@@ -4402,7 +4472,8 @@ impl ConvexPolygon
         if flip_texture
         {
             let center = self.center;
-            self.texture_settings_mut_set_dirty()
+            self.texture_updated = true;
+            self.texture_settings_mut()
                 .y_flip(drawing_resources, y, old_center, center);
         }
     }
@@ -4497,7 +4568,8 @@ impl ConvexPolygon
         if flip_texture
         {
             let center = self.center;
-            self.texture_settings_mut_set_dirty()
+            self.texture_updated = true;
+            self.texture_settings_mut()
                 .x_flip(drawing_resources, x, old_center, center);
         }
     }
@@ -4550,7 +4622,7 @@ impl ConvexPolygon
                 .as_ref()
                 .map(|texture| MovingTextureSettings { texture, delta })
                 .as_ref(),
-            self.collision
+            false
         );
 
         if self.has_sprite()

@@ -42,7 +42,7 @@ use crate::{
             clipboard::{PropCameras, PropCamerasMut},
             core::drag::Drag
         },
-        ordered_map::IndexedMap,
+        indexed_map::IndexedMap,
         thing::{catalog::ThingsCatalog, ThingInterface},
         AssertedInsertRemove
     },
@@ -135,7 +135,7 @@ impl TextureMaterials
     }
 
     #[inline]
-    fn placeholder() -> Self
+    unsafe fn placeholder() -> Self
     {
         Self {
             texture:                  Texture::placeholder(),
@@ -300,7 +300,11 @@ impl DrawingResources
 
         square_mesh.insert_indices(Indices::U16(idxs));
 
-        let props_vertex_highlight_mesh = hv_hash_map![collect; prop_cameras.iter().map(|(id, ..)| (id, meshes.add(square_mesh.clone()).into()))];
+        let props_vertex_highlight_mesh = hv_hash_map![collect;
+            prop_cameras
+                .iter()
+                .map(|(id, ..)| (id, meshes.add(square_mesh.clone()).into()))
+        ];
         let err_tex = Texture::from_parts(
             ERROR_TEXTURE_NAME,
             UVec2::splat(64),
@@ -330,7 +334,7 @@ impl DrawingResources
     }
 
     #[inline]
-    pub fn placeholder() -> Self
+    pub unsafe fn placeholder() -> Self
     {
         Self {
             brush_meshes: Meshes::default(),
@@ -359,11 +363,13 @@ impl DrawingResources
             .into_iter()
             .chain(TooltipLabelGenerator::iter().copied())
         {
-            egui::Area::new(label).order(egui::Order::Background).show(ctx, |ui| {
-                egui::Frame::none().fill(egui::Color32::TRANSPARENT).show(ui, |ui| {
-                    ui.label(egui::RichText::default().color(egui::Color32::TRANSPARENT));
+            egui::Area::new(label.into())
+                .order(egui::Order::Background)
+                .show(ctx, |ui| {
+                    egui::Frame::none().fill(egui::Color32::TRANSPARENT).show(ui, |ui| {
+                        ui.label(egui::RichText::default().color(egui::Color32::TRANSPARENT));
+                    });
                 });
-            });
         }
     }
 

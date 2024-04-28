@@ -10,17 +10,18 @@ use crate::{
     map::{
         brush::{
             convex_polygon::{ConvexPolygon, TextureSetResult, VertexesMove},
-            mover::Mover,
-            Brush
+            Brush,
+            BrushData
         },
         drawer::{
             animation::{Animation, MoveUpDown, Timing},
             drawing_resources::{DrawingResources, TextureMut},
             texture::{Sprite, TextureInterface, TextureSettings}
         },
-        editor::state::{core::UndoRedoInterface, manager::BrushMut, ui::Ui},
+        editor::state::{core::UndoRedoInterface, ui::Ui},
         path::{MovementValueEdit, NodesMove, StandbyValueEdit},
-        thing::ThingId,
+        properties::Value,
+        thing::{ThingId, ThingInstanceData},
         HvVec
     },
     utils::{hull::Flip, identifiers::Id},
@@ -96,13 +97,13 @@ impl BrushType
 pub(in crate::map::editor::state::edits_history) enum EditType
 {
     /// Drawn [`Brush`].
-    BrushDraw(Option<ConvexPolygon>),
+    BrushDraw(Option<BrushData>),
     /// Drawn [`Brush`] despawned.
-    DrawnBrushDespawn(Option<ConvexPolygon>),
+    DrawnBrushDespawn(Option<BrushData>),
     /// Brush spawned.
-    BrushSpawn(Option<ConvexPolygon>, Mover, bool),
+    BrushSpawn(Option<BrushData>, bool),
     /// Brush despawned
-    BrushDespawn(Option<ConvexPolygon>, Mover, bool),
+    BrushDespawn(Option<BrushData>, bool),
     /// Entity selected.
     EntitySelection,
     /// Entity deselected.
@@ -162,13 +163,13 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     /// Brush disachored.
     Disanchor(Id),
     /// Thing drawn on map.
-    ThingDraw(ThingId, Vec2),
+    ThingDraw(Option<ThingInstanceData>),
     /// Drawn thing despawned.
-    DrawnThingDespawn(ThingId, Vec2),
+    DrawnThingDespawn(Option<ThingInstanceData>),
     /// Thing spawned.
-    ThingSpawn(ThingId, Vec2),
+    ThingSpawn(Option<ThingInstanceData>),
     /// Thing despawned.
-    ThingDespawn(ThingId, Vec2),
+    ThingDespawn(Option<ThingInstanceData>),
     /// Thing moved.
     ThingMove(Vec2),
     /// Thing changed to new ID.
@@ -265,7 +266,8 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     /// Default atlas animation frame time change.
     TAtlasAnimationFrameTime(String, usize, f32),
     /// Brush collision change.
-    Collision(bool)
+    Collision(bool),
+    Property(Value)
 }
 
 impl EditType
@@ -482,8 +484,15 @@ impl EditType
     /// Actions common to both the undo and redo procedures that apply to a single [`Brush`].
     #[inline]
     #[must_use]
-    fn brush_common(&mut self, drawing_resources: &DrawingResources, brush: &mut BrushMut) -> bool
+    fn brush_common(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        interface: &mut UndoRedoInterface,
+        identifier: Id
+    ) -> bool
     {
+        let mut brush = interface.brush_mut(identifier);
+
         macro_rules! arms {
             ($((
                 $arm:ident,
@@ -514,7 +523,7 @@ impl EditType
                         for (value, get, set) in fns
                         {
                             let value = std::mem::replace(value, get(brush.texture_settings().unwrap()));
-                            set(brush, drawing_resources, value);
+                            set(&mut brush, drawing_resources, value);
                         }
                     },
                     Self::Animation(value) =>
@@ -532,6 +541,8 @@ impl EditType
                     Self::Collision(value) =>
                     {
                         *value = brush.set_collision(*value).unwrap();
+                        drop(brush);
+                        interface.toggle_overall_collision_update();
                     },
                     _ => return false
                 }
@@ -569,10 +580,12 @@ impl EditType
             Self::ThingHeight(height) =>
             {
                 *height = interface.thing_mut(identifier).set_draw_height(*height).unwrap();
+                interface.toggle_overall_things_info_update();
             },
             Self::ThingAngle(angle) =>
             {
                 *angle = interface.thing_mut(identifier).set_angle(*angle).unwrap();
+                interface.toggle_overall_things_info_update();
             },
             _ => return false
         };
@@ -663,6 +676,24 @@ impl EditType
         true
     }
 
+    #[inline]
+    #[must_use]
+    fn property(
+        &mut self,
+        interface: &mut UndoRedoInterface,
+        identifier: Id,
+        key: Option<&String>
+    ) -> bool
+    {
+        if let Self::Property(value) = self
+        {
+            *value = interface.set_property(identifier, key.unwrap(), value);
+            return true;
+        }
+
+        false
+    }
+
     //==============================================================
     // Undo
 
@@ -673,7 +704,8 @@ impl EditType
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
         ui: &mut Ui,
-        identifiers: &HvVec<Id>
+        identifiers: &HvVec<Id>,
+        property: Option<&String>
     )
     {
         macro_rules! single {
@@ -715,6 +747,11 @@ impl EditType
             return;
         }
 
+        if self.property(interface, single!(), property)
+        {
+            return;
+        }
+
         if self.brushes_common(interface, drawing_resources, identifiers)
         {
             return;
@@ -722,38 +759,33 @@ impl EditType
 
         match_and_return!(
             self,
-            Self::BrushDraw(cp) =>
+            Self::BrushDraw(data) =>
             {
-                let (poly, _) = interface.despawn_brush(single!(), BrushType::Drawn);
-                *cp = poly.into();
+                *data = interface.despawn_brush(single!(), BrushType::Drawn).into();
             },
-            Self::BrushSpawn(cp, mover, selected) =>
+            Self::BrushSpawn(data, selected) =>
             {
-                let (poly, m) =
-                    interface.despawn_brush(single!(), BrushType::from_selection(*selected));
-                *cp = poly.into();
-                *mover = m;
+                *data = interface.despawn_brush(single!(), BrushType::from_selection(*selected)).into();
             },
-            Self::DrawnBrushDespawn(cp) =>
+            Self::DrawnBrushDespawn(data) =>
             {
                 interface.spawn_brush(
                     single!(),
-                    std::mem::take(cp).unwrap(),
-                    Mover::None,
+                    std::mem::take(data).unwrap(),
                     BrushType::Drawn
                 );
             },
-            Self::BrushDespawn(cp, mover, selected) =>
+            Self::BrushDespawn(data, selected) =>
             {
                 interface.spawn_brush(
                     single!(),
-                    std::mem::take(cp).unwrap(),
-                    std::mem::take(mover),
+                    std::mem::take(data).unwrap(),
                     BrushType::from_selection(*selected)
                 );
             },
             Self::PathDeletion(path) =>
             {
+                interface.toggle_overall_node_update();
                 interface.set_path(single!(), std::mem::take(path).unwrap());
             },
             Self::EntitySelection =>
@@ -820,6 +852,8 @@ impl EditType
             Self::Disanchor(anchor) => interface.insert_anchor(single!(), *anchor),
             Self::PathNodesSelection(idxs) =>
             {
+                interface.toggle_overall_node_update();
+
                 let mut moving = moving_mut!();
 
                 for idx in idxs
@@ -842,6 +876,7 @@ impl EditType
             },
             Self::PathNodesDeletion(nodes) =>
             {
+                interface.toggle_overall_node_update();
                 moving_mut!().insert_path_nodes_at_indexes(nodes);
             },
             Self::PathNodesSnap(snap) =>
@@ -860,28 +895,33 @@ impl EditType
             },
             Self::PathNodeStandby(edit) =>
             {
+                interface.toggle_overall_node_update();
                 moving_mut!().undo_path_nodes_standby_time_edit(edit);
             },
             Self::PathNodeMaxSpeed(edit) =>
             {
+                interface.toggle_overall_node_update();
                 moving_mut!().undo_path_nodes_max_speed_edit(edit);
             },
             Self::PathNodeMinSpeed(edit) =>
             {
+                interface.toggle_overall_node_update();
                 moving_mut!().undo_path_nodes_min_speed_edit(edit);
             },
             Self::PathNodeAccel(edit) =>
             {
+                interface.toggle_overall_node_update();
                 moving_mut!().undo_path_nodes_accel_travel_percentage_edit(edit);
             },
             Self::PathNodeDecel(edit) =>
             {
+                interface.toggle_overall_node_update();
                 moving_mut!().undo_path_nodes_decel_travel_percentage_edit(edit);
             },
-            Self::ThingDraw(..) => interface.despawn_thing(single!(), true),
-            Self::DrawnThingDespawn(thing, pos) => interface.spawn_thing(single!(), *thing, *pos, true),
-            Self::ThingSpawn(..) => interface.despawn_thing(single!(), false),
-            Self::ThingDespawn(thing, pos) => interface.spawn_thing(single!(), *thing, *pos, false),
+            Self::ThingDraw(thing) => *thing = interface.despawn_thing(single!(), true).into(),
+            Self::DrawnThingDespawn(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), true),
+            Self::ThingSpawn(thing) => *thing = interface.despawn_thing(single!(), false).into(),
+            Self::ThingDespawn(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), false),
             Self::ThingMove(d) =>
             {
                 for id in identifiers
@@ -967,17 +1007,14 @@ impl EditType
             }
         );
 
-        if self.thing_common(interface, single!())
+        let id = single!();
+
+        if self.thing_common(interface, id) || self.brush_common(drawing_resources, interface, id)
         {
             return;
         }
 
-        let mut brush = interface.brush_mut(single!());
-
-        if self.brush_common(drawing_resources, &mut brush)
-        {
-            return;
-        }
+        let mut brush = interface.brush_mut(id);
 
         match self
         {
@@ -1026,7 +1063,8 @@ impl EditType
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
         ui: &mut Ui,
-        identifiers: &HvVec<Id>
+        identifiers: &HvVec<Id>,
+        property: Option<&String>
     )
     {
         macro_rules! single {
@@ -1068,6 +1106,11 @@ impl EditType
             return;
         }
 
+        if self.property(interface, single!(), property)
+        {
+            return;
+        }
+
         if self.brushes_common(interface, drawing_resources, identifiers)
         {
             return;
@@ -1075,35 +1118,29 @@ impl EditType
 
         match_and_return!(
             self,
-            Self::BrushDraw(cp) =>
+            Self::BrushDraw(data) =>
             {
                 interface.spawn_brush(
                     single!(),
-                    std::mem::take(cp).unwrap(),
-                    Mover::None,
+                    std::mem::take(data).unwrap(),
                     BrushType::Drawn
                 );
             },
-            Self::BrushSpawn(cp, mover, selected) =>
+            Self::BrushSpawn(data, selected) =>
             {
                 interface.spawn_brush(
                     single!(),
-                    std::mem::take(cp).unwrap(),
-                    std::mem::take(mover),
+                    std::mem::take(data).unwrap(),
                     BrushType::from_selection(*selected)
                 );
             },
-            Self::DrawnBrushDespawn(cp) =>
+            Self::DrawnBrushDespawn(data) =>
             {
-                let (poly, _) = interface.despawn_brush(single!(), BrushType::Drawn);
-                *cp = poly.into();
+                *data = interface.despawn_brush(single!(), BrushType::Drawn).into();
             },
-            Self::BrushDespawn(cp, mover, selected) =>
+            Self::BrushDespawn(data, selected) =>
             {
-                let (poly, m) =
-                    interface.despawn_brush(single!(), BrushType::from_selection(*selected));
-                *cp = poly.into();
-                *mover = m;
+                *data = interface.despawn_brush(single!(), BrushType::from_selection(*selected)).into();
             },
             Self::EntitySelection =>
             {
@@ -1165,11 +1202,17 @@ impl EditType
                 }
             },
             Self::PathCreation(path) => interface.set_path(single!(), std::mem::take(path).unwrap()),
-            Self::PathDeletion(path) => *path = interface.remove_path(single!()).into(),
+            Self::PathDeletion(path) =>
+            {
+                interface.toggle_overall_node_update();
+                *path = interface.remove_path(single!()).into();
+            },
             Self::Anchor(anchor) => interface.insert_anchor(single!(), *anchor),
             Self::Disanchor(anchor) => interface.remove_anchor(single!(), *anchor),
             Self::PathNodesSelection(idxs) =>
             {
+                interface.toggle_overall_node_update();
+
                 let mut moving = moving_mut!();
 
                 for idx in idxs
@@ -1192,6 +1235,7 @@ impl EditType
             },
             Self::PathNodesDeletion(_) =>
             {
+                interface.toggle_overall_node_update();
                 moving_mut!().redo_selected_path_nodes_deletion();
             },
             Self::PathNodesSnap(snap) =>
@@ -1200,28 +1244,33 @@ impl EditType
             },
             Self::PathNodeStandby(edit) =>
             {
+                interface.toggle_overall_node_update();
                 moving_mut!().redo_path_nodes_standby_time_edit(edit);
             },
             Self::PathNodeMaxSpeed(edit) =>
             {
+                interface.toggle_overall_node_update();
                 moving_mut!().redo_path_nodes_max_speed_edit(edit);
             },
             Self::PathNodeMinSpeed(edit) =>
             {
+                interface.toggle_overall_node_update();
                 moving_mut!().redo_path_nodes_min_speed_edit(edit);
             },
             Self::PathNodeAccel(edit) =>
             {
+                interface.toggle_overall_node_update();
                 moving_mut!().redo_path_nodes_accel_travel_percentage_edit(edit);
             },
             Self::PathNodeDecel(edit) =>
             {
+                interface.toggle_overall_node_update();
                 moving_mut!().redo_path_nodes_decel_travel_percentage_edit(edit);
             },
-            Self::ThingDraw(thing, pos) => interface.spawn_thing(single!(), *thing, *pos, true),
-            Self::DrawnThingDespawn(..) => interface.despawn_thing(single!(), true),
-            Self::ThingSpawn(thing, pos) => interface.spawn_thing(single!(), *thing, *pos, false),
-            Self::ThingDespawn(..) => interface.despawn_thing(single!(), false),
+            Self::ThingDraw(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), true),
+            Self::DrawnThingDespawn(thing) => *thing = interface.despawn_thing(single!(), true).into(),
+            Self::ThingSpawn(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), false),
+            Self::ThingDespawn(thing) => *thing = interface.despawn_thing(single!(), false).into(),
             Self::ThingMove(d) =>
             {
                 for id in identifiers
@@ -1293,17 +1342,14 @@ impl EditType
             }
         );
 
-        if self.thing_common(interface, single!())
+        let id = single!();
+
+        if self.thing_common(interface, id) || self.brush_common(drawing_resources, interface, id)
         {
             return;
         }
 
-        let mut brush = interface.brush_mut(identifiers[0]);
-
-        if self.brush_common(drawing_resources, &mut brush)
-        {
-            return;
-        }
+        let mut brush = interface.brush_mut(id);
 
         match self
         {

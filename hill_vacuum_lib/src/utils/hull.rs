@@ -171,6 +171,7 @@ pub enum Side
 
 //=======================================================================//
 
+/// The way a [`Hull`] should be flipped.
 #[derive(Clone, Copy, Debug)]
 pub enum Flip
 {
@@ -292,7 +293,6 @@ impl SubAssign<Vec2> for Hull
 
 impl AroundEqual for Hull
 {
-    /// Whever the [`Hull`] is around equal to `other`.
     #[inline]
     #[must_use]
     fn around_equal(&self, other: &Self) -> bool
@@ -303,7 +303,6 @@ impl AroundEqual for Hull
             self.right.around_equal(&other.right)
     }
 
-    /// Whever the [`Hull`] is around equal to `other` by a very narrow epsilon.
     #[inline]
     #[must_use]
     fn around_equal_narrow(&self, other: &Self) -> bool
@@ -1006,10 +1005,12 @@ impl CircleIterator
         }
     }
 
+    /// Returns the first point.
     #[inline]
     #[must_use]
     pub fn starting_point(&self) -> Vec2 { self.starting_point + self.center }
 
+    /// Reverts the iteration to the previous element.
     #[inline]
     pub fn regress(&mut self) { self.left -= 1; }
 

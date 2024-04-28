@@ -249,7 +249,11 @@ impl SubtractTool
                 SubtractResult::Despawn => (),
                 SubtractResult::Some(subtract_polygons) =>
                 {
-                    manager.spawn_brushes(subtract_polygons.into_iter(), edits_history);
+                    manager.spawn_brushes(
+                        subtract_polygons.into_iter(),
+                        edits_history,
+                        brush.properties()
+                    );
                 }
             };
 

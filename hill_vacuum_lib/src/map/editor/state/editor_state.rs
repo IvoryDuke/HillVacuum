@@ -32,6 +32,7 @@ use crate::{
         controls::{bind::Bind, BindsKeyCodes},
         OpenFile
     },
+    error_message,
     map::{
         drawer::{
             color::Color,
@@ -41,15 +42,16 @@ use crate::{
         editor::{
             state::{
                 core::{tool::ToolInterface, Core},
-                error_message,
                 input_press::InputState,
                 ui::{Command, Ui}
             },
+            AllDefaultProperties,
             DrawBundle,
             DrawBundleMapPreview,
             StateUpdateBundle,
             ToolUpdateBundle
         },
+        properties::DefaultProperties,
         thing::{catalog::ThingsCatalog, Thing},
         MapHeader
     },
@@ -668,11 +670,17 @@ impl State
         user_textures: &mut EguiUserTextures,
         drawing_resources: &mut DrawingResources,
         things_catalog: &ThingsCatalog,
+        default_properties: &mut AllDefaultProperties,
         file: Option<File>
     ) -> Self
     {
         #[inline]
-        fn default(asset_server: &AssetServer, user_textures: &mut EguiUserTextures) -> State
+        fn default(
+            asset_server: &AssetServer,
+            user_textures: &mut EguiUserTextures,
+            brushes_default_properties: &DefaultProperties,
+            things_default_properties: &DefaultProperties
+        ) -> State
         {
             State {
                 core: Core::default(),
@@ -681,7 +689,12 @@ impl State
                 edits_history: EditsHistory::default(),
                 inputs: InputsPresses::default(),
                 grid: Grid::default(),
-                ui: Ui::new(asset_server, user_textures),
+                ui: Ui::new(
+                    asset_server,
+                    user_textures,
+                    brushes_default_properties,
+                    things_default_properties
+                ),
                 tools_settings: ToolsSettings::default(),
                 show_tooltips: true,
                 cursor_snap: true,
@@ -693,7 +706,15 @@ impl State
             }
         }
 
-        let file = return_if_none!(file, default(asset_server, user_textures));
+        let file = return_if_none!(
+            file,
+            default(
+                asset_server,
+                user_textures,
+                default_properties.brushes,
+                default_properties.things
+            )
+        );
 
         match Self::manager_clipboard(
             images,
@@ -701,7 +722,8 @@ impl State
             user_textures,
             file,
             drawing_resources,
-            things_catalog
+            things_catalog,
+            default_properties
         )
         {
             Ok((manager, clipboard)) =>
@@ -713,7 +735,12 @@ impl State
                     edits_history: EditsHistory::default(),
                     inputs: InputsPresses::default(),
                     grid: Grid::default(),
-                    ui: Ui::new(asset_server, user_textures),
+                    ui: Ui::new(
+                        asset_server,
+                        user_textures,
+                        default_properties.map_brushes,
+                        default_properties.map_things
+                    ),
                     tools_settings: ToolsSettings::default(),
                     show_tooltips: true,
                     cursor_snap: true,
@@ -732,13 +759,18 @@ impl State
             Err(err) =>
             {
                 error_message(err);
-                default(asset_server, user_textures)
+                default(
+                    asset_server,
+                    user_textures,
+                    default_properties.brushes,
+                    default_properties.things
+                )
             }
         }
     }
 
     #[inline]
-    pub fn placeholder() -> Self
+    pub unsafe fn placeholder() -> Self
     {
         Self {
             core: Core::default(),
@@ -1017,7 +1049,8 @@ impl State
     {
         self.edits_history.no_unsaved_edits() &&
             !self.clipboard.props_changed() &&
-            !drawing_resources.default_animations_changed()
+            !drawing_resources.default_animations_changed() &&
+            !self.manager.refactored_properties()
     }
 
     /// Saves the map being edited. If the file has not being created yet user is asked to specify
@@ -1098,9 +1131,10 @@ impl State
             return Ok(());
         }
 
-        let mut data = Vec::<u8>::new();
+        let mut data = Vec::new();
         let mut writer = BufWriter::new(&mut data);
 
+        // Header.
         test!(
             ciborium::ser::into_writer(
                 &MapHeader {
@@ -1114,25 +1148,33 @@ impl State
             "Error saving file header"
         );
 
-        if let err @ Err(_) = bundle.drawing_resources.export_animations(&mut writer)
-        {
-            return err;
-        }
+        // Default properties.
+        test!(
+            ciborium::ser::into_writer(bundle.default_properties.map_brushes, &mut writer),
+            "Error saving brushes default properties"
+        );
+        test!(
+            ciborium::ser::into_writer(bundle.default_properties.map_things, &mut writer),
+            "Error saving brushes default properties"
+        );
 
+        // Animations
+        bundle.drawing_resources.export_animations(&mut writer)?;
+
+        // Brushes.
         for brush in self.manager.brushes().iter()
         {
             test!(ciborium::ser::into_writer(brush, &mut writer), "Error saving brushes");
         }
 
+        // Things.
         for thing in self.manager.things()
         {
             test!(ciborium::ser::into_writer(thing, &mut writer), "Error saving things");
         }
 
-        if let err @ Err(_) = self.clipboard.export_props(&mut writer)
-        {
-            return err;
-        }
+        // Props.
+        self.clipboard.export_props(&mut writer)?;
 
         drop(writer);
 
@@ -1172,6 +1214,7 @@ impl State
 
         self.edits_history.reset_last_save_edit();
         self.clipboard.reset_props_changed();
+        self.manager.reset_refactored_properties();
         bundle.drawing_resources.reset_default_animation_changed();
         bundle.update_window_title();
 
@@ -1190,7 +1233,8 @@ impl State
         user_textures: &mut EguiUserTextures,
         file: File,
         drawing_resources: &mut DrawingResources,
-        things_catalog: &ThingsCatalog
+        things_catalog: &ThingsCatalog,
+        default_properties: &mut AllDefaultProperties
     ) -> Result<(EntitiesManager, Clipboard), &'static str>
     {
         let mut file = BufReader::new(file);
@@ -1204,19 +1248,30 @@ impl State
         drawing_resources.import_animations(header.animations, &mut file)?;
         drawing_resources.reset_default_animation_changed();
 
-        let manager =
-            match EntitiesManager::from_file(&header, &mut file, things_catalog, drawing_resources)
-            {
-                Ok(value) => value,
-                Err(err) => return Err(err)
-            };
+        let manager = match EntitiesManager::from_file(
+            &header,
+            &mut file,
+            drawing_resources,
+            things_catalog,
+            default_properties
+        )
+        {
+            Ok(value) => value,
+            Err(err) => return Err(err)
+        };
 
-        let mut clipboard =
-            match Clipboard::from_file(images, prop_cameras, user_textures, &header, &mut file)
-            {
-                Ok(clip) => clip,
-                Err(err) => return Err(err)
-            };
+        let mut clipboard = match Clipboard::from_file(
+            images,
+            prop_cameras,
+            user_textures,
+            things_catalog,
+            &header,
+            &mut file
+        )
+        {
+            Ok(clip) => clip,
+            Err(err) => return Err(err)
+        };
         clipboard.reset_props_changed();
 
         Ok((manager, clipboard))
@@ -1255,7 +1310,8 @@ impl State
             bundle.user_textures,
             File::open(bundle.config.open_file.path().unwrap()).unwrap(),
             bundle.drawing_resources,
-            bundle.things_catalog
+            bundle.things_catalog,
+            bundle.default_properties
         )
         {
             Ok((manager, clipboard)) =>
@@ -1394,7 +1450,6 @@ impl State
 
         _ = self.manager.duplicate_selected_entities(
             bundle.drawing_resources,
-            bundle.things_catalog,
             &mut self.edits_history,
             delta
         );
@@ -1632,6 +1687,7 @@ impl State
                     bundle.images,
                     bundle.prop_cameras,
                     bundle.user_textures,
+                    bundle.things_catalog,
                     props_amount,
                     &mut file
                 )
@@ -1656,7 +1712,7 @@ impl State
             Command::ToggleMapPreview => self.toggle_map_preview(bundle.drawing_resources),
             Command::ToggleCollision => self.toggle_collision(),
             Command::ReloadTextures => self.start_texture_reload(bundle.next_tex_load),
-            Command::ReloadThings => self.reload_things(bundle.things_catalog),
+            Command::ReloadThings => self.reload_things(bundle),
             Command::QuickZoom =>
             {
                 if let Some(hull) = self.manager.selected_brushes_hull()
@@ -1896,7 +1952,7 @@ impl State
 
     /// Reloads the things.
     #[inline]
-    fn reload_things(&mut self, things_catalog: &mut ThingsCatalog)
+    fn reload_things(&mut self, bundle: &mut StateUpdateBundle)
     {
         if let rfd::MessageDialogResult::No = rfd::MessageDialog::new()
             .set_buttons(rfd::MessageButtons::YesNo)
@@ -1910,9 +1966,10 @@ impl State
             return;
         }
 
-        things_catalog.reload_things();
+        bundle.things_catalog.reload_things();
         self.edits_history.purge_thing_edits();
-        self.manager.finish_things_reload(things_catalog);
+        self.clipboard.reload_things(bundle);
+        self.manager.finish_things_reload(bundle.things_catalog);
     }
 
     /// Starts the application shutdown procedure.
@@ -1996,11 +2053,19 @@ impl State
 
     /// Concludes the texture reload.
     #[inline]
-    pub fn finish_textures_reload(&mut self, drawing_resources: &DrawingResources)
+    pub fn finish_textures_reload(
+        &mut self,
+        prop_cameras: &mut PropCamerasMut,
+        images: &mut Assets<Image>,
+        user_textures: &mut EguiUserTextures,
+        drawing_resources: &DrawingResources
+    )
     {
         assert!(std::mem::take(&mut self.reloading_textures), "No ongoing texture reload.");
 
         self.edits_history.purge_texture_edits();
+        self.clipboard
+            .reload_textures(images, user_textures, prop_cameras, drawing_resources);
         self.manager.finish_textures_reload(drawing_resources);
         self.ui.update_overall_texture(drawing_resources, &self.manager);
     }
@@ -2012,7 +2077,7 @@ impl State
     #[inline]
     pub fn draw(&mut self, bundle: &mut DrawBundle)
     {
-        self.clipboard.draw_props_to_photograph(bundle, &self.manager);
+        self.clipboard.draw_props_to_photograph(bundle);
         self.grid.draw(bundle.window, &mut bundle.drawer, bundle.camera);
         self.core
             .draw_active_tool(bundle, &self.manager, &self.tools_settings, self.show_tooltips);

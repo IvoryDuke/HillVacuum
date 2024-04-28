@@ -10,6 +10,7 @@ use shared::{return_if_none, TEXTURE_HEIGHT_RANGE};
 
 use self::animation_editor::{AnimationEditor, Target};
 use super::{
+    checkbox::CheckBox,
     overall_value_field::{MinusPlusOverallValueField, OverallValueField},
     window::Window,
     WindowCloser,
@@ -263,15 +264,12 @@ macro_rules! angle_and_height {
 macro_rules! toggle {
     ($(($value:ident, $label:literal)),+) => { paste::paste! { $(
         #[inline]
-        #[must_use]
         fn [< toggle_ $value >](
             &mut self,
             strip: egui_extras::StripBuilder,
             settings: &mut ToolsSettings
-        ) -> bool
+        )
         {
-            let mut has_focus = false;
-
             strip
                 .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
                 .size(egui_extras::Size::remainder())
@@ -281,13 +279,11 @@ macro_rules! toggle {
                     });
 
                     strip.cell(|ui| {
-                        has_focus = ui.add(
+                        _ = ui.add(
                             egui::Checkbox::without_text(&mut settings.[< $value _enabled >])
-                        ).has_focus();
+                        );
                     });
                 });
-
-            has_focus
         }
     )+ }};
 }
@@ -426,7 +422,7 @@ impl Innards
                     has_focus |= self.set_scroll(strip, bundle, plus_minus_field_width);
                 });
                 strip.strip(|strip| {
-                    has_focus |= self.toggle_scroll(strip, bundle.settings);
+                    self.toggle_scroll(strip, bundle.settings);
                 });
 
                 strip.strip(|strip| {
@@ -438,11 +434,11 @@ impl Innards
                 });
 
                 strip.strip(|strip| {
-                    has_focus |= self.set_sprite(strip, bundle);
+                    self.set_sprite(strip, bundle);
                 });
 
                 strip.strip(|strip| {
-                    has_focus |= self.toggle_parallax(strip, bundle.settings);
+                    self.toggle_parallax(strip, bundle.settings);
                 });
 
                 strip.strip(|strip| {
@@ -717,10 +713,8 @@ impl Innards
     }
 
     #[inline]
-    fn set_sprite(&mut self, strip: egui_extras::StripBuilder, bundle: &mut Bundle) -> bool
+    fn set_sprite(&mut self, strip: egui_extras::StripBuilder, bundle: &mut Bundle)
     {
-        let mut has_focus = false;
-
         strip
             .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
             .size(egui_extras::Size::remainder())
@@ -729,7 +723,7 @@ impl Innards
                     ui.label("Sprite");
                 });
 
-                if bundle.manager.selected_brushes_amount() == 0 ||
+                if !bundle.manager.any_selected_brushes() ||
                     matches!(self.overall_texture.sprite, OverallValue::None)
                 {
                     strip.cell(|ui| {
@@ -739,32 +733,18 @@ impl Innards
                     return;
                 }
 
-                let checked = match self.overall_texture.sprite
-                {
-                    OverallValue::None => unreachable!(),
-                    OverallValue::NonUniform => false,
-                    OverallValue::Uniform(value) => value
-                };
-
-                let mut new_checked = checked;
-
                 strip.cell(|ui| {
-                    let r = ui.add(egui::Checkbox::without_text(&mut new_checked));
-                    has_focus = r.has_focus();
-                });
+                    let value =
+                        return_if_none!(CheckBox::show(ui, &self.overall_texture.sprite, |v| *v));
 
-                if new_checked != checked
-                {
                     bundle.manager.set_sprite(
                         bundle.drawing_resources,
                         bundle.edits_history,
-                        new_checked
+                        value
                     );
                     bundle.manager.schedule_outline_update();
-                }
+                });
             });
-
-        has_focus
     }
 }
 
@@ -814,7 +794,7 @@ impl WindowCloserInfo for TextureEditor
 
         self.window
             .layer_id()
-            .map(|id| WindowCloser::TextureEditor((id, close as fn(&mut Self))))
+            .map(|id| WindowCloser::TextureEditor(id, close as fn(&mut Self)))
     }
 }
 

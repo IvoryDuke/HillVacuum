@@ -22,8 +22,10 @@ use crate::{
                 manager::EntitiesManager
             },
             DrawBundle,
+            ToolUpdateBundle,
             MAP_HALF_SIZE
-        }
+        },
+        properties::DefaultProperties
     },
     utils::{
         hull::{CircleIterator, Hull, TriangleOrientation},
@@ -31,7 +33,7 @@ use crate::{
             points::{sort_vxs_ccw, vertexes_orientation, vxs_center, VertexesOrientation},
             AroundEqual
         },
-        misc::{next, PointInsideUiHighlight, ReplaceValues, TakeValue}
+        misc::{next, Camera, PointInsideUiHighlight, ReplaceValues, TakeValue}
     }
 };
 
@@ -58,17 +60,17 @@ macro_rules! shape_cursor_brush {
             #[inline]
             pub fn update(
                 &mut self,
+                bundle: &ToolUpdateBundle,
                 manager: &mut EntitiesManager,
                 drawn_brushes: &mut Ids,
                 inputs: &InputsPresses,
-                edits_history: &mut EditsHistory,
-                cursor: &Cursor
+                edits_history: &mut EditsHistory
                 $(, $settings: &mut ToolsSettings)?
             )
             {
-                self.state_update(inputs, cursor $(, $settings)?);
+                self.state_update(inputs, bundle.cursor $(, $settings)?);
                 $(let $orientation = self.$orientation();)?
-                self.core_mut().update(inputs, cursor, |hull| {
+                self.core_mut().update(inputs, bundle.cursor, |hull| {
                     Self::vertex_gen(&hull $(, $orientation)? $(, $settings)?)
                 });
 
@@ -77,15 +79,16 @@ macro_rules! shape_cursor_brush {
                     return;
                 }
 
-                let vxs = return_if_none!(self.core_mut().generate_brush(cursor, |hull| {
-                    $(let $orientation = TriangleOrientation::new(cursor.world_snapped(), cursor.grid_square());)?
+                let vxs = return_if_none!(self.core_mut().generate_brush(bundle.cursor, |hull| {
+                    $(let $orientation = TriangleOrientation::new(bundle.cursor.world_snapped(), bundle.cursor.grid_square());)?
                     Self::vertex_gen(&hull $(, $orientation)? $(, $settings)?)
                 }));
 
                 manager.spawn_drawn_brush(
                     ConvexPolygon::new(vxs),
                     drawn_brushes,
-                    edits_history
+                    edits_history,
+                    bundle.brushes_default_properties
                 );
             }
 
@@ -508,22 +511,26 @@ impl FreeDrawCursorPolygon
     #[inline]
     pub fn update(
         &mut self,
+        bundle: &ToolUpdateBundle,
         manager: &mut EntitiesManager,
         drawn_brushes: &mut Ids,
         inputs: &InputsPresses,
-        edits_history: &mut EditsHistory,
-        cursor: &Cursor,
-        camera_scale: f32
+        edits_history: &mut EditsHistory
     )
     {
         if inputs.enter.just_pressed()
         {
-            self.generate_brush(manager, drawn_brushes, edits_history);
+            self.generate_brush(
+                manager,
+                drawn_brushes,
+                edits_history,
+                bundle.brushes_default_properties
+            );
             edits_history.purge_free_draw_edits();
             return;
         }
 
-        let cursor_pos = cursor.world_snapped();
+        let cursor_pos = bundle.cursor.world_snapped();
 
         if inputs.left_mouse.just_pressed()
         {
@@ -532,7 +539,7 @@ impl FreeDrawCursorPolygon
                 FreeDrawStatus::None => self.0 = FreeDrawStatus::Point(cursor_pos),
                 FreeDrawStatus::Point(p) =>
                 {
-                    if p.is_point_inside_ui_highlight(cursor_pos, camera_scale)
+                    if p.is_point_inside_ui_highlight(cursor_pos, bundle.camera.scale())
                     {
                         return;
                     }
@@ -543,7 +550,7 @@ impl FreeDrawCursorPolygon
                 {
                     for p in &*l
                     {
-                        if p.is_point_inside_ui_highlight(cursor_pos, camera_scale)
+                        if p.is_point_inside_ui_highlight(cursor_pos, bundle.camera.scale())
                         {
                             return;
                         }
@@ -563,7 +570,7 @@ impl FreeDrawCursorPolygon
                 },
                 FreeDrawStatus::Polygon(poly) =>
                 {
-                    if !poly.try_insert_free_draw_vertex(cursor_pos, camera_scale)
+                    if !poly.try_insert_free_draw_vertex(cursor_pos, bundle.camera.scale())
                     {
                         return;
                     }
@@ -579,7 +586,7 @@ impl FreeDrawCursorPolygon
                 FreeDrawStatus::None => (),
                 FreeDrawStatus::Point(p) =>
                 {
-                    if p.is_point_inside_ui_highlight(cursor_pos, camera_scale)
+                    if p.is_point_inside_ui_highlight(cursor_pos, bundle.camera.scale())
                     {
                         edits_history.free_draw_point_deletion(*p, 0);
                         self.0 = FreeDrawStatus::None;
@@ -589,7 +596,7 @@ impl FreeDrawCursorPolygon
                 {
                     for (i, p) in l.iter().enumerate()
                     {
-                        if p.is_point_inside_ui_highlight(cursor_pos, camera_scale)
+                        if p.is_point_inside_ui_highlight(cursor_pos, bundle.camera.scale())
                         {
                             edits_history.free_draw_point_deletion(*p, 0);
                             self.0 = FreeDrawStatus::Point(l[next(i, 2)]);
@@ -599,7 +606,7 @@ impl FreeDrawCursorPolygon
                 },
                 FreeDrawStatus::Polygon(poly) =>
                 {
-                    match poly.try_delete_free_draw_vertex(cursor_pos, camera_scale)
+                    match poly.try_delete_free_draw_vertex(cursor_pos, bundle.camera.scale())
                     {
                         FreeDrawVertexDeletionResult::None => (),
                         FreeDrawVertexDeletionResult::Polygon(deleted) =>
@@ -622,7 +629,8 @@ impl FreeDrawCursorPolygon
         &mut self,
         manager: &mut EntitiesManager,
         drawn_brushes: &mut Ids,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        default_properties: &DefaultProperties
     ) -> bool
     {
         if !matches!(self.0, FreeDrawStatus::Polygon(_))
@@ -635,7 +643,8 @@ impl FreeDrawCursorPolygon
         manager.spawn_drawn_brush(
             match_or_panic!(status, FreeDrawStatus::Polygon(poly), poly),
             drawn_brushes,
-            edits_history
+            edits_history,
+            default_properties
         );
 
         true

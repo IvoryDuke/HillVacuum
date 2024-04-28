@@ -19,7 +19,6 @@ use crate::{
     map::{
         brush::{
             convex_polygon::{ConvexPolygon, VertexesMove},
-            mover::Mover,
             Brush
         },
         drawer::{
@@ -30,7 +29,8 @@ use crate::{
         editor::state::core::UndoRedoInterface,
         hv_vec,
         path::{MovementValueEdit, NodesMove, StandbyValueEdit},
-        thing::ThingId,
+        properties::Value,
+        thing::{ThingId, ThingInstanceData},
         HvVec
     },
     utils::{
@@ -223,7 +223,7 @@ impl EditsHistory
     #[rustfmt::skip]
     push_edit!(
         (brush_draw, (identifier: Id), (hv_vec![identifier], EditType::BrushDraw(None))),
-		(brush_spawn, (identifier: Id, selected: bool), (hv_vec![identifier], EditType::BrushSpawn(None, Mover::None, selected))),
+		(brush_spawn, (identifier: Id, selected: bool), (hv_vec![identifier], EditType::BrushSpawn(None, selected))),
         (drawn_brush_despawn, (brush: Brush), (hv_vec![brush.id()], EditType::DrawnBrushDespawn(Some(brush.into_parts().0)))),
         (polygon_edit, (identifier: Id, polygon: ConvexPolygon), (hv_vec![identifier], EditType::PolygonEdit(polygon))),
         (path_creation, (identifier: Id), (hv_vec![identifier], EditType::PathCreation(None))),
@@ -248,10 +248,10 @@ impl EditsHistory
         (path_nodes_decel_travel_percentage, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeDecel(edit))),
         (anchor, (identifier: Id, anchor: Id), (hv_vec![identifier], EditType::Anchor(anchor))),
         (disanchor, (identifier: Id, anchor: Id), (hv_vec![identifier], EditType::Disanchor(anchor))),
-        (thing_draw, (identifier: Id, thing: ThingId, pos: Vec2), (hv_vec![identifier], EditType::ThingDraw(thing, pos))),
-        (drawn_thing_despawn, (identifier: Id, thing: ThingId, pos: Vec2), (hv_vec![identifier], EditType::DrawnThingDespawn(thing, pos))),
-        (thing_spawn, (identifier: Id, thing: ThingId, pos: Vec2), (hv_vec![identifier], EditType::ThingSpawn(thing, pos))),
-        (thing_despawn, (identifier: Id, thing: ThingId, pos: Vec2), (hv_vec![identifier], EditType::ThingDespawn(thing, pos))),
+        (thing_draw, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::ThingDraw(thing.into()))),
+        (drawn_thing_despawn, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::DrawnThingDespawn(thing.into()))),
+        (thing_spawn, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::ThingSpawn(thing.into()))),
+        (thing_despawn, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::ThingDespawn(thing.into()))),
         (thing_change, (identifier: Id, thing: ThingId), (hv_vec![identifier], EditType::ThingChange(thing))),
         (thing_draw_height, (identifier: Id, height: i8), (hv_vec![identifier], EditType::ThingHeight(height))),
         (thing_angle, (identifier: Id, angle: f32), (hv_vec![identifier], EditType::ThingAngle(angle))),
@@ -283,7 +283,6 @@ impl EditsHistory
     push_cluster!(
         (polygon_edit, ConvexPolygon),
         (vertexes_selection, HvVec<u8>),
-        (path_nodes_selection, HvVec<u8>),
         (path_nodes_deletion, HvVec<(Vec2, u8)>),
         (path_nodes_standby_time, StandbyValueEdit),
         (path_nodes_max_speed, MovementValueEdit),
@@ -406,11 +405,8 @@ impl EditsHistory
     #[inline]
     pub fn brush_despawn(&mut self, brush: Brush, selected: bool)
     {
-        let (polygon, mover, id) = brush.into_parts();
-        self.push_onto_current_edit(
-            hv_vec![id],
-            EditType::BrushDespawn(Some(polygon), mover, selected)
-        );
+        let (data, id) = brush.into_parts();
+        self.push_onto_current_edit(hv_vec![id], EditType::BrushDespawn(Some(data), selected));
     }
 
     #[inline]
@@ -435,14 +431,14 @@ impl EditsHistory
         move_texture: bool
     )
     {
-        if manager.selected_brushes_amount() != 0
+        if manager.any_selected_brushes()
         {
             let identifiers = hv_vec![collect; manager.selected_brushes_ids().copied()];
             assert!(!identifiers.is_empty(), "EditType::BrushMove has no associated entities.");
             self.push_onto_current_edit(identifiers, EditType::BrushMove(delta, move_texture));
         }
 
-        if manager.selected_things_amount() == 0
+        if !manager.any_selected_things()
         {
             return;
         }
@@ -483,6 +479,30 @@ impl EditsHistory
         {
             self.push_onto_current_edit(hv_vec![id], EditType::PathNodesMove(node_move));
         }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn path_nodes_selection_cluster(
+        &mut self,
+        iter: impl Iterator<Item = (Id, HvVec<u8>)>
+    ) -> bool
+    {
+        iter.fold(false, |_, item| {
+            self.path_nodes_selection(item.0, item.1);
+            true
+        })
+    }
+
+    #[inline]
+    pub fn property(&mut self, key: &str, iter: impl Iterator<Item = (Id, Value)>)
+    {
+        if self.selections_only_edit_halted
+        {
+            self.force_push_frame_edit();
+        }
+
+        self.current_edit.push_property(key, iter);
     }
 
     /// Pushes the current [`Edit`] on the history.

@@ -481,11 +481,14 @@ impl PathTool
                     },
                     {
                         // Deselect selected nodes.
-                        edits_history.path_nodes_selection_cluster(
+                        if edits_history.path_nodes_selection_cluster(
                             manager.selected_movings_mut().filter_map(|mut entity| {
                                 entity.deselect_path_nodes().map(|idxs| (entity.id(), idxs))
                             })
-                        );
+                        )
+                        {
+                            manager.toggle_overall_node_update();
+                        }
                     },
                     hull,
                     {
@@ -716,6 +719,7 @@ impl PathTool
         let selected = manager
             .moving_mut(identifier)
             .toggle_path_node_at_index(index as usize);
+        manager.toggle_overall_node_update();
         edits_history.path_nodes_selection(identifier, hv_vec![index]);
         selected
     }
@@ -732,12 +736,14 @@ impl PathTool
             .moving_mut(identifier)
             .exclusively_select_path_node_at_index(index as usize)
         {
-            NodeSelectionResult::Selected => (),
+            NodeSelectionResult::Selected => return,
             NodeSelectionResult::NotSelected(idxs) =>
             {
                 edits_history.path_nodes_selection(identifier, idxs);
             }
         };
+
+        manager.toggle_overall_node_update();
     }
 
     #[inline]
@@ -757,11 +763,14 @@ impl PathTool
             EditPath::exclusively_select_path_nodes_in_range
         };
 
-        edits_history.path_nodes_selection_cluster(
+        if edits_history.path_nodes_selection_cluster(
             manager
-                .selected_movings_intersect_range_mut(range)
+                .selected_movings_mut()
                 .filter_map(|mut entity| func(&mut *entity, range).map(|vxs| (entity.id(), vxs)))
-        );
+        )
+        {
+            manager.toggle_overall_node_update();
+        }
     }
 
     #[inline]

@@ -30,6 +30,7 @@ use crate::{
             ToolUpdateBundle
         },
         hv_vec,
+        properties::Properties,
         HvVec
     },
     utils::{
@@ -61,8 +62,8 @@ macro_rules! clip_brushes {
         for brush in $iter
         {
             let [left, right] = continue_if_none!(brush.clip($drawing_resources, $clip_line));
-            left_polygons.push(left);
-            right_polygons.push(right);
+            left_polygons.push((left, brush.properties()));
+            right_polygons.push((right, brush.properties()));
             clipped_brushes.push(brush.id());
         }
 
@@ -134,8 +135,8 @@ enum Status
     PostClip
     {
         status:         PostClipStatus,
-        left_polygons:  HvVec<ConvexPolygon>,
-        right_polygons: HvVec<ConvexPolygon>
+        left_polygons:  HvVec<(ConvexPolygon, Properties)>,
+        right_polygons: HvVec<(ConvexPolygon, Properties)>
     },
     PickSideUi(Option<ClipSide>)
 }
@@ -385,24 +386,32 @@ impl ClipTool
         {
             PostClipStatus::Both =>
             {
-                if left_polygons[0].has_sprite()
+                if left_polygons[0].0.has_sprite()
                 {
-                    for poly in &mut left_polygons
+                    for (poly, _) in &mut left_polygons
                     {
                         _ = poly.remove_texture();
                     }
                 }
 
-                manager
-                    .spawn_brushes(left_polygons.into_iter().chain(right_polygons), edits_history);
+                for (poly, properties) in left_polygons.into_iter().chain(right_polygons)
+                {
+                    manager.spawn_brush(poly, edits_history, properties);
+                }
             },
             PostClipStatus::Left =>
             {
-                manager.spawn_brushes(left_polygons.into_iter(), edits_history);
+                for (poly, properties) in left_polygons
+                {
+                    manager.spawn_brush(poly, edits_history, properties);
+                }
             },
             PostClipStatus::Right =>
             {
-                manager.spawn_brushes(right_polygons.into_iter(), edits_history);
+                for (poly, properties) in right_polygons
+                {
+                    manager.spawn_brush(poly, edits_history, properties);
+                }
             }
         };
 
@@ -499,7 +508,7 @@ impl ClipTool
                 {
                     PostClipStatus::Both =>
                     {
-                        for cp in left_polygons
+                        for (cp, _) in left_polygons
                         {
                             cp.draw(
                                 bundle.camera,
@@ -508,7 +517,7 @@ impl ClipTool
                             );
                         }
 
-                        for cp in right_polygons
+                        for (cp, _) in right_polygons
                         {
                             cp.draw(
                                 bundle.camera,
@@ -520,7 +529,7 @@ impl ClipTool
                     },
                     PostClipStatus::Left =>
                     {
-                        for cp in left_polygons
+                        for (cp, _) in left_polygons
                         {
                             cp.draw(
                                 bundle.camera,
@@ -530,7 +539,7 @@ impl ClipTool
                             draw_sprite_with_highlight(cp, bundle, Color::ClippedPolygonsToSpawn);
                         }
 
-                        for cp in right_polygons
+                        for (cp, _) in right_polygons
                         {
                             cp.draw(
                                 bundle.camera,
@@ -541,7 +550,7 @@ impl ClipTool
                     },
                     PostClipStatus::Right =>
                     {
-                        for cp in right_polygons
+                        for (cp, _) in right_polygons
                         {
                             cp.draw(
                                 bundle.camera,
@@ -551,7 +560,7 @@ impl ClipTool
                             draw_sprite_with_highlight(cp, bundle, Color::ClippedPolygonsToSpawn);
                         }
 
-                        for cp in left_polygons
+                        for (cp, _) in left_polygons
                         {
                             cp.draw(
                                 bundle.camera,

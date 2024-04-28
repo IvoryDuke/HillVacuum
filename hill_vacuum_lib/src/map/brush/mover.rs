@@ -3,22 +3,15 @@
 //
 //=======================================================================//
 
-use bevy::prelude::Vec2;
 use serde::{Deserialize, Serialize};
 use shared::{match_or_panic, return_if_no_match};
 
 use crate::{
     map::{
-        brush::calc_path_hull,
         containers::{hv_hash_set, Ids},
-        AssertedInsertRemove,
-        OutOfBounds
+        AssertedInsertRemove
     },
-    utils::{
-        hull::Hull,
-        identifiers::Id,
-        misc::{NoneIfEmpty, TakeValue}
-    },
+    utils::{identifiers::Id, misc::TakeValue},
     Path
 };
 
@@ -42,12 +35,6 @@ impl From<Motor> for Mover
 {
     #[inline]
     fn from(value: Motor) -> Self { Self::Motor(value) }
-}
-
-impl From<MoverParts> for Mover
-{
-    #[inline]
-    fn from(value: MoverParts) -> Self { Self::from_parts(value) }
 }
 
 impl Mover
@@ -95,7 +82,7 @@ impl Mover
     }
 
     #[inline]
-    const fn anchors(&self) -> Option<&Ids>
+    pub(in crate::map::brush) const fn anchors(&self) -> Option<&Ids>
     {
         match self
         {
@@ -173,160 +160,6 @@ impl Mover
         assert!(matches!(self, Self::None), "Tried to apply motor on an unsuitable brush.");
         *self = motor.into();
     }
-
-    #[inline]
-    fn from_parts(parts: MoverParts) -> Self
-    {
-        match parts
-        {
-            MoverParts::None => Self::None,
-            MoverParts::Anchored(id) => Self::Anchored(id),
-            MoverParts::Other(path, ids) =>
-            {
-                match (path, ids)
-                {
-                    (None, None) => unreachable!(),
-                    (None, Some(ids)) => Self::Anchors(ids),
-                    (Some(path), None) =>
-                    {
-                        Self::Motor(Motor {
-                            path,
-                            anchored_brushes: hv_hash_set![]
-                        })
-                    },
-                    (Some(path), Some(anchored_brushes)) =>
-                    {
-                        Self::Motor(Motor {
-                            path,
-                            anchored_brushes
-                        })
-                    },
-                }
-            },
-        }
-    }
-}
-
-//=======================================================================//
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub(in crate::map) enum MoverParts
-{
-    None,
-    Anchored(Id),
-    Other(Option<Path>, Option<Ids>)
-}
-
-impl From<Mover> for MoverParts
-{
-    #[inline]
-    #[must_use]
-    fn from(value: Mover) -> Self
-    {
-        match value
-        {
-            Mover::None => Self::None,
-            Mover::Anchors(ids) => Self::Other(None, Some(ids)),
-            Mover::Motor(motor) =>
-            {
-                let (path, anchors) = motor.into_parts();
-                Self::Other(Some(path), anchors.none_if_empty())
-            },
-            Mover::Anchored(id) => Self::Anchored(id)
-        }
-    }
-}
-
-impl MoverParts
-{
-    #[inline]
-    #[must_use]
-    pub fn path_hull_out_of_bounds(&self, center: Vec2) -> bool
-    {
-        calc_path_hull(return_if_no_match!(self, Self::Other(Some(path), _), path, false), center)
-            .out_of_bounds()
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn path_hull(&self, center: Vec2) -> Option<Hull>
-    {
-        calc_path_hull(return_if_no_match!(self, Self::Other(Some(path), _), path, None), center)
-            .into()
-    }
-
-    #[inline]
-    #[must_use]
-    pub const fn has_anchors(&self) -> bool { self.anchors().is_some() }
-
-    #[inline]
-    pub const fn anchors(&self) -> Option<&Ids>
-    {
-        match self
-        {
-            Self::None | Self::Anchored(_) => None,
-            Self::Other(_, ids) => ids.as_ref()
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn contains_anchor(&self, identifier: Id) -> bool
-    {
-        match self.anchors()
-        {
-            Some(ids) => ids.contains(&identifier),
-            None => false
-        }
-    }
-
-    #[inline]
-    pub fn insert_anchor(&mut self, identifier: Id)
-    {
-        match self
-        {
-            Self::None => *self = Self::Other(None, Some(hv_hash_set![identifier])),
-            Self::Anchored(_) => panic!("Tried to insert an anchor in an anchored brush."),
-            Self::Other(_, anchors) =>
-            {
-                match anchors
-                {
-                    Some(ids) => ids.asserted_insert(identifier),
-                    None => *anchors = hv_hash_set![identifier].into()
-                };
-            }
-        };
-    }
-
-    #[inline]
-    pub fn remove_anchor(&mut self, identifier: Id)
-    {
-        match self
-        {
-            Self::None | Self::Anchored(_) => panic!("Brush does not have anchors."),
-            Self::Other(path, anchors) =>
-            {
-                match anchors
-                {
-                    Some(ids) =>
-                    {
-                        ids.asserted_remove(&identifier);
-
-                        if ids.is_empty()
-                        {
-                            *anchors = None;
-                        }
-                    },
-                    None => panic!("Brush does not contain the anchor.")
-                };
-
-                if path.is_none() && anchors.is_none()
-                {
-                    *self = Self::None;
-                }
-            }
-        };
-    }
 }
 
 //=======================================================================//
@@ -387,7 +220,4 @@ impl Motor
     {
         self.anchored_brushes.asserted_remove(&identifier);
     }
-
-    #[inline]
-    fn into_parts(self) -> (Path, Ids) { (self.path, self.anchored_brushes) }
 }
