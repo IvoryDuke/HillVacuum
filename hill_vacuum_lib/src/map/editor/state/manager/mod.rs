@@ -16,7 +16,7 @@ use std::{
 };
 
 use bevy::prelude::{Transform, Vec2, Window};
-use shared::{continue_if_none, match_or_panic, return_if_none, NextValue};
+use shared::{continue_if_none, return_if_none, NextValue};
 
 use self::{
     entities_trees::Trees,
@@ -489,9 +489,6 @@ impl Innards
             entity: &str
         ) -> Option<PropertiesRefactor<'a>>
         {
-            const ENGINE_PARAMETERS: &str = "Engine";
-            const MAP_PARAMETERS: &str = "Map";
-
             if *default_properties == file_default_properties
             {
                 return None;
@@ -501,32 +498,24 @@ impl Innards
                 "The engine default {entity} properties are different from the ones stored in the \
                  map file.\nIf you decide to use the engine defined ones, all values currently \
                  contained in the {entity} that do not match will be removed, and the missing \
-                 ones will be inserted.\nHere are the two property lists:\n\nENGINE: \
+                 ones will be inserted.\nPress OK to use the engine properties, press Cancel to use \
+                 the map properties.\n\nHere are the two property lists:\n\nENGINE: \
                  {default_properties}\n\nMAP: {file_default_properties}"
             );
 
-            let result = match_or_panic!(
-                rfd::MessageDialog::new()
-                    .set_title("WARNING")
-                    .set_description(description)
-                    .set_buttons(rfd::MessageButtons::OkCancelCustom(
-                        ENGINE_PARAMETERS.to_string(),
-                        MAP_PARAMETERS.to_string()
-                    ))
-                    .show(),
-                rfd::MessageDialogResult::Custom(result),
-                result
-            );
-
-            match result.as_str()
+            match rfd::MessageDialog::new()
+                .set_title("WARNING")
+                .set_description(description)
+                .set_buttons(rfd::MessageButtons::OkCancel)
+                .show()
             {
-                ENGINE_PARAMETERS =>
+                rfd::MessageDialogResult::Ok =>
                 {
                     let refactor = file_default_properties.refactor(default_properties);
                     *map_default_properties = default_properties.clone();
                     refactor.into()
                 },
-                MAP_PARAMETERS =>
+                rfd::MessageDialogResult::Cancel =>
                 {
                     *map_default_properties = file_default_properties;
                     None

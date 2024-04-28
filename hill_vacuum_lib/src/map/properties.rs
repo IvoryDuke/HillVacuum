@@ -331,8 +331,7 @@ impl std::fmt::Display for DefaultProperties
 
         if len == 0
         {
-            properties.push_str("]");
-            return write!(f, "{properties}");
+            return write!(f, "{properties}]");
         }
 
         let mut iter = self.0.iter();
@@ -491,7 +490,7 @@ impl Properties
         for k in &refactor.insert
         {
             self.0
-                .asserted_insert((k.to_string(), refactor.default_properties.get(k).clone()));
+                .asserted_insert(((*k).to_string(), refactor.default_properties.get(k).clone()));
         }
     }
 }
