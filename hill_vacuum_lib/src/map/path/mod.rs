@@ -2894,7 +2894,7 @@ impl Path
     {
         let label = return_if_none!(drawer.vx_tooltip_label(pos));
         write!(text, ": {}", pos.necessary_precision_value()).ok();
-        node_tooltip(window, camera, egui_context, pos, label, text, color);
+        node_tooltip(window, camera, egui_context, pos, label, text, drawer.egui_color(color));
         text.clear();
     }
 
@@ -3057,7 +3057,7 @@ pub(in crate::map) fn node_tooltip(
     pos: Vec2,
     label: &'static str,
     text: &str,
-    color: Color
+    fill_color: egui::Color32
 )
 {
     draw_tooltip_x_centered_above_pos(
@@ -3069,7 +3069,7 @@ pub(in crate::map) fn node_tooltip(
         to_egui_coordinates(pos, window, camera),
         TOOLTIP_OFFSET,
         egui::Color32::BLACK,
-        color.egui_color(),
+        fill_color,
         3f32
     );
 }

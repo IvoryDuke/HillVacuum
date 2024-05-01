@@ -498,8 +498,8 @@ impl Innards
                 "The engine default {entity} properties are different from the ones stored in the \
                  map file.\nIf you decide to use the engine defined ones, all values currently \
                  contained in the {entity} that do not match will be removed, and the missing \
-                 ones will be inserted.\nPress OK to use the engine properties, press Cancel to use \
-                 the map properties.\n\nHere are the two property lists:\n\nENGINE: \
+                 ones will be inserted.\nPress OK to use the engine properties, press Cancel to \
+                 use the map properties.\n\nHere are the two property lists:\n\nENGINE: \
                  {default_properties}\n\nMAP: {file_default_properties}"
             );
 

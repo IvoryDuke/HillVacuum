@@ -5,12 +5,16 @@
 
 use bevy::prelude::KeyCode;
 use bevy_egui::egui;
+use is_executable::IsExecutable;
 use shared::return_if_no_match;
 
-use super::{window::Window, WindowCloser, WindowCloserInfo};
+use super::{window::Window, WindowCloserInfo};
 use crate::{
     config::{controls::bind::Bind, Config},
-    map::editor::StateUpdateBundle,
+    map::editor::{
+        state::{editor_state::InputsPresses, ui::WindowCloser},
+        StateUpdateBundle
+    },
     utils::misc::{Blinker, Toggle}
 };
 
@@ -58,13 +62,13 @@ impl BindEdit
 //=======================================================================//
 
 #[derive(Default)]
-pub(in crate::map::editor::state::ui) struct ControlsWindow
+pub(in crate::map::editor::state::ui) struct SettingsWindow
 {
     window:    Window,
     bind_edit: BindEdit
 }
 
-impl Toggle for ControlsWindow
+impl Toggle for SettingsWindow
 {
     #[inline]
     fn toggle(&mut self)
@@ -72,84 +76,97 @@ impl Toggle for ControlsWindow
         if self.window.is_open()
         {
             self.bind_edit.reset();
-            self.window.close();
-            return;
         }
 
-        self.window.open();
+        self.window.toggle();
     }
 }
 
-impl WindowCloserInfo for ControlsWindow
+impl WindowCloserInfo for SettingsWindow
 {
     #[inline]
     fn window_closer(&self) -> Option<WindowCloser>
     {
         #[inline]
-        fn close(controls: &mut ControlsWindow)
+        fn close(controls: &mut SettingsWindow)
         {
-            if !controls.bind_edit.being_edited()
-            {
-                controls.window.close();
-            }
-
             controls.bind_edit.reset();
+            controls.window.close();
         }
 
         self.window
             .layer_id()
-            .map(|id| WindowCloser::Controls(id, close as fn(&mut Self)))
+            .map(|id| WindowCloser::Settings(id, close as fn(&mut Self)))
     }
 }
 
-impl ControlsWindow
+impl SettingsWindow
 {
     #[inline]
     #[must_use]
-    pub fn show(&mut self, bundle: &mut StateUpdateBundle) -> bool
+    pub fn show(&mut self, bundle: &mut StateUpdateBundle, inputs: &mut InputsPresses) -> bool
     {
+        let StateUpdateBundle {
+            delta_time,
+            key_inputs,
+            egui_context,
+            config:
+                Config {
+                    binds,
+                    colors,
+                    exporter,
+                    ..
+                },
+            ..
+        } = bundle;
+
+        if Bind::Settings.just_pressed(key_inputs, binds)
+        {
+            self.window.open();
+        }
+
         if !self.window.is_open()
         {
             return false;
         }
 
-        let StateUpdateBundle {
-            delta_time,
-            key_inputs,
-            egui_context,
-            config: Config { binds, .. },
-            ..
-        } = bundle;
+        if inputs.esc.just_pressed() && self.bind_edit.being_edited()
+        {
+            self.bind_edit.reset();
+        }
 
         let bind_was_being_edited = self.bind_edit.being_edited();
 
         self.window.show(
             egui_context,
-            egui::Window::new("Controls")
+            egui::Window::new("Settings")
                 .vscroll(true)
-                .collapsible(false)
-                .max_width(250f32)
-                .min_width(250f32),
+                .collapsible(true)
+                .max_width(250f32),
             |ui| {
-                egui::Grid::new("binds_grid")
+                #[inline]
+                fn bind_button(
+                    ui: &mut egui::Ui,
+                    label: &'static str,
+                    keycode: &'static str
+                ) -> egui::Response
+                {
+                    ui.label(label);
+                    let response =
+                        ui.add(egui::Button::new(keycode).min_size([100f32, 0f32].into()));
+                    ui.end_row();
+
+                    response
+                }
+
+                egui::Grid::new("settings_grid")
                     .num_columns(2)
                     .spacing([40f32, 4f32])
                     .striped(true)
                     .show(ui, |ui| {
-                        #[inline]
-                        fn bind_button(
-                            ui: &mut egui::Ui,
-                            label: &'static str,
-                            keycode: &'static str
-                        ) -> egui::Response
-                        {
-                            ui.label(label);
-                            let response =
-                                ui.add(egui::Button::new(keycode).min_size([100f32, 0f32].into()));
-                            ui.end_row();
-
-                            response
-                        }
+                        // Keyboard binds.
+                        ui.label("CONTROLS");
+                        ui.end_row();
 
                         let mut iter = Bind::iter();
 
@@ -197,6 +214,55 @@ impl ControlsWindow
                                 bind.unbind(binds);
                             }
                         }
+
+                        if ui.button("Reset to default").clicked()
+                        {
+                            binds.reset();
+                        }
+                        ui.end_row();
+
+                        ui.label("");
+                        ui.end_row();
+
+                        // Colors.
+                        ui.label("COLORS");
+                        ui.end_row();
+
+                        colors.show(bundle.materials, ui);
+
+                        if ui.button("Reset to default").clicked()
+                        {
+                            colors.reset(bundle.materials);
+                        }
+                        ui.end_row();
+
+                        ui.label("");
+                        ui.end_row();
+
+                        // Exporter.
+                        ui.label("EXPORTER");
+                        ui.end_row();
+
+                        if ui.button("Pick exporter").clicked()
+                        {
+                            match rfd::FileDialog::new()
+                                .set_title("Pick exporter")
+                                .set_directory(std::env::current_dir().unwrap())
+                                .pick_file()
+                            {
+                                Some(file) if file.is_executable() => *exporter = file.into(),
+                                _ => ()
+                            };
+                        }
+
+                        let label = match exporter
+                        {
+                            Some(path) => path.file_stem().unwrap().to_str().unwrap(),
+                            None => ""
+                        };
+
+                        ui.label(label);
+                        ui.end_row();
                     });
             }
         );

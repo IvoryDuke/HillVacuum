@@ -1,9 +1,9 @@
 pub(in crate::map::editor) mod checkbox;
-mod controls_window;
 mod manual;
 mod minus_plus_buttons;
 pub(in crate::map::editor::state) mod overall_value_field;
 mod properties_window;
+mod settings_window;
 mod texture_editor;
 mod tooltip;
 mod window;
@@ -16,13 +16,12 @@ mod window;
 use arrayvec::ArrayVec;
 use bevy::prelude::{AssetServer, Transform, Vec2};
 use bevy_egui::{egui, EguiUserTextures};
-use is_executable::IsExecutable;
 use shared::{return_if_none, NextValue};
 
 use self::{
-    controls_window::ControlsWindow,
     manual::Manual,
     properties_window::PropertiesWindow,
+    settings_window::SettingsWindow,
     texture_editor::TextureEditor,
     tooltip::Tooltip
 };
@@ -38,7 +37,7 @@ use super::{
     manager::EntitiesManager
 };
 use crate::{
-    config::controls::bind::Bind,
+    config::{controls::bind::Bind, Config},
     embedded_assets::embedded_asset_path,
     map::{
         drawer::drawing_resources::DrawingResources,
@@ -252,7 +251,7 @@ impl Command
 enum WindowCloser
 {
     TextureEditor(egui::LayerId, fn(&mut TextureEditor)),
-    Controls(egui::LayerId, fn(&mut ControlsWindow)),
+    Settings(egui::LayerId, fn(&mut SettingsWindow)),
     Properties(egui::LayerId, fn(&mut PropertiesWindow)),
     Manual(egui::LayerId, fn(&mut Manual))
 }
@@ -264,7 +263,7 @@ impl WindowCloser
     fn layer_id(self) -> egui::LayerId
     {
         let (Self::TextureEditor(id, _) |
-        Self::Controls(id, _) |
+        Self::Settings(id, _) |
         Self::Properties(id, _) |
         Self::Manual(id, _)) = self;
         id
@@ -277,20 +276,20 @@ impl WindowCloser
         ui: &mut Ui
     )
     {
-        if !inputs.esc.just_pressed()
+        if !inputs.f4.just_pressed()
         {
             return;
         }
 
         let mut windows = [
             ui.texture_editor.window_closer(),
-            ui.controls_window.window_closer(),
+            ui.settings_window.window_closer(),
             ui.properties_window.window_closer(),
             ui.manual.window_closer()
         ]
         .into_iter()
         .flatten()
-        .collect::<ArrayVec<_, 4>>();
+        .collect::<ArrayVec<_, 5>>();
 
         if windows.is_empty()
         {
@@ -324,8 +323,8 @@ impl WindowCloser
 
         match return_if_none!(topmost_window)
         {
+            Self::Settings(_, closer) => closer(&mut ui.settings_window),
             Self::TextureEditor(_, closer) => closer(&mut ui.texture_editor),
-            Self::Controls(_, closer) => closer(&mut ui.controls_window),
             Self::Properties(_, closer) => closer(&mut ui.properties_window),
             Self::Manual(_, closer) => closer(&mut ui.manual)
         };
@@ -420,7 +419,6 @@ impl ToolsButtons
 pub(in crate::map::editor::state) struct Interaction
 {
     pub hovered: bool,
-    pub focused: bool,
     pub command: Command
 }
 
@@ -431,7 +429,7 @@ pub(in crate::map::editor::state) struct Ui
     tools_buttons:        ToolsButtons,
     left_panel_layer_id:  egui::LayerId,
     right_panel_layer_id: egui::LayerId,
-    controls_window:      ControlsWindow,
+    settings_window:      SettingsWindow,
     properties_window:    PropertiesWindow,
     texture_editor:       TextureEditor,
     manual:               Manual
@@ -452,7 +450,7 @@ impl Ui
             tools_buttons:        ToolsButtons::new(asset_server, user_textures),
             left_panel_layer_id:  egui::LayerId::background(),
             right_panel_layer_id: egui::LayerId::background(),
-            controls_window:      ControlsWindow::default(),
+            settings_window:      SettingsWindow::default(),
             properties_window:    PropertiesWindow::new(
                 brushes_default_properties,
                 things_default_properties
@@ -472,7 +470,7 @@ impl Ui
             },
             left_panel_layer_id:  egui::LayerId::background(),
             right_panel_layer_id: egui::LayerId::background(),
-            controls_window:      ControlsWindow::default(),
+            settings_window:      SettingsWindow::default(),
             properties_window:    PropertiesWindow::placeholder(),
             texture_editor:       TextureEditor::default(),
             manual:               Manual::default()
@@ -485,7 +483,7 @@ impl Ui
         bundle: &mut StateUpdateBundle,
         core: &mut Core,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
+        inputs: &mut InputsPresses,
         edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
         grid: Grid,
@@ -503,7 +501,7 @@ impl Ui
         // Manual menu.
         self.manual.draw(bundle, &self.tools_buttons);
 
-        // Texture selection.
+        // Floating windows.
         let mut focused = if core.map_preview()
         {
             false
@@ -514,11 +512,11 @@ impl Ui
                 .draw(bundle, manager, edits_history, clipboard, inputs, settings)
         };
 
-        // Controls and properties menus.
-        focused |= self.controls_window.show(bundle) |
+        focused |= self.settings_window.show(bundle, inputs) |
             self.properties_window
                 .show(bundle, manager, edits_history, clipboard, inputs);
 
+        // Panels.
         let us_context = unsafe { std::ptr::from_mut(bundle.egui_context).as_mut().unwrap() };
 
         // Panels.
@@ -573,6 +571,12 @@ impl Ui
         // Bottom panel
         focused |= core.bottom_panel(bundle, manager, inputs, edits_history, clipboard);
 
+        if focused
+        {
+            inputs.clear();
+            bundle.key_inputs.clear();
+        }
+
         // Output.
         Interaction {
             hovered: !egui::CentralPanel::default()
@@ -580,7 +584,6 @@ impl Ui
                 .show(bundle.egui_context, |_| {})
                 .response
                 .contains_pointer(),
-            focused,
             command
         }
     }
@@ -664,11 +667,13 @@ impl Ui
                 spacing.item_spacing = [2f32; 2].into();
                 ui.visuals_mut().menu_rounding = 0f32.into();
 
+                let StateUpdateBundle { window, camera, config: Config { binds, exporter, .. }, .. } = bundle;
+
                 let select_all = core.select_all_available();
                 let copy_paste = core.copy_paste_available();
                 let undo_redo = core.undo_redo_available();
                 let reload = !core.map_preview();
-                let export = bundle.config.exporter.is_some();
+                let export = exporter.is_some();
                 let quick_snap = manager.any_selected_brushes();
                 let quick_zoom = manager.any_selected_entities();
 
@@ -791,29 +796,29 @@ impl Ui
                     }, HardcodedActions::Redo.key_combo()),
                     ("Quick snap", quick_snap, {
                         command = Command::QuickSnap;
-                    }, format!("Alt+{}", Tool::Snap.keycode_str(&bundle.config.binds))),
+                    }, format!("Alt+{}", Tool::Snap.keycode_str(binds))),
                     ("Texture editor", {
                         self.texture_editor.toggle();
-                    }, bundle.config.binds.get(Bind::TextureEditor).map_or("", FromToStr::to_str)),
+                    }, binds.get(Bind::TextureEditor).map_or("", FromToStr::to_str)),
                     ("Properties", {
                         self.properties_window.toggle();
-                    }, bundle.config.binds.get(Bind::PropertiesEditor).map_or("", FromToStr::to_str))
+                    }, binds.get(Bind::PropertiesEditor).map_or("", FromToStr::to_str))
                 );
 
                 submenu!(
                     ui,
                     "View",
                     ("Zoom in", {
-                        bundle.camera.zoom_in();
+                        camera.zoom_in();
                     }, HardcodedActions::ZoomIn.key_combo()),
                     ("Zoom out", {
-                        bundle.camera.zoom_out();
+                        camera.zoom_out();
                     }, HardcodedActions::ZoomOut.key_combo()),
                     ("Quick zoom", quick_zoom, {
                         command = Command::QuickZoom;
-                    }, format!("Alt+{}", Tool::Zoom.keycode_str(&bundle.config.binds))),
+                    }, format!("Alt+{}", Tool::Zoom.keycode_str(binds))),
                     ("Fullscreen", {
-                        bundle.window.mode.toggle();
+                        window.mode.toggle();
                     }, HardcodedActions::Fullscreen.key_combo()),
                     ("Toggle map preview", {
                         command = Command::ToggleMapPreview;
@@ -825,46 +830,28 @@ impl Ui
                     "Options",
                     ("Toggle grid", {
                         command = Command::ToggleGrid;
-                    }, Bind::ToggleGrid.keycode_str(&bundle.config.binds)),
+                    }, Bind::ToggleGrid.keycode_str(binds)),
                     ("Increase grid size", {
                         command = Command::IncreaseGridSize;
-                    }, Bind::IncreaseGridSize.keycode_str(&bundle.config.binds)),
+                    }, Bind::IncreaseGridSize.keycode_str(binds)),
                     ("Decrease grid size", {
                         command = Command::DecreaseGridSize;
-                    }, Bind::DecreaseGridSize.keycode_str(&bundle.config.binds)),
+                    }, Bind::DecreaseGridSize.keycode_str(binds)),
                     ("Shift grid", {
                         command = Command::ShifGrid;
-                    }, Bind::ShiftGrid.keycode_str(&bundle.config.binds)),
+                    }, Bind::ShiftGrid.keycode_str(binds)),
                     ("Toggle tooltips", {
                         command = Command::ToggleTooltips;
-                    }, Bind::ToggleTooltips.keycode_str(&bundle.config.binds)),
+                    }, Bind::ToggleTooltips.keycode_str(binds)),
                     ("Toggle cursor snap", {
                         command = Command::ToggleCursorSnap;
-                    }, Bind::ToggleCursorSnap.keycode_str(&bundle.config.binds)),
+                    }, Bind::ToggleCursorSnap.keycode_str(binds)),
                     ("Toggle collision overlay", {
                         command = Command::ToggleCollision;
-                    }, Bind::ToggleCollision.keycode_str(&bundle.config.binds)),
-                    ("Controls", {
-                        self.controls_window.toggle();
-                    }),
-                    ("Exporter", {
-                        if let Some(file) = rfd::FileDialog::new()
-                            .set_title("Pick exporter")
-                            .set_directory(std::env::current_dir().unwrap())
-                            .pick_file()
-                        {
-                            if file.is_executable()
-                            {
-                                bundle.config.exporter = file.into();
-                            }
-                        }
-                    }, {
-                        match &bundle.config.exporter
-                        {
-                            Some(path) => path.file_stem().unwrap().to_str().unwrap(),
-                            None => "",
-                        }
-                    }),
+                    }, Bind::ToggleCollision.keycode_str(binds)),
+                    ("Settings", {
+                        self.settings_window.toggle();
+                    }, Bind::Settings.keycode_str(binds)),
                     ("Reload textures", reload, {
                         command = Command::ReloadTextures;
                     }),

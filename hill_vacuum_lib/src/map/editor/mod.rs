@@ -21,6 +21,7 @@ use self::state::{
 };
 use super::{
     drawer::{
+        color::ColorResources,
         drawing_resources::DrawingResources,
         texture::Texture,
         texture_loader::{TextureLoader, TextureLoadingProgress},
@@ -83,12 +84,13 @@ struct StateUpdateBundle<'world, 'state, 'a, 'b, 'c>
 {
     window:             &'a mut Window,
     images:             &'a mut Assets<Image>,
+    materials:          &'a mut Assets<ColorMaterial>,
     camera:             &'b mut Transform,
     prop_cameras:       &'a mut PropCamerasMut<'world, 'state, 'c>,
     elapsed_time:       f32,
     delta_time:         f32,
     mouse_buttons:      &'a ButtonInput<MouseButton>,
-    key_inputs:         &'a ButtonInput<KeyCode>,
+    key_inputs:         &'a mut ButtonInput<KeyCode>,
     egui_context:       &'a mut egui::Context,
     user_textures:      &'a mut EguiUserTextures,
     config:             &'a mut Config,
@@ -301,6 +303,7 @@ impl Editor
         &mut self,
         window: &mut Window,
         images: &mut Assets<Image>,
+        materials: &mut Assets<ColorMaterial>,
         camera: &mut Transform,
         prop_cameras: &mut PropCamerasMut,
         time: &Time,
@@ -317,6 +320,7 @@ impl Editor
             &mut StateUpdateBundle {
                 window,
                 images,
+                materials,
                 camera,
                 prop_cameras,
                 elapsed_time: time.elapsed_seconds(),
@@ -352,6 +356,7 @@ impl Editor
         &mut self,
         window: &mut Window,
         images: &mut Assets<Image>,
+        materials: &mut Assets<ColorMaterial>,
         camera: &mut Transform,
         prop_cameras: &mut PropCamerasMut,
         time: &Time,
@@ -377,6 +382,7 @@ impl Editor
         if !self.state.update(&mut StateUpdateBundle {
             window,
             images,
+            materials,
             camera,
             prop_cameras,
             elapsed_time: time.elapsed_seconds(),
@@ -653,6 +659,7 @@ impl Editor
     // Drawing
 
     /// Draws the visible portion of the map.
+    #[allow(clippy::too_many_arguments)]
     #[inline]
     pub fn draw(
         &mut self,
@@ -665,6 +672,7 @@ impl Editor
         meshes: &mut Assets<Mesh>,
         egui_context: &mut egui::Context,
         meshes_query: &Query<Entity, With<Mesh2dHandle>>,
+        color_resources: &ColorResources,
         #[cfg(feature = "debug")] gizmos: &mut Gizmos
     )
     {
@@ -700,6 +708,7 @@ impl Editor
                 meshes,
                 meshes_query,
                 &mut self.drawing_resources,
+                color_resources,
                 self.state.tools_settings(),
                 elapsed_time,
                 camera.scale(),

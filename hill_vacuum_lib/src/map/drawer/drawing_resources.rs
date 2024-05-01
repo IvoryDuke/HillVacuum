@@ -25,7 +25,7 @@ use shared::{continue_if_none, match_or_panic, return_if_none, NextValue};
 
 use super::{
     animation::{Animation, Animator, AtlasAnimator},
-    color::{Color, ColorHandles, ColorMaterials},
+    color::Color,
     texture::{DefaultAnimation, Texture, TextureInterface, TextureInterfaceExtra},
     texture_loader::TextureLoader,
     IntoArray3,
@@ -109,7 +109,7 @@ impl TextureMaterials
             texture: texture.handle().into()
         });
         let mut materials = std::array::from_fn::<Handle<ColorMaterial>, LEN, _>(|i| {
-            let mut color = COLORS[i].bevy_color();
+            let mut color = COLORS[i].default_bevy_color();
             color.set_a(Self::ALPHA);
 
             materials.add(ColorMaterial {
@@ -222,8 +222,6 @@ pub(in crate::map) struct DrawingResources
     tt_label_gen: TooltipLabelGenerator,
     /// The default [`ColorMaterial`].
     default_material: Handle<ColorMaterial>,
-    /// The handles of all used [`ColorMaterials`].
-    color_materials: ColorMaterials,
     /// The textures loaded from the assets folder.
     textures: IndexedMap<String, TextureMaterials>,
     error_texture: TextureMaterials,
@@ -321,7 +319,6 @@ impl DrawingResources
             sprite_highlight_mesh: meshes.add(highlight_mesh!(sprite_highlight_vxs)).into(),
             tt_label_gen: TooltipLabelGenerator::default(),
             default_material: materials.add(ColorMaterial::default()),
-            color_materials: Color::materials(materials),
             textures: Self::sort_textures(texture_loader.loaded_textures(), materials),
             error_texture: TextureMaterials::clean((err_tex, err_id), materials),
             clip_texture: materials
@@ -345,7 +342,6 @@ impl DrawingResources
             sprite_highlight_mesh: Mesh2dHandle::default(),
             tt_label_gen: TooltipLabelGenerator::default(),
             default_material: Handle::default(),
-            color_materials: std::array::from_fn(|_| ColorHandles::default()),
             textures: IndexedMap::new(hv_vec![], |tex| tex.texture.name().to_owned()),
             error_texture: TextureMaterials::placeholder(),
             clip_texture: Handle::default(),
@@ -453,33 +449,6 @@ impl DrawingResources
 
     //==============================================================
     // Info
-
-    /// Returns the [`Handle<ColorMaterial`>] of the material used for the body of the [`Brush`]es.
-    #[inline]
-    #[must_use]
-    pub(in crate::map::drawer) fn brush_material(&self, color: Color) -> Handle<ColorMaterial>
-    {
-        color.brush_material(&self.color_materials)
-    }
-
-    /// Returns the [`Handle<ColorMaterial`>] of the material used for lines.
-    #[inline]
-    #[must_use]
-    pub(in crate::map::drawer) fn line_material(&self, color: Color) -> Handle<ColorMaterial>
-    {
-        color.line_material(&self.color_materials)
-    }
-
-    /// Returns the [`Handle<ColorMaterial`>] of the material used for semitansparent lines.
-    #[inline]
-    #[must_use]
-    pub(in crate::map::drawer) fn semitransparent_line_material(
-        &self,
-        color: Color
-    ) -> Handle<ColorMaterial>
-    {
-        color.semitransparent_line_material(&self.color_materials)
-    }
 
     /// Returns the [`Handle<ColorMaterial`>] of the default material.
     #[inline]

@@ -200,7 +200,7 @@ impl ClipTool
     #[inline]
     pub fn disable_subtool(&mut self)
     {
-        if matches!(self.0, Status::PickSideUi(_))
+        if matches!(self.0, Status::PickSideUi(_) | Status::Active(..))
         {
             self.0 = Status::default();
         }
@@ -243,12 +243,6 @@ impl ClipTool
             },
             Status::Active(co, ce) =>
             {
-                if inputs.esc.just_pressed()
-                {
-                    self.0 = Status::Inactive(None);
-                    return;
-                }
-
                 let cursor_pos = cursor_pos.unwrap();
 
                 if *co != cursor_pos

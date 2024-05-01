@@ -25,7 +25,7 @@ use crate::{
     map::{
         drawer::{
             animation::{Animation, Animator, Timing},
-            color::Color,
+            color::{Color, ColorResources},
             drawing_resources::DrawingResources,
             texture::{
                 Sprite,
@@ -48,7 +48,6 @@ use crate::{
         },
         HvVec,
         OutOfBounds,
-        EGUI_CYAN,
         MAP_RANGE,
         TOOLTIP_OFFSET
     },
@@ -4658,12 +4657,15 @@ impl ConvexPolygon
 
         for vx in self.vertexes()
         {
+            let label = return_if_none!(drawer.vx_tooltip_label(vx));
+
             free_draw_tooltip(
                 window,
                 camera,
                 egui_context,
+                drawer.color_resources(),
                 vx,
-                continue_if_none!(drawer.vx_tooltip_label(vx)),
+                label,
                 &mut text
             );
         }
@@ -5172,10 +5174,20 @@ pub(in crate::map) fn free_draw_tooltip(
     window: &Window,
     camera: &Transform,
     egui_context: &egui::Context,
+    color_resources: &ColorResources,
     vx: Vec2,
     label: &'static str,
     text: &mut String
 )
 {
-    vx_tooltip(window, camera, egui_context, vx, label, text, egui::Color32::BLACK, EGUI_CYAN);
+    vx_tooltip(
+        window,
+        camera,
+        egui_context,
+        vx,
+        label,
+        text,
+        egui::Color32::BLACK,
+        color_resources.egui_color(Color::CursorPolygon)
+    );
 }

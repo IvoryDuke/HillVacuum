@@ -140,7 +140,7 @@ macro_rules! input_presses {
 
             /// Forcefully resets the input presses to not pressed.
             #[inline]
-            fn clear(&mut self)
+            pub fn clear(&mut self)
             {
                 $(self.$name.clear();)+
             }
@@ -416,6 +416,7 @@ input_presses!(
     (left_mouse, InputStateHardCoded<MouseButton>, MouseButton::Left, mouse_buttons),
     (right_mouse, InputStateHardCoded<MouseButton>, MouseButton::Right, mouse_buttons),
     (esc, InputStateHardCoded<KeyCode>, KeyCode::Escape, key_inputs),
+    (f4, InputStateHardCoded<KeyCode>, KeyCode::F4, key_inputs),
     (copy, InputStateHardCoded<KeyCode>, HardcodedActions::Copy.key(), key_inputs),
     (paste, InputStateHardCoded<KeyCode>, HardcodedActions::Paste.key(), key_inputs),
     (cut, InputStateHardCoded<KeyCode>, HardcodedActions::Cut.key(), key_inputs),
@@ -1245,9 +1246,6 @@ impl State
             Err(_) => return Err("Error reading file header")
         };
 
-        drawing_resources.import_animations(header.animations, &mut file)?;
-        drawing_resources.reset_default_animation_changed();
-
         let manager = match EntitiesManager::from_file(
             &header,
             &mut file,
@@ -1259,6 +1257,9 @@ impl State
             Ok(value) => value,
             Err(err) => return Err(err)
         };
+
+        drawing_resources.import_animations(header.animations, &mut file)?;
+        drawing_resources.reset_default_animation_changed();
 
         let mut clipboard = match Clipboard::from_file(
             images,
@@ -1486,7 +1487,7 @@ impl State
             bundle,
             &mut self.core,
             &mut self.manager,
-            &self.inputs,
+            &mut self.inputs,
             &mut self.edits_history,
             &mut self.clipboard,
             self.grid,
@@ -1734,11 +1735,7 @@ impl State
             Command::ToggleDebugLines => self.toggle_debug_lines()
         };
 
-        if ui_interaction.focused
-        {
-            self.inputs.clear();
-        }
-        else if !(ui_interaction.command.world_edit() || self.harcoded_key_inputs(bundle))
+        if !(ui_interaction.command.world_edit() || self.harcoded_key_inputs(bundle))
         {
             if Bind::ToggleGrid.just_pressed(bundle.key_inputs, &bundle.config.binds)
             {
@@ -1850,14 +1847,10 @@ impl State
             _ => ()
         };
 
-        if ui_interaction.focused
-        {
-            self.inputs.clear();
-        }
-
         if self.inputs.esc.just_pressed()
         {
             self.toggle_map_preview(bundle.drawing_resources);
+            self.inputs.esc.clear();
         }
 
         ui_interaction.hovered

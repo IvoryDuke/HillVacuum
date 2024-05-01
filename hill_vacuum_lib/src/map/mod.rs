@@ -89,8 +89,6 @@ const MAP_RECT: Hull = unsafe {
 
 /// The general offset of the tooltips.
 const TOOLTIP_OFFSET: egui::Vec2 = egui::Vec2::new(0f32, -12.5);
-/// Cyan in [`egui::Color32`] format.
-const EGUI_CYAN: egui::Color32 = egui::Color32::from_rgb(0, 255, 255);
 
 //=======================================================================//
 // TRAIT
@@ -249,7 +247,7 @@ impl Plugin for MapEditorPlugin
             // Init resources
             .insert_non_send_resource(unsafe { Editor::placeholder() })
             .insert_state(TextureLoadingProgress::default())
-            .insert_resource(ClearColor(Color::Clear.bevy_color()))
+            .insert_resource(ClearColor(Color::Clear.default_bevy_color()))
             .insert_resource(WinitSettings::default())
             .init_resource::<TextureLoader>()
             // Setup
@@ -616,6 +614,7 @@ fn store_loaded_textures(
 fn update_state(
     mut window: Query<&mut Window, With<PrimaryWindow>>,
     mut images: ResMut<Assets<Image>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
     mut camera: MainCameraQueryMut,
     mut prop_cameras: PropCamerasMut,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
@@ -647,6 +646,7 @@ fn update_state(
         editor.quit(
             &mut window,
             &mut images,
+            &mut materials,
             &mut camera,
             &mut prop_cameras,
             &time,
@@ -665,6 +665,7 @@ fn update_state(
     editor.update(
         &mut window,
         &mut images,
+        &mut materials,
         &mut camera,
         &mut prop_cameras,
         &time,
@@ -682,6 +683,7 @@ fn update_state(
 //=======================================================================//
 
 /// Updates the active tool.
+#[allow(clippy::too_many_arguments)]
 #[allow(clippy::needless_pass_by_value)]
 #[inline]
 fn update_active_tool(
@@ -712,6 +714,7 @@ fn update_active_tool(
 
 /// Draws the visible portion of the map.
 #[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::too_many_arguments)]
 #[inline]
 fn draw(
     mut commands: Commands,
@@ -724,6 +727,7 @@ fn draw(
     mut egui_context: EguiContexts,
     meshes_query: Query<Entity, With<Mesh2dHandle>>,
     mut editor: NonSendMut<Editor>,
+    config: Res<Config>,
     #[cfg(feature = "debug")] mut gizmos: bevy::gizmos::gizmos::Gizmos
 )
 {
@@ -737,6 +741,7 @@ fn draw(
         &mut meshes,
         egui_context.ctx_mut(),
         &meshes_query,
+        &config.colors,
         #[cfg(feature = "debug")]
         &mut gizmos
     );

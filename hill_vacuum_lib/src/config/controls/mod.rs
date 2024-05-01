@@ -39,7 +39,7 @@ impl BindsKeyCodes
 {
     /// Loads the control binds stored in `config`.
     #[inline]
-    pub(in crate::config) fn load_controls(&mut self, config: &Ini)
+    pub(in crate::config) fn load(&mut self, config: &Ini)
     {
         for bind in Bind::iter()
         {
@@ -49,7 +49,7 @@ impl BindsKeyCodes
 
     /// Stores the `Keycode` values of the binds in `config`.
     #[inline]
-    pub(in crate::config) fn save_controls(&self, config: &mut IniConfig)
+    pub(in crate::config) fn save(&self, config: &mut IniConfig)
     {
         for bind in Bind::iter()
         {
@@ -112,24 +112,13 @@ impl BindsKeyCodes
     /// Removes the `KeyCode` associated with `bind`.
     #[inline]
     pub fn unbind(&mut self, bind: Bind) { self.0[bind as usize] = None; }
-}
 
-//=======================================================================//
-// FUNCTIONS
-//
-//=======================================================================//
-
-/// Returns the default controls binds.
-#[inline]
-#[must_use]
-pub(in crate::config) fn default_binds() -> String
-{
-    let mut config = format!("[{INI_SECTION}]\n");
-
-    for bind in Bind::iter()
+    #[inline]
+    pub fn reset(&mut self)
     {
-        config.push_str(&format!("{} = {}\n", bind.config_file_key(), bind.default_bind()));
+        for (key, default) in self.0.iter_mut().zip(Bind::iter())
+        {
+            *key = default.default_bind().into();
+        }
     }
-
-    config
 }
