@@ -685,7 +685,7 @@ pub(in crate::map::editor::state) struct PropScreenshotTimer(usize, Option<bevy:
 impl PropScreenshotTimer
 {
     #[inline]
-    pub fn new(camera_id: Option<bevy::prelude::Entity>) -> Self { Self(2, camera_id) }
+    pub fn new(camera_id: Option<bevy::prelude::Entity>) -> Self { Self(3, camera_id) }
 
     #[inline]
     #[must_use]
@@ -1431,10 +1431,7 @@ impl Clipboard
     #[inline]
     pub fn draw_props_to_photograph(&self, bundle: &mut DrawBundle)
     {
-        for (timer, idx) in self
-            .imported_props_with_assigned_camera
-            .iter()
-            .take(PROP_CAMERAS_AMOUNT)
+        for (timer, idx) in &self.imported_props_with_assigned_camera
         {
             self.props[*idx].draw(bundle, (timer.id()).into());
         }

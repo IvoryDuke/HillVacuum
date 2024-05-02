@@ -3,11 +3,52 @@
 //
 //=======================================================================//
 
-use bevy::prelude::*;
+use bevy::prelude::{Color as BevyColor, *};
 use bevy_egui::egui;
-use proc_macros::{color_height, EnumFromUsize, EnumIter, EnumSize};
+use configparser::ini::Ini;
+use proc_macros::{color_enum, EnumFromUsize, EnumIter, EnumSize};
+use shared::return_if_none;
 
-use crate::map::EGUI_CYAN;
+use crate::{
+    config::IniConfig,
+    map::containers::{hv_hash_map, hv_vec, HvHashMap}
+};
+
+//=======================================================================//
+// CONSTANTS
+//
+//=======================================================================//
+
+const INI_SECTION: &str = "COLORS";
+
+//=======================================================================//
+// TRAITS
+//
+//=======================================================================//
+
+trait FromArray
+{
+    fn from_array(rgb: &[f32; 3]) -> Self;
+}
+
+impl FromArray for BevyColor
+{
+    #[inline]
+    #[must_use]
+    fn from_array(rgb: &[f32; 3]) -> Self { Self::rgb(rgb[0], rgb[1], rgb[2]) }
+}
+
+impl FromArray for egui::Color32
+{
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_possible_truncation)]
+    #[inline]
+    #[must_use]
+    fn from_array(rgb: &[f32; 3]) -> Self
+    {
+        Self::from_rgb((255f32 * rgb[0]) as u8, (255f32 * rgb[1]) as u8, (255f32 * rgb[2]) as u8)
+    }
+}
 
 //=======================================================================//
 // ENUMS
@@ -15,8 +56,8 @@ use crate::map::EGUI_CYAN;
 //=======================================================================//
 
 /// The colors used by the map editor.
-#[derive(Copy, Clone, Debug, EnumIter, EnumSize, EnumFromUsize)]
-pub(in crate::map) enum Color
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, EnumIter, EnumSize, EnumFromUsize)]
+pub(crate) enum Color
 {
     /// The background color.
     Clear,
@@ -60,8 +101,6 @@ pub(in crate::map) enum Color
     SpriteAnchor,
     /// The color of the selected path tool path node.
     SelectedPathNode,
-    /// The color of the path tool path node candidate.
-    PathNodeCandidate,
     HighlightedPath,
     /// The color of the [`Hull`]s' outlines.
     Hull,
@@ -78,7 +117,7 @@ pub(in crate::map) enum Color
 
 impl Color
 {
-    color_height!(
+    color_enum!(
         Clear,
         SoftGridLines,
         GridLines,
@@ -97,7 +136,7 @@ impl Color
         SpriteAnchor,
         PathNode,
         HighlightedPath,
-        SelectedPathNode | PathNodeCandidate,
+        SelectedPathNode,
         SubtractorBrush,
         Hull,
         CursorPolygonHull,
@@ -106,124 +145,61 @@ impl Color
         ErrorHighlight
     );
 
-    /// The [`bevy::prelude::Color`] which corresponds to [`Color`].
+    #[inline]
+    fn customizable_colors() -> impl Iterator<Item = Color> { Color::iter().skip(1) }
+
     #[inline]
     #[must_use]
-    pub const fn bevy_color(self) -> bevy::prelude::Color
+    pub fn default_colors() -> String
     {
-        use bevy::prelude::Color;
+        let mut config = String::new();
+        config.push_str(&format!("[{INI_SECTION}]\n"));
 
+        for color in Self::customizable_colors()
+        {
+            config.push_str(&format!(
+                "{} = {}\n",
+                color.config_file_key(),
+                ColorWrapper(color.default_bevy_color())
+            ));
+        }
+
+        config
+    }
+
+    /// The [`BevyColor`] which corresponds to [`Color`].
+    #[inline]
+    #[must_use]
+    pub const fn default_bevy_color(self) -> BevyColor
+    {
         match self
         {
-            Self::Clear => Color::BLACK,
-            Self::SoftGridLines => Color::rgb(0.04, 0.06, 0.09),
-            Self::GridLines | Self::ClippedPolygonsNotToSpawn => Color::DARK_GRAY,
-            Self::OriginGridLines => Color::WHITE,
-            Self::HullExtensions => Color::INDIGO,
-            Self::NonSelectedEntity => Color::ANTIQUE_WHITE,
+            Self::Clear => BevyColor::BLACK,
+            Self::SoftGridLines => BevyColor::rgb(0.04, 0.06, 0.09),
+            Self::GridLines | Self::ClippedPolygonsNotToSpawn => BevyColor::DARK_GRAY,
+            Self::OriginGridLines => BevyColor::WHITE,
+            Self::HullExtensions => BevyColor::INDIGO,
+            Self::NonSelectedEntity => BevyColor::ANTIQUE_WHITE,
             Self::SelectedEntity |
             Self::SubtractorBrush |
             Self::SelectedVertex |
             Self::SelectedPathNode |
-            Self::PathNodeCandidate |
-            Self::ErrorHighlight => Color::RED,
-            Self::NonSelectedVertex | Self::SideModeVertex => Color::YELLOW,
-            Self::HighlightedNonSelectedBrush | Self::ToolCursor => Color::ORANGE,
-            Self::HighlightedSelectedBrush | Self::HighlightedPath => Color::GREEN,
-            Self::ClippedPolygonsToSpawn | Self::SubtracteeBrush | Self::PathNode => Color::GOLD,
-            Self::Opaque => Color::rgb(0.6, 0.6, 0.6),
-            Self::BrushAnchor => Color::rgb(0.7, 0.34, 0.05),
-            Self::SpriteAnchor => Color::rgb(1f32, 0.03, 0.91),
-            Self::Hull => Color::AQUAMARINE,
-            Self::CursorPolygonHull => Color::DARK_GREEN,
-            Self::CursorPolygon => Color::CYAN,
-            Self::DefaultCursor => Color::GRAY
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub const fn egui_color(self) -> egui::Color32
-    {
-        match self
-        {
-            Self::PathNode => egui::Color32::GOLD,
-            Self::PathNodeCandidate | Self::SelectedVertex => egui::Color32::RED,
-            Self::HighlightedPath => egui::Color32::GREEN,
-            Self::CursorPolygon => EGUI_CYAN,
-            _ => unreachable!()
-        }
-    }
-
-    /// The [`ColorMaterials`] associated with the [`Color`] values.
-    #[inline]
-    #[must_use]
-    pub(in crate::map::drawer) fn materials(materials: &mut Assets<ColorMaterial>)
-        -> ColorMaterials
-    {
-        std::array::from_fn(|i| {
-            let mut material = ColorMaterial::from(Color::from(i).bevy_color());
-
-            if i == Color::DefaultCursor as usize
+            Self::ErrorHighlight => BevyColor::RED,
+            Self::NonSelectedVertex | Self::SideModeVertex => BevyColor::YELLOW,
+            Self::HighlightedNonSelectedBrush | Self::ToolCursor => BevyColor::ORANGE,
+            Self::HighlightedSelectedBrush | Self::HighlightedPath => BevyColor::GREEN,
+            Self::ClippedPolygonsToSpawn | Self::SubtracteeBrush | Self::PathNode =>
             {
-                material.color.set_a(0.5);
-            }
-
-            let line_color = materials.add(material.clone());
-
-            material.color.set_a(0.25);
-            let st_line_color = materials.add(material.clone());
-
-            material.color.set_a(0.021_875);
-            let body_color = materials.add(material);
-
-            ColorHandles {
-                body:                 body_color,
-                line:                 line_color,
-                semitransparent_line: st_line_color
-            }
-        })
-    }
-
-    /// The associated brush body [`ColorMaterial`].
-    #[inline]
-    #[must_use]
-    pub(in crate::map::drawer) fn brush_material(
-        self,
-        materials: &ColorMaterials
-    ) -> Handle<ColorMaterial>
-    {
-        materials[self as usize].body.clone()
-    }
-
-    /// The associated line [`ColorMaterial`].
-    #[inline]
-    #[must_use]
-    pub(in crate::map::drawer) fn line_material(
-        self,
-        materials: &ColorMaterials
-    ) -> Handle<ColorMaterial>
-    {
-        materials[self as usize].line.clone()
-    }
-
-    /// The associated semitransparent line [`ColorMaterial`].
-    #[inline]
-    #[must_use]
-    pub(in crate::map::drawer) fn semitransparent_line_material(
-        self,
-        materials: &ColorMaterials
-    ) -> Handle<ColorMaterial>
-    {
-        materials[self as usize].semitransparent_line.clone()
-    }
-
-    /// The associated line [`bevy::prelude::Color`] and draw height.
-    #[inline]
-    #[must_use]
-    pub(in crate::map::drawer) fn line_color_height(self) -> (bevy::prelude::Color, f32)
-    {
-        (self.bevy_color(), self.line_height())
+                BevyColor::GOLD
+            },
+            Self::Opaque => BevyColor::rgb(0.6, 0.6, 0.6),
+            Self::BrushAnchor => BevyColor::rgb(0.7, 0.34, 0.05),
+            Self::SpriteAnchor => BevyColor::rgb(1f32, 0.03, 0.91),
+            Self::Hull => BevyColor::AQUAMARINE,
+            Self::CursorPolygonHull => BevyColor::DARK_GREEN,
+            Self::CursorPolygon => BevyColor::CYAN,
+            Self::DefaultCursor => BevyColor::GRAY
+        }
     }
 }
 
@@ -232,12 +208,21 @@ impl Color
 //
 //=======================================================================//
 
-/// The handles of all the [`ColorMaterial`]s used in the editor.
-pub(in crate::map::drawer) type ColorMaterials = [ColorHandles; Color::SIZE];
+struct ColorWrapper(BevyColor);
+
+impl std::fmt::Display for ColorWrapper
+{
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        write!(f, "{},{},{}", self.0.r(), self.0.g(), self.0.b())
+    }
+}
 
 //=======================================================================//
 
 /// The handles of the [`ColorMaterial`] associated with a [`Color`].
+#[derive(Clone)]
 pub(in crate::map::drawer) struct ColorHandles
 {
     body:                 Handle<ColorMaterial>,
@@ -245,15 +230,266 @@ pub(in crate::map::drawer) struct ColorHandles
     semitransparent_line: Handle<ColorMaterial>
 }
 
-impl Default for ColorHandles
+impl ColorHandles
 {
     #[inline]
-    fn default() -> Self
+    fn new(materials: &mut Assets<ColorMaterial>, color: Color, mut bevy_color: BevyColor) -> Self
     {
+        if color == Color::DefaultCursor
+        {
+            bevy_color.set_a(0.5);
+        }
+
+        let mut material = ColorMaterial::from(bevy_color);
+        let line_color = materials.add(material.clone());
+
+        material.color.set_a(0.25);
+        let st_line_color = materials.add(material.clone());
+
+        material.color.set_a(0.021_875);
+        let body_color = materials.add(material);
+
         Self {
-            body:                 Handle::default(),
-            line:                 Handle::default(),
-            semitransparent_line: Handle::default()
+            body:                 body_color,
+            line:                 line_color,
+            semitransparent_line: st_line_color
+        }
+    }
+}
+
+//=======================================================================//
+
+struct Slot
+{
+    rgb:        [f32; 3],
+    bevy_color: BevyColor,
+    egui_color: egui::Color32,
+    handles:    ColorHandles
+}
+
+//=======================================================================//
+
+#[must_use]
+pub(crate) struct ColorResources(HvHashMap<Color, Slot>);
+
+impl Default for ColorResources
+{
+    #[inline]
+    fn default() -> Self { Self(hv_hash_map![capacity; Color::SIZE - 1]) }
+}
+
+impl ColorResources
+{
+    #[inline]
+    pub fn load(&mut self, ini: &Ini, materials: &mut Assets<ColorMaterial>)
+    {
+        for color in Color::customizable_colors()
+        {
+            let bevy_color = match ini.get(INI_SECTION, color.config_file_key())
+            {
+                Some(string) =>
+                {
+                    #[inline]
+                    #[must_use]
+                    fn parse(color: Color, string: &str) -> BevyColor
+                    {
+                        let mut vs = hv_vec![];
+
+                        for v in string.split(',')
+                        {
+                            vs.push(v);
+                        }
+
+                        if vs.len() != 3
+                        {
+                            return color.default_bevy_color();
+                        }
+
+                        let mut rgb = [0f32; 3];
+
+                        for (v, c) in vs.into_iter().zip(&mut rgb)
+                        {
+                            match v.parse::<f32>()
+                            {
+                                Ok(v) => *c = v.clamp(0f32, 1f32),
+                                Err(_) => return color.default_bevy_color()
+                            };
+                        }
+
+                        BevyColor::from_array(&rgb)
+                    }
+
+                    parse(color, &string)
+                },
+                None => color.default_bevy_color()
+            };
+
+            let rgb = [bevy_color.r(), bevy_color.g(), bevy_color.b()];
+
+            self.0.insert(color, Slot {
+                rgb,
+                bevy_color,
+                egui_color: egui::Color32::from_array(&rgb),
+                handles: ColorHandles::new(materials, color, bevy_color)
+            });
+        }
+    }
+
+    #[inline]
+    fn get(&self, color: Color) -> &Slot { self.0.get(&color).unwrap() }
+
+    #[inline]
+    fn get_mut(&mut self, color: Color) -> &mut Slot { self.0.get_mut(&color).unwrap() }
+
+    #[inline]
+    fn handles<F: Fn(Color, &Slot) -> bool>(
+        &self,
+        materials: &mut Assets<ColorMaterial>,
+        color: Color,
+        bevy_color: BevyColor,
+        f: F
+    ) -> ColorHandles
+    {
+        match self
+            .0
+            .iter()
+            .find_map(|(color, slot)| f(*color, slot).then_some(*color))
+        {
+            Some(from_color) => self.get(from_color).handles.clone(),
+            None => ColorHandles::new(materials, color, bevy_color)
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn bevy_color(&self, color: Color) -> BevyColor { self.get(color).bevy_color }
+
+    #[inline]
+    #[must_use]
+    pub fn egui_color(&self, color: Color) -> egui::Color32
+    {
+        assert!(matches!(
+            color,
+            Color::PathNode | Color::SelectedVertex | Color::HighlightedPath | Color::CursorPolygon
+        ));
+
+        self.get(color).egui_color
+    }
+
+    /// The associated line [`bevy::prelude::Color`] and draw height.
+    #[inline]
+    #[must_use]
+    pub(in crate::map::drawer) fn line_color_height(&self, color: Color) -> (BevyColor, f32)
+    {
+        let slot = self.get(color);
+        (slot.bevy_color, color.line_height())
+    }
+
+    /// The associated brush body [`ColorMaterial`].
+    #[inline]
+    #[must_use]
+    pub(in crate::map::drawer) fn brush_material(&self, color: Color) -> Handle<ColorMaterial>
+    {
+        self.get(color).handles.body.clone()
+    }
+
+    /// The associated line [`ColorMaterial`].
+    #[inline]
+    #[must_use]
+    pub(in crate::map::drawer) fn line_material(&self, color: Color) -> Handle<ColorMaterial>
+    {
+        self.get(color).handles.line.clone()
+    }
+
+    /// The associated semitransparent line [`ColorMaterial`].
+    #[inline]
+    #[must_use]
+    pub(in crate::map::drawer) fn semitransparent_line_material(
+        &self,
+        color: Color
+    ) -> Handle<ColorMaterial>
+    {
+        self.get(color).handles.semitransparent_line.clone()
+    }
+
+    #[inline]
+    pub fn save(&self, config: &mut IniConfig)
+    {
+        for (color, slot) in &self.0
+        {
+            config.set(
+                INI_SECTION,
+                color.config_file_key(),
+                Some(format!("{}", ColorWrapper(slot.bevy_color)))
+            );
+        }
+    }
+
+    #[inline]
+    pub fn show(&mut self, materials: &mut Assets<ColorMaterial>, ui: &mut egui::Ui)
+    {
+        let mut changed = None;
+        let mut iter = Color::customizable_colors();
+
+        for color in iter.by_ref()
+        {
+            let slot = self.0.get_mut(&color).unwrap();
+
+            ui.label(color.label());
+            let response = egui::color_picker::color_edit_button_rgb(ui, &mut slot.rgb);
+            ui.end_row();
+
+            if !response.changed()
+            {
+                continue;
+            }
+
+            changed = color.into();
+            slot.bevy_color = BevyColor::from_array(&slot.rgb);
+            slot.egui_color = egui::Color32::from_array(&slot.rgb);
+            break;
+        }
+
+        for color in iter
+        {
+            ui.label(color.label());
+            egui::color_picker::color_edit_button_rgb(ui, &mut self.get_mut(color).rgb);
+            ui.end_row();
+        }
+
+        let changed = return_if_none!(changed);
+        let bevy_color = self.get(changed).bevy_color;
+
+        self.get_mut(changed).handles =
+            self.handles(materials, changed, bevy_color, |color, slot| {
+                changed != color && slot.bevy_color == bevy_color
+            });
+    }
+
+    #[inline]
+    pub fn reset(&mut self, materials: &mut Assets<ColorMaterial>)
+    {
+        for color in Color::customizable_colors()
+        {
+            let bevy_color = color.default_bevy_color();
+
+            if self.get(color).bevy_color == bevy_color
+            {
+                continue;
+            }
+
+            let handles =
+                self.handles(materials, color, bevy_color, |_, slot| slot.bevy_color == bevy_color);
+            let slot = self.get_mut(color);
+
+            slot.bevy_color = bevy_color;
+            slot.rgb = [
+                slot.bevy_color.r(),
+                slot.bevy_color.g(),
+                slot.bevy_color.b()
+            ];
+            slot.egui_color = egui::Color32::from_array(&slot.rgb);
+            slot.handles = handles;
         }
     }
 }

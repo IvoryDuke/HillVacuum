@@ -20,7 +20,7 @@ use bevy_egui::{egui, EguiUserTextures};
 use threadpool::ThreadPool;
 
 use super::texture::Texture;
-use crate::map::{editor::state::ui::centered_window, EGUI_CYAN};
+use crate::map::editor::state::ui::centered_window;
 
 //=======================================================================//
 // CONSTANTS
@@ -282,7 +282,8 @@ impl TextureLoader
             .default_height(100f32)
             .show(egui_context, |ui| {
                 ui.add(
-                    egui::ProgressBar::new(self.cycles as f32 / self.total_cycles).fill(EGUI_CYAN)
+                    egui::ProgressBar::new(self.cycles as f32 / self.total_cycles)
+                        .fill(egui::Color32::from_rgb(0, 255, 255))
                 );
             })
             .unwrap()

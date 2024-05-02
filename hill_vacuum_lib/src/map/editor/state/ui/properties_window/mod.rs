@@ -542,6 +542,6 @@ impl PropertiesWindow
                     )
                 }
             )
-            .unwrap()
+            .unwrap_or(false)
     }
 }

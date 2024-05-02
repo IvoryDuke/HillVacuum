@@ -252,18 +252,40 @@ pub fn str_array(input: TokenStream) -> TokenStream
 /// enum match arm.
 #[allow(clippy::missing_panics_doc)]
 #[proc_macro]
-pub fn color_height(input: TokenStream) -> TokenStream
+pub fn color_enum(input: TokenStream) -> TokenStream
 {
     const COLOR_HEIGHT_RANGE: f32 = 2f32;
 
     let textures_interval: f32 = draw_height_to_world(*TEXTURE_HEIGHT_RANGE.end());
     let textures_and_lines_interval: f32 = textures_interval + COLOR_HEIGHT_RANGE;
 
-    let mut color_height = "
+    let mut height_func = "
     /// The height at which map elements colored with a certain [`Color`] should be drawn.
     #[inline]
     #[must_use]
     pub const fn height(self) -> f32
+    {
+        match self
+        {
+    "
+    .to_string();
+
+    let mut key_func = "
+    /// The config file key relative to the drawn color associated with [`Color`].
+    #[inline]
+    #[must_use]
+    pub const fn config_file_key(self) -> &'static str
+    {
+        match self
+        {
+    "
+    .to_string();
+
+    let mut label_func = "
+    /// The text label representing [`Color`] in UI elements.
+    #[inline]
+    #[must_use]
+    pub const fn label(self) -> &'static str
     {
         match self
         {
@@ -278,25 +300,53 @@ pub fn color_height(input: TokenStream) -> TokenStream
         {
             if p.as_char() == ','
             {
-                color_height.push_str(&format!(" => {height}f32,\n"));
+                height_func.push_str(&format!(" => {height}f32,\n"));
                 height += textures_and_lines_interval;
             }
             else
             {
-                color_height.push(p.as_char());
+                height_func.push(p.as_char());
             }
 
             continue;
         }
 
-        color_height.push_str(&format!("Self::{item}"));
+        let item = item.to_string();
+        height_func.push_str(&format!("Self::{item}"));
+
+        let mut chars = item.chars();
+        let c = chars.next_value();
+        key_func.push_str(&format!("Self::{item} => \"{}", c.to_ascii_lowercase()));
+        label_func.push_str(&format!("Self::{item} => \"{c}"));
+
+        for c in chars
+        {
+            if c.is_uppercase()
+            {
+                key_func.push('_');
+                key_func.push(c.to_ascii_lowercase());
+
+                label_func.push(' ');
+                label_func.push(c);
+
+                continue;
+            }
+
+            key_func.push(c);
+            label_func.push(c);
+        }
+
+        key_func.push_str("\",\n");
+        label_func.push_str("\",\n");
     }
 
-    color_height.push_str(&format!(" => {height}f32,\n}}\n}}"));
+    height_func.push_str(&format!(" => {height}f32,\n}}\n}}"));
+    key_func.push_str("}\n}");
+    label_func.push_str("}\n}");
 
     format!(
         "
-    {color_height}
+    {height_func}
     
     /// The draw height of the lines.
     #[inline]
@@ -318,6 +368,10 @@ pub fn color_height(input: TokenStream) -> TokenStream
     #[inline]
     #[must_use]
     pub(in crate::map::drawer) fn square_hgl_height(self) -> f32 {{ self.height() + {}f32 }}
+
+    {key_func}
+
+    {label_func}
     ",
         textures_interval + COLOR_HEIGHT_RANGE / 4f32,
         textures_interval + COLOR_HEIGHT_RANGE / 2f32,

@@ -11,13 +11,27 @@ use std::{
     path::{Path, PathBuf}
 };
 
-use bevy::{app::AppExit, prelude::*};
+use bevy::{
+    app::{App, AppExit, Plugin},
+    asset::Assets,
+    ecs::{
+        event::EventWriter,
+        schedule::OnEnter,
+        system::{Res, ResMut, Resource},
+        world::{FromWorld, Mut, World}
+    },
+    sprite::ColorMaterial
+};
 use configparser::ini::Ini;
 use is_executable::IsExecutable;
 use shared::FILE_EXTENSION;
 
-use self::controls::{default_binds, BindsKeyCodes};
-use crate::{error_message, EditorState};
+use self::controls::{bind::Bind, BindsKeyCodes};
+use crate::{
+    error_message,
+    map::drawer::color::{Color, ColorResources},
+    EditorState
+};
 
 //=======================================================================//
 // CONSTANTS
@@ -103,14 +117,15 @@ pub struct Config
     /// The file being edited.
     pub open_file: OpenFile,
     /// The executable to export the map.
-    pub exporter:  Option<PathBuf>
+    pub exporter:  Option<PathBuf>,
+    pub colors:    ColorResources
 }
 
 //=======================================================================//
 
 /// Wrapper of the ini config parser.
 #[derive(Resource)]
-struct IniConfig(Ini);
+pub(crate) struct IniConfig(Ini);
 
 impl FromWorld for IniConfig
 {
@@ -127,28 +142,42 @@ impl FromWorld for IniConfig
         let mut ini_config = Ini::new_cs();
         ini_config.load(CONFIG_FILE_NAME).unwrap();
 
-        let mut config = world.get_resource_mut::<Config>().unwrap();
-        config.binds.load_controls(&ini_config);
+        world.resource_scope(|world, mut materials: Mut<Assets<ColorMaterial>>| {
+            let mut config = world.get_resource_mut::<Config>().unwrap();
 
-        if let Some(file) = ini_config.get(OPEN_FILE_SECTION, OPEN_FILE_FIELD)
-        {
-            if Path::new(&file).exists()
+            config.binds.load(&ini_config);
+
+            if let Some(file) = ini_config.get(OPEN_FILE_SECTION, OPEN_FILE_FIELD)
             {
-                config.open_file = OpenFile::new(file);
+                if Path::new(&file).exists()
+                {
+                    config.open_file = OpenFile::new(file);
+                }
             }
-        }
 
-        if let Some(file) = ini_config.get(EXPORTER_SECTION, EXPORTER_FIELD)
-        {
-            let file = PathBuf::from(file);
-
-            if file.exists() && file.is_executable()
+            if let Some(file) = ini_config.get(EXPORTER_SECTION, EXPORTER_FIELD)
             {
-                config.exporter = file.into();
+                let file = PathBuf::from(file);
+
+                if file.exists() && file.is_executable()
+                {
+                    config.exporter = file.into();
+                }
             }
-        }
+
+            config.colors.load(&ini_config, &mut materials);
+        });
 
         Self(ini_config)
+    }
+}
+
+impl IniConfig
+{
+    #[inline]
+    pub fn set(&mut self, section: &str, key: &str, value: Option<String>)
+    {
+        self.0.set(section, key, value);
     }
 }
 
@@ -167,7 +196,8 @@ fn create_default_config_file() -> std::io::Result<()>
     let mut config = format!(
         "[{OPEN_FILE_SECTION}]\n{OPEN_FILE_FIELD}\n[{EXPORTER_SECTION}]\n{EXPORTER_FIELD}\n"
     );
-    config.push_str(&default_binds());
+    config.push_str(&Bind::default_binds());
+    config.push_str(&Color::default_colors());
 
     file.write_all(config.as_bytes())?;
     Ok(())
@@ -184,7 +214,6 @@ fn save_config(
     mut app_exit_events: EventWriter<AppExit>
 )
 {
-    config.binds.save_controls(&mut ini_config);
     ini_config.0.set(
         OPEN_FILE_SECTION,
         OPEN_FILE_FIELD,
@@ -202,6 +231,9 @@ fn save_config(
             .as_ref()
             .map(|path| path.as_os_str().to_str().unwrap().to_owned())
     );
+
+    config.binds.save(&mut ini_config);
+    config.colors.save(&mut ini_config);
 
     if ini_config.0.write(CONFIG_FILE_NAME).is_err()
     {

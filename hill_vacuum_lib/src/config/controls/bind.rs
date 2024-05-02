@@ -29,7 +29,8 @@ bind_enum!(
     ToggleCursorSnap,
     ToggleCollision,
     TextureEditor,
-    PropertiesEditor
+    PropertiesEditor,
+    Settings
 );
 
 impl Bind
@@ -39,46 +40,66 @@ impl Bind
     /// launched and a config file cannot be found.
     #[inline]
     #[must_use]
-    pub(in crate::config::controls) const fn default_bind(self) -> &'static str
+    pub(in crate::config::controls) const fn default_bind(self) -> KeyCode
     {
         match self
         {
-            Self::Left => "Left",
-            Self::Right => "Right",
-            Self::Up => "Up",
-            Self::Down => "Down",
-            Self::ToggleGrid => ".",
-            Self::ToggleTooltips => "\'",
-            Self::IncreaseGridSize => "[",
-            Self::DecreaseGridSize => "]",
-            Self::ShiftGrid => "/",
-            Self::ToggleCursorSnap => "\\",
-            Self::ToggleCollision => "=",
-            Self::Square => "Q",
-            Self::Triangle => "T",
-            Self::Circle => "R",
-            Self::FreeDraw => "D",
-            Self::Entity => "E",
-            Self::Vertex => "V",
-            Self::Side => "S",
-            Self::Path => "L",
-            Self::Clip => "C",
-            Self::Shatter => "H",
-            Self::Merge => "M",
-            Self::Hollow => "W",
-            Self::Intersection => "I",
-            Self::Subtract => "U",
-            Self::Scale => "A",
-            Self::Shear => "J",
-            Self::Zoom => "Z",
-            Self::Snap => "N",
-            Self::Rotate => "K",
-            Self::Flip => "F",
-            Self::TextureEditor => "X",
-            Self::Paint => "P",
-            Self::Thing => "G",
-            Self::PropertiesEditor => "O"
+            Self::Left => KeyCode::ArrowLeft,
+            Self::Right => KeyCode::ArrowRight,
+            Self::Up => KeyCode::ArrowUp,
+            Self::Down => KeyCode::ArrowDown,
+            Self::ToggleGrid => KeyCode::Period,
+            Self::ToggleTooltips => KeyCode::Quote,
+            Self::IncreaseGridSize => KeyCode::BracketLeft,
+            Self::DecreaseGridSize => KeyCode::BracketRight,
+            Self::ShiftGrid => KeyCode::Slash,
+            Self::ToggleCursorSnap => KeyCode::Backslash,
+            Self::ToggleCollision => KeyCode::Equal,
+            Self::Square => KeyCode::KeyQ,
+            Self::Triangle => KeyCode::KeyT,
+            Self::Circle => KeyCode::KeyR,
+            Self::FreeDraw => KeyCode::KeyD,
+            Self::Entity => KeyCode::KeyE,
+            Self::Vertex => KeyCode::KeyV,
+            Self::Side => KeyCode::KeyS,
+            Self::Path => KeyCode::KeyL,
+            Self::Clip => KeyCode::KeyC,
+            Self::Shatter => KeyCode::KeyH,
+            Self::Merge => KeyCode::KeyM,
+            Self::Hollow => KeyCode::KeyW,
+            Self::Intersection => KeyCode::KeyI,
+            Self::Subtract => KeyCode::KeyU,
+            Self::Scale => KeyCode::KeyA,
+            Self::Shear => KeyCode::KeyJ,
+            Self::Zoom => KeyCode::KeyZ,
+            Self::Snap => KeyCode::KeyN,
+            Self::Rotate => KeyCode::KeyK,
+            Self::Flip => KeyCode::KeyF,
+            Self::TextureEditor => KeyCode::KeyX,
+            Self::Paint => KeyCode::KeyP,
+            Self::Thing => KeyCode::KeyG,
+            Self::PropertiesEditor => KeyCode::KeyO,
+            Self::Settings => KeyCode::Comma
         }
+    }
+
+    /// Returns the default controls binds.
+    #[inline]
+    #[must_use]
+    pub(in crate::config) fn default_binds() -> String
+    {
+        let mut config = format!("[{INI_SECTION}]\n");
+
+        for bind in Self::iter()
+        {
+            config.push_str(&format!(
+                "{} = {}\n",
+                bind.config_file_key(),
+                bind.default_bind().to_str()
+            ));
+        }
+
+        config
     }
 
     /// `KeyCode` associated with [`Bind`].

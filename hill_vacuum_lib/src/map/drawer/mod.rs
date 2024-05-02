@@ -1,5 +1,5 @@
 pub mod animation;
-pub(in crate::map) mod color;
+pub(crate) mod color;
 pub(in crate::map) mod drawing_resources;
 pub mod texture;
 pub(in crate::map) mod texture_loader;
@@ -17,7 +17,7 @@ use shared::{return_if_none, NextValue};
 
 use self::{
     animation::Animator,
-    color::Color,
+    color::{Color, ColorResources},
     drawing_resources::DrawingResources,
     texture::{TextureInterface, TextureInterfaceExtra}
 };
@@ -88,6 +88,7 @@ pub(in crate::map) struct EditDrawer<'w, 's, 'a>
     meshes:                 &'a mut Assets<Mesh>,
     /// The resources required to draw things.
     resources:              &'a mut DrawingResources,
+    color_resources:        &'a ColorResources,
     /// The scale of the current frame's camera.
     camera_scale:           f32,
     elapsed_time:           f32,
@@ -120,7 +121,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     pub fn line(&mut self, start: Vec2, end: Vec2, color: Color)
     {
         let line = self.line_mesh(start, end);
-        self.push_mesh(line, self.resources.line_material(color), color.line_height());
+        self.push_mesh(line, self.color_resources.line_material(color), color.line_height());
     }
 
     #[inline]
@@ -130,7 +131,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
         self.push_mesh(
             line,
-            self.resources.semitransparent_line_material(color),
+            self.color_resources.semitransparent_line_material(color),
             color.line_height()
         );
     }
@@ -139,7 +140,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     pub fn arrowed_line(&mut self, start: Vec2, end: Vec2, color: Color)
     {
         let line = self.arrowed_line_mesh(start, end);
-        self.push_mesh(line, self.resources.line_material(color), color.line_height());
+        self.push_mesh(line, self.color_resources.line_material(color), color.line_height());
     }
 
     #[inline]
@@ -149,7 +150,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
         self.push_mesh(
             line,
-            self.resources.semitransparent_line_material(color),
+            self.color_resources.semitransparent_line_material(color),
             color.line_height()
         );
     }
@@ -164,7 +165,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
         let mesh = mesh.mesh(PrimitiveTopology::LineStrip);
 
-        self.push_mesh(mesh, self.resources.line_material(color), color.line_height());
+        self.push_mesh(mesh, self.color_resources.line_material(color), color.line_height());
     }
 
     #[inline]
@@ -178,7 +179,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         for (start, end, color) in grid
         {
             mesh.push_positions([start, end]);
-            mesh.push_colors([color.bevy_color().as_rgba_f32(); 2]);
+            mesh.push_colors([self.color_resources.bevy_color(color).as_rgba_f32(); 2]);
         }
 
         let mesh = mesh.grid_mesh();
@@ -211,7 +212,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
         for (start, end, color) in lines
         {
-            let (color, height) = color.line_color_height();
+            let (color, height) = self.color_resources.line_color_height(color);
             mesh.push_positions([start, end]);
             mesh.push_colors([color.as_rgba_f32(); 2]);
             max_height = f32::max(max_height, height);
@@ -302,7 +303,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     pub fn circle(&mut self, center: Vec2, resolution: u8, radius: f32, color: Color)
     {
         let mesh = self.circle_mesh(center, resolution, radius);
-        self.push_mesh(mesh, self.resources.line_material(color), color.line_height());
+        self.push_mesh(mesh, self.color_resources.line_material(color), color.line_height());
     }
 
     #[inline]
@@ -414,7 +415,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     #[inline]
     pub fn square_highlight(&mut self, center: Vec2, color: Color)
     {
-        self.push_square_highlight_mesh(self.resources.line_material(color), center, color);
+        self.push_square_highlight_mesh(self.color_resources.line_material(color), center, color);
     }
 
     #[inline]
@@ -426,7 +427,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     )
     {
         self.resources.push_prop_square_highlight_mesh(
-            self.resources.line_material(color),
+            self.color_resources.line_material(color),
             center,
             color.square_hgl_height(),
             camera_id
@@ -437,7 +438,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     pub fn semitransparent_square_highlight(&mut self, center: Vec2, color: Color)
     {
         self.push_square_highlight_mesh(
-            self.resources.semitransparent_line_material(color),
+            self.color_resources.semitransparent_line_material(color),
             center,
             color
         );
@@ -447,7 +448,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     pub fn anchor_highlight(&mut self, center: Vec2, color: Color)
     {
         self.resources.push_anchor_highlight_mesh(
-            self.resources.line_material(color),
+            self.color_resources.line_material(color),
             center,
             color.square_hgl_height()
         );
@@ -457,7 +458,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     pub fn sprite_highlight(&mut self, center: Vec2, color: Color)
     {
         self.resources.push_sprite_highlight_mesh(
-            self.resources.line_material(color),
+            self.color_resources.line_material(color),
             center,
             color.square_hgl_height()
         );
@@ -533,7 +534,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         }
 
         let mesh = self.polygon_mesh(vertexes.clone());
-        self.push_mesh(mesh, self.resources.brush_material(color), color.height());
+        self.push_mesh(mesh, self.color_resources.brush_material(color), color.height());
     }
 
     #[inline]
@@ -559,7 +560,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     )
     {
         let mesh = self.polygon_mesh(vertexes);
-        self.push_mesh(mesh, self.resources.line_material(color), color.height());
+        self.push_mesh(mesh, self.color_resources.line_material(color), color.height());
     }
 
     /// Queues the [`Mesh`] of a polygon to draw.
@@ -567,7 +568,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     fn polygon(&mut self, vertexes: impl ExactSizeIterator<Item = Vec2>, color: Color)
     {
         let mesh = self.polygon_mesh(vertexes);
-        self.push_mesh(mesh, self.resources.line_material(color), color.height());
+        self.push_mesh(mesh, self.color_resources.line_material(color), color.height());
     }
 
     #[inline]
@@ -814,6 +815,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     // New
 
     /// Returns a new [`EditDrawer`].
+    #[allow(clippy::too_many_arguments)]
     #[inline]
     #[must_use]
     pub fn new(
@@ -822,6 +824,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         meshes: &'a mut Assets<Mesh>,
         meshes_query: &Query<Entity, With<Mesh2dHandle>>,
         resources: &'a mut DrawingResources,
+        color_resources: &'a ColorResources,
         settings: &ToolsSettings,
         mut elapsed_time: f32,
         camera_scale: f32,
@@ -847,6 +850,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             commands,
             meshes,
             resources,
+            color_resources,
             camera_scale,
             elapsed_time,
             parallax_enabled: settings.parallax_enabled,
@@ -856,6 +860,16 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
     //==============================================================
     // Mesh creation
+
+    #[inline]
+    pub const fn color_resources(&self) -> &ColorResources { self.color_resources }
+
+    #[inline]
+    #[must_use]
+    pub fn egui_color(&self, color: Color) -> egui::Color32
+    {
+        self.color_resources.egui_color(color)
+    }
 
     /// Queues a new [`Mesh`] to spawn.
     #[inline]

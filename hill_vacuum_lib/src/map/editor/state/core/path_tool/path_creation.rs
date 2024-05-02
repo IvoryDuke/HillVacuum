@@ -186,7 +186,15 @@ impl PathCreation
         let label = return_if_none!(drawer.vx_tooltip_label(pos));
         let mut tooltip_text = String::with_capacity(4);
         write!(&mut tooltip_text, "{}", pos.necessary_precision_value()).ok();
-        node_tooltip(window, camera, egui_context, pos, label, &tooltip_text, Color::CursorPolygon);
+        node_tooltip(
+            window,
+            camera,
+            egui_context,
+            pos,
+            label,
+            &tooltip_text,
+            drawer.egui_color(Color::CursorPolygon)
+        );
     }
 
     #[inline]

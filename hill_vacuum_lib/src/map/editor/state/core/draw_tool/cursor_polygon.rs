@@ -506,7 +506,13 @@ impl FreeDrawCursorPolygon
     }
 
     #[inline]
-    pub fn disable_subtool(&mut self) { self.0 = FreeDrawStatus::None; }
+    pub fn disable_subtool(&mut self)
+    {
+        if !matches!(self.0, FreeDrawStatus::None)
+        {
+            self.0 = FreeDrawStatus::None;
+        }
+    }
 
     #[inline]
     pub fn update(
@@ -736,12 +742,15 @@ impl FreeDrawCursorPolygon
                     return;
                 }
 
+                let label = return_if_none!(drawer.vx_tooltip_label(*p));
+
                 free_draw_tooltip(
                     window,
                     camera,
                     egui_context,
+                    drawer.color_resources(),
                     *p,
-                    return_if_none!(drawer.vx_tooltip_label(*p)),
+                    label,
                     &mut String::with_capacity(6)
                 );
             },
@@ -760,12 +769,15 @@ impl FreeDrawCursorPolygon
 
                 for vx in [start, end]
                 {
+                    let label = return_if_none!(drawer.vx_tooltip_label(*vx));
+
                     free_draw_tooltip(
                         window,
                         camera,
                         egui_context,
+                        drawer.color_resources(),
                         *vx,
-                        return_if_none!(drawer.vx_tooltip_label(*vx)),
+                        label,
                         &mut text
                     );
                 }

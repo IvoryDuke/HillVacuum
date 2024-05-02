@@ -92,7 +92,13 @@ impl ThingTool
     }
 
     #[inline]
-    pub fn disable_subtool(&mut self) { self.status = Status::Inactive(()); }
+    pub fn disable_subtool(&mut self)
+    {
+        if matches!(self.status, Status::ChangeUi)
+        {
+            self.status = Status::Inactive(());
+        }
+    }
 
     #[inline]
     pub fn update(
