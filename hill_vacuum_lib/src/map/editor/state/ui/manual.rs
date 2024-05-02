@@ -161,9 +161,9 @@ impl Manual
                      which can either be drawn filling their area or as a sprite. The sprite can \
                      be displaced independently of the brush surface.\nBrushes can also be \
                      assigned a path that describes how it moves in the bidimensional space and \
-                     that can be edited with the Path tool.\nFinally, brushes can either \
-                     represent a clipping surface or not by changing the collision setting in the \
-                     bottom left area of the UI."
+                     that can be edited with the Path tool.\nFinally, brushes have a built-in \
+                     property, collision, which determines whever they should represent a \
+                     clipping surface or not. It can be edited in the properties window."
                 ),
                 (
                     "Things",
@@ -181,8 +181,12 @@ impl Manual
                      unique identifier between 0 and 65534, and TEX is the name of the texture to \
                      be drawn along with the bounding box.\nIf a thing defined through the \
                      MapThing interface has the same ID as one loaded from file, the latter will \
-                     overwrite the former.\n\nThings can be reloaded while the application is \
-                     running through the UI button in the Options menu."
+                     overwrite the former.\n\nFinally, things have two built-in properties, angle \
+                     and draw height. The orientation of the arrow drawn on top of the things \
+                     will change based on the value of angle, and draw height determines its draw \
+                     order. They can be edited in the properties window.\n\nThings can be \
+                     reloaded while the application is running through the UI button in the \
+                     Options menu."
                 ),
                 (
                     "Properties",
@@ -190,10 +194,11 @@ impl Manual
                      and things.\nSuch values can be defined through the \"brush_properties\" and \
                      \"thing_properties\" macros defining the pairs (name, default_value) of the \
                      properties.\nProperties can be edited per-entity using the properties \
-                     window.\n\n!!! If a saved map contains properties that differ in type and/or \
-                     name from the ones defined in the aforementioned resources, a warning window \
-                     will appear on screen when trying to load the .hv file, asking whever you'd \
-                     like to use the app or map ones."
+                     window.\nCurrently supported value types are bool, u8, u16, u32, u64, u128, \
+                     i8, i16, i32, i64, i128, f32, f64, and String.\n\n!!! If a saved map contains \
+                     properties that differ in type and/or name from the ones defined in the \
+                     aforementioned resources, a warning window will appear on screen when trying \
+                     to load the .hv file, asking whever you'd like to use the app or map ones."
                 ),
                 (
                     "Textures",

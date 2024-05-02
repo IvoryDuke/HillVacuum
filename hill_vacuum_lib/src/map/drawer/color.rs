@@ -6,13 +6,11 @@
 use bevy::prelude::{Color as BevyColor, *};
 use bevy_egui::egui;
 use configparser::ini::Ini;
+use hashbrown::HashMap;
 use proc_macros::{color_enum, EnumFromUsize, EnumIter, EnumSize};
 use shared::return_if_none;
 
-use crate::{
-    config::IniConfig,
-    map::containers::{hv_hash_map, hv_vec, HvHashMap}
-};
+use crate::{config::IniConfig, map::containers::hv_vec};
 
 //=======================================================================//
 // CONSTANTS
@@ -270,12 +268,12 @@ struct Slot
 //=======================================================================//
 
 #[must_use]
-pub(crate) struct ColorResources(HvHashMap<Color, Slot>);
+pub(crate) struct ColorResources(HashMap<Color, Slot>);
 
 impl Default for ColorResources
 {
     #[inline]
-    fn default() -> Self { Self(hv_hash_map![capacity; Color::SIZE - 1]) }
+    fn default() -> Self { Self(HashMap::with_capacity(Color::SIZE - 1)) }
 }
 
 impl ColorResources
