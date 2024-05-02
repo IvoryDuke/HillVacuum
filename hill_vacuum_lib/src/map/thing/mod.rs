@@ -601,21 +601,21 @@ impl ThingInstance
     #[inline]
     pub fn draw_highlighted_non_selected(&self, drawer: &mut EditDrawer, catalog: &ThingsCatalog)
     {
-        drawer.thing(catalog, self, Color::HighlightedNonSelectedBrush);
+        drawer.thing(catalog, self, Color::HighlightedNonSelectedEntity);
     }
 
     /// Draws `self` with the highlighted selected color.
     #[inline]
     pub fn draw_highlighted_selected(&self, drawer: &mut EditDrawer, catalog: &ThingsCatalog)
     {
-        drawer.thing(catalog, self, Color::HighlightedSelectedBrush);
+        drawer.thing(catalog, self, Color::HighlightedSelectedEntity);
     }
 
     /// Draws `self` with the opaque color.
     #[inline]
     pub fn draw_opaque(&self, drawer: &mut EditDrawer, catalog: &ThingsCatalog)
     {
-        drawer.thing(catalog, self, Color::Opaque);
+        drawer.thing(catalog, self, Color::OpaqueEntity);
     }
 
     /// Draws `self` as it would appear in a map.

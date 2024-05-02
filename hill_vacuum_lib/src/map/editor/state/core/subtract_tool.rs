@@ -319,11 +319,11 @@ impl SubtractTool
                 drawer,
                 if self.subtractees.contains(&hgl_s)
                 {
-                    Color::HighlightedSelectedBrush
+                    Color::HighlightedSelectedEntity
                 }
                 else
                 {
-                    Color::HighlightedNonSelectedBrush
+                    Color::HighlightedNonSelectedEntity
                 }
             );
 

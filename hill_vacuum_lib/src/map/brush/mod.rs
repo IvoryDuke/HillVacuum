@@ -561,7 +561,7 @@ impl Moving for Brush
         show_tooltips: bool
     )
     {
-        self.draw_with_color(camera, drawer, Color::HighlightedSelectedBrush);
+        self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
         self.path().unwrap().draw(
             window,
             camera,
@@ -586,7 +586,7 @@ impl Moving for Brush
         show_tooltips: bool
     )
     {
-        self.draw_with_color(camera, drawer, Color::HighlightedSelectedBrush);
+        self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
         self.path().unwrap().draw_with_highlighted_path_node(
             window,
             camera,
@@ -613,7 +613,7 @@ impl Moving for Brush
         show_tooltips: bool
     )
     {
-        self.draw_with_color(camera, drawer, Color::HighlightedSelectedBrush);
+        self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
         self.path().unwrap().draw_with_node_insertion(
             window,
             camera,
@@ -2274,20 +2274,20 @@ impl Brush
     #[inline]
     pub fn draw_highlighted_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
     {
-        self.draw_with_color(camera, drawer, Color::HighlightedSelectedBrush);
+        self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
     }
 
     /// Draws the `Brush` with the highlight `Color`.
     #[inline]
     pub fn draw_highlighted_non_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
     {
-        self.draw_with_color(camera, drawer, Color::HighlightedNonSelectedBrush);
+        self.draw_with_color(camera, drawer, Color::HighlightedNonSelectedEntity);
     }
 
     #[inline]
     pub fn draw_opaque(&self, camera: &Transform, drawer: &mut EditDrawer)
     {
-        self.draw_with_color(camera, drawer, Color::Opaque);
+        self.draw_with_color(camera, drawer, Color::OpaqueEntity);
     }
 
     #[inline]

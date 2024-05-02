@@ -94,11 +94,11 @@ impl TextureMaterials
     {
         const COLORS: [Color; 7] = [
             Color::SelectedEntity,
-            Color::HighlightedNonSelectedBrush,
-            Color::HighlightedSelectedBrush,
+            Color::HighlightedNonSelectedEntity,
+            Color::HighlightedSelectedEntity,
             Color::NonSelectedVertex,
             Color::ClippedPolygonsToSpawn,
-            Color::Opaque,
+            Color::OpaqueEntity,
             Color::ClippedPolygonsNotToSpawn
         ];
         const LEN: usize = COLORS.len();
@@ -190,12 +190,12 @@ impl TextureMaterials
         {
             Color::NonSelectedEntity => &self.semi_transparent,
             Color::SelectedEntity | Color::SubtractorBrush => &self.selected,
-            Color::HighlightedNonSelectedBrush => &self.highlighted_non_selected,
-            Color::HighlightedSelectedBrush => &self.highlighted_selected,
+            Color::HighlightedNonSelectedEntity => &self.highlighted_non_selected,
+            Color::HighlightedSelectedEntity => &self.highlighted_selected,
             Color::NonSelectedVertex => &self.side_mode,
             Color::ClippedPolygonsToSpawn | Color::SubtracteeBrush => &self.gold,
             Color::ClippedPolygonsNotToSpawn => &self.clip_not_to_spawn,
-            Color::Opaque => &self.opaque,
+            Color::OpaqueEntity => &self.opaque,
             _ => panic!("Color with no associated color material.")
         }
         .clone_weak()

@@ -941,7 +941,7 @@ impl EntityTool
                 {
                     if settings.texture_editing() && brush.has_sprite()
                     {
-                        sprite_outline(brush, drawer, Color::HighlightedSelectedBrush);
+                        sprite_outline(brush, drawer, Color::HighlightedSelectedEntity);
                     }
                 }
 
@@ -1000,7 +1000,7 @@ impl EntityTool
 
                     if brush.has_sprite()
                     {
-                        sprite_outline(brush, &mut bundle.drawer, Color::HighlightedSelectedBrush);
+                        sprite_outline(brush, &mut bundle.drawer, Color::HighlightedSelectedEntity);
                     }
 
                     brush.hull().into()
@@ -1014,7 +1014,7 @@ impl EntityTool
                         sprite_outline(
                             brush,
                             &mut bundle.drawer,
-                            Color::HighlightedNonSelectedBrush
+                            Color::HighlightedNonSelectedEntity
                         );
                     }
 
@@ -1028,13 +1028,13 @@ impl EntityTool
                 if manager.is_selected(id)
                 {
                     brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
-                    sprite_outline(brush, &mut bundle.drawer, Color::HighlightedSelectedBrush);
+                    sprite_outline(brush, &mut bundle.drawer, Color::HighlightedSelectedEntity);
                     brush.sprite_hull().unwrap().into()
                 }
                 else
                 {
                     brush.draw_highlighted_non_selected(bundle.camera, &mut bundle.drawer);
-                    sprite_outline(brush, &mut bundle.drawer, Color::HighlightedNonSelectedBrush);
+                    sprite_outline(brush, &mut bundle.drawer, Color::HighlightedNonSelectedEntity);
                     None
                 }
             },
