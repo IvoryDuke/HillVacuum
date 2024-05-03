@@ -28,6 +28,7 @@ use crate::{
 //
 //=======================================================================//
 
+/// Generates code of the UI elements to edit a [`Node`] [`Movement`] value.
 macro_rules! movement_values {
     ($(($value:ident, $label:literal, $clamp:expr, $interacting:literal $(, $opposite:ident)?)),+) => { paste::paste! { $(
         #[inline]
@@ -95,10 +96,13 @@ macro_rules! movement_values {
 //
 //=======================================================================//
 
+/// The [`Node`]s editor.
 #[derive(Debug, Default)]
 pub(in crate::map::editor::state::core) struct NodesEditor
 {
+    /// The overall [`Node`]s movement parameters.
     selected_nodes_movement: UiOverallMovement,
+    /// The index of the UI element being interacted with.
     interacting:             [bool; 5]
 }
 
@@ -124,10 +128,12 @@ impl NodesEditor
         )
     );
 
+    /// Whever an UI element is being interacted with.
     #[inline]
     #[must_use]
     pub fn interacting(&self) -> bool { self.interacting.iter().any(|b| *b) }
 
+    /// The textedit widget. Returns its [`egui::Response`].
     #[inline]
     fn textedit<F: FnMut(f32) -> Option<f32>>(
         ui: &mut egui::Ui,
@@ -145,9 +151,10 @@ impl NodesEditor
         response
     }
 
+    /// Shows the UI elements.
     #[inline]
     #[must_use]
-    pub fn update(
+    pub fn show(
         &mut self,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
@@ -202,6 +209,7 @@ impl NodesEditor
             .inner
     }
 
+    /// Updates the overall [`Node`]s info.
     #[inline]
     pub fn update_overall_node(&mut self, manager: &EntitiesManager)
     {
@@ -218,6 +226,8 @@ impl NodesEditor
         self.selected_nodes_movement = overall.ui();
     }
 
+    /// Forces the start of a movement simulation, updating the WIP value being edited if possible
+    /// to parse.
     #[inline]
     pub fn force_simulation(
         &mut self,
@@ -225,6 +235,7 @@ impl NodesEditor
         edits_history: &mut EditsHistory
     )
     {
+        #[allow(clippy::missing_docs_in_private_items)]
         type ValueSetPair<'a> = (
             &'a mut UiOverallValue<f32>,
             fn(&mut EntitiesManager, &mut EditsHistory, f32, &mut OverallMovement) -> f32
@@ -259,18 +270,21 @@ impl NodesEditor
 //
 //=======================================================================//
 
+/// Returns the maximum value between `speed` and 1.
 #[inline]
 #[must_use]
 fn one_clamp(speed: f32) -> f32 { speed.max(1f32) }
 
 //=======================================================================//
 
+/// Returns the maximum value between `speed` and 0.
 #[inline]
 #[must_use]
 fn zero_clamp(speed: f32) -> f32 { speed.max(0f32) }
 
 //=======================================================================//
 
+/// Clamps `value` to the 0..100 range.
 #[inline]
 #[must_use]
 fn travel_percentage_clamp(value: f32) -> f32 { value.clamp(0f32, 100f32) }

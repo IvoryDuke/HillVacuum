@@ -7,19 +7,20 @@ use bevy::prelude::Vec2;
 use shared::{return_if_none, NextValue};
 
 use super::{
-    drag_area::{DragArea, DragAreaHighlightedEntity, DragAreaTrait},
     item_selector::{ItemSelector, ItemsBeneathCursor},
+    rect::{Rect, RectHighlightedEntity, RectTrait},
+    tool::DragSelection,
     ActiveTool
 };
 use crate::{
     map::{
         brush::convex_polygon::SubtractResult,
-        containers::{hv_hash_set, hv_vec, Ids},
+        containers::{hv_hash_set, Ids},
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             cursor_pos::Cursor,
             state::{
-                core::drag_area,
+                core::rect,
                 editor_state::InputsPresses,
                 edits_history::EditsHistory,
                 manager::EntitiesManager
@@ -32,7 +33,7 @@ use crate::{
     utils::{
         identifiers::{EntityId, Id},
         iterators::FilterSet,
-        misc::{ReplaceValues, TakeValue}
+        misc::{Camera, ReplaceValues, TakeValue}
     }
 };
 
@@ -41,35 +42,42 @@ use crate::{
 //
 //=======================================================================//
 
+/// The [`Brush`] selector.
 #[derive(Debug)]
 struct Selector(ItemSelector<Id>);
 
 impl Selector
 {
+    /// Returns a new [`Selector`].
     #[inline]
     #[must_use]
-    fn new() -> Self { Self(ItemSelector::new(Self::selector)) }
-
-    #[inline]
-    fn selector(
-        manager: &EntitiesManager,
-        cursor_pos: Vec2,
-        _: f32,
-        items: &mut ItemsBeneathCursor<Id>
-    )
+    fn new() -> Self
     {
-        for brush in manager
-            .brushes_at_pos(cursor_pos, None)
-            .iter()
-            .filter_set_with_predicate(*manager.selected_brushes_ids().next_value(), |brush| {
-                brush.id()
-            })
-            .filter(|brush| brush.contains_point(cursor_pos))
+        /// Selector function.
+        #[inline]
+        fn selector(
+            manager: &EntitiesManager,
+            cursor_pos: Vec2,
+            _: f32,
+            items: &mut ItemsBeneathCursor<Id>
+        )
         {
-            items.push(brush.id(), true);
+            for brush in manager
+                .brushes_at_pos(cursor_pos, None)
+                .iter()
+                .filter_set_with_predicate(*manager.selected_brushes_ids().next_value(), |brush| {
+                    brush.id()
+                })
+                .filter(|brush| brush.contains_point(cursor_pos))
+            {
+                items.push(brush.id(), true);
+            }
         }
+
+        Self(ItemSelector::new(selector))
     }
 
+    /// Returns the selectable [`Brush`] beneath the cursor.
     #[inline]
     #[must_use]
     fn brush_beneath_cursor(
@@ -85,35 +93,44 @@ impl Selector
 
 //=======================================================================//
 
+/// The subtract tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct SubtractTool
 {
-    drag_selection: DragAreaHighlightedEntity<Id>,
-    selector:       Selector,
-    subtractees:    Ids
+    /// The drag selection.
+    drag_selection:       RectHighlightedEntity<Id>,
+    /// The [`Brush`] selector.
+    selector:             Selector,
+    /// The [`Id`]s of the subtractee.
+    subtractees:          Ids,
+    /// Helper set to store the [`Id`]s for the select all routine.
+    non_selected_brushes: Ids
+}
+
+impl DragSelection for SubtractTool
+{
+    #[inline]
+    fn drag_selection(&self) -> Option<Rect> { Rect::from(self.drag_selection).into() }
 }
 
 impl SubtractTool
 {
+    /// Returns an [`ActiveTool`] in its subtract tool variant.
     #[inline]
-    pub fn tool(drag_selection: DragArea) -> ActiveTool
+    pub fn tool(drag_selection: Rect) -> ActiveTool
     {
         ActiveTool::Subtract(SubtractTool {
-            drag_selection: drag_selection.into(),
-            selector:       Selector::new(),
-            subtractees:    hv_hash_set![capacity; 4]
+            drag_selection:       drag_selection.into(),
+            selector:             Selector::new(),
+            subtractees:          hv_hash_set![capacity; 4],
+            non_selected_brushes: hv_hash_set![]
         })
     }
 
     //==============================================================
-    // Info
-
-    #[inline]
-    pub fn drag_selection(&self) -> DragArea { self.drag_selection.into() }
-
-    //==============================================================
     // Select all
 
+    /// Selects the non selected [`Brush`]es.
     #[inline]
     pub fn select_non_selected_brushes(
         &mut self,
@@ -121,16 +138,16 @@ impl SubtractTool
         edits_history: &mut EditsHistory
     )
     {
-        let non_selected_brushes =
-            hv_vec![collect; manager.non_selected_brushes().map(EntityId::id)];
-
-        edits_history.subtractee_selection_cluster(non_selected_brushes.iter());
-        self.subtractees.extend(non_selected_brushes);
+        self.non_selected_brushes
+            .replace_values(manager.non_selected_brushes().map(EntityId::id));
+        edits_history.subtractee_selection_cluster(self.non_selected_brushes.iter());
+        self.subtractees.extend(&self.non_selected_brushes);
     }
 
     //==============================================================
     // Update
 
+    /// Updates the tool.
     #[inline]
     #[must_use]
     pub fn update(
@@ -144,9 +161,10 @@ impl SubtractTool
         let ToolUpdateBundle { cursor, .. } = bundle;
         let subtractee_beneath_cursor = self.selector.brush_beneath_cursor(manager, cursor, inputs);
 
-        drag_area::update!(
+        rect::update!(
             self.drag_selection,
             cursor.world(),
+            bundle.camera.scale(),
             inputs.left_mouse.pressed(),
             {
                 // Apply subtraction.
@@ -229,6 +247,7 @@ impl SubtractTool
         false
     }
 
+    /// Subtracts the selected [`Brush`] from the subtractees.
     #[inline]
     fn subtract(
         drawing_resources: &DrawingResources,
@@ -261,6 +280,7 @@ impl SubtractTool
         }
     }
 
+    /// Post undo/redo despawn.
     #[inline]
     pub fn undo_redo_despawn(&mut self, manager: &EntitiesManager, identifier: Id)
     {
@@ -274,6 +294,7 @@ impl SubtractTool
         }
     }
 
+    /// Inserts the subtractee with [`Id`] `identifier`.
     #[inline]
     pub fn insert_subtractee(&mut self, manager: &EntitiesManager, identifier: Id)
     {
@@ -281,6 +302,7 @@ impl SubtractTool
         self.subtractees.asserted_insert(identifier);
     }
 
+    /// Removes the subtractee with [`Id`] `identifier`.
     #[inline]
     pub fn remove_subtractee(&mut self, manager: &EntitiesManager, identifier: Id)
     {
@@ -291,6 +313,7 @@ impl SubtractTool
     //==============================================================
     // Draw
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
     {
@@ -319,11 +342,11 @@ impl SubtractTool
                 drawer,
                 if self.subtractees.contains(&hgl_s)
                 {
-                    Color::HighlightedSelectedBrush
+                    Color::HighlightedSelectedEntity
                 }
                 else
                 {
-                    Color::HighlightedNonSelectedBrush
+                    Color::HighlightedNonSelectedEntity
                 }
             );
 

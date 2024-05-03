@@ -24,6 +24,7 @@ pub(in crate::map) struct OverallMovement
     pub accel_travel_percentage: OverallValue<f32>,
     /// The overall deceleration.
     pub decel_travel_percentage: OverallValue<f32>,
+    /// The overall standby time.
     pub standby_time:            OverallValue<f32>
 }
 

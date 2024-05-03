@@ -27,18 +27,24 @@ use crate::{
 //
 //=======================================================================//
 
+/// The distance between a set origin and the cursor position.
 #[derive(Clone, Copy, Debug)]
-pub(in crate::map) struct Drag
+pub(in crate::map) struct CursorDelta
 {
+    /// The point by which the distance to the cursor is measured.
     origin: Vec2,
+    /// The distance of the cursor from the origin.
     delta:  Vec2
 }
 
-impl Drag
+impl CursorDelta
 {
-    pub(in crate::map) const X_DRAG: &'static str = "x_drag";
-    pub(in crate::map) const Y_DRAG: &'static str = "y_drag";
+    /// The label of the horizontal delta tooltip.
+    pub(in crate::map) const X_DELTA: &'static str = "x_delta";
+    /// The label of the vertical delta tooltip.
+    pub(in crate::map) const Y_DELTA: &'static str = "y_delta";
 
+    /// Returns a new [`Drag`] from `origin`.
     #[inline]
     #[must_use]
     pub(in crate::map::editor::state::core) const fn new(origin: Vec2) -> Self
@@ -49,9 +55,10 @@ impl Drag
         }
     }
 
+    /// Tries to create a new [`Drag`] from the parameters.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state::core) fn try_new_initiated(
+    pub(in crate::map::editor::state::core) fn try_new(
         origin: Vec2,
         cursor: &Cursor,
         grid: Grid
@@ -63,10 +70,13 @@ impl Drag
             .then_some(drag)
     }
 
+    /// Returns the delta.
     #[inline]
     #[must_use]
     pub(in crate::map::editor::state::core) const fn delta(&self) -> Vec2 { self.delta }
 
+    /// Updates `self` and executes `dragger` if the delta changed. `dragger` is fed the delta of
+    /// the current frame. The new overall delta is stored if `dragger` returns true.
     #[inline]
     pub(in crate::map::editor::state::core) fn conditional_update<F: FnMut(Vec2) -> bool>(
         &mut self,
@@ -84,6 +94,8 @@ impl Drag
         }
     }
 
+    /// Updates `self` and executes `dragger` if the delta changed. `dragger` is fed the delta of
+    /// the current frame.
     #[inline]
     pub(in crate::map::editor::state::core) fn update<F: FnMut(Vec2)>(
         &mut self,
@@ -99,6 +111,7 @@ impl Drag
         self.delta = overall_delta;
     }
 
+    /// Returns the overall delta and the delta of the current frame.
     #[allow(clippy::cast_possible_truncation)]
     #[inline]
     fn overall_and_frame_drag_delta_from_origin(
@@ -136,6 +149,8 @@ impl Drag
         Some((delta, delta - self.delta))
     }
 
+    /// Draws two lines, a horizontal one and a vertical one, that represent the distance of the
+    /// cursor from the origin.
     #[inline]
     pub(in crate::map::editor::state::core) fn draw(
         &self,
@@ -145,6 +160,7 @@ impl Drag
         drawer: &mut EditDrawer
     )
     {
+        /// The color of the tooltip.
         const TOOLTIP_TEXT_COLOR: egui::Color32 = egui::Color32::from_rgb(127, 255, 212);
 
         if self.delta.around_equal_narrow(&Vec2::ZERO)
@@ -160,7 +176,7 @@ impl Drag
         {
             draw_tooltip_x_centered_above_pos(
                 egui_context,
-                Self::X_DRAG,
+                Self::X_DELTA,
                 egui::Order::Background,
                 #[allow(clippy::cast_possible_truncation)]
                 &format!("{}", self.delta.x as i16),
@@ -184,7 +200,7 @@ impl Drag
 
         draw_tooltip_y_centered(
             egui_context,
-            Self::Y_DRAG,
+            Self::Y_DELTA,
             egui::Order::Background,
             #[allow(clippy::cast_possible_truncation)]
             format!("{}", self.delta.y as i8).as_str(),

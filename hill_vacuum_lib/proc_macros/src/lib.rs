@@ -75,8 +75,6 @@ fn enum_ident(iter: &mut impl Iterator<Item = TokenTree>) -> Ident
 //=======================================================================//
 
 /// Implements a constant representing the size of the `input` enum.
-/// # Panics
-/// Panics if `input` does not belong to an enum.
 #[proc_macro_derive(EnumSize)]
 #[must_use]
 pub fn enum_size(input: TokenStream) -> TokenStream
@@ -141,8 +139,6 @@ pub fn enum_from_usize(input: TokenStream) -> TokenStream
 //=======================================================================//
 
 /// Implements a method that returns an iterator to the values of a plain enum.
-/// # Panics
-/// Panics if `input` does not belong to an enum.
 #[proc_macro_derive(EnumIter)]
 #[must_use]
 pub fn enum_iter(input: TokenStream) -> TokenStream
@@ -624,7 +620,7 @@ pub fn declare_tool_enum(input: TokenStream) -> TokenStream
             #[inline]
             fn change_conditions_met(self, change_conditions: &ChangeConditions) -> bool
             {{
-                if change_conditions.ongoing_multi_frame_changes ||
+                if change_conditions.ongoing_multi_frame_change ||
                     change_conditions.ctrl_pressed ||
                     change_conditions.space_pressed
                 {{

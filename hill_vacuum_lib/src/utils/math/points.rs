@@ -19,8 +19,11 @@ use super::AroundEqual;
 #[derive(Clone, Copy, PartialEq)]
 pub enum VertexesOrientation
 {
+    /// Clockwise.
     Clockwise,
+    /// Collinear.
     Collinear,
+    /// Counter clockwise.
     CounterClockwise
 }
 

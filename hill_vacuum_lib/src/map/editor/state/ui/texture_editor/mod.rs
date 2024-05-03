@@ -20,7 +20,7 @@ use crate::{
     config::controls::bind::Bind,
     map::{
         drawer::{
-            drawing_resources::{DrawingResources, TextureMaterials, TextureMut},
+            drawing_resources::{DrawingResources, TextureMaterials},
             texture::{OverallTextureSettings, Texture, UiOverallTextureSettings}
         },
         editor::{
@@ -47,14 +47,21 @@ use crate::{
 //
 //=======================================================================//
 
-const WINDOW_MIN_SIZE: f32 = 742f32;
+/// The height of the area of the UI dedicated to the texture settings.
 const SETTING_HEIGHT: f32 = 25f32;
-const TEXTURE_LIST_PREVIEW_FRAME_SIDE: f32 = 128f32;
+/// The size of the side of the texture previews in the texture list.
+const TEXTURE_GALLERY_PREVIEW_FRAME_SIDE: f32 = 128f32;
+/// The width of the name of the field.
 const FIELD_NAME_WIDTH: f32 = 70f32;
+/// The slider width.
 const SLIDER_WIDTH: f32 = FIELD_NAME_WIDTH * 4f32;
+/// The width of the [`MinusPlusOverallValueField`] plus or minus.
 const MINUS_PLUS_WIDTH: f32 = 16f32;
+/// The total width of the [`MinusPlusOverallValueField`] plus and minus.
 const MINUS_PLUS_TOTAL_WIDTH: f32 = MINUS_PLUS_WIDTH * 2f32;
+/// The height of the minus and plus of a [`MinusPlusOverallValueField`].
 const MINUS_PLUS_HEIGHT: f32 = 19f32;
+/// The width of a delete button.
 const DELETE_BUTTON_WIDTH: f32 = 12f32;
 
 //=======================================================================//
@@ -62,6 +69,8 @@ const DELETE_BUTTON_WIDTH: f32 = 12f32;
 //
 //=======================================================================//
 
+/// Generates the function surrounding a [`MinusPlusOverallValueField`] related to a texture
+/// setting.
 macro_rules! plus_minus_textedit {
     (
         $self:ident,
@@ -142,6 +151,7 @@ macro_rules! plus_minus_textedit {
 
 //=======================================================================//
 
+/// Creates the definition for the scale, offset, scroll, and parallax texture settings functions.
 macro_rules! scale_offset_scroll_parallax {
     ($((
         $value:ident,
@@ -159,8 +169,11 @@ macro_rules! scale_offset_scroll_parallax {
             field_width: f32
         ) -> bool
         {
+            /// The label of the x value.
             const X_LABEL: &str = concat!($label, " X");
+            /// The label of the y value.
             const Y_LABEL: &str = concat!($label, " Y");
+            /// The padding before the y label.
             const Y_LABEL_PADDING: f32 = 8f32;
 
             $(
@@ -221,6 +234,7 @@ macro_rules! scale_offset_scroll_parallax {
 
 //=======================================================================//
 
+/// Creates the definition for the angle and height texture settings functions.
 macro_rules! angle_and_height {
     ($(($value:ident, $label:literal, $t:ty, $bound:expr $(, $drawing_resources:ident)?)),+) => { paste::paste! { $(
         #[inline]
@@ -238,6 +252,7 @@ macro_rules! angle_and_height {
                 .size(egui_extras::Size::exact(field_width))
                 .size(egui_extras::Size::exact(MINUS_PLUS_TOTAL_WIDTH))
                 .horizontal(|mut strip| {
+                    #[allow(clippy::cast_precision_loss)]
                     const ONE: $t = 1 as $t;
 
                     strip.cell(|ui| { ui.label($label); });
@@ -261,6 +276,7 @@ macro_rules! angle_and_height {
 
 //=======================================================================//
 
+/// Creates the definition for a toggle of a texture setting.
 macro_rules! toggle {
     ($(($value:ident, $label:literal)),+) => { paste::paste! { $(
         #[inline]
@@ -293,6 +309,8 @@ macro_rules! toggle {
 //
 //=======================================================================//
 
+/// A bundle of references to data necessary for the texture editor.
+#[allow(clippy::missing_docs_in_private_items)]
 struct Bundle<'a>
 {
     drawing_resources: &'a mut DrawingResources,
@@ -305,10 +323,13 @@ struct Bundle<'a>
 
 //=======================================================================//
 
+/// The core of the texture editor.
 #[derive(Default)]
 struct Innards
 {
+    /// The overall texture.
     overall_texture:  UiOverallTextureSettings,
+    /// The editor of the texture animation.
     animation_editor: AnimationEditor
 }
 
@@ -358,6 +379,7 @@ impl Innards
 
     toggle!((scroll, "Scroll"), (parallax, "Parallax"));
 
+    /// Assigns a texture to the selected brushes, if possible.
     #[inline]
     fn assign_texture(
         drawing_resources: &DrawingResources,
@@ -378,19 +400,32 @@ impl Innards
         }
     }
 
+    /// The name of the texture being edited, if any.
+    #[inline]
+    #[must_use]
+    fn selected_texture_name(&self) -> Option<&String>
+    {
+        self.animation_editor
+            .texture_override()
+            .or_else(|| self.overall_texture.name.uniform_value())
+    }
+
+    /// Draws the selected texture.
     #[inline]
     fn selected_texture(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle)
     {
+        /// The side of the texture preview.
         const TEXTURE_PREVIEW_FRAME_SIDE: f32 = 224f32;
 
         ui.set_width(TEXTURE_PREVIEW_FRAME_SIDE);
         let texture = bundle
             .drawing_resources
-            .egui_texture(return_if_none!(self.overall_texture.name.uniform_value()));
+            .egui_texture(return_if_none!(self.selected_texture_name()));
         format_texture_preview!(Image, ui, texture.0, texture.1, TEXTURE_PREVIEW_FRAME_SIDE);
         ui.vertical_centered(|ui| ui.label(texture.2));
     }
 
+    /// Draws the UI elements of the texture editor.
     #[inline]
     fn texture_settings(
         &mut self,
@@ -449,6 +484,7 @@ impl Innards
         has_focus
     }
 
+    /// Selects the mode of the texture editor.
     #[inline]
     fn mode_selector(&mut self, ui: &mut egui::Ui, manager: &EntitiesManager)
     {
@@ -457,7 +493,7 @@ impl Innards
 
             let settings = ui.button("Texture settings");
             let texture_atlas = ui.add_enabled(
-                !self.overall_texture.name.is_none(),
+                !self.overall_texture.name.is_none() || self.animation_editor.has_override(),
                 egui::Button::new("Texture animation")
             );
             let brushes_atlas = ui.add_enabled(
@@ -471,7 +507,7 @@ impl Innards
             }
             else if texture_atlas.clicked()
             {
-                self.animation_editor.open(Target::Texture);
+                self.animation_editor.open(Target::Texture(None));
             }
             else if brushes_atlas.clicked()
             {
@@ -481,13 +517,14 @@ impl Innards
             match self.animation_editor.target
             {
                 Target::None => settings,
-                Target::Texture => texture_atlas,
+                Target::Texture(_) => texture_atlas,
                 Target::Brushes => brushes_atlas
             }
             .highlight();
         });
     }
 
+    /// Shows the texture editor.
     #[inline]
     fn show(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle) -> bool
     {
@@ -529,6 +566,7 @@ impl Innards
         ui.separator();
 
         egui::ScrollArea::vertical().show(ui, |ui| {
+            /// Draws the button to be clicked to pick a texture.
             #[inline]
             fn texture_preview<F>(
                 ui: &mut egui::Ui,
@@ -536,10 +574,10 @@ impl Innards
                 mut f: F
             ) -> egui::Response
             where
-                F: FnMut(&Texture)
+                F: FnMut(&Texture, &egui::Response)
             {
                 ui.vertical(|ui| {
-                    ui.set_width(TEXTURE_LIST_PREVIEW_FRAME_SIDE);
+                    ui.set_width(TEXTURE_GALLERY_PREVIEW_FRAME_SIDE);
 
                     let texture = texture_materials.texture();
                     let response = format_texture_preview!(
@@ -547,13 +585,10 @@ impl Innards
                         ui,
                         texture_materials.egui_id(),
                         texture.size(),
-                        TEXTURE_LIST_PREVIEW_FRAME_SIDE
+                        TEXTURE_GALLERY_PREVIEW_FRAME_SIDE
                     );
 
-                    if response.clicked()
-                    {
-                        f(texture);
-                    }
+                    f(texture, &response);
 
                     ui.vertical_centered(|ui| {
                         ui.add(egui::Label::new(texture.label()).wrap(true));
@@ -570,11 +605,12 @@ impl Innards
                 ..
             } = bundle;
 
+            /// Draws the gallery of loaded textures.
             macro_rules! gallery {
                 ($f:expr) => {
                     textures_gallery!(
                         ui,
-                        TEXTURE_LIST_PREVIEW_FRAME_SIDE,
+                        TEXTURE_GALLERY_PREVIEW_FRAME_SIDE,
                         |textures_per_row| { drawing_resources.chunked_textures(textures_per_row) },
                         match self.overall_texture.name.uniform_value()
                         {
@@ -600,38 +636,52 @@ impl Innards
                 .animation_editor
                 .can_add_textures_to_atlas(&self.overall_texture.animation)
             {
-                let selected_texture = &mut unsafe {
-                    get_selected_texture(
-                        std::ptr::from_mut(*drawing_resources),
-                        &self.overall_texture
-                    )
-                };
+                let mut clicked_texture = None;
 
-                gallery!(|texture| {
-                    self.animation_editor.push_list_animation_frame(
-                        selected_texture,
-                        manager,
-                        edits_history,
-                        texture.name()
-                    );
+                gallery!(|texture, response| {
+                    if response.clicked()
+                    {
+                        clicked_texture = texture.name().to_owned().into();
+                    }
+                    else if response.secondary_clicked()
+                    {
+                        self.animation_editor.set_texture_override(texture);
+                    }
                 });
+
+                self.animation_editor.push_list_animation_frame(
+                    &mut drawing_resources
+                        .texture_mut(self.selected_texture_name().unwrap().as_str())
+                        .unwrap(),
+                    manager,
+                    edits_history,
+                    return_if_none!(clicked_texture).as_str()
+                );
 
                 return;
             }
 
-            gallery!(|texture| {
-                _ = Innards::assign_texture(
-                    drawing_resources,
-                    manager,
-                    edits_history,
-                    texture.name()
-                );
+            gallery!(|texture, response| {
+                if response.clicked()
+                {
+                    _ = Innards::assign_texture(
+                        drawing_resources,
+                        manager,
+                        edits_history,
+                        texture.name()
+                    );
+                }
+                else if response.secondary_clicked()
+                {
+                    self.animation_editor.set_texture_override(texture);
+                }
             });
         });
 
         response
     }
 
+    /// Sets the texture of the selected brushes.
     #[inline]
     fn set_texture(
         &mut self,
@@ -712,6 +762,7 @@ impl Innards
         has_focus
     }
 
+    /// Sets the sprite value of the selected textures.
     #[inline]
     fn set_sprite(&mut self, strip: egui_extras::StripBuilder, bundle: &mut Bundle)
     {
@@ -750,9 +801,12 @@ impl Innards
 
 //=======================================================================//
 
+/// The texture editor window.
 pub(in crate::map::editor::state::ui) struct TextureEditor
 {
+    /// The data of the window.
     window:  Window,
+    /// The core of the editor.
     innards: Innards
 }
 
@@ -789,7 +843,8 @@ impl WindowCloserInfo for TextureEditor
     #[inline]
     fn window_closer(&self) -> Option<WindowCloser>
     {
-        #[inline]
+        /// Calls the window close function.
+        #[inline(always)]
         fn close(ed: &mut TextureEditor) { ed.window.close(); }
 
         self.window
@@ -800,6 +855,7 @@ impl WindowCloserInfo for TextureEditor
 
 impl TextureEditor
 {
+    /// Updates the overall texture.
     #[inline]
     pub fn update_overall_texture(
         &mut self,
@@ -814,13 +870,7 @@ impl TextureEditor
             None => OverallTextureSettings::none()
         };
 
-        for brush in brushes
-        {
-            if overall_texture.stack(&brush.texture_settings())
-            {
-                break;
-            }
-        }
+        _ = brushes.any(|brush| overall_texture.stack(&brush.texture_settings()));
 
         self.innards.overall_texture = overall_texture.ui();
         self.innards
@@ -828,15 +878,17 @@ impl TextureEditor
             .update_from_overall_texture(drawing_resources, &self.innards.overall_texture);
     }
 
+    /// Schedules the update of the texture animation.
     #[inline]
     pub fn schedule_texture_animation_update(&mut self)
     {
         self.innards.animation_editor.schedule_texture_animation_update();
     }
 
+    /// Draws the texture editor.
     #[inline]
     #[must_use]
-    pub fn draw(
+    pub fn show(
         &mut self,
         bundle: &mut StateUpdateBundle,
         manager: &mut EntitiesManager,
@@ -846,14 +898,14 @@ impl TextureEditor
         settings: &mut ToolsSettings
     ) -> bool
     {
-        if !inputs.alt_pressed() &&
-            !inputs.ctrl_pressed() &&
-            Bind::TextureEditor.just_pressed(bundle.key_inputs, &bundle.config.binds)
-        {
-            self.window.open();
-        }
+        /// The minimum texture editor size.
+        const WINDOW_MIN_SIZE: f32 = 742f32;
 
-        if !self.window.is_open()
+        if !self.window.check_open(
+            !inputs.alt_pressed() &&
+                !inputs.ctrl_pressed() &&
+                Bind::TextureEditor.just_pressed(bundle.key_inputs, &bundle.config.binds)
+        )
         {
             return false;
         }
@@ -891,12 +943,14 @@ impl TextureEditor
 //
 //=======================================================================//
 
-#[inline]
+/// A function that does nothing, used for a macro.
+#[inline(always)]
 #[must_use]
-fn no_clamp(value: f32, _: f32) -> f32 { value }
+const fn no_clamp(value: f32, _: f32) -> f32 { value }
 
 //=======================================================================//
 
+/// Shows a delete button and returns whever it was pressed.
 #[inline]
 #[must_use]
 fn delete_button(ui: &mut egui::Ui) -> bool
@@ -905,20 +959,4 @@ fn delete_button(ui: &mut egui::Ui) -> bool
         egui::Button::new("\u{00D7}").min_size((MINUS_PLUS_WIDTH + 1f32, MINUS_PLUS_HEIGHT).into())
     )
     .clicked()
-}
-
-//=======================================================================//
-
-#[allow(clippy::mut_from_ref)]
-#[inline]
-unsafe fn get_selected_texture(
-    drawing_resources: *mut DrawingResources,
-    overall_texture: &UiOverallTextureSettings
-) -> TextureMut
-{
-    drawing_resources
-        .as_mut()
-        .unwrap()
-        .texture_mut(overall_texture.name.uniform_value().unwrap())
-        .unwrap()
 }

@@ -53,7 +53,7 @@ use crate::{
         brush::BrushData,
         camera::scale_viewport,
         drawer::{color::Color, drawing_resources::DrawingResources},
-        editor::{draw_camera, DrawBundle, StateUpdateBundle, ToolUpdateBundle},
+        editor::{DrawBundle, StateUpdateBundle, ToolUpdateBundle},
         hv_vec,
         thing::{catalog::ThingsCatalog, ThingInstanceData},
         HvVec,
@@ -75,6 +75,23 @@ use crate::{
 
 /// The size of the image of the prop screenshot.
 pub(in crate::map) const PROP_SCREENSHOT_SIZE: UVec2 = UVec2::new(196, 196);
+
+//=======================================================================//
+// MACROS
+//
+//=======================================================================//
+
+/// Returns a prop screenshot camera if `camera_id` contains a value, the paint tool camera if it
+/// does not.
+macro_rules! draw_camera {
+    ($bundle:ident, $camera_id:ident) => {
+        match $camera_id
+        {
+            Some(id) => $bundle.prop_cameras.get(id).unwrap().1,
+            None => $bundle.paint_tool_camera
+        }
+    };
+}
 
 //=======================================================================//
 // TRAITS
@@ -99,9 +116,9 @@ pub(in crate::map) trait CopyToClipboard
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(in crate::map) enum ClipboardData
 {
-    // A brush that may still exist in the world.
+    /// A [`Brush`].
     Brush(BrushData, Id),
-    // A thing that may still exist in the world.
+    /// A [`ThingInstance`].
     Thing(ThingInstanceData, Id)
 }
 
@@ -209,6 +226,7 @@ pub(in crate::map) struct PaintToolPropCamera;
 
 //=======================================================================//
 
+/// A query to the cameras used to create [`Prop`] screenshots.
 pub(in crate::map) type PropCameras<'world, 'state, 'a> = Query<
     'world,
     'state,
@@ -218,6 +236,7 @@ pub(in crate::map) type PropCameras<'world, 'state, 'a> = Query<
 
 //=======================================================================//
 
+/// A query to the mutable cameras used to create [`Prop`] screenshots.
 pub(in crate::map) type PropCamerasMut<'world, 'state, 'a> = Query<
     'world,
     'state,
@@ -294,6 +313,7 @@ impl Prop
         new
     }
 
+    /// Returns a new [`Image`] to be used for a screenshot.
     #[inline]
     #[must_use]
     pub fn image(size: Extent3d) -> Image
@@ -457,6 +477,7 @@ impl Prop
         self.reset_data_center();
     }
 
+    /// Resets the center of `self`.
     #[inline]
     fn reset_data_center(&mut self)
     {
@@ -465,6 +486,8 @@ impl Prop
             .center();
     }
 
+    /// Updates the things of the contained [`ThingInstance`]s after a things reload. Returns whever
+    /// any thing were changed.
     #[inline]
     #[must_use]
     fn reload_things(&mut self, catalog: &ThingsCatalog) -> bool
@@ -487,6 +510,8 @@ impl Prop
         false
     }
 
+    /// Updates the textures of the contained [`Brush`]es after a texture reload. Returns whever any
+    /// textures were changed.
     #[inline]
     #[must_use]
     fn reload_textures(&mut self, drawing_resources: &DrawingResources) -> bool
@@ -535,6 +560,7 @@ impl Prop
         delta: Vec2
     )
     {
+        /// Spawns the entities stored in `prop`.
         #[inline]
         fn spawn_regular(
             prop: &mut Prop,
@@ -668,29 +694,33 @@ impl Prop
             item.draw(bundle, delta, camera_id);
         }
 
-        bundle.drawer.prop_square_highlight(
-            self.data_center + delta - self.pivot,
-            Color::Hull,
-            camera_id
-        );
+        bundle
+            .drawer
+            .prop_pivot(self.data_center + delta - self.pivot, Color::Hull, camera_id);
     }
 }
 
 //=======================================================================//
 
+/// A timer that disables the camera assigned to a [`Prop`] to take its screenshot once the time has
+/// finished.
 #[must_use]
 #[derive(Clone, Copy, Debug)]
 pub(in crate::map::editor::state) struct PropScreenshotTimer(usize, Option<bevy::prelude::Entity>);
 
 impl PropScreenshotTimer
 {
+    /// Returns a new [`PropScreenshotTimer`].
     #[inline]
-    pub fn new(camera_id: Option<bevy::prelude::Entity>) -> Self { Self(3, camera_id) }
+    pub const fn new(camera_id: Option<bevy::prelude::Entity>) -> Self { Self(3, camera_id) }
 
+    /// Returns the [`Entity`] of the assigned camera.
     #[inline]
     #[must_use]
     pub fn id(&self) -> bevy::prelude::Entity { self.1.unwrap() }
 
+    /// Updates the assigned camera, deactivating it once the time has finished. Returns whever the
+    /// camera has been disabled.
     #[inline]
     pub fn update(&mut self, prop_cameras: &mut PropCamerasMut) -> bool
     {
@@ -701,14 +731,17 @@ impl PropScreenshotTimer
             return false;
         }
 
-        assert!(std::mem::replace(
-            &mut prop_cameras
-                .get_mut(return_if_none!(self.1, true))
-                .unwrap()
-                .1
-                .is_active,
-            false
-        ));
+        assert!(
+            std::mem::replace(
+                &mut prop_cameras
+                    .get_mut(return_if_none!(self.1, true))
+                    .unwrap()
+                    .1
+                    .is_active,
+                false
+            ),
+            "Camera was disabled."
+        );
 
         true
     }
@@ -733,15 +766,19 @@ pub(in crate::map::editor::state) struct Clipboard
     platform_path: Option<Path>,
     /// Whever the stored [`Prop`]s were edited.
     props_changed: bool,
-    imported_props_with_assigned_camera:
-        ArrayVec<(PropScreenshotTimer, usize), PROP_CAMERAS_AMOUNT>,
-    imported_props_with_no_camera: HvVec<usize>,
+    /// The [`Prop`]s which have an assigned camera to take their screenshot.
+    props_with_assigned_camera: ArrayVec<(PropScreenshotTimer, usize), PROP_CAMERAS_AMOUNT>,
+    /// The [`Prop`]s with no assigned camera to take their screenshot.
+    props_with_no_camera: HvVec<usize>,
+    /// The frames that must pass before the [`Prop`] screenshots can be taken.
     props_import_wait_frames: usize,
+    /// The function used to run the frame update.
     update_func: fn(&mut Self, &mut Assets<Image>, &mut PropCamerasMut, &mut EguiUserTextures)
 }
 
 impl Clipboard
 {
+    /// The frames that must pass before the [`Prop`] screenshots can be taken.
     const IMPORTS_WAIT_FRAMES: usize = 2;
 
     //==============================================================
@@ -760,13 +797,14 @@ impl Clipboard
             ui_text: String::new(),
             platform_path: None,
             props_changed: false,
-            imported_props_with_assigned_camera: ArrayVec::new(),
-            imported_props_with_no_camera: hv_vec![],
+            props_with_assigned_camera: ArrayVec::new(),
+            props_with_no_camera: hv_vec![],
             props_import_wait_frames: Self::IMPORTS_WAIT_FRAMES,
             update_func: Self::delay_update
         }
     }
 
+    /// Creates a new [`Clipboard`] from the data stored in `file`.
     #[inline]
     pub fn from_file(
         images: &mut Assets<Image>,
@@ -785,8 +823,8 @@ impl Clipboard
             ui_text: String::new(),
             platform_path: None,
             props_changed: false,
-            imported_props_with_assigned_camera: ArrayVec::new(),
-            imported_props_with_no_camera: hv_vec![],
+            props_with_assigned_camera: ArrayVec::new(),
+            props_with_no_camera: hv_vec![],
             props_import_wait_frames: Self::IMPORTS_WAIT_FRAMES,
             update_func: Self::delay_update
         };
@@ -798,6 +836,7 @@ impl Clipboard
         }
     }
 
+    /// Import the [`Prop`]s in `file`.
     #[inline]
     pub fn import_props(
         &mut self,
@@ -838,6 +877,7 @@ impl Clipboard
         Ok(())
     }
 
+    /// Queues a [`Prop`] screenshot.
     #[inline]
     fn queue_prop_screenshot(
         &mut self,
@@ -851,10 +891,13 @@ impl Clipboard
         index: usize
     )
     {
-        if self.imported_props_with_assigned_camera.is_full()
+        if self.props_with_assigned_camera.is_full()
         {
-            assert!(camera.is_none());
-            self.imported_props_with_no_camera.push(index);
+            assert!(
+                camera.is_none(),
+                "Assigned cameras vector is full but there are still available cameras."
+            );
+            self.props_with_no_camera.push(index);
             return;
         }
 
@@ -866,7 +909,7 @@ impl Clipboard
             user_textures,
             &mut self.props[index]
         );
-        self.imported_props_with_assigned_camera
+        self.props_with_assigned_camera
             .push((PropScreenshotTimer::new(camera.0.into()), index));
     }
 
@@ -876,7 +919,7 @@ impl Clipboard
     /// Whever `self` was edited.
     #[inline]
     #[must_use]
-    pub fn props_changed(&self) -> bool { self.props_changed }
+    pub const fn props_changed(&self) -> bool { self.props_changed }
 
     /// Returns true if there is data to be pasted.
     #[inline]
@@ -906,7 +949,9 @@ impl Clipboard
     //==============================================================
     // Update
 
-    #[inline]
+    /// Delays the update of the [`Clipboard`]. During the first few frames it is not possible to
+    /// take a [`Prop`] screenshot.
+    #[inline(always)]
     fn delay_update(
         &mut self,
         _: &mut Assets<Image>,
@@ -923,7 +968,8 @@ impl Clipboard
         self.update_func = Self::regular_update;
     }
 
-    #[inline]
+    /// An update to take the screenshots of the queued [`Prop`]s.
+    #[inline(always)]
     fn regular_update(
         &mut self,
         images: &mut Assets<Image>,
@@ -933,11 +979,11 @@ impl Clipboard
     {
         let mut i = 0;
 
-        while i < self.imported_props_with_assigned_camera.len()
+        while i < self.props_with_assigned_camera.len()
         {
-            if self.imported_props_with_assigned_camera[i].0.update(prop_cameras)
+            if self.props_with_assigned_camera[i].0.update(prop_cameras)
             {
-                _ = self.imported_props_with_assigned_camera.swap_remove(i);
+                _ = self.props_with_assigned_camera.swap_remove(i);
                 continue;
             }
 
@@ -947,12 +993,12 @@ impl Clipboard
         let mut prop_cameras = prop_cameras.iter_mut();
 
         for _ in 0..self
-            .imported_props_with_no_camera
+            .props_with_no_camera
             .len()
-            .min(PROP_CAMERAS_AMOUNT - self.imported_props_with_assigned_camera.len())
+            .min(PROP_CAMERAS_AMOUNT - self.props_with_assigned_camera.len())
         {
             let mut camera = prop_cameras.next_value();
-            let index = self.imported_props_with_no_camera.pop().unwrap();
+            let index = self.props_with_no_camera.pop().unwrap();
 
             Self::assign_camera_to_prop(
                 images,
@@ -961,11 +1007,12 @@ impl Clipboard
                 &mut self.props[index]
             );
 
-            self.imported_props_with_assigned_camera
+            self.props_with_assigned_camera
                 .push((PropScreenshotTimer::new(camera.0.into()), index));
         }
     }
 
+    /// Updates `self`.
     #[inline]
     pub fn update(
         &mut self,
@@ -977,6 +1024,7 @@ impl Clipboard
         (self.update_func)(self, images, prop_cameras, user_textures);
     }
 
+    /// Assigns a camera to a [`Prop`] to take its screenshot.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
     pub fn assign_camera_to_prop(
@@ -986,7 +1034,10 @@ impl Clipboard
         prop: &mut Prop
     )
     {
-        assert!(!std::mem::replace(&mut prop_camera.0.is_active, true));
+        assert!(
+            !std::mem::replace(&mut prop_camera.0.is_active, true),
+            "Tried to assign a prop screenshot to an active camera."
+        );
 
         let hull = prop.hull();
 
@@ -1002,6 +1053,7 @@ impl Clipboard
         prop.screenshot = user_textures.add_image(image).into();
     }
 
+    /// Writes the serialized [`Prop`]s in `writer`.
     #[inline]
     pub fn export_props(&self, writer: &mut BufWriter<&mut Vec<u8>>) -> Result<(), &'static str>
     {
@@ -1016,6 +1068,7 @@ impl Clipboard
         Ok(())
     }
 
+    /// Queues the screenshots of the [`Prop`]s that must be retaken after a things reload.
     #[inline]
     pub fn reload_things(&mut self, bundle: &mut StateUpdateBundle)
     {
@@ -1037,6 +1090,7 @@ impl Clipboard
         }
     }
 
+    /// Queues the screenshots of the [`Prop`]s that must be retaken after a texture reload.
     #[inline]
     pub fn reload_textures(
         &mut self,
@@ -1111,7 +1165,7 @@ impl Clipboard
     #[inline]
     pub fn insert_prop(&mut self, prop: Prop, slot: usize)
     {
-        assert!(prop.screenshot.is_some());
+        assert!(prop.screenshot.is_some(), "Tried to insert prop without a screenshot.");
 
         self.props_changed = true;
 
@@ -1124,16 +1178,15 @@ impl Clipboard
         self.props[slot] = prop;
 
         if let Some(i) = self
-            .imported_props_with_assigned_camera
+            .props_with_assigned_camera
             .iter()
             .position(|(_, idx)| *idx == slot)
         {
-            _ = self.imported_props_with_assigned_camera.remove(i);
+            _ = self.props_with_assigned_camera.remove(i);
         }
-        else if let Some(i) =
-            self.imported_props_with_no_camera.iter().position(|idx| *idx == slot)
+        else if let Some(i) = self.props_with_no_camera.iter().position(|idx| *idx == slot)
         {
-            self.imported_props_with_no_camera.remove(i);
+            self.props_with_no_camera.remove(i);
         }
     }
 
@@ -1161,7 +1214,7 @@ impl Clipboard
         }
 
         if let Some((i, (timer, _))) = self
-            .imported_props_with_assigned_camera
+            .props_with_assigned_camera
             .iter()
             .copied()
             .enumerate()
@@ -1169,19 +1222,19 @@ impl Clipboard
         {
             prop_cameras.get_mut(timer.id()).unwrap().1.is_active = false;
 
-            _ = self.imported_props_with_assigned_camera.remove(i);
+            _ = self.props_with_assigned_camera.remove(i);
 
-            for (_, idx) in self.imported_props_with_assigned_camera.iter_mut().skip(i)
+            for (_, idx) in self.props_with_assigned_camera.iter_mut().skip(i)
             {
                 *idx -= 1;
             }
 
             let i = return_if_none!(self
-                .imported_props_with_no_camera
+                .props_with_no_camera
                 .iter()
                 .position(|idx| *idx > selected_prop));
 
-            for idx in self.imported_props_with_no_camera.iter_mut().skip(i)
+            for idx in self.props_with_no_camera.iter_mut().skip(i)
             {
                 *idx -= 1;
             }
@@ -1189,24 +1242,22 @@ impl Clipboard
             return;
         }
 
-        let i = return_if_none!(self
-            .imported_props_with_no_camera
-            .iter()
-            .position(|idx| *idx == selected_prop));
+        let i =
+            return_if_none!(self.props_with_no_camera.iter().position(|idx| *idx == selected_prop));
 
-        self.imported_props_with_no_camera.remove(i);
+        self.props_with_no_camera.remove(i);
 
-        for idx in self.imported_props_with_no_camera.iter_mut().skip(i)
+        for idx in self.props_with_no_camera.iter_mut().skip(i)
         {
             *idx -= 1;
         }
 
         let i = return_if_none!(self
-            .imported_props_with_assigned_camera
+            .props_with_assigned_camera
             .iter()
             .position(|(_, idx)| *idx > selected_prop));
 
-        for (_, idx) in self.imported_props_with_assigned_camera.iter_mut().skip(i)
+        for (_, idx) in self.props_with_assigned_camera.iter_mut().skip(i)
         {
             *idx -= 1;
         }
@@ -1428,10 +1479,11 @@ impl Clipboard
         })
     }
 
+    /// Draws the [`Prop`]s to photograph for the preview.
     #[inline]
     pub fn draw_props_to_photograph(&self, bundle: &mut DrawBundle)
     {
-        for (timer, idx) in &self.imported_props_with_assigned_camera
+        for (timer, idx) in &self.props_with_assigned_camera
         {
             self.props[*idx].draw(bundle, (timer.id()).into());
         }

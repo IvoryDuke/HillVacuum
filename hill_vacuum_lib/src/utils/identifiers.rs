@@ -18,6 +18,7 @@ pub trait EntityId
     #[must_use]
     fn id(&self) -> Id;
 
+    /// Returns a reference to the entity [`Id`].
     #[must_use]
     fn id_as_ref(&self) -> &Id;
 }
@@ -58,7 +59,7 @@ impl Id
     /// Returns the [`Id`] with the highest value.
     #[inline]
     #[must_use]
-    pub fn max(self, other: Self) -> Id
+    pub const fn max(self, other: Self) -> Id
     {
         if self.0 > other.0
         {

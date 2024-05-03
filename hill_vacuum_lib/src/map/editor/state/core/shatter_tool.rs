@@ -34,32 +34,39 @@ use crate::{
 //
 //=======================================================================//
 
+/// The [`Brush`] selector.
 #[derive(Debug)]
 struct Selector(ItemSelector<Id>);
 
 impl Selector
 {
+    /// Returns a new [`Selector`].
     #[inline]
     #[must_use]
-    fn new() -> Self { Self(ItemSelector::new(Self::selector)) }
-
-    #[inline]
-    fn selector(
-        manager: &EntitiesManager,
-        cursor_pos: Vec2,
-        _: f32,
-        items: &mut ItemsBeneathCursor<Id>
-    )
+    fn new() -> Self
     {
-        for brush in manager
-            .selected_brushes_at_pos(cursor_pos, None)
-            .iter()
-            .filter(|brush| brush.contains_point(cursor_pos))
+        /// The selector function.
+        #[inline]
+        fn selector(
+            manager: &EntitiesManager,
+            cursor_pos: Vec2,
+            _: f32,
+            items: &mut ItemsBeneathCursor<Id>
+        )
         {
-            items.push(brush.id(), true);
+            for brush in manager
+                .selected_brushes_at_pos(cursor_pos, None)
+                .iter()
+                .filter(|brush| brush.contains_point(cursor_pos))
+            {
+                items.push(brush.id(), true);
+            }
         }
+
+        Self(ItemSelector::new(selector))
     }
 
+    /// Returns the selected [`Brush`] beneath the cursor.
     #[inline]
     #[must_use]
     fn brush_beneath_cursor(
@@ -75,14 +82,17 @@ impl Selector
 
 //=======================================================================//
 
+/// The shatter tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct ShatterTool(Option<Id>, Selector);
 
 impl ShatterTool
 {
+    /// Returns an [`ActiveTool`] in its shatter tool variant.
     #[inline]
     pub fn tool() -> ActiveTool { ActiveTool::Shatter(ShatterTool(None, Selector::new())) }
 
+    /// The cursor position to be used by the tool.
     #[inline]
     #[must_use]
     const fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world_snapped() }
@@ -90,6 +100,7 @@ impl ShatterTool
     //==============================================================
     // Update
 
+    /// Updates the tool.
     #[inline]
     pub fn update(
         &mut self,
@@ -107,6 +118,7 @@ impl ShatterTool
         }
     }
 
+    /// Shatters the selected [`Brush`].
     #[inline]
     fn shatter(
         &mut self,
@@ -137,6 +149,7 @@ impl ShatterTool
     //==============================================================
     // Draw
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
     {

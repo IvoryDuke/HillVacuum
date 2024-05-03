@@ -23,6 +23,7 @@ use crate::{
 //
 //=======================================================================//
 
+/// Inserts the hulls contained in `points` into `identifiers`.
 macro_rules! insert_hulls {
     ($identifiers:ident, $($points:expr),+) => { $(
         for p in $points
@@ -40,12 +41,16 @@ macro_rules! insert_hulls {
 //
 //=======================================================================//
 
+/// The content of a [`Node`].
 #[must_use]
 #[derive(Debug)]
 enum Content
 {
+    /// Empty.
     None,
+    /// Vertexes.
     Vertexes(Vertexes),
+    /// Subnodes.
     Subnodes(Subnodes, Intersections)
 }
 
@@ -60,27 +65,34 @@ impl Default for Content
 //
 //=======================================================================//
 
+/// The area of a [`Node`].
 #[derive(Clone, Copy, Debug)]
 pub(in crate::map::editor::state::manager::quad_tree) struct Square
 {
+    /// The position of the top left corner.
     top_left: Vec2,
+    /// The size of the side.
     size:     f32
 }
 
 impl Square
 {
+    /// Returns a new [`Square`].
     #[inline]
     #[must_use]
     pub const fn new(top_left: Vec2, size: f32) -> Self { Self { top_left, size } }
 
+    /// Returns the positions of the top left corner.
     #[inline]
     #[must_use]
     pub const fn top_left(&self) -> Vec2 { self.top_left }
 
+    /// Returns the length of the side of the [`quare`].
     #[inline]
     #[must_use]
     pub const fn size(&self) -> f32 { self.size }
 
+    /// Returns the [`Hull`] describing the area covered by the [`Square`].
     #[inline]
     #[must_use]
     fn hull(&self) -> Hull
@@ -93,6 +105,7 @@ impl Square
         )
     }
 
+    /// Whever `self` contains `point` in its area.
     #[inline]
     #[must_use]
     fn contains_point(&self, point: Vec2) -> bool
@@ -101,6 +114,7 @@ impl Square
             (self.top_left.y - self.size..=self.top_left.y).contains(&point.y)
     }
 
+    /// The [`SplitSegments`] cuttting the area of [`Square`] vertically and horizontally in half.
     #[inline]
     #[must_use]
     pub fn split_segments(&self) -> SplitSegments
@@ -115,16 +129,19 @@ impl Square
         }
     }
 
+    /// Whever the area covered by `self` intersects `hull`.
     #[inline]
     #[must_use]
     fn overlaps_hull(&self, hull: &Hull) -> bool { hull.overlaps(&self.hull()) }
 
     #[cfg(feature = "debug")]
+    /// Whever the area of `self` is visible within `viewport`.
     #[inline]
     #[must_use]
     fn outline_visible(&self, viewport: &Hull) -> bool { self.hull().intersects(viewport) }
 
     #[cfg(feature = "debug")]
+    /// Draws the outline of the area.
     #[inline]
     fn draw(&self, gizmos: &mut bevy::prelude::Gizmos)
     {
@@ -134,23 +151,30 @@ impl Square
 
 //=======================================================================//
 
+/// The segments that cut in half both vertically and horizontally a square.
 pub(in crate::map::editor::state::manager::quad_tree) struct SplitSegments
 {
+    /// The segments that cuts the height of the square.
     pub x_split: [Vec2; 2],
+    /// The segments that cuts the width of the square.
     pub y_split: [Vec2; 2]
 }
 
 //=======================================================================//
 
+/// A node of a [`QuadTree`].
 #[derive(Debug)]
 pub(in crate::map::editor::state::manager::quad_tree) struct Node
 {
+    /// The area covered.
     square:  Square,
+    /// The contained data.
     content: Content
 }
 
 impl Node
 {
+    /// Returns a [`Node`] that covers the entire area of the map.
     #[inline]
     #[must_use]
     pub fn full_map() -> Self
@@ -161,6 +185,7 @@ impl Node
         }
     }
 
+    /// Returns a [`Node`] with area [`Square`].
     #[inline]
     #[must_use]
     pub fn new(square: &Square) -> Self
@@ -171,18 +196,22 @@ impl Node
         }
     }
 
+    /// Returns the [`Square`] describing the area covered by `self`.
     #[inline]
     #[must_use]
     pub const fn square(&self) -> Square { self.square }
 
+    /// Returns the [`SplitSegments`] of the area.
     #[inline]
     #[must_use]
     pub fn split_segments(&self) -> SplitSegments { self.square.split_segments() }
 
+    /// Whever `pos` is contained in the covered area.
     #[inline]
     #[must_use]
     pub fn contains_point(&self, pos: Vec2) -> bool { self.square.contains_point(pos) }
 
+    /// Clears the content of `self` and returns underlying [`Vertexes`], if any.
     #[inline]
     #[must_use]
     pub fn wipe(&mut self) -> Option<Vertexes>
@@ -197,6 +226,7 @@ impl Node
         }
     }
 
+    /// Returns a reference to the contained [`Subnodes`].
     #[inline]
     #[must_use]
     pub const fn subnodes(&self) -> &Subnodes
@@ -204,6 +234,7 @@ impl Node
         match_or_panic!(&self.content, Content::Subnodes(sts, _), sts)
     }
 
+    /// Clears the content of `self`.
     #[inline]
     pub fn clear(&mut self)
     {
@@ -214,6 +245,8 @@ impl Node
         self.content = Content::None;
     }
 
+    /// Stores the ids of the entities of the [`Node`]s that contain `pos` in `identifiers`.
+    /// Returns whever `pos` is contained in the area covered by `self`.
     #[inline]
     pub fn entities_at_pos(
         quad_tree: &QuadTree,
@@ -254,6 +287,7 @@ impl Node
         panic!("Failed entities search.");
     }
 
+    /// Inserts `vertex` in the [`QuadTree`], splitting it into subnodes if necessary.
     #[inline]
     #[must_use]
     pub fn insert(quad_tree: &mut QuadTree, index: usize, mut vertex: Vertex) -> bool
@@ -324,6 +358,7 @@ impl Node
         true
     }
 
+    /// Inserts the intersections generated by `sides` with the [`SplitSegments`] of `quad_tree`.
     #[inline]
     pub fn insert_intersections(
         quad_tree: &mut QuadTree,
@@ -349,7 +384,7 @@ impl Node
 
         if let Some(mut iter) = sides.intersections(&split_segments)
         {
-            ints.push(identifier, iter.next_value(), &sides.corner());
+            ints.insert(identifier, iter.next_value(), &sides.corner());
         }
 
         for node_index in quad_tree.node(index).subnodes()
@@ -358,6 +393,7 @@ impl Node
         }
     }
 
+    /// Removes `pos` with associated [`Id`] from `quad_tree`.
     #[inline]
     #[must_use]
     pub fn remove(quad_tree: &mut QuadTree, index: usize, pos: Vec2, identifier: Id)
@@ -379,6 +415,7 @@ impl Node
 
         for node_index in subnodes.by_ref()
         {
+            /// Tries to group the subtrees into one [`Node`].
             #[inline]
             fn try_group_subtrees(quad_tree: &mut QuadTree, index: usize) -> RemoveResult
             {
@@ -450,6 +487,7 @@ impl Node
         RemoveResult::None
     }
 
+    /// Removes all the intersections with [`Id`] `identifier`.
     #[inline]
     pub fn remove_intersections(quad_tree: &mut QuadTree, index: usize, identifier: Id, hull: &Hull)
     {
@@ -468,6 +506,7 @@ impl Node
         }
     }
 
+    /// Inserts in `identifiers` the ids contained in `self` if it intersects `range`.
     #[inline]
     pub fn intersect_range(
         quad_tree: &QuadTree,
@@ -500,6 +539,7 @@ impl Node
     }
 
     #[cfg(feature = "debug")]
+    /// Draws the grid created by the [`QuadTree`].
     #[inline]
     pub fn draw_grid(
         quad_tree: &QuadTree,

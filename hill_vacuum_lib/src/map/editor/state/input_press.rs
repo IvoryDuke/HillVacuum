@@ -17,9 +17,12 @@ use crate::config::controls::{bind::Bind, BindsKeyCodes};
 #[derive(Default)]
 enum State
 {
+    /// Not pressed.
     #[default]
     NotPressed,
+    /// Pressed.
     Pressed,
+    /// Just pressed.
     JustPressed
 }
 

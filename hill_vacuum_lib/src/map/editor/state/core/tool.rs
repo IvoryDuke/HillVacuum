@@ -5,21 +5,21 @@
 
 use std::borrow::Cow;
 
-use bevy::prelude::{ButtonInput, KeyCode, Vec2};
+use bevy::prelude::{ButtonInput, KeyCode};
 use bevy_egui::egui;
 use proc_macros::{EnumFromUsize, EnumIter, EnumSize, SubToolEnum, ToolEnum};
-use shared::{continue_if_none, match_or_panic, return_if_no_match, return_if_none, NextValue};
+use shared::{match_or_panic, return_if_no_match, return_if_none, NextValue};
 
 use super::{
     clip_tool::ClipTool,
-    drag_area::DragArea,
     draw_selected_and_non_selected_things,
-    draw_tool::{cursor_polygon::Status, DrawTool},
+    draw_tool::{cursor_polygon::FreeDrawStatus, DrawTool},
     entity_tool::EntityTool,
     flip_tool::FlipTool,
     map_preview::MapPreviewTool,
     paint_tool::PaintTool,
     path_tool::PathTool,
+    rect::Rect,
     rotate_tool::RotateTool,
     scale_tool::ScaleTool,
     shatter_tool::ShatterTool,
@@ -53,8 +53,7 @@ use crate::{
         },
         hv_vec,
         properties::DefaultProperties,
-        thing::catalog::ThingsCatalog,
-        HvVec
+        thing::catalog::ThingsCatalog
     },
     utils::{
         identifiers::{EntityId, Id},
@@ -69,6 +68,7 @@ use crate::{
 //
 //=======================================================================//
 
+/// Draws the subtool buttons.
 macro_rules! subtools_buttons {
     (
         $status:expr,
@@ -108,6 +108,7 @@ pub(in crate::map::editor::state::core) use subtools_buttons;
 //
 //=======================================================================//
 
+/// A trait for tools.
 pub(in crate::map::editor::state) trait ToolInterface
 where
     Self: Copy + PartialEq
@@ -136,71 +137,96 @@ where
     #[must_use]
     fn subtool(self) -> bool;
 
+    /// The index associated with the tool.
     #[must_use]
     fn index(self) -> usize;
 }
 
 //=======================================================================//
 
+/// A trait to return whever the tool is enabled.
 pub(in crate::map::editor::state) trait EnabledTool
 {
+    /// The tool to check if it's enabled.
     type Item: ToolInterface;
 
+    /// Whever the tool associated with `tool` is enabled.
     #[must_use]
     fn is_tool_enabled(&self, tool: Self::Item) -> bool;
 }
 
 //=======================================================================//
 
+/// A trait to disable the subtool of the active tool.
+pub(in crate::map::editor::state) trait DisableSubtool
+{
+    /// Disables the active subtool, if any.
+    fn disable_subtool(&mut self);
+}
+
+//=======================================================================//
+
+/// A trait to return whever a tool has any ongoing multiframe changes.
+pub(in crate::map::editor::state) trait OngoingMultiframeChange
+{
+    /// Whever there are any ongoing multiframe changes.
+    #[must_use]
+    fn ongoing_multi_frame_change(&self) -> bool;
+}
+
+//=======================================================================//
+
+/// A trait to return the drag selection of the tool, if any.
+pub(in crate::map::editor::state::core) trait DragSelection
+{
+    /// Returns the [`Rect`] describing the tool's drag selection, if any.
+    fn drag_selection(&self) -> Option<Rect>;
+}
+
+//=======================================================================//
+
+/// The type of entities snap to execute.
+#[allow(clippy::missing_docs_in_private_items)]
 #[derive(PartialEq)]
 enum Snap
 {
     None,
+    Entities,
+    Things,
     Brushes,
     Vertexes,
     Sides,
     PathNodes
 }
 
-type SnapFunc = fn(&mut Brush, &DrawingResources, Grid) -> Option<HvVec<(HvVec<u8>, Vec2)>>;
-
 impl Snap
 {
+    /// Returns a new [`Snap`].
     #[inline]
     #[must_use]
     fn new(active_tool: &ActiveTool, manager: &EntitiesManager) -> Self
     {
-        if active_tool.ongoing_multi_frame_changes() || !manager.any_selected_brushes()
+        if active_tool.ongoing_multi_frame_change() || !manager.any_selected_brushes()
         {
             return Self::None;
         }
 
         match active_tool
         {
+            ActiveTool::Entity(_) => Self::Entities,
+            ActiveTool::Thing(_) => Self::Things,
             ActiveTool::Vertex(_) => Self::Vertexes,
             ActiveTool::Side(_) => Self::Sides,
             ActiveTool::Path(_) => Self::PathNodes,
             _ => Self::Brushes
         }
     }
-
-    #[inline]
-    #[must_use]
-    const fn method(self) -> Option<SnapFunc>
-    {
-        match self
-        {
-            Self::None => None,
-            Self::Brushes => Some(Brush::snap_vertexes),
-            Self::Vertexes => Some(Brush::snap_selected_vertexes),
-            Self::Sides => Some(Brush::snap_selected_sides),
-            Self::PathNodes => panic!()
-        }
-    }
 }
 
 //=======================================================================//
 
+/// The map element being edited by the active tool.
+#[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
 #[derive(Clone, Copy, Default)]
 pub(in crate::map::editor::state) enum EditingTarget
@@ -208,17 +234,18 @@ pub(in crate::map::editor::state) enum EditingTarget
     #[default]
     Other,
     Draw,
-    BrushFreeDraw(Status),
+    BrushFreeDraw(FreeDrawStatus),
     Thing,
     Vertexes,
     Sides,
-    Subtract,
+    Subtractees,
     Path,
     PathFreeDraw
 }
 
 impl EditingTarget
 {
+    /// Returns a new [`EditingTarget`].
     #[inline]
     const fn new(active_tool: &ActiveTool, prev_value: Self) -> Self
     {
@@ -256,12 +283,14 @@ impl EditingTarget
                     Self::Path
                 }
             },
-            ActiveTool::Subtract(_) => Self::Subtract,
+            ActiveTool::Subtract(_) => Self::Subtractees,
             ActiveTool::Zoom(_) | ActiveTool::MapPreview(_) => prev_value,
             _ => Self::Other
         }
     }
 
+    /// Whever the change of [`EditingTarget`] requires certain edits to be purged from the
+    /// [`EditsHistory`].
     #[inline]
     #[must_use]
     pub fn requires_tool_edits_purge(self, prev_value: Self) -> bool
@@ -279,6 +308,8 @@ impl EditingTarget
 
 //=======================================================================//
 
+/// The currently active tool.
+#[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) enum ActiveTool
@@ -336,45 +367,70 @@ impl EnabledTool for ActiveTool
     }
 }
 
+impl DisableSubtool for ActiveTool
+{
+    #[inline]
+    fn disable_subtool(&mut self)
+    {
+        match self
+        {
+            Self::Draw(t) => t.disable_subtool(),
+            Self::Thing(t) => t.disable_subtool(),
+            Self::Entity(t) => t.disable_subtool(),
+            Self::Vertex(t) => t.disable_subtool(),
+            Self::Side(t) => t.disable_subtool(),
+            Self::Clip(t) => t.disable_subtool(),
+            Self::Rotate(t) => t.disable_subtool(),
+            Self::Path(t) => t.disable_subtool(),
+            Self::Paint(t) => t.disable_subtool(),
+            _ => ()
+        };
+    }
+}
+
+impl OngoingMultiframeChange for ActiveTool
+{
+    #[inline]
+    fn ongoing_multi_frame_change(&self) -> bool
+    {
+        match self
+        {
+            Self::Entity(t) => t.ongoing_multi_frame_change(),
+            Self::Clip(t) => t.ongoing_multi_frame_change(),
+            Self::Draw(t) => t.ongoing_multi_frame_change(),
+            Self::Path(t) => t.ongoing_multi_frame_change(),
+            Self::Rotate(t) => t.ongoing_multi_frame_change(),
+            Self::Scale(t) => t.ongoing_multi_frame_change(),
+            Self::Shear(t) => t.ongoing_multi_frame_change(),
+            Self::Side(t) => t.ongoing_multi_frame_change(),
+            Self::Vertex(t) => t.ongoing_multi_frame_change(),
+            Self::Paint(t) => t.ongoing_multi_frame_change(),
+            _ => false
+        }
+    }
+}
+
 impl ActiveTool
 {
     //==============================================================
     // Info
 
+    /// The [`EditingTarget`] associated with the current tool.
     #[inline]
-    #[must_use]
-    pub const fn ongoing_multi_frame_changes(&self) -> bool
-    {
-        match self
-        {
-            Self::Entity(t) => t.ongoing_multi_frame_changes(),
-            Self::Clip(t) => t.ongoing_multi_frame_changes(),
-            Self::Draw(t) => t.ongoing_multi_frame_changes(),
-            Self::Path(t) => t.ongoing_multi_frame_changes(),
-            Self::Rotate(t) => t.ongoing_multi_frame_changes(),
-            Self::Scale(t) => t.ongoing_multi_frame_changes(),
-            Self::Shear(t) => t.ongoing_multi_frame_changes(),
-            Self::Side(t) => t.ongoing_multi_frame_changes(),
-            Self::Vertex(t) => t.ongoing_multi_frame_changes(),
-            Self::Paint(t) => t.ongoing_multi_frame_changes(),
-            _ => false
-        }
-    }
-
-    #[inline]
-    pub fn editing_target(&self, prev_value: EditingTarget) -> EditingTarget
+    pub const fn editing_target(&self, prev_value: EditingTarget) -> EditingTarget
     {
         EditingTarget::new(self, prev_value)
     }
 
+    /// The current drag selection.
     #[inline]
-    fn drag_selection(&self) -> DragArea
+    fn drag_selection(&self) -> Rect
     {
         match &self
         {
             Self::Entity(t) => t.drag_selection(),
-            Self::Subtract(t) => return t.drag_selection(),
-            Self::Zoom(t) => return t.drag_selection(),
+            Self::Subtract(t) => t.drag_selection(),
+            Self::Zoom(t) => t.drag_selection(),
             Self::Vertex(t) => t.drag_selection(),
             Self::Side(t) => t.drag_selection(),
             Self::Path(t) => t.drag_selection(),
@@ -383,6 +439,7 @@ impl ActiveTool
         .unwrap_or_default()
     }
 
+    /// Whever the simulation of the moving entities is active.
     #[inline]
     #[must_use]
     pub const fn path_simulation_active(&self) -> bool
@@ -390,10 +447,12 @@ impl ActiveTool
         return_if_no_match!(self, Self::Path(t), t, false).simulation_active()
     }
 
+    /// Whever the entity tool is active.
     #[inline]
     #[must_use]
     pub const fn entity_tool(&self) -> bool { matches!(self, Self::Entity(_)) }
 
+    /// Whever a tool with texture editing capabilities is available.
     #[inline]
     #[must_use]
     pub const fn texture_tool(&self) -> bool
@@ -401,9 +460,10 @@ impl ActiveTool
         matches!(self, Self::Entity(_) | Self::Scale(_) | Self::Rotate(_) | Self::Flip(_))
     }
 
+    /// Whever the vertexes merge is available.
     #[inline]
     #[must_use]
-    pub fn vx_merge_available(&self) -> bool
+    pub const fn vx_merge_available(&self) -> bool
     {
         match self
         {
@@ -413,6 +473,7 @@ impl ActiveTool
         }
     }
 
+    /// Whever the split subtoon is available.
     #[inline]
     #[must_use]
     pub fn split_available(&self) -> bool
@@ -420,6 +481,7 @@ impl ActiveTool
         return_if_no_match!(self, Self::Vertex(t), t, false).split_available()
     }
 
+    /// Whever the x-trusion subtool is available.
     #[inline]
     #[must_use]
     fn xtrusion_available(&self) -> bool
@@ -427,6 +489,7 @@ impl ActiveTool
         return_if_no_match!(self, Self::Side(t), t, false).xtrusion_available()
     }
 
+    /// Whever map preview is active.
     #[inline]
     #[must_use]
     pub const fn map_preview(&self) -> bool { matches!(self, Self::MapPreview { .. }) }
@@ -434,26 +497,28 @@ impl ActiveTool
     //==============================================================
     // Copy/Paste
 
+    /// Whever copy/paste is available.
     #[inline]
     #[must_use]
-    pub const fn copy_paste_available(&self) -> bool
+    pub fn copy_paste_available(&self) -> bool
     {
         match self
         {
             Self::Draw(_) | Self::Zoom(_) | Self::MapPreview { .. } => false,
             Self::Shatter(_) | Self::Subtract(_) | Self::Flip(_) | Self::Thing(_) => true,
-            Self::Entity(t) => !t.ongoing_multi_frame_changes(),
-            Self::Vertex(t) => !t.ongoing_multi_frame_changes(),
-            Self::Side(t) => !t.ongoing_multi_frame_changes(),
-            Self::Clip(t) => !t.ongoing_multi_frame_changes(),
-            Self::Scale(t) => !t.ongoing_multi_frame_changes(),
-            Self::Shear(t) => !t.ongoing_multi_frame_changes(),
-            Self::Rotate(t) => !t.ongoing_multi_frame_changes(),
+            Self::Entity(t) => !t.ongoing_multi_frame_change(),
+            Self::Vertex(t) => !t.ongoing_multi_frame_change(),
+            Self::Side(t) => !t.ongoing_multi_frame_change(),
+            Self::Clip(t) => !t.ongoing_multi_frame_change(),
+            Self::Scale(t) => !t.ongoing_multi_frame_change(),
+            Self::Shear(t) => !t.ongoing_multi_frame_change(),
+            Self::Rotate(t) => !t.ongoing_multi_frame_change(),
             Self::Path(t) => t.copy_paste_available(),
-            Self::Paint(t) => !t.ongoing_multi_frame_changes()
+            Self::Paint(t) => !t.ongoing_multi_frame_change()
         }
     }
 
+    /// Copies the selected entities.
     #[inline]
     pub fn copy(
         &mut self,
@@ -478,6 +543,7 @@ impl ActiveTool
         clipboard.copy(manager.selected_entities());
     }
 
+    /// Cuts the selected entities.
     #[inline]
     pub fn cut(
         &mut self,
@@ -511,6 +577,7 @@ impl ActiveTool
         manager.schedule_outline_update();
     }
 
+    /// Pastes the copied entities.
     #[inline]
     pub fn paste(
         &mut self,
@@ -552,6 +619,7 @@ impl ActiveTool
         manager.schedule_outline_update();
     }
 
+    /// Updates the outline of certain tools.
     #[inline]
     pub fn update_outline(
         &mut self,
@@ -571,6 +639,7 @@ impl ActiveTool
         };
     }
 
+    /// Updates the stored info concerning the selected vertexes.
     #[inline]
     pub fn update_selected_vertexes<'a>(
         &mut self,
@@ -598,6 +667,7 @@ impl ActiveTool
         };
     }
 
+    /// Updates the overall UI [`Path`] [`Node`].
     #[inline]
     pub fn update_overall_node(&mut self, manager: &EntitiesManager)
     {
@@ -607,10 +677,12 @@ impl ActiveTool
     //==============================================================
     // Undo/Redo
 
+    /// Whever it is possible to select all the entities.
     #[inline]
     #[must_use]
-    pub const fn select_all_available(&self) -> bool { !self.ongoing_multi_frame_changes() }
+    pub fn select_all_available(&self) -> bool { !self.ongoing_multi_frame_change() }
 
+    /// Selects all the entities.
     #[inline]
     pub fn select_all(
         &mut self,
@@ -641,7 +713,7 @@ impl ActiveTool
                     })
                 )
                 {
-                    manager.toggle_overall_node_update();
+                    manager.schedule_overall_node_update();
                 }
             },
             _ => manager.select_all_entities(edits_history)
@@ -653,13 +725,15 @@ impl ActiveTool
     //==============================================================
     // Undo/Redo
 
+    /// Whever undo/redo is avauilable.
     #[inline]
     #[must_use]
-    pub const fn undo_redo_available(&self) -> bool { !self.ongoing_multi_frame_changes() }
+    pub fn undo_redo_available(&self) -> bool { !self.ongoing_multi_frame_change() }
 
     //==============================================================
     // Update
 
+    /// Toggles the map preview.
     #[inline]
     pub fn toggle_map_preview(
         &mut self,
@@ -674,24 +748,7 @@ impl ActiveTool
         };
     }
 
-    #[inline]
-    pub fn disable_subtool(&mut self)
-    {
-        match self
-        {
-            Self::Draw(t) => t.disable_subtool(),
-            Self::Thing(t) => t.disable_subtool(),
-            Self::Entity(t) => t.disable_subtool(),
-            Self::Vertex(t) => t.disable_subtool(),
-            Self::Side(t) => t.disable_subtool(),
-            Self::Clip(t) => t.disable_subtool(),
-            Self::Rotate(t) => t.disable_subtool(),
-            Self::Path(t) => t.disable_subtool(),
-            Self::Paint(t) => t.disable_subtool(),
-            _ => ()
-        };
-    }
-
+    /// Updates the tool.
     #[inline]
     pub fn update(
         &mut self,
@@ -723,7 +780,7 @@ impl ActiveTool
             {
                 if t.update(bundle, manager, inputs, edits_history)
                 {
-                    *self = EntityTool::tool(DragArea::default());
+                    *self = EntityTool::tool(Rect::default());
                     self.update(bundle, manager, inputs, edits_history, clipboard, grid, settings);
                 }
             },
@@ -754,6 +811,7 @@ impl ActiveTool
         };
     }
 
+    /// Changes the tool if requested.
     #[inline]
     pub fn change(
         &mut self,
@@ -831,6 +889,8 @@ impl ActiveTool
         };
     }
 
+    /// Snaps the selected entities and [`Path`]s to the `grid` based on `grid` and the currently
+    /// selected tool.
     #[inline]
     pub fn snap_tool(
         &mut self,
@@ -841,39 +901,97 @@ impl ActiveTool
         grid: Grid
     )
     {
-        let snap = Snap::new(self, manager);
-        let mut snapped = false;
-
-        if let Snap::PathNodes = snap
+        /// Snap the selected [`Brush`]es to the grid.
+        #[inline]
+        #[must_use]
+        fn snap_brushes(
+            drawing_resources: &DrawingResources,
+            manager: &mut EntitiesManager,
+            edits_history: &mut EditsHistory,
+            grid: Grid
+        ) -> bool
         {
-            for mut moving in manager.selected_movings_mut()
-            {
-                edits_history.path_nodes_snap(
-                    moving.id(),
-                    continue_if_none!(moving.snap_selected_path_nodes(grid))
-                );
-            }
-        }
-        else
-        {
-            let method = return_if_none!(snap.method());
-
-            for mut brush in manager.selected_brushes_mut()
-            {
+            manager.selected_brushes_mut().fold(false, |acc, mut brush| {
                 edits_history.vertexes_snap(
                     brush.id(),
-                    continue_if_none!((method)(&mut brush, drawing_resources, grid))
+                    return_if_none!(brush.snap_vertexes(drawing_resources, grid), acc)
                 );
-                snapped = true;
-            }
 
-            if snapped
+                true
+            })
+        }
+
+        /// Snap the selected [`ThingInstances`]s to the grid.
+        #[inline]
+        #[must_use]
+        fn snap_things(
+            manager: &mut EntitiesManager,
+            edits_history: &mut EditsHistory,
+            grid: Grid
+        ) -> bool
+        {
+            manager.selected_things_mut().fold(false, |acc, mut thing| {
+                edits_history.thing_move(thing.id(), return_if_none!(thing.snap(grid), acc));
+
+                true
+            })
+        }
+
+        let snapped = match Snap::new(self, manager)
+        {
+            Snap::None => false,
+            Snap::Entities =>
             {
-                self.update_outline(manager, settings, grid);
-            }
+                snap_brushes(drawing_resources, manager, edits_history, grid) |
+                    snap_things(manager, edits_history, grid)
+            },
+            Snap::Things => snap_things(manager, edits_history, grid),
+            Snap::Brushes => snap_brushes(drawing_resources, manager, edits_history, grid),
+            Snap::Vertexes =>
+            {
+                manager.selected_brushes_mut().fold(false, |acc, mut brush| {
+                    edits_history.vertexes_snap(
+                        brush.id(),
+                        return_if_none!(brush.snap_selected_vertexes(drawing_resources, grid), acc)
+                    );
+
+                    true
+                })
+            },
+            Snap::Sides =>
+            {
+                manager.selected_brushes_mut().fold(false, |acc, mut brush| {
+                    edits_history.vertexes_snap(
+                        brush.id(),
+                        return_if_none!(brush.snap_selected_sides(drawing_resources, grid), acc)
+                    );
+
+                    true
+                })
+            },
+            Snap::PathNodes =>
+            {
+                manager.selected_movings_mut().fold(false, |acc, mut moving| {
+                    edits_history.path_nodes_snap(
+                        moving.id(),
+                        return_if_none!(moving.snap_selected_path_nodes(grid), acc)
+                    );
+
+                    true
+                })
+            },
+        };
+
+        if snapped
+        {
+            self.update_outline(manager, settings, grid);
         }
     }
 
+    /// Replaces each selected [`Brush`]es with four others.
+    /// These four brushes create a room with wall thickness equal to the grid size as big as the
+    /// brush they replaced. If it's not possible to create rooms for all the brushes the
+    /// process will be aborted.
     #[inline]
     fn hollow_tool(
         &mut self,
@@ -916,6 +1034,8 @@ impl ActiveTool
         });
     }
 
+    /// Generates the [`Brush`] that represents the intersection between all the selected ones, if
+    /// any. All selected brushes are despawned.
     #[inline]
     fn intersection_tool(
         &mut self,
@@ -975,6 +1095,7 @@ impl ActiveTool
         self.update_outline(manager, settings, grid);
     }
 
+    /// Merges all selected vertexes.
     #[inline]
     pub fn merge_vertexes(
         brushes_default_properties: &DefaultProperties,
@@ -1014,6 +1135,7 @@ impl ActiveTool
         );
     }
 
+    /// Executes a vertexes merge based on the active tool.
     #[inline]
     fn merge_tool(
         &mut self,
@@ -1078,6 +1200,7 @@ impl ActiveTool
         });
     }
 
+    /// Executes the despawn of the drawn brushes if the draw tool is active.
     #[inline]
     fn draw_tool_despawn<F>(
         &mut self,
@@ -1095,6 +1218,7 @@ impl ActiveTool
         f(manager, edits_history);
     }
 
+    /// Forcefully disables a tool and replaces it with another if certain circumstances are met.
     #[inline]
     pub fn fallback(&mut self, manager: &EntitiesManager, clipboard: &Clipboard)
     {
@@ -1118,7 +1242,7 @@ impl ActiveTool
             },
             Self::Clip(t) =>
             {
-                if t.ongoing_multi_frame_changes()
+                if t.ongoing_multi_frame_change()
                 {
                     return;
                 }
@@ -1180,6 +1304,7 @@ impl ActiveTool
     //==============================================================
     // Draw
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(
         &self,
@@ -1189,124 +1314,123 @@ impl ActiveTool
         show_tooltips: bool
     )
     {
+        /// Draws the tool.
+        #[inline]
+        fn draw_tool(
+            tool: &ActiveTool,
+            bundle: &mut DrawBundle,
+            manager: &EntitiesManager,
+            settings: &ToolsSettings,
+            show_tooltips: bool
+        )
+        {
+            /// Draws the sprites and [`Brush`] anchors.
+            #[inline]
+            fn sprites_and_anchors(bundle: &mut DrawBundle, manager: &EntitiesManager)
+            {
+                let DrawBundle {
+                    window,
+                    drawer,
+                    camera,
+                    ..
+                } = bundle;
+
+                let brushes = manager.brushes();
+
+                for brush in manager.visible_anchors(window, camera).iter()
+                {
+                    brush.draw_anchors(brushes, drawer);
+                }
+
+                for brush in manager.visible_sprites(window, camera).iter()
+                {
+                    let color = if manager.is_selected(brush.id())
+                    {
+                        Color::SelectedEntity
+                    }
+                    else
+                    {
+                        Color::NonSelectedEntity
+                    };
+
+                    brush.draw_sprite(drawer, color);
+                }
+            }
+
+            // Things
+            match tool
+            {
+                ActiveTool::Entity(_) | ActiveTool::Thing(_) | ActiveTool::Path(_) => (),
+                ActiveTool::Paint(_) =>
+                {
+                    draw_selected_and_non_selected_things!(bundle, manager);
+                },
+                _ =>
+                {
+                    for thing in manager.visible_things(bundle.window, bundle.camera).iter()
+                    {
+                        thing.draw_opaque(&mut bundle.drawer, bundle.things_catalog);
+                    }
+                }
+            };
+
+            // Brushes
+            match tool
+            {
+                ActiveTool::Draw(t) => t.draw(bundle, manager, show_tooltips),
+                ActiveTool::Entity(t) => t.draw(bundle, manager, settings, show_tooltips),
+                ActiveTool::Vertex(t) => t.draw(bundle, manager, show_tooltips),
+                ActiveTool::Side(t) => t.draw(bundle, manager, show_tooltips),
+                ActiveTool::Clip(t) => t.draw(bundle, manager),
+                ActiveTool::Shatter(t) => t.draw(bundle, manager),
+                ActiveTool::Subtract(t) => t.draw(bundle, manager),
+                ActiveTool::Scale(t) => t.draw(bundle, manager),
+                ActiveTool::Shear(t) => t.draw(bundle, manager),
+                ActiveTool::Rotate(t) => t.draw(bundle, manager),
+                ActiveTool::Flip(t) => t.draw(bundle, manager),
+                ActiveTool::Path(t) =>
+                {
+                    if !t.simulation_active()
+                    {
+                        sprites_and_anchors(bundle, manager);
+                    }
+
+                    t.draw(bundle, manager, show_tooltips);
+                    return;
+                },
+                ActiveTool::Paint(t) => t.draw(bundle, manager),
+                ActiveTool::Thing(t) => t.draw(bundle, manager),
+                _ => unreachable!()
+            };
+
+            // Non simulation common stuff.
+            for brush in manager.visible_paths(bundle.window, bundle.camera).iter()
+            {
+                brush.draw_semitransparent_path(&mut bundle.drawer);
+            }
+
+            sprites_and_anchors(bundle, manager);
+        }
+
         match self
         {
             Self::Zoom(t) =>
             {
                 t.draw(bundle);
-                Self::draw_tool(&t.previous_active_tool, bundle, manager, settings, show_tooltips);
+                draw_tool(&t.previous_active_tool, bundle, manager, settings, show_tooltips);
             },
-            _ => Self::draw_tool(self, bundle, manager, settings, show_tooltips)
+            _ => draw_tool(self, bundle, manager, settings, show_tooltips)
         };
     }
 
+    /// Draws the map preview.
     #[inline]
     pub fn draw_map_preview(&self, bundle: &mut DrawBundleMapPreview, manager: &EntitiesManager)
     {
         match_or_panic!(self, Self::MapPreview(t), t).draw(bundle, manager);
     }
 
-    #[inline]
-    fn draw_tool(
-        tool: &Self,
-        bundle: &mut DrawBundle,
-        manager: &EntitiesManager,
-        settings: &ToolsSettings,
-        show_tooltips: bool
-    )
-    {
-        #[inline]
-        fn sprites_and_anchors(bundle: &mut DrawBundle, manager: &EntitiesManager)
-        {
-            let DrawBundle {
-                window,
-                drawer,
-                camera,
-                ..
-            } = bundle;
-
-            let brushes = manager.brushes();
-
-            for brush in manager.visible_anchors(window, camera).iter()
-            {
-                brush.draw_anchors(brushes, drawer);
-            }
-
-            for brush in manager.visible_sprite_highlights(window, camera).iter()
-            {
-                brush.draw_sprite_highlight(drawer);
-            }
-
-            for brush in manager.visible_sprites(window, camera).iter()
-            {
-                let color = if manager.is_selected(brush.id())
-                {
-                    Color::SelectedEntity
-                }
-                else
-                {
-                    Color::NonSelectedEntity
-                };
-
-                brush.draw_sprite(drawer, color);
-            }
-        }
-
-        // Things
-        match tool
-        {
-            ActiveTool::Entity(_) | ActiveTool::Thing(_) | ActiveTool::Path(_) => (),
-            ActiveTool::Paint(_) =>
-            {
-                draw_selected_and_non_selected_things!(bundle, manager);
-            },
-            _ =>
-            {
-                for thing in manager.visible_things(bundle.window, bundle.camera).iter()
-                {
-                    thing.draw_opaque(&mut bundle.drawer, bundle.things_catalog);
-                }
-            }
-        };
-
-        // Brushes
-        match tool
-        {
-            Self::Draw(t) => t.draw(bundle, manager, show_tooltips),
-            Self::Entity(t) => t.draw(bundle, manager, settings, show_tooltips),
-            Self::Vertex(t) => t.draw(bundle, manager, show_tooltips),
-            Self::Side(t) => t.draw(bundle, manager, show_tooltips),
-            Self::Clip(t) => t.draw(bundle, manager),
-            Self::Shatter(t) => t.draw(bundle, manager),
-            Self::Subtract(t) => t.draw(bundle, manager),
-            Self::Scale(t) => t.draw(bundle, manager),
-            Self::Shear(t) => t.draw(bundle, manager),
-            Self::Rotate(t) => t.draw(bundle, manager),
-            Self::Flip(t) => t.draw(bundle, manager),
-            Self::Path(t) =>
-            {
-                if !t.simulation_active()
-                {
-                    sprites_and_anchors(bundle, manager);
-                }
-
-                t.draw(bundle, manager, show_tooltips);
-                return;
-            },
-            Self::Paint(t) => t.draw(bundle, manager),
-            Self::Thing(t) => t.draw(bundle, manager),
-            _ => unreachable!()
-        };
-
-        // Non simulation common stuff.
-        for brush in manager.visible_paths(bundle.window, bundle.camera).iter()
-        {
-            brush.draw_semitransparent_path(&mut bundle.drawer);
-        }
-
-        sprites_and_anchors(bundle, manager);
-    }
-
+    /// Draws the UI bottom panel.
     #[inline]
     #[must_use]
     pub fn bottom_panel(
@@ -1331,6 +1455,7 @@ impl ActiveTool
         false
     }
 
+    /// Draws the tool UI.
     #[inline]
     #[must_use]
     pub fn ui(
@@ -1343,6 +1468,7 @@ impl ActiveTool
         settings: &mut ToolsSettings
     ) -> bool
     {
+        /// Same as above.
         #[inline]
         #[must_use]
         fn draw_ui(
@@ -1389,8 +1515,9 @@ impl ActiveTool
         draw_ui(self, manager, inputs, edits_history, clipboard, ui, settings)
     }
 
+    /// Draws the subtool.
     #[inline]
-    pub fn draw_sub_tools(
+    pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
         bundle: &StateUpdateBundle,
@@ -1403,11 +1530,11 @@ impl ActiveTool
     {
         match self
         {
-            Self::Entity(t) => t.draw_sub_tools(ui, bundle, buttons, tool_change_conditions),
-            Self::Thing(t) => t.draw_sub_tools(ui, bundle, buttons, tool_change_conditions),
+            Self::Entity(t) => t.draw_subtools(ui, bundle, buttons, tool_change_conditions),
+            Self::Thing(t) => t.draw_subtools(ui, bundle, buttons, tool_change_conditions),
             Self::Vertex(t) =>
             {
-                t.draw_sub_tools(
+                t.draw_subtools(
                     ui,
                     bundle,
                     manager,
@@ -1418,7 +1545,7 @@ impl ActiveTool
             },
             Self::Side(t) =>
             {
-                t.draw_sub_tools(
+                t.draw_subtools(
                     ui,
                     bundle,
                     manager,
@@ -1427,11 +1554,11 @@ impl ActiveTool
                     tool_change_conditions
                 );
             },
-            Self::Clip(t) => t.draw_sub_tools(ui, bundle, buttons, tool_change_conditions),
-            Self::Rotate(t) => t.draw_sub_tools(ui, bundle, buttons, tool_change_conditions),
+            Self::Clip(t) => t.draw_subtools(ui, bundle, buttons, tool_change_conditions),
+            Self::Rotate(t) => t.draw_subtools(ui, bundle, buttons, tool_change_conditions),
             Self::Path(t) =>
             {
-                t.draw_sub_tools(
+                t.draw_subtools(
                     ui,
                     bundle,
                     manager,
@@ -1442,7 +1569,7 @@ impl ActiveTool
             },
             Self::Paint(t) =>
             {
-                t.draw_sub_tools(ui, bundle, manager, grid, buttons, tool_change_conditions);
+                t.draw_subtools(ui, bundle, manager, grid, buttons, tool_change_conditions);
             },
             _ => ()
         };
@@ -1451,6 +1578,7 @@ impl ActiveTool
 
 //=======================================================================//
 
+#[allow(clippy::missing_docs_in_private_items)]
 #[derive(ToolEnum, Clone, Copy, PartialEq, EnumIter, EnumSize, EnumFromUsize, Debug)]
 pub(in crate::map::editor::state) enum Tool
 {
@@ -1480,6 +1608,7 @@ pub(in crate::map::editor::state) enum Tool
 
 impl Tool
 {
+    /// Whever the bind associated with the tool was pressed.
     #[inline]
     #[must_use]
     pub fn just_pressed(self, key_inputs: &ButtonInput<KeyCode>, binds: &BindsKeyCodes) -> bool
@@ -1487,6 +1616,7 @@ impl Tool
         self.bind().just_pressed(key_inputs, binds)
     }
 
+    /// Returns the [`KeyCode`] to enable the tool, if any.
     #[inline]
     #[must_use]
     pub fn keycode(self, binds: &BindsKeyCodes) -> Option<KeyCode> { self.bind().keycode(binds) }
@@ -1506,29 +1636,47 @@ impl Tool
 
 //=======================================================================//
 
+/// The subtools.
 #[derive(EnumIter, EnumSize, SubToolEnum, Clone, Copy, PartialEq)]
 pub(in crate::map::editor::state) enum SubTool
 {
+    /// Entity tool drag spawn.
     EntityDragSpawn,
+    /// Entity tool brush anchor.
     EntityAnchor,
+    /// Vertex tool new vertex insert.
     VertexInsert,
+    /// Vertex tool merge.
     VertexMerge,
+    /// Vertex tool split.
     VertexSplit,
+    /// Vertex tool polygon to path.
     VertexPolygonToPath,
+    /// Side tool x-trusion.
     SideXtrusion,
+    /// Side tool merge.
     SideMerge,
+    /// Clip tool clip with brush side.
     ClipSide,
+    /// Rotate tool move pivot.
     RotatePivot,
+    /// Path tool free draw.
     PathFreeDraw,
+    /// Path tool add node.
     PathAddNode,
+    /// Path tool movement simulation.
     PathSimulation,
+    /// Pain tool prop creation.
     PaintCreation,
+    /// Paint tool quick prop.
     PaintQuick,
+    /// Thing tool thing change.
     ThingChange
 }
 
 impl SubTool
 {
+    /// The key combination required to use the subtool.
     #[inline]
     #[must_use]
     fn key_combo(self, binds: &BindsKeyCodes) -> Cow<str>
@@ -1563,9 +1711,11 @@ impl SubTool
 //
 //=======================================================================//
 
+/// A collection of information required to determine which tools can be enabled.
+#[allow(clippy::missing_docs_in_private_items)]
 pub(in crate::map::editor::state) struct ChangeConditions
 {
-    ongoing_multi_frame_changes: bool,
+    ongoing_multi_frame_change: bool,
     ctrl_pressed: bool,
     space_pressed: bool,
     vertex_rounding_availability: bool,
@@ -1587,6 +1737,7 @@ pub(in crate::map::editor::state) struct ChangeConditions
 
 impl ChangeConditions
 {
+    /// Returns a new [`ChangeConditions`].
     #[inline]
     pub fn new(
         inputs: &InputsPresses,
@@ -1598,7 +1749,7 @@ impl ChangeConditions
     ) -> Self
     {
         Self {
-            ongoing_multi_frame_changes: core.active_tool.ongoing_multi_frame_changes(),
+            ongoing_multi_frame_change: core.active_tool.ongoing_multi_frame_change(),
             ctrl_pressed: inputs.ctrl_pressed(),
             space_pressed: inputs.space.pressed(),
             vertex_rounding_availability: Snap::new(&core.active_tool, manager) != Snap::None,

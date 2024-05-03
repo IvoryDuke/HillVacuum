@@ -7,7 +7,7 @@ use bevy::prelude::Vec2;
 use bevy_egui::egui;
 use shared::return_if_none;
 
-use super::ActiveTool;
+use super::{tool::OngoingMultiframeChange, ActiveTool};
 use crate::{
     map::{
         brush::convex_polygon::{ConvexPolygon, ScaleInfo},
@@ -40,11 +40,15 @@ use crate::{
 //
 //=======================================================================//
 
+/// The state of the tool.
 #[derive(Debug)]
 enum Status
 {
+    /// Scaling with the keyboard.
     Keyboard,
+    /// Scaling with mouse drag.
     Drag(HvVec<(Id, ConvexPolygon)>, Vec2, Hull),
+    /// Scaling textures with mouse drag.
     DragTextures(HvVec<(Id, (f32, f32))>, Vec2, Hull)
 }
 
@@ -53,20 +57,34 @@ enum Status
 //
 //=======================================================================//
 
+/// The scale tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct ScaleTool
 {
+    /// The state of the tool.
     status:          Status,
+    /// The outline of the tool.
     outline:         Hull,
+    /// The selected [`Corner`] of the outline.
     selected_corner: Corner
+}
+
+impl OngoingMultiframeChange for ScaleTool
+{
+    #[inline]
+    fn ongoing_multi_frame_change(&self) -> bool { matches!(self.status, Status::Drag(..)) }
 }
 
 impl ScaleTool
 {
-    const MAX_SCALE_INTERVAL: f32 = 2f32;
-    const MIN_SCALE_INTERVAL: f32 = 0.1;
+    /// The maximum texture scale step.
+    const MAX_TEXTURES_SCALE_INTERVAL: f32 = 2f32;
+    /// The minimum texture scale step.
+    const MIN_TEXTURE_SCALE_INTERVAL: f32 = 0.1;
+    /// How much the texture scale is increased by pressing the UI buttons.
     const SCALE_INTERVAL_STEP: f32 = 0.05;
 
+    /// Returns an [`ActiveTool`] in its scale variant.
     #[inline]
     pub fn tool(manager: &EntitiesManager, grid: Grid, settings: &ToolsSettings) -> ActiveTool
     {
@@ -80,13 +98,7 @@ impl ScaleTool
     //==============================================================
     // Info
 
-    #[inline]
-    #[must_use]
-    pub const fn ongoing_multi_frame_changes(&self) -> bool
-    {
-        matches!(self.status, Status::Drag(..))
-    }
-
+    /// The cursor position used by the tool.
     #[inline]
     #[must_use]
     const fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world_snapped() }
@@ -94,6 +106,7 @@ impl ScaleTool
     //==============================================================
     // Update
 
+    /// Updates the tool.
     #[inline]
     pub fn update(
         &mut self,
@@ -117,13 +130,13 @@ impl ScaleTool
                     {
                         settings.texture_scale_interval = (settings.texture_scale_interval +
                             Self::SCALE_INTERVAL_STEP)
-                            .min(Self::MAX_SCALE_INTERVAL);
+                            .min(Self::MAX_TEXTURES_SCALE_INTERVAL);
                     }
                     else if inputs.minus.just_pressed()
                     {
                         settings.texture_scale_interval = (settings.texture_scale_interval -
                             Self::SCALE_INTERVAL_STEP)
-                            .max(Self::MIN_SCALE_INTERVAL);
+                            .max(Self::MIN_TEXTURE_SCALE_INTERVAL);
                     }
                 }
 
@@ -207,6 +220,7 @@ impl ScaleTool
         };
     }
 
+    /// Scales with the keyboard inputs.
     #[inline]
     fn keyboard_scale(
         &mut self,
@@ -296,6 +310,7 @@ impl ScaleTool
         );
     }
 
+    /// Scales the selected [`Brush`]es.
     #[inline]
     fn scale_brushes(
         bundle: &mut ToolUpdateBundle,
@@ -391,6 +406,7 @@ impl ScaleTool
         }
     }
 
+    /// Scales the textures of the selected [`Brush`]es and returns the new outline [`Hull`].
     #[inline]
     fn scale_textures(
         bundle: &mut ToolUpdateBundle,
@@ -479,6 +495,7 @@ impl ScaleTool
         new_hull.into()
     }
 
+    /// Checks whever there is an outline vertex near the cursor.
     #[inline]
     fn check_scale_vertex_proximity(
         &mut self,
@@ -500,6 +517,7 @@ impl ScaleTool
         };
     }
 
+    /// Returns the outline of the tool, if any.
     #[inline]
     #[must_use]
     fn outline(manager: &EntitiesManager, grid: Grid, settings: &ToolsSettings) -> Option<Hull>
@@ -520,6 +538,7 @@ impl ScaleTool
         .map(|hull| grid.snap_hull(&hull))
     }
 
+    /// Updates the outline of the tool.
     #[inline]
     pub fn update_outline(
         &mut self,
@@ -528,12 +547,13 @@ impl ScaleTool
         settings: &ToolsSettings
     )
     {
-        if !self.ongoing_multi_frame_changes()
+        if !self.ongoing_multi_frame_change()
         {
             self.outline = Self::outline(manager, grid, settings).unwrap();
         }
     }
 
+    /// Finalizes a mouse drag scale.
     #[inline]
     pub fn finalize_drag_scale(
         &mut self,
@@ -549,6 +569,7 @@ impl ScaleTool
     //==============================================================
     // Draw
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
     {
@@ -579,11 +600,12 @@ impl ScaleTool
         };
     }
 
+    /// Draws the UI of the tool.
     #[inline]
     pub fn ui(&mut self, ui: &mut egui::Ui, settings: &mut ToolsSettings)
     {
         ui.label(egui::RichText::new("SCALE TOOL"));
-        settings.ui(ui, !self.ongoing_multi_frame_changes());
+        settings.ui(ui, !self.ongoing_multi_frame_change());
         ui.label(egui::RichText::new("Corner:"));
 
         ui.horizontal_wrapped(|ui| {
@@ -643,7 +665,7 @@ impl ScaleTool
             ui.add(
                 egui::Slider::new(
                     &mut settings.texture_scale_interval,
-                    Self::MIN_SCALE_INTERVAL..=Self::MAX_SCALE_INTERVAL
+                    Self::MIN_TEXTURE_SCALE_INTERVAL..=Self::MAX_TEXTURES_SCALE_INTERVAL
                 )
                 .step_by(f64::from(Self::SCALE_INTERVAL_STEP))
                 .drag_value_speed(f64::from(Self::SCALE_INTERVAL_STEP))

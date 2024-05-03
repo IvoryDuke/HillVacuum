@@ -23,16 +23,21 @@ use crate::{
 //
 //=======================================================================//
 
+/// The map preview tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct MapPreviewTool
 {
+    /// The previously active tool.
     prev_tool: PreviousActiveTool,
+    /// The movement simulators.
     movement:  HvVec<MovementSimulator>,
+    /// The texture animators.
     animators: Animators
 }
 
 impl MapPreviewTool
 {
+    /// Returns an [`ActiveTool`] in its map preview variant.
     #[inline]
     pub fn tool(
         drawing_resources: &DrawingResources,
@@ -47,9 +52,11 @@ impl MapPreviewTool
         })
     }
 
+    /// Returns a mutable reference to the previously used tool.
     #[inline]
     pub fn prev_tool(&mut self) -> &mut ActiveTool { &mut self.prev_tool }
 
+    /// Updates the tool.
     #[inline]
     pub fn update(&mut self, bundle: &ToolUpdateBundle, manager: &EntitiesManager)
     {
@@ -62,6 +69,7 @@ impl MapPreviewTool
             .update(bundle.drawing_resources, manager, bundle.delta_time);
     }
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundleMapPreview, manager: &EntitiesManager)
     {
@@ -117,6 +125,7 @@ impl MapPreviewTool
 //
 //=======================================================================//
 
+/// Whever the entity with [`Id`] `identifier` moves.
 #[inline]
 #[must_use]
 fn is_moving(manager: &EntitiesManager, identifier: Id) -> bool

@@ -60,6 +60,7 @@ impl Edit
     #[must_use]
     pub fn contains_texture_edit(&self) -> bool { self.0.iter().any(|(_, et)| et.texture_edit()) }
 
+    /// Whever `self` contains a thing edit.
     #[inline]
     #[must_use]
     pub fn contains_thing_edit(&self) -> bool { self.0.iter().any(|(_, et)| et.thing_edit()) }
@@ -185,10 +186,14 @@ impl Edit
         self.0.insert(0, (identifiers, edit));
     }
 
+    /// Pushes a property sub-edit.
     #[inline]
     pub fn push_property(&mut self, key: &str, iter: impl Iterator<Item = (Id, Value)>)
     {
-        assert!(std::mem::replace(&mut self.1, key.to_owned().into()).is_none());
+        assert!(
+            std::mem::replace(&mut self.1, key.to_owned().into()).is_none(),
+            "Property edit already stored."
+        );
 
         for (id, value) in iter
         {
@@ -269,6 +274,7 @@ impl Edit
         self.0.is_empty()
     }
 
+    /// Purges all things edits.
     #[inline]
     #[must_use]
     pub fn purge_thing_edits(&mut self) -> bool

@@ -107,8 +107,10 @@ impl ThingsCatalog
     #[inline]
     fn loaded_things(hardcoded_things: &HvHashMap<ThingId, Thing>) -> IndexedMap<ThingId, Thing>
     {
+        /// The directory where ini defined things are located.
         const THINGS_DIR: &str = "assets/things/";
 
+        /// Gathers all ini files.
         #[inline]
         fn recurse(path: &Path, inis: &mut HvVec<Ini>)
         {
@@ -140,6 +142,8 @@ impl ThingsCatalog
         {
             'outer: for (name, values) in ini.get_map_ref()
             {
+                /// Returns the value associated to `key` of type `t`, it it exists.
+                /// Otherwise the thing loading is aborted.
                 macro_rules! value {
                     ($key:literal, $t:ty) => {
                         continue_if_err!(continue_if_none!(values.get($key))
@@ -196,7 +200,7 @@ impl ThingsCatalog
 
     /// The [`Thing`] representing an error.
     #[inline]
-    pub fn error(&self) -> &Thing { &self.error }
+    pub const fn error(&self) -> &Thing { &self.error }
 
     /// Returns a reference to the [`Thing`] with the associated [`ThingId`].
     /// # Panics
@@ -220,7 +224,7 @@ impl ThingsCatalog
 
     /// Returns the index of the [`Thing`] selected in the UI gallery, if any.
     #[inline]
-    pub fn selected_thing_index(&self) -> Option<usize> { self.selected_thing }
+    pub const fn selected_thing_index(&self) -> Option<usize> { self.selected_thing }
 
     /// Returns a reference to the [`Thing`] at `index`.
     #[inline]

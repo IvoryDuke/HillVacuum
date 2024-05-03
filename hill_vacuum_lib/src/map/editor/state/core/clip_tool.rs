@@ -10,7 +10,14 @@ use shared::{continue_if_none, match_or_panic, return_if_no_match, return_if_non
 
 use super::{
     draw_selected_and_non_selected_brushes,
-    tool::{subtools_buttons, ChangeConditions, EnabledTool, SubTool},
+    tool::{
+        subtools_buttons,
+        ChangeConditions,
+        DisableSubtool,
+        EnabledTool,
+        OngoingMultiframeChange,
+        SubTool
+    },
     ActiveTool
 };
 use crate::{
@@ -45,6 +52,7 @@ use crate::{
 //
 //=======================================================================//
 
+/// A macro to clip the selected [`Brush`]es.
 macro_rules! clip_brushes {
     (
         $self:ident,
@@ -81,7 +89,7 @@ macro_rules! clip_brushes {
         }
 
         $self.0 = Status::PostClip {
-            status: PostClipStatus::default(),
+            pick: PickedPolygons::default(),
             left_polygons,
             right_polygons
         };
@@ -89,55 +97,55 @@ macro_rules! clip_brushes {
 }
 
 //=======================================================================//
-// TYPES
-//
-//=======================================================================//
-
-#[derive(Copy, Clone, Debug)]
-struct ClipSide
-{
-    id:    Id,
-    side:  [Vec2; 2],
-    index: usize
-}
-
-//=======================================================================//
 // ENUMS
 //
 //=======================================================================//
 
+/// The polygons to use to spawn the new [`Brush`]es.
 #[derive(Clone, Copy, Debug, Default, EnumSize, EnumFromUsize)]
-enum PostClipStatus
+enum PickedPolygons
 {
+    /// Both left and right of the clip line.
     #[default]
     Both,
+    /// Left of the clip line.
     Left,
+    /// Right of the clip line.
     Right
 }
 
-impl PostClipStatus
+impl PickedPolygons
 {
+    /// Returns the previous value of `self`.
     #[inline]
     fn previous(&mut self) { *self = prev(*self as usize, Self::SIZE).into(); }
 
+    /// Returns the next value of `self`.
     #[inline]
     fn next(&mut self) { *self = next(*self as usize, Self::SIZE).into(); }
 }
 
 //=======================================================================//
 
-/// The status of the clip tool.
+/// The state of the clip tool.
 #[derive(Debug)]
 enum Status
 {
+    /// Inactive.
     Inactive(Option<ClipSide>),
+    /// Creating the clip line.
     Active(Vec2, Option<Vec2>),
+    /// Choosing the [`Brush`]es to spawn.
     PostClip
     {
-        status:         PostClipStatus,
+        /// The polygons picked to spawn the [`Brush`]es.
+        pick:           PickedPolygons,
+        /// The polygons to the left of the clip line.
         left_polygons:  HvVec<(ConvexPolygon, Properties)>,
+        /// The polygons to the right of the clip line.
         right_polygons: HvVec<(ConvexPolygon, Properties)>
     },
+    /// Choosing the side to clip the [`Brush`]es.
     PickSideUi(Option<ClipSide>)
 }
 
@@ -168,24 +176,51 @@ impl EnabledTool for Status
 //
 //=======================================================================//
 
+/// The side used to clip the [`Brush`]es.
+#[derive(Copy, Clone, Debug)]
+struct ClipSide
+{
+    /// The [`Id`] of the [`Brush`] with the chosen side.
+    id:    Id,
+    /// The side.
+    side:  [Vec2; 2],
+    /// The index of the side.
+    index: usize
+}
+
+//=======================================================================//
+
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct ClipTool(Status);
 
+impl DisableSubtool for ClipTool
+{
+    #[inline]
+    fn disable_subtool(&mut self)
+    {
+        if matches!(self.0, Status::PickSideUi(_) | Status::Active(..))
+        {
+            self.0 = Status::default();
+        }
+    }
+}
+
+impl OngoingMultiframeChange for ClipTool
+{
+    #[inline]
+    fn ongoing_multi_frame_change(&self) -> bool { matches!(self.0, Status::PostClip { .. }) }
+}
+
 impl ClipTool
 {
+    /// Returns an [`ActiveTool`] in its clip tool variant.
     #[inline]
     pub fn tool() -> ActiveTool { ActiveTool::Clip(ClipTool(Status::default())) }
 
     //==============================================================
     // Info
 
-    #[inline]
-    #[must_use]
-    pub const fn ongoing_multi_frame_changes(&self) -> bool
-    {
-        matches!(self.0, Status::PostClip { .. })
-    }
-
+    /// Returns the cursor position used by the tool.
     #[inline]
     #[must_use]
     pub fn cursor_pos(&self, cursor: &Cursor) -> Option<Vec2>
@@ -197,15 +232,7 @@ impl ClipTool
     //==============================================================
     // Update
 
-    #[inline]
-    pub fn disable_subtool(&mut self)
-    {
-        if matches!(self.0, Status::PickSideUi(_) | Status::Active(..))
-        {
-            self.0 = Status::default();
-        }
-    }
-
+    /// Updates the tool.
     #[inline]
     pub fn update(
         &mut self,
@@ -255,7 +282,7 @@ impl ClipTool
                     self.clip_brushes_with_line(bundle.drawing_resources, manager, edits_history);
                 }
             },
-            Status::PostClip { status, .. } =>
+            Status::PostClip { pick: status, .. } =>
             {
                 if inputs.tab.just_pressed()
                 {
@@ -286,6 +313,7 @@ impl ClipTool
         };
     }
 
+    /// Uses the side beneath the cursor, if any, to generate the clip line.
     #[inline]
     fn set_clip_side(
         manager: &EntitiesManager,
@@ -312,6 +340,7 @@ impl ClipTool
         });
     }
 
+    /// Clips the selected [`Brush`]es with the chosen side.
     #[inline]
     fn clip_brushes_with_side(
         &mut self,
@@ -339,6 +368,7 @@ impl ClipTool
         );
     }
 
+    /// Clips the selected [`Brush`]es with the clip line.
     #[inline]
     fn clip_brushes_with_line(
         &mut self,
@@ -359,6 +389,7 @@ impl ClipTool
         );
     }
 
+    /// Spawns the generated [`Brush`]es.
     #[inline]
     fn spawn_clipped_brushes(
         &mut self,
@@ -366,19 +397,19 @@ impl ClipTool
         edits_history: &mut EditsHistory
     )
     {
-        let (status, mut left_polygons, right_polygons) = match_or_panic!(
+        let (pick, mut left_polygons, right_polygons) = match_or_panic!(
             &mut self.0,
             Status::PostClip {
-                status,
+                pick,
                 left_polygons,
                 right_polygons
             },
-            (status, left_polygons.take_value(), right_polygons.take_value())
+            (pick, left_polygons.take_value(), right_polygons.take_value())
         );
 
-        match status
+        match pick
         {
-            PostClipStatus::Both =>
+            PickedPolygons::Both =>
             {
                 if left_polygons[0].0.has_sprite()
                 {
@@ -393,14 +424,14 @@ impl ClipTool
                     manager.spawn_brush(poly, edits_history, properties);
                 }
             },
-            PostClipStatus::Left =>
+            PickedPolygons::Left =>
             {
                 for (poly, properties) in left_polygons
                 {
                     manager.spawn_brush(poly, edits_history, properties);
                 }
             },
-            PostClipStatus::Right =>
+            PickedPolygons::Right =>
             {
                 for (poly, properties) in right_polygons
                 {
@@ -416,30 +447,10 @@ impl ClipTool
     //==============================================================
     // Draw
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
     {
-        #[inline]
-        fn draw_inactive(
-            bundle: &mut DrawBundle,
-            manager: &EntitiesManager,
-            highlighted_side: &Option<ClipSide>
-        )
-        {
-            draw_selected_and_non_selected_brushes!(bundle, manager);
-
-            if let Some(hgl_s) = highlighted_side
-            {
-                manager.brush(hgl_s.id).draw_extended_side(
-                    bundle.window,
-                    bundle.camera,
-                    &mut bundle.drawer,
-                    hgl_s.index,
-                    Color::ToolCursor
-                );
-            }
-        }
-
         if let Some(pos) = self.cursor_pos(bundle.cursor)
         {
             bundle.drawer.square_highlight(pos, Color::ToolCursor);
@@ -449,7 +460,16 @@ impl ClipTool
         {
             Status::Inactive(hgl_s) | Status::PickSideUi(hgl_s) =>
             {
-                draw_inactive(bundle, manager, hgl_s);
+                draw_selected_and_non_selected_brushes!(bundle, manager);
+
+                let hgl_s = return_if_none!(hgl_s);
+                manager.brush(hgl_s.id).draw_extended_side(
+                    bundle.window,
+                    bundle.camera,
+                    &mut bundle.drawer,
+                    hgl_s.index,
+                    Color::ToolCursor
+                );
             },
             Status::Active(co, ce) =>
             {
@@ -469,11 +489,12 @@ impl ClipTool
                 }
             },
             Status::PostClip {
-                status,
+                pick: status,
                 left_polygons,
                 right_polygons
             } =>
             {
+                /// Draws the sprite of `polygon` and its highlight.
                 #[inline]
                 fn draw_sprite_with_highlight(
                     polygon: &ConvexPolygon,
@@ -487,6 +508,7 @@ impl ClipTool
                     }
                 }
 
+                /// Draws the sprite highlight of `polygon`.
                 #[inline]
                 fn draw_sprite_highlight(polygon: &ConvexPolygon, drawer: &mut EditDrawer)
                 {
@@ -500,7 +522,7 @@ impl ClipTool
 
                 match status
                 {
-                    PostClipStatus::Both =>
+                    PickedPolygons::Both =>
                     {
                         for (cp, _) in left_polygons
                         {
@@ -521,7 +543,7 @@ impl ClipTool
                             draw_sprite_highlight(cp, &mut bundle.drawer);
                         }
                     },
-                    PostClipStatus::Left =>
+                    PickedPolygons::Left =>
                     {
                         for (cp, _) in left_polygons
                         {
@@ -542,7 +564,7 @@ impl ClipTool
                             );
                         }
                     },
-                    PostClipStatus::Right =>
+                    PickedPolygons::Right =>
                     {
                         for (cp, _) in right_polygons
                         {
@@ -568,11 +590,11 @@ impl ClipTool
         };
     }
 
+    /// Draws the UI.
     #[inline]
     pub fn ui(&mut self, ui: &mut egui::Ui)
     {
-        let post_clip_status =
-            return_if_no_match!(&mut self.0, Status::PostClip { status, .. }, status);
+        let pick = return_if_no_match!(&mut self.0, Status::PostClip { pick, .. }, pick);
 
         ui.label(egui::RichText::new("CLIP TOOL"));
 
@@ -590,28 +612,29 @@ impl ClipTool
 
             if both_button.clicked()
             {
-                *post_clip_status = PostClipStatus::Both;
+                *pick = PickedPolygons::Both;
             }
             else if left_button.clicked()
             {
-                *post_clip_status = PostClipStatus::Left;
+                *pick = PickedPolygons::Left;
             }
             else if right_button.clicked()
             {
-                *post_clip_status = PostClipStatus::Right;
+                *pick = PickedPolygons::Right;
             }
 
-            match post_clip_status
+            match pick
             {
-                PostClipStatus::Both => both_button.highlight(),
-                PostClipStatus::Left => left_button.highlight(),
-                PostClipStatus::Right => right_button.highlight()
+                PickedPolygons::Both => both_button.highlight(),
+                PickedPolygons::Left => left_button.highlight(),
+                PickedPolygons::Right => right_button.highlight()
             };
         });
     }
 
+    /// Draws the subtools.
     #[inline]
-    pub fn draw_sub_tools(
+    pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
         bundle: &StateUpdateBundle,

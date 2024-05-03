@@ -8,7 +8,7 @@ mod instances_editor;
 use bevy_egui::egui;
 use shared::{match_or_panic, return_if_none};
 
-use super::{get_selected_texture, Bundle, FIELD_NAME_WIDTH, MINUS_PLUS_WIDTH, SETTING_HEIGHT};
+use super::{Bundle, FIELD_NAME_WIDTH, MINUS_PLUS_WIDTH, SETTING_HEIGHT};
 use crate::{
     map::{
         drawer::{
@@ -51,8 +51,11 @@ use crate::{
 //
 //=======================================================================//
 
+/// The width of a label showing the index of an animation frame.
 const INDEX_WIDTH: f32 = 10f32;
+/// The width of the field on the left of the editor.
 const LEFT_FIELD: f32 = INDEX_WIDTH + FIELD_NAME_WIDTH + 4f32;
+/// The total width of the minus and plus of a [`MinusPlusOverallValueField`].
 const MINUS_PLUS_TOTAL_WIDTH: f32 = super::MINUS_PLUS_TOTAL_WIDTH + 8f32;
 
 //=======================================================================//
@@ -60,6 +63,7 @@ const MINUS_PLUS_TOTAL_WIDTH: f32 = super::MINUS_PLUS_TOTAL_WIDTH + 8f32;
 //
 //=======================================================================//
 
+/// The texture and time UI elements of a single list animation frame.
 macro_rules! list_texture {
     (
         $response:ident,
@@ -90,6 +94,7 @@ use list_texture;
 
 //=======================================================================//
 
+/// Shows the UI elements to edit a single list animation frame.
 macro_rules! edit_list_single_texture {
     (
         $builder:ident,
@@ -142,6 +147,7 @@ use edit_list_single_texture;
 
 //=======================================================================//
 
+/// Shows the UI elements to edit a list texture.
 macro_rules! edit_list_texture {
     (
         $builder:ident,
@@ -235,6 +241,7 @@ use edit_list_texture;
 
 //=======================================================================//
 
+/// Shows the UI elements to edit the time of an atlas animation which has per-frame time.
 macro_rules! set_atlas_per_frame_time {
     (
         $builder:ident,
@@ -305,6 +312,7 @@ use set_atlas_per_frame_time;
 
 //=======================================================================//
 
+/// Shows the UI elements concerning an atlas animation.
 macro_rules! atlas {
     (
         $ui:ident,
@@ -379,7 +387,7 @@ macro_rules! atlas {
         {
             UiOverallTiming::None => unreachable!(),
             UiOverallTiming::NonUniform => (),
-            UiOverallTiming::Single(time) =>
+            UiOverallTiming::Uniform(time) =>
             {
                 egui_extras::StripBuilder::new($ui)
                     .size(egui_extras::Size::exact(SETTING_HEIGHT))
@@ -447,6 +455,7 @@ use atlas;
 
 //=======================================================================//
 
+/// Shows the UI elements concerning a list animation.
 macro_rules! list {
     (
         $ui:ident,
@@ -539,12 +548,16 @@ use list;
 //
 //=======================================================================//
 
+/// The target of the animation edits.
 #[derive(Default)]
 pub(in crate::map::editor::state::ui::texture_editor) enum Target
 {
+    /// No target.
     #[default]
     None,
-    Texture,
+    /// The overall texture itself or a specific override.
+    Texture(Option<(String, UiOverallAnimation)>),
+    /// The selected brushes.
     Brushes
 }
 
@@ -553,37 +566,46 @@ pub(in crate::map::editor::state::ui::texture_editor) enum Target
 //
 //=======================================================================//
 
+/// An UI editor to edit the animation of a texture or of the selected brushes.
 #[derive(Default)]
 pub(in crate::map::editor::state::ui) struct AnimationEditor
 {
-    animation:                    UiOverallAnimation,
-    pub target:                   Target,
-    pub update_texture_animation: bool
+    /// The displayed animation.
+    animation:                UiOverallAnimation,
+    /// The target of the animation editing.
+    pub target:               Target,
+    /// Whever a texture animation update was scheduled.
+    update_texture_animation: bool
 }
 
 impl AnimationEditor
 {
+    /// Whever the animation editor is open.
     #[inline]
     #[must_use]
     pub const fn is_open(&self) -> bool { !matches!(self.target, Target::None) }
 
+    /// Closes the animation editor.
     #[inline]
     pub fn close(&mut self) { self.target = Target::None; }
 
+    /// Opens the animation editor.
     #[inline]
     pub fn open(&mut self, target: Target) { self.target = target; }
 
+    /// Whever a texture can be added to a list animation by clicking on a texture in the preview
+    /// gallery.
     #[inline]
     #[must_use]
     pub fn can_add_textures_to_atlas(&self, overall_animation: &UiOverallAnimation) -> bool
     {
-        match self.target
+        match &self.target
         {
             Target::None => false,
-            Target::Texture =>
+            Target::Texture(over) =>
             {
                 matches!(
-                    self.animation,
+                    over.as_ref().map_or(&self.animation, |(_, anim)| anim),
                     UiOverallAnimation::List(UiOverallListAnimation::Uniform(..))
                 )
             },
@@ -597,9 +619,41 @@ impl AnimationEditor
         }
     }
 
+    /// Whever the texture override is set.
+    #[inline]
+    #[must_use]
+    pub const fn has_override(&self) -> bool { matches!(self.target, Target::Texture(Some(_))) }
+
+    /// Returns the name of the texture override, if any.
+    #[inline]
+    #[must_use]
+    pub const fn texture_override(&self) -> Option<&String>
+    {
+        match &self.target
+        {
+            Target::Texture(Some((name, _))) => Some(name),
+            _ => None
+        }
+    }
+
+    /// Sets the override of the texture whose animation is to be edited.
+    #[inline]
+    pub fn set_texture_override(&mut self, texture: &Texture)
+    {
+        self.target = Target::Texture(
+            (
+                texture.name().to_string(),
+                UiOverallAnimation::from(OverallAnimation::from(texture.animation()))
+            )
+                .into()
+        );
+    }
+
+    /// Schedules the update of the displayed texture animation.
     #[inline]
     pub fn schedule_texture_animation_update(&mut self) { self.update_texture_animation = true; }
 
+    /// Adds a frame to a list animation.
     #[inline]
     pub fn push_list_animation_frame(
         &mut self,
@@ -609,18 +663,22 @@ impl AnimationEditor
         new_texture: &str
     )
     {
-        match self.target
+        match &mut self.target
         {
             Target::None => panic!("No list animation frame push target."),
-            Target::Texture =>
+            Target::Texture(over) =>
             {
-                let slot = match_or_panic!(
-                    &mut self.animation,
+                let animation = over
+                    .as_mut()
+                    .map(|(_, animation)| animation)
+                    .unwrap_or(&mut self.animation);
+
+                match_or_panic!(
+                    animation,
                     UiOverallAnimation::List(UiOverallListAnimation::Uniform(_, slot)),
                     slot
-                );
-
-                slot.update(false, true, |name| {
+                )
+                .update(false, true, |name| {
                     edits_history.default_animation_list_new_frame(texture, new_texture);
                     texture
                         .animation_mut_set_dirty()
@@ -628,7 +686,8 @@ impl AnimationEditor
                         .push(new_texture);
                     name.into()
                 });
-                self.update_texture_animation(texture);
+
+                *animation = OverallAnimation::from(texture.animation()).into();
             },
             Target::Brushes =>
             {
@@ -643,6 +702,7 @@ impl AnimationEditor
         };
     }
 
+    /// Updates the displayed animation from the overall texture settings.
     #[inline]
     pub fn update_from_overall_texture(
         &mut self,
@@ -664,12 +724,7 @@ impl AnimationEditor
         };
     }
 
-    #[inline]
-    fn update_texture_animation(&mut self, texture: &Texture)
-    {
-        self.animation = OverallAnimation::from(texture.animation()).into();
-    }
-
+    /// Checks whever the sprites are within bounds.
     #[inline]
     #[must_use]
     fn check_sprites_within_bounds(
@@ -686,6 +741,7 @@ impl AnimationEditor
         })
     }
 
+    /// UI elements to edit a list animation.
     #[inline]
     fn list(
         ui: &mut egui::Ui,
@@ -760,6 +816,7 @@ impl AnimationEditor
         )
     }
 
+    /// UI elements to edit an atlas animation.
     #[inline]
     fn atlas(
         ui: &mut egui::Ui,
@@ -778,6 +835,7 @@ impl AnimationEditor
             ..
         } = bundle;
 
+        /// Shows the UI elements to edit the x or y partitioning of the animation based on `xy`.
         macro_rules! xy_partition {
             ($xy:ident) => {
                 paste::paste! {
@@ -803,6 +861,7 @@ impl AnimationEditor
             };
         }
 
+        /// Moves the frame up or down based on `ud`.
         macro_rules! move_up_down {
             ($ud:ident) => {
                 paste::paste! {
@@ -897,6 +956,7 @@ impl AnimationEditor
         )
     }
 
+    /// Shows the texture animation editor.
     #[inline]
     pub fn show(
         &mut self,
@@ -921,11 +981,27 @@ impl AnimationEditor
 
         let mut response = Response::default();
 
-        match self.target
+        match &mut self.target
         {
             Target::None => unreachable!(),
-            Target::Texture =>
+            Target::Texture(over) =>
             {
+                /// Updates the overalll animation of the texture being edited.
+                #[inline]
+                fn update_animation(
+                    over: &mut Option<(String, UiOverallAnimation)>,
+                    overall_animation: &mut UiOverallAnimation,
+                    selected_texture: &Texture
+                )
+                {
+                    let animation = match over
+                    {
+                        Some((_, over)) => over,
+                        None => overall_animation
+                    };
+                    *animation = OverallAnimation::from(selected_texture.animation()).into();
+                }
+
                 let Bundle {
                     drawing_resources,
                     manager,
@@ -934,27 +1010,37 @@ impl AnimationEditor
                 } = bundle;
 
                 let selected_texture = &mut unsafe {
-                    get_selected_texture(std::ptr::from_mut(*drawing_resources), overall_texture)
+                    std::ptr::from_mut(*drawing_resources)
+                        .as_mut()
+                        .unwrap()
+                        .texture_mut(
+                            over.as_ref()
+                                .map(|(name, _)| name)
+                                .or_else(|| overall_texture.name.uniform_value())
+                                .unwrap()
+                                .as_str()
+                        )
+                        .unwrap()
                 };
 
                 if std::mem::take(&mut self.update_texture_animation)
                 {
-                    self.update_texture_animation(selected_texture);
+                    update_animation(over, &mut self.animation, selected_texture);
                 }
 
                 ui.vertical(|ui| {
                     ui.set_height(SETTING_HEIGHT);
 
                     animation_pick(ui, |[none, list, atlas]| {
+                        /// Checks whever an animation change is valid.
                         #[inline]
-                        #[must_use]
                         fn check_animation_change(
                             drawing_resources: &DrawingResources,
                             manager: &mut EntitiesManager,
                             edits_history: &mut EditsHistory,
                             texture: &mut Texture,
                             new_animation: Animation
-                        ) -> bool
+                        )
                         {
                             let prev = std::mem::replace(texture.animation_mut(), new_animation);
 
@@ -966,14 +1052,13 @@ impl AnimationEditor
                             {
                                 _ = texture.animation_mut_set_dirty();
                                 edits_history.default_animation(texture, prev);
-                                return true;
+                                return;
                             }
 
                             *texture.animation_mut() = prev;
-                            false
                         }
 
-                        let changed = if none.clicked()
+                        if none.clicked()
                         {
                             check_animation_change(
                                 drawing_resources,
@@ -981,7 +1066,7 @@ impl AnimationEditor
                                 edits_history,
                                 selected_texture,
                                 Animation::None
-                            )
+                            );
                         }
                         else if list.clicked()
                         {
@@ -993,7 +1078,7 @@ impl AnimationEditor
                                 edits_history,
                                 selected_texture,
                                 new_animation
-                            )
+                            );
                         }
                         else if atlas.clicked()
                         {
@@ -1003,17 +1088,8 @@ impl AnimationEditor
                                 edits_history,
                                 selected_texture,
                                 Animation::atlas_animation()
-                            )
-                        }
-                        else
-                        {
-                            false
+                            );
                         };
-
-                        if changed
-                        {
-                            self.update_texture_animation(selected_texture);
-                        }
 
                         match selected_texture.animation()
                         {
@@ -1027,7 +1103,7 @@ impl AnimationEditor
 
                 ui.separator();
 
-                match &mut self.animation
+                match over.as_mut().map(|(_, anim)| anim).unwrap_or(&mut self.animation)
                 {
                     UiOverallAnimation::NoSelection => unreachable!(),
                     UiOverallAnimation::NonUniform | UiOverallAnimation::None => (),
@@ -1041,9 +1117,9 @@ impl AnimationEditor
                     }
                 };
 
-                if response.value_changed
+                if selected_texture.dirty()
                 {
-                    self.update_texture_animation(selected_texture);
+                    update_animation(over, &mut self.animation, selected_texture);
                 }
             },
             Target::Brushes =>
@@ -1062,6 +1138,7 @@ impl AnimationEditor
 //
 //=======================================================================//
 
+/// UI element to pick the animation type of a texture.
 #[inline]
 fn animation_pick<F>(ui: &mut egui::Ui, mut f: F)
 where
@@ -1086,6 +1163,7 @@ where
 
 //=======================================================================//
 
+/// UI element to set the partitioning of an atlas animation.
 #[inline]
 fn set_partition<F>(
     builder: egui_extras::StripBuilder,
@@ -1127,6 +1205,7 @@ where
 
 //=======================================================================//
 
+/// UI element to set the timing of an atlas animation.
 #[inline]
 fn set_atlas_timing<F>(ui: &mut egui::Ui, mut f: F) -> bool
 where
@@ -1161,6 +1240,7 @@ where
 
 //=======================================================================//
 
+/// UI element to set the time of a frame of an atlas animation.
 #[inline]
 fn set_atlas_time<F>(
     strip: &mut egui_extras::Strip,
@@ -1200,6 +1280,7 @@ where
 
 //=======================================================================//
 
+/// UI element to set the amount of frames of an atlas animation.
 #[inline]
 fn set_len<F>(
     builder: egui_extras::StripBuilder,
@@ -1240,6 +1321,7 @@ where
 
 //=======================================================================//
 
+/// UI element to set the time of an atlas animation frame.
 #[inline]
 fn set_single_atlas_time<F>(
     builder: egui_extras::StripBuilder,
@@ -1268,6 +1350,7 @@ where
 
 //=======================================================================//
 
+/// UI element to set the texture in a list animation.
 #[inline]
 fn set_list_texture<F>(
     strip: &mut egui_extras::Strip,
@@ -1309,6 +1392,7 @@ where
 
 //=======================================================================//
 
+/// Sets the time of a texture of a list animation.
 #[inline]
 fn set_list_time<F>(
     strip: &mut egui_extras::Strip,
@@ -1344,6 +1428,7 @@ where
 
 //=======================================================================//
 
+/// UI element to add a new texture to a list animation.
 #[inline]
 fn new_list_texture<F>(
     builder: egui_extras::StripBuilder,

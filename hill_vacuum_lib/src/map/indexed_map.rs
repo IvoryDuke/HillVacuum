@@ -23,7 +23,9 @@ pub(in crate::map) struct IndexedMap<K, T>
 where
     K: Hash + Eq
 {
+    /// The ordered vector of values
     vec: HvVec<T>,
+    /// The keys with the indexes of the associated values contained in `vec`.
     map: HvHashMap<K, usize>
 }
 
@@ -115,12 +117,15 @@ where
     //==============================================================
     // Iterators
 
+    /// Returns an iterator returning references to the (key, value) pairs.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = (&K, &T)>
     {
         self.map.iter().map(|(k, i)| (k, &self.vec[*i]))
     }
 
+    /// Returns an iterator returning the keys and the mutable references of the values associated
+    /// to them.
     #[inline]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (&K, &mut T)>
     {
@@ -129,10 +134,11 @@ where
         })
     }
 
+    /// Returns an iterator to the mutable references of the contained values.
     #[inline]
     pub fn values_mut(&mut self) -> impl Iterator<Item = &mut T> { self.vec.iter_mut() }
 
-    /// Returns a [`Chunks`] iterator to the element of the map with `chunk_size`.
+    /// Returns a [`Chunks`] iterator with `chunk_size` to the contained values.
     #[inline]
     pub fn chunks(&self, chunk_size: usize) -> Chunks<T> { self.vec.chunks(chunk_size) }
 }

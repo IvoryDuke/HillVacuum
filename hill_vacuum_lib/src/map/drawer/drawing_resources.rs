@@ -38,9 +38,12 @@ use crate::{
     map::{
         brush::convex_polygon::NEW_VX,
         containers::{hv_hash_map, hv_hash_set, hv_vec, HvHashMap, HvHashSet, HvVec},
-        editor::state::{
-            clipboard::{PropCameras, PropCamerasMut},
-            core::drag::Drag
+        editor::{
+            state::{
+                clipboard::{PropCameras, PropCamerasMut},
+                core::cursor_delta::CursorDelta
+            },
+            Placeholder
         },
         indexed_map::IndexedMap,
         thing::{catalog::ThingsCatalog, ThingInterface},
@@ -65,6 +68,8 @@ meshes_indexes!(INDEXES, 128);
 //
 //=======================================================================//
 
+/// A [`Texture`] and the [`Handle`]s of the [`ColorMaterial`]s necessary to draw the entities.
+#[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
 pub(in crate::map) struct TextureMaterials
 {
@@ -81,10 +86,33 @@ pub(in crate::map) struct TextureMaterials
     opaque:                   Handle<ColorMaterial>
 }
 
+impl Placeholder for TextureMaterials
+{
+    #[inline]
+    unsafe fn placeholder() -> Self
+    {
+        Self {
+            texture:                  Texture::placeholder(),
+            egui_id:                  egui::TextureId::default(),
+            pure:                     Handle::default(),
+            semi_transparent:         Handle::default(),
+            selected:                 Handle::default(),
+            highlighted_non_selected: Handle::default(),
+            highlighted_selected:     Handle::default(),
+            side_mode:                Handle::default(),
+            gold:                     Handle::default(),
+            clip_not_to_spawn:        Handle::default(),
+            opaque:                   Handle::default()
+        }
+    }
+}
+
 impl TextureMaterials
 {
+    /// The alpha of the materials.
     const ALPHA: f32 = 0.25;
 
+    /// Returns a new [`TextureMaterials`].
     #[inline]
     fn new(
         texture: Texture,
@@ -92,15 +120,17 @@ impl TextureMaterials
         materials: &mut Assets<ColorMaterial>
     ) -> Self
     {
+        /// The [`Color`]s used to draw entities.
         const COLORS: [Color; 7] = [
             Color::SelectedEntity,
-            Color::HighlightedNonSelectedBrush,
-            Color::HighlightedSelectedBrush,
+            Color::HighlightedNonSelectedEntity,
+            Color::HighlightedSelectedEntity,
             Color::NonSelectedVertex,
             Color::ClippedPolygonsToSpawn,
-            Color::Opaque,
+            Color::OpaqueEntity,
             Color::ClippedPolygonsNotToSpawn
         ];
+        /// The amount of materials to create.
         const LEN: usize = COLORS.len();
 
         let pure = materials.add(texture.handle());
@@ -134,30 +164,15 @@ impl TextureMaterials
         }
     }
 
-    #[inline]
-    unsafe fn placeholder() -> Self
-    {
-        Self {
-            texture:                  Texture::placeholder(),
-            egui_id:                  egui::TextureId::default(),
-            pure:                     Handle::default(),
-            semi_transparent:         Handle::default(),
-            selected:                 Handle::default(),
-            highlighted_non_selected: Handle::default(),
-            highlighted_selected:     Handle::default(),
-            side_mode:                Handle::default(),
-            gold:                     Handle::default(),
-            clip_not_to_spawn:        Handle::default(),
-            opaque:                   Handle::default()
-        }
-    }
-
+    /// Returns a reference to the [`Texture`].
     #[inline]
     pub const fn texture(&self) -> &Texture { &self.texture }
 
+    /// Returns the [`egui::TextureId`] of the texture.
     #[inline]
     pub const fn egui_id(&self) -> egui::TextureId { self.egui_id }
 
+    /// Returns a [`TextureMaterials`] that does not have colored materials.
     #[inline]
     fn clean(texture: (Texture, egui::TextureId), materials: &mut Assets<ColorMaterial>) -> Self
     {
@@ -182,6 +197,7 @@ impl TextureMaterials
         }
     }
 
+    /// Returns the [`Handle`] of the [`ColorMaterial`] associated with `color`.
     #[inline]
     #[must_use]
     fn brush_material(&self, color: Color) -> Handle<ColorMaterial>
@@ -190,12 +206,12 @@ impl TextureMaterials
         {
             Color::NonSelectedEntity => &self.semi_transparent,
             Color::SelectedEntity | Color::SubtractorBrush => &self.selected,
-            Color::HighlightedNonSelectedBrush => &self.highlighted_non_selected,
-            Color::HighlightedSelectedBrush => &self.highlighted_selected,
+            Color::HighlightedNonSelectedEntity => &self.highlighted_non_selected,
+            Color::HighlightedSelectedEntity => &self.highlighted_selected,
             Color::NonSelectedVertex => &self.side_mode,
             Color::ClippedPolygonsToSpawn | Color::SubtracteeBrush => &self.gold,
             Color::ClippedPolygonsNotToSpawn => &self.clip_not_to_spawn,
-            Color::Opaque => &self.opaque,
+            Color::OpaqueEntity => &self.opaque,
             _ => panic!("Color with no associated color material.")
         }
         .clone_weak()
@@ -211,12 +227,14 @@ pub(in crate::map) struct DrawingResources
     brush_meshes: Meshes,
     /// The [`Mesh2dHandle`] of the vertex highlight square.
     vertex_highlight_mesh: Mesh2dHandle,
-    /// The [`Mesh2dHandle`] of the vertex highlight square in the prop camera.
+    /// The [`Mesh2dHandle`] of the [`Prop`] pivot displayed in front of the the paint tool camera.
     paint_tool_vertex_highlight_mesh: Mesh2dHandle,
-    props_vertex_highlight_mesh: HvHashMap<bevy::prelude::Entity, Mesh2dHandle>,
+    /// The [`Mesh2dHandle`]s of the [`Prop`] pivots displayed in front of the prop cameras.
+    props_pivots_mesh: HvHashMap<bevy::prelude::Entity, Mesh2dHandle>,
     /// The [`Mesh2dHandle`] of the circular highlight of the [`Brush`]es other [`Brush`]es are
     /// tied to.
     anchor_highlight_mesh: Mesh2dHandle,
+    /// The [`Mesh2dHandle`] of the circular highlight of the [`Brush`]es that own a sprite.
     sprite_highlight_mesh: Mesh2dHandle,
     /// The tooltip labels generator.
     tt_label_gen: TooltipLabelGenerator,
@@ -224,11 +242,40 @@ pub(in crate::map) struct DrawingResources
     default_material: Handle<ColorMaterial>,
     /// The textures loaded from the assets folder.
     textures: IndexedMap<String, TextureMaterials>,
+    /// The error texture.
     error_texture: TextureMaterials,
+    /// The clip overlay texture.
     clip_texture: Handle<ColorMaterial>,
+    /// The thing angle texture.
     thing_angle_texture: Handle<ColorMaterial>,
+    /// The names of the textures with [`Animations`].
     animated_textures: HvHashSet<String>,
+    /// Whever any default texture animation was changed.
     default_animation_changed: bool
+}
+
+impl Placeholder for DrawingResources
+{
+    #[inline]
+    unsafe fn placeholder() -> Self
+    {
+        Self {
+            brush_meshes: Meshes::default(),
+            vertex_highlight_mesh: Mesh2dHandle::default(),
+            paint_tool_vertex_highlight_mesh: Mesh2dHandle::default(),
+            props_pivots_mesh: hv_hash_map![],
+            anchor_highlight_mesh: Mesh2dHandle::default(),
+            sprite_highlight_mesh: Mesh2dHandle::default(),
+            tt_label_gen: TooltipLabelGenerator::default(),
+            default_material: Handle::default(),
+            textures: IndexedMap::new(hv_vec![], |tex| tex.texture.name().to_owned()),
+            error_texture: TextureMaterials::placeholder(),
+            clip_texture: Handle::default(),
+            thing_angle_texture: Handle::default(),
+            animated_textures: hv_hash_set![],
+            default_animation_changed: false
+        }
+    }
 }
 
 impl DrawingResources
@@ -237,14 +284,17 @@ impl DrawingResources
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
     const ANCHOR_HIGHLIGHT_RESOLUTION: u8 = Self::CIRCLE_HIGHLIGHT_MULTI as u8;
-    /// The multiplier applied to the current frame's scale to generate the size of the circle
+    /// The multiplier applied to the current frame's scale to generate the vertexes of the circle
     /// highlight.
     const CIRCLE_HIGHLIGHT_MULTI: f32 = 15f32;
+    /// The multiplier applied to the current frame's scale to generate the vertexes of the sprite
+    /// highlight.
     const SPRITE_HIGHLIGHT_RESOLUTION: u8 = 4;
 
     //==============================================================
     // New
 
+    /// Returns a new [`Mesh`].
     #[inline]
     #[must_use]
     fn mesh(primitive_topology: PrimitiveTopology) -> Mesh
@@ -253,7 +303,6 @@ impl DrawingResources
     }
 
     /// Returns a new [`DrawingResources`].
-    /// Also, initializes all tooltips.
     #[inline]
     #[must_use]
     pub fn new(
@@ -265,10 +314,14 @@ impl DrawingResources
         texture_loader: &mut TextureLoader
     ) -> Self
     {
+        /// The name of the error texture.
         const ERROR_TEXTURE_NAME: &str = "error.png";
+        /// The name of the thing angle texture.
         const THING_ANGLE_TEXTURE_NAME: &str = "thing_angle.png";
+        /// The name of the clip overlay texture.
         const CLIP_OVERLAY_TEXTURE_NAME: &str = "clip_overlay.png";
 
+        /// Returns an highlight mesh.
         macro_rules! highlight_mesh {
             ($func:ident) => {{
                 let mut mesh = Self::mesh(PrimitiveTopology::LineStrip);
@@ -314,7 +367,7 @@ impl DrawingResources
             brush_meshes: Meshes::default(),
             vertex_highlight_mesh: meshes.add(square_mesh.clone()).into(),
             paint_tool_vertex_highlight_mesh: meshes.add(square_mesh).into(),
-            props_vertex_highlight_mesh,
+            props_pivots_mesh: props_vertex_highlight_mesh,
             anchor_highlight_mesh: meshes.add(highlight_mesh!(anchor_highlight_vxs)).into(),
             sprite_highlight_mesh: meshes.add(highlight_mesh!(sprite_highlight_vxs)).into(),
             tt_label_gen: TooltipLabelGenerator::default(),
@@ -330,32 +383,11 @@ impl DrawingResources
         }
     }
 
-    #[inline]
-    pub unsafe fn placeholder() -> Self
-    {
-        Self {
-            brush_meshes: Meshes::default(),
-            vertex_highlight_mesh: Mesh2dHandle::default(),
-            paint_tool_vertex_highlight_mesh: Mesh2dHandle::default(),
-            props_vertex_highlight_mesh: hv_hash_map![],
-            anchor_highlight_mesh: Mesh2dHandle::default(),
-            sprite_highlight_mesh: Mesh2dHandle::default(),
-            tt_label_gen: TooltipLabelGenerator::default(),
-            default_material: Handle::default(),
-            textures: IndexedMap::new(hv_vec![], |tex| tex.texture.name().to_owned()),
-            error_texture: TextureMaterials::placeholder(),
-            clip_texture: Handle::default(),
-            thing_angle_texture: Handle::default(),
-            animated_textures: hv_hash_set![],
-            default_animation_changed: false
-        }
-    }
-
     /// Initialized the labels used by the tooltips,
     #[inline]
     pub fn init(ctx: &egui::Context)
     {
-        for label in [Drag::X_DRAG, Drag::Y_DRAG, NEW_VX]
+        for label in [CursorDelta::X_DELTA, CursorDelta::Y_DELTA, NEW_VX]
             .into_iter()
             .chain(TooltipLabelGenerator::iter().copied())
         {
@@ -369,10 +401,12 @@ impl DrawingResources
         }
     }
 
+    /// The amount of default texture animations.
     #[inline]
     #[must_use]
     pub fn animations_amount(&self) -> usize { self.animated_textures.len() }
 
+    /// Returns the vector of [`DefaultAnimation`]s contained in `file`.
     #[inline]
     pub fn file_animations(
         amount: usize,
@@ -393,6 +427,7 @@ impl DrawingResources
         Ok(animations)
     }
 
+    /// Imports the animations contained in `file`.
     #[inline]
     pub fn import_animations(
         &mut self,
@@ -416,6 +451,7 @@ impl DrawingResources
         }
     }
 
+    /// Exports the default texture animations to `writer`.
     #[inline]
     pub fn export_animations(
         &mut self,
@@ -440,10 +476,12 @@ impl DrawingResources
         }
     }
 
+    /// Whever a default animation was changed.
     #[inline]
     #[must_use]
-    pub fn default_animations_changed(&self) -> bool { self.default_animation_changed }
+    pub const fn default_animations_changed(&self) -> bool { self.default_animation_changed }
 
+    /// Sets the default animation changed flag to false.
     #[inline]
     pub fn reset_default_animation_changed(&mut self) { self.default_animation_changed = false; }
 
@@ -476,7 +514,7 @@ impl DrawingResources
         circle.chain(Some(Vec2::new(0f32, radius)))
     }
 
-    /// Returns the vertexes of the circle highlight.
+    /// Returns an iterator to the vertexes of the circle highlight.
     #[inline]
     fn anchor_highlight_vxs(camera_scale: f32) -> impl Iterator<Item = Vec2>
     {
@@ -486,6 +524,7 @@ impl DrawingResources
         )
     }
 
+    /// Returns an iterator to the vertexes of the sprite highlight.
     #[inline]
     fn sprite_highlight_vxs(camera_scale: f32) -> impl Iterator<Item = Vec2>
     {
@@ -495,14 +534,15 @@ impl DrawingResources
         )
     }
 
-    /// Returns a static [`str`] to be used as tooltip label for `vx`.
+    /// Returns a static [`str`] to be used as tooltip label for `pos`.
     #[inline]
     #[must_use]
-    pub fn vx_tooltip_label(&mut self, vx: Vec2) -> Option<&'static str>
+    pub fn vx_tooltip_label(&mut self, pos: Vec2) -> Option<&'static str>
     {
-        self.tt_label_gen.vx_label(vx)
+        self.tt_label_gen.vx_label(pos)
     }
 
+    /// Returns the [`egui::TextureId`], size, and size [`String`] of the texture named `name`.
     #[inline]
     #[must_use]
     pub fn egui_texture(&self, name: &str) -> (egui::TextureId, UVec2, &str)
@@ -517,39 +557,49 @@ impl DrawingResources
         )
     }
 
+    /// Returns a reference to the [`Texture`] named `name`, if it exists.
     #[inline]
     pub fn texture(&self, name: &str) -> Option<&Texture>
     {
         self.textures.get(name).map(|tex| &tex.texture)
     }
 
+    /// Returns the [`TextureMut`] wrapping the [`Texture`] named `name`, if it exists.
     #[inline]
     pub fn texture_mut(&mut self, name: &str) -> Option<TextureMut> { TextureMut::new(self, name) }
 
+    /// Returns a reference to the [`Texture`] named `name` if it exists. Otherwise returns the
+    /// error texture.
     #[inline]
     pub fn texture_or_error(&self, name: &str) -> &Texture
     {
         self.texture(name).unwrap_or(self.error_texture())
     }
 
+    /// Returns the index of the texture named [`name`].
     #[inline]
     pub fn texture_index(&self, name: &str) -> Option<usize> { self.textures.index(name) }
 
+    /// Returns a reference to the [`TextureMaterials`] of the texture named `name`.
     #[inline]
     pub(in crate::map::drawer) fn texture_materials(&self, name: &str) -> &TextureMaterials
     {
         self.textures.get(name).unwrap_or(&self.error_texture)
     }
 
+    /// Returns the [`Handle`] to the error texture.
     #[inline]
     pub const fn error_texture(&self) -> &Texture { self.error_texture.texture() }
 
+    /// Returns the [`Handle`] to the clip texture.
     #[inline]
-    pub fn clip_material(&self) -> Handle<ColorMaterial> { self.clip_texture.clone() }
+    pub fn clip_texture(&self) -> Handle<ColorMaterial> { self.clip_texture.clone() }
 
+    /// Returns the [`Handle`] of the thing angle texture.
     #[inline]
     pub fn thing_angle_texture(&self) -> Handle<ColorMaterial> { self.thing_angle_texture.clone() }
 
+    /// Returns a [`Chunks`] iterator with `chunk_size` to the [`TextureMaterials`].
     #[inline]
     pub fn chunked_textures(
         &self,
@@ -562,6 +612,7 @@ impl DrawingResources
     //==============================================================
     // Texture loading
 
+    /// Sort the textures.
     #[inline]
     fn sort_textures(
         mut textures: Vec<(Texture, egui::TextureId)>,
@@ -576,6 +627,7 @@ impl DrawingResources
         IndexedMap::new(textures, |tex| tex.texture.name().to_owned())
     }
 
+    /// Reloads the textures.
     #[inline]
     pub fn reload_textures(
         &mut self,
@@ -625,6 +677,7 @@ impl DrawingResources
         paint_tool_camera_scale: f32
     )
     {
+        /// Refreshes a highlight mesh.
         #[inline]
         fn refresh_highlight<I: Iterator<Item = Vec2>>(
             meshes: &mut Assets<Mesh>,
@@ -678,11 +731,10 @@ impl DrawingResources
             Self::vertex_highlight_vxs
         );
 
-        for (camera_scale, handle) in
-            self.props_vertex_highlight_mesh.iter().filter_map(|(id, handle)| {
-                let camera = prop_cameras.get(*id).unwrap();
-                camera.0.is_active.then_some((camera.1.scale() / 2f32, handle))
-            })
+        for (camera_scale, handle) in self.props_pivots_mesh.iter().filter_map(|(id, handle)| {
+            let camera = prop_cameras.get(*id).unwrap();
+            camera.0.is_active.then_some((camera.1.scale() / 2f32, handle))
+        })
         {
             refresh_highlight(meshes, handle, camera_scale, Self::vertex_highlight_vxs);
         }
@@ -723,6 +775,7 @@ impl DrawingResources
         });
     }
 
+    /// Pushes a textured mesh.
     #[inline]
     pub(in crate::map::drawer) fn push_textured_mesh<T: TextureInterface>(
         &mut self,
@@ -738,6 +791,7 @@ impl DrawingResources
         );
     }
 
+    /// Pushes a map preview textured mesh.
     #[inline]
     pub(in crate::map::drawer) fn push_map_preview_textured_mesh<T: TextureInterface>(
         &mut self,
@@ -749,6 +803,7 @@ impl DrawingResources
         self.push_mesh(mesh, texture.pure.clone_weak(), settings.height_f32());
     }
 
+    /// Pushes a sprite mesh.
     #[inline]
     pub(in crate::map::drawer) fn push_sprite<T: TextureInterface>(
         &mut self,
@@ -764,6 +819,7 @@ impl DrawingResources
         );
     }
 
+    /// Pushes a map preview sprite mesh.
     #[inline]
     pub(in crate::map::drawer) fn push_map_preview_sprite<T: TextureInterface>(
         &mut self,
@@ -778,6 +834,7 @@ impl DrawingResources
         );
     }
 
+    /// Pushes a thing mesh.
     #[inline]
     pub(in crate::map::drawer) fn push_thing<T: ThingInterface>(
         &mut self,
@@ -795,6 +852,7 @@ impl DrawingResources
         );
     }
 
+    /// Pushes a map preview thing mesh.
     #[inline]
     pub(in crate::map::drawer) fn push_map_preview_thing<T: ThingInterface>(
         &mut self,
@@ -832,8 +890,9 @@ impl DrawingResources
         });
     }
 
+    /// Pushes a [`Prop`] pivot mesh.
     #[inline]
-    pub(in crate::map::drawer) fn push_prop_square_highlight_mesh(
+    pub(in crate::map::drawer) fn push_prop_pivot_mesh(
         &mut self,
         material: Handle<ColorMaterial>,
         center: Vec2,
@@ -845,7 +904,7 @@ impl DrawingResources
 
         let handle = match camera_id
         {
-            Some(id) => self.props_vertex_highlight_mesh.get(&id).unwrap(),
+            Some(id) => self.props_pivots_mesh.get(&id).unwrap(),
             None => &self.paint_tool_vertex_highlight_mesh
         };
 
@@ -878,6 +937,7 @@ impl DrawingResources
         });
     }
 
+    /// Pushes the mesh of a sprite highlight.
     #[inline]
     pub(in crate::map::drawer) fn push_sprite_highlight_mesh(
         &mut self,
@@ -967,15 +1027,15 @@ impl TooltipLabelGenerator
         self.vx_labels_index = 0;
     }
 
-    /// Returns a static [`str`] to be used as label for a new tooltip located at position `vx`, if
-    /// `vx` has not already gotten a tooltip during this frame and there are still available
+    /// Returns a static [`str`] to be used as label for a new tooltip located at position `pos`, if
+    /// `pos` has not already gotten a tooltip during this frame and there are still available
     /// labels.
     #[inline]
     #[must_use]
-    pub fn vx_label(&mut self, vx: Vec2) -> Option<&'static str>
+    pub fn vx_label(&mut self, pos: Vec2) -> Option<&'static str>
     {
         if self.vx_labels_index == Self::VX_LABELS.len() ||
-            !self.assigned_vertexes.insert(HashVec2(vx))
+            !self.assigned_vertexes.insert(HashVec2(pos))
         {
             return None;
         }
@@ -1162,6 +1222,7 @@ impl MeshParts
         Self::cleanup_indexes(mesh);
     }
 
+    /// Pushes a grid mesh.
     #[inline]
     pub fn push_grid(&mut self, mut mesh: Mesh)
     {
@@ -1197,11 +1258,11 @@ impl MeshParts
     #[must_use]
     pub fn pop_uv(&mut self) -> Vec<Uv> { self.uv.pop().unwrap_or(Vec::with_capacity(4)) }
 
-    /// Stores a [`VxColor`] vector which was left unused by the [`BrushGenerator`] it was assigned
-    /// to. Does nothing if `vec` has `capacity == 0`.
+    /// Stores a [`VxColor`] vector.
     #[inline]
     pub fn store_unused_color_vec(&mut self, vec: Vec<VxColor>) { self.color.push(vec); }
 
+    /// Stores a [`Uv`] vector.
     #[inline]
     pub fn store_unused_uv_vec(&mut self, vec: Vec<Uv>) { self.uv.push(vec); }
 
@@ -1256,6 +1317,7 @@ impl<'a> MeshGenerator<'a>
     #[inline]
     pub fn push_colors(&mut self, iter: impl IntoIterator<Item = VxColor>) { self.1.extend(iter); }
 
+    /// Returns the UV of the sprite.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
     #[must_use]
@@ -1292,6 +1354,7 @@ impl<'a> MeshGenerator<'a>
         [[right, top], [left, top], [left, bottom], [right, bottom]]
     }
 
+    /// Sets the UV to the one of a sprite.
     #[inline]
     pub fn set_sprite_uv<T: TextureInterface + TextureInterfaceExtra>(
         &mut self,
@@ -1303,6 +1366,7 @@ impl<'a> MeshGenerator<'a>
         self.3.extend(self.sprite_uv(texture, settings, elapsed_time));
     }
 
+    /// Sets the UV to the one of an animated sprite.
     #[inline]
     pub fn set_animated_sprite_uv<T: TextureInterface + TextureInterfaceExtra>(
         &mut self,
@@ -1345,32 +1409,30 @@ impl<'a> MeshGenerator<'a>
         };
     }
 
+    /// Sets the UV coordinates to the one of a thing.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    #[must_use]
-    fn thing_uv(&self, texture: &Texture) -> [Uv; 4]
+    pub fn set_thing_uv<T: ThingInterface>(&mut self, catalog: &ThingsCatalog, thing: &T)
     {
         let mut x = 1f32;
         let mut y = 1f32;
 
-        if let Animation::Atlas(anim) = self.4.texture(texture.name()).unwrap().animation()
+        if let Animation::Atlas(anim) = self
+            .4
+            .texture(self.4.texture_or_error(catalog.texture(thing.thing())).name())
+            .unwrap()
+            .animation()
         {
             x /= anim.x_partition() as f32;
             y /= anim.y_partition() as f32;
         }
 
-        [[x, 0f32], [0f32, 0f32], [0f32, y], [x, y]]
+        self.3.extend([[x, 0f32], [0f32, 0f32], [0f32, y], [x, y]]);
     }
 
+    /// Sets the UV coordinates based on `f`.
     #[inline]
-    pub fn set_thing_uv<T: ThingInterface>(&mut self, catalog: &ThingsCatalog, thing: &T)
-    {
-        self.3
-            .extend(self.thing_uv(self.4.texture_or_error(catalog.texture(thing.thing()))));
-    }
-
-    #[inline]
-    pub fn texture_uv<T: TextureInterface, F>(
+    fn texture_uv<T: TextureInterface, F>(
         &mut self,
         camera: &Transform,
         settings: &T,
@@ -1417,9 +1479,11 @@ impl<'a> MeshGenerator<'a>
         );
     }
 
+    /// Sets the UV to the one of an thin angle indicator.
     #[inline]
     pub fn set_thing_angle_indicator_uv(&mut self, angle: f32)
     {
+        /// The UV coordinates of a non rotated angle indicator.
         const UV: [Uv; 4] = [[1f32, 0f32], [0f32, 0f32], [0f32, 1f32], [1f32, 1f32]];
 
         if angle != 0f32
@@ -1437,6 +1501,7 @@ impl<'a> MeshGenerator<'a>
         self.3.extend(UV);
     }
 
+    /// Sets the texture UV.
     #[inline]
     pub fn set_texture_uv<T: TextureInterface>(
         &mut self,
@@ -1447,6 +1512,7 @@ impl<'a> MeshGenerator<'a>
         parallax_enabled: bool
     )
     {
+        /// Returns the UV coordinates of a vertex.
         #[inline]
         #[must_use]
         fn uv_coordinate<T: TextureInterface>(
@@ -1470,6 +1536,7 @@ impl<'a> MeshGenerator<'a>
         self.texture_uv(camera, settings, center, elapsed_time, parallax_enabled, uv_coordinate);
     }
 
+    /// Sets the UV to the one of an animated texture.
     #[inline]
     pub fn set_animated_texture_uv<T: TextureInterface>(
         &mut self,
@@ -1481,6 +1548,7 @@ impl<'a> MeshGenerator<'a>
         parallax_enabled: bool
     )
     {
+        /// Returns the UV coordinates of a vertex.
         #[inline]
         #[must_use]
         fn uv_coordinate<T: TextureInterface>(
@@ -1518,6 +1586,7 @@ impl<'a> MeshGenerator<'a>
         );
     }
 
+    /// Sets the UV to the one of the clip texture.
     #[inline]
     pub fn clip_uv(&mut self)
     {
@@ -1596,11 +1665,15 @@ impl<'a> MeshGenerator<'a>
 
 //=======================================================================//
 
+/// A wrapper to a mutable reference to a [`Texture`].
 #[must_use]
 pub(in crate::map) struct TextureMut<'a>
 {
+    /// The drawing resources.
     resources:     &'a mut DrawingResources,
+    /// The name of the texture.
     name:          String,
+    /// Whever the [`Texture`] had no animation when the struct was created.
     was_anim_none: bool
 }
 
@@ -1628,11 +1701,12 @@ impl<'a> Drop for TextureMut<'a>
     #[inline]
     fn drop(&mut self)
     {
-        if !self.changed()
+        if !self.dirty()
         {
             return;
         }
 
+        self.clear_dirty_flag();
         self.resources.default_animation_changed = true;
         let is_none = self.animation().is_none();
 
@@ -1654,6 +1728,7 @@ impl<'a> Drop for TextureMut<'a>
 
 impl<'a> TextureMut<'a>
 {
+    /// Returns a new [`TextureMut`] if thre is a texture named `name`.
     #[inline]
     fn new(resources: &'a mut DrawingResources, name: &str) -> Option<Self>
     {

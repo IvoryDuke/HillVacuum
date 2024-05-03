@@ -24,7 +24,7 @@ use super::{
     drawing_resources::DrawingResources
 };
 use crate::{
-    map::{brush::convex_polygon::ScaleInfo, OutOfBounds},
+    map::{brush::convex_polygon::ScaleInfo, editor::Placeholder, OutOfBounds},
     utils::{
         hull::{EntityHull, Flip, Hull},
         math::{
@@ -40,6 +40,7 @@ use crate::{
 //
 //=======================================================================//
 
+/// Generates the code for functions relative to x/y parameters.
 macro_rules! xy {
     ($($xy:ident),+) => { paste::paste! { $(
         #[inline]
@@ -205,6 +206,7 @@ macro_rules! xy {
 //
 //=======================================================================//
 
+/// A trait to return information about a texture.
 pub trait TextureInterface
 {
     /// Returns the name of the texture.
@@ -226,30 +228,39 @@ pub trait TextureInterface
     #[must_use]
     fn scale_y(&self) -> f32;
 
+    /// The horizontal scrolling.
     #[must_use]
     fn scroll_x(&self) -> f32;
 
+    /// The vertical scrolling.
     #[must_use]
     fn scroll_y(&self) -> f32;
 
+    /// The horizontal scroll value based on the elepsed time.
     #[must_use]
     fn draw_scroll_x(&self, elapsed_time: f32) -> f32;
 
+    /// The vertical scroll value based on the elepsed time.
     #[must_use]
     fn draw_scroll_y(&self, elapsed_time: f32) -> f32;
 
+    /// The horizontal parallax.
     #[must_use]
     fn parallax_x(&self) -> f32;
 
+    /// The vertical parallax.
     #[must_use]
     fn parallax_y(&self) -> f32;
 
+    /// The angle.
     #[must_use]
     fn angle(&self) -> f32;
 
+    /// The draw height.
     #[must_use]
     fn height(&self) -> i8;
 
+    /// The draw height as [`f32`].
     #[must_use]
     fn height_f32(&self) -> f32;
 
@@ -257,21 +268,27 @@ pub trait TextureInterface
     #[must_use]
     fn sprite(&self) -> bool;
 
+    /// The vertexes of the surface of the sprite.
     #[must_use]
     fn sprite_vertexes(&self, center: Vec2) -> [Vec2; 4];
 
+    /// Returns the [`Hull`] describing the area of the sprite.
     #[must_use]
     fn sprite_hull(&self, center: Vec2) -> Hull;
 
+    /// Returns a reference to the [`Animation`].
     fn animation(&self) -> &Animation;
 }
 
 //=======================================================================//
 
+/// A trait for texture to return additional information.
 pub(in crate::map) trait TextureInterfaceExtra
 {
+    /// Returns the associated animation.
     fn overall_animation<'a>(&'a self, drawing_resources: &'a DrawingResources) -> &'a Animation;
 
+    /// Returns the size the texture must be drawn.
     #[must_use]
     fn draw_size(&self, drawing_resources: &DrawingResources) -> UVec2;
 }
@@ -281,17 +298,25 @@ pub(in crate::map) trait TextureInterfaceExtra
 //
 //=======================================================================//
 
+/// Whever the texture should be rendered as a sprite.
 #[must_use]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Sprite
 {
+    /// Yes.
     True
     {
-        vxs: [Vec2; 4], hull: Hull
+        /// The vertexes of the sprite.
+        vxs:  [Vec2; 4],
+        /// The [`Hull`] describing the bounds of the sprite.
+        hull: Hull
     },
     False
     {
-        parallax_x: f32, parallax_y: f32
+        /// The horizontal parallax.
+        parallax_x: f32,
+        /// The vertical parallax.
+        parallax_y: f32
     }
 }
 
@@ -317,18 +342,22 @@ impl From<bool> for Sprite
 
 impl Sprite
 {
+    /// Whever `self` has value `Sprite::True`.
     #[inline]
     #[must_use]
-    pub fn enabled(&self) -> bool { matches!(self, Self::True { .. }) }
+    pub const fn enabled(&self) -> bool { matches!(self, Self::True { .. }) }
 
+    /// The vertexes describing the bounds of the sprite.
     #[inline]
     #[must_use]
     fn vertexes(&self) -> &[Vec2; 4] { match_or_panic!(self, Self::True { vxs, .. }, vxs) }
 
+    /// The [`Hull`] describing the bounds of the sprite.
     #[inline]
     #[must_use]
     fn hull(&self) -> &Hull { match_or_panic!(self, Self::True { hull, .. }, hull) }
 
+    /// The horizontal parallax.
     #[inline]
     #[must_use]
     pub fn parallax_x(&self) -> f32
@@ -336,18 +365,7 @@ impl Sprite
         match_or_panic!(self, Self::False { parallax_x, .. }, *parallax_x)
     }
 
-    #[inline]
-    fn set_parallax_y(&mut self, value: f32)
-    {
-        *match_or_panic!(self, Self::False { parallax_y, .. }, parallax_y) = value;
-    }
-
-    #[inline]
-    fn set_parallax_x(&mut self, value: f32)
-    {
-        *match_or_panic!(self, Self::False { parallax_x, .. }, parallax_x) = value;
-    }
-
+    /// The vertical parallax.
     #[inline]
     #[must_use]
     fn parallax_y(&self) -> f32
@@ -355,6 +373,21 @@ impl Sprite
         match_or_panic!(self, Self::False { parallax_y, .. }, *parallax_y)
     }
 
+    /// Sets the horizontal parallax.
+    #[inline]
+    fn set_parallax_x(&mut self, value: f32)
+    {
+        *match_or_panic!(self, Self::False { parallax_x, .. }, parallax_x) = value;
+    }
+
+    /// Sets the vertical parallax.
+    #[inline]
+    fn set_parallax_y(&mut self, value: f32)
+    {
+        *match_or_panic!(self, Self::False { parallax_y, .. }, parallax_y) = value;
+    }
+
+    /// Updates the rendering bounds.
     #[inline]
     fn update_bounds(&mut self, rect: &[Vec2; 4])
     {
@@ -367,16 +400,23 @@ impl Sprite
 
 //=======================================================================//
 
+/// The overall sprite value of the selected [`Brush`]es' textures.
 #[derive(Debug, Default)]
 pub(in crate::map) enum OverallSprite
 {
+    /// Nothing selected.
     #[default]
     None,
+    /// Non uniform.
     NonUniform,
+    /// True.
     True,
+    /// False.
     False
     {
+        /// The overall horizontal parallax.
         parallax_x: OverallValue<f32>,
+        /// The overall vertical parallax.
         parallax_y: OverallValue<f32>
     }
 }
@@ -479,25 +519,34 @@ impl OverallValueInterface<Sprite> for OverallSprite
 //
 //=======================================================================//
 
+/// The outcome of a valid texture rotation.
 #[derive(Debug)]
 pub(in crate::map) struct TextureRotation
 {
+    /// The new offset.
     pub offset: Vec2,
+    /// The new angle.
     pub angle:  f32
 }
 
 //=======================================================================//
 
+/// The outcome of a valid texture scale.
 #[derive(Debug)]
 pub(in crate::map) struct TextureScale
 {
+    /// The new offset.
     pub offset:  Vec2,
+    /// The new horizontal scale.
     pub scale_x: f32,
+    /// The new vertical scale.
     pub scale_y: f32
 }
 
 //=======================================================================//
 
+/// The overall settings of the textures of the selected [`Brush`]es.
+#[allow(clippy::missing_docs_in_private_items)]
 #[derive(Debug, Default)]
 pub(in crate::map) struct OverallTextureSettings
 {
@@ -618,6 +667,7 @@ impl OverallValueInterface<Option<&TextureSettings>> for OverallTextureSettings
 
 impl OverallTextureSettings
 {
+    /// Returns an empty [`OverallTextureSettings`].
     #[inline]
     #[must_use]
     pub fn none() -> Self { Self::from(None::<&TextureSettings>) }
@@ -625,6 +675,8 @@ impl OverallTextureSettings
 
 //=======================================================================//
 
+/// A UI representation of the overall settings of the textures of the selected [`Brush`]es.
+#[allow(clippy::missing_docs_in_private_items)]
 #[derive(Default)]
 pub(in crate::map) struct UiOverallTextureSettings
 {
@@ -683,6 +735,8 @@ impl From<OverallTextureSettings> for UiOverallTextureSettings
 //
 //=======================================================================//
 
+/// A texture which can be rendered on screen and its metadata.
+#[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
 #[derive(Debug)]
 pub(in crate::map) struct Texture
@@ -721,8 +775,27 @@ impl EntityHull for Texture
     fn hull(&self) -> Hull { self.hull }
 }
 
+impl Placeholder for Texture
+{
+    #[inline]
+    unsafe fn placeholder() -> Self
+    {
+        Self {
+            name:      String::new(),
+            size:      UVec2::new(1, 1),
+            label:     String::new(),
+            size_str:  String::new(),
+            hull:      Hull::new(1f32, 0f32, 0f32, 1f32),
+            handle:    Handle::default(),
+            animation: Animation::default(),
+            dirty:     false
+        }
+    }
+}
+
 impl Texture
 {
+    /// Returns a [`String`] that features both `name` and `size`.
     #[inline]
     #[must_use]
     fn format_label(name: &str, size: UVec2) -> String
@@ -730,10 +803,12 @@ impl Texture
         format!("{} {}", name, Self::format_size(size))
     }
 
+    /// Returns a [`String`] containing the formatted `size`.
     #[inline]
     #[must_use]
     fn format_size(size: UVec2) -> String { format!("({}x{})", size.x, size.y) }
 
+    /// Returns the [`Hull`] describing `size`.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
     #[must_use]
@@ -744,6 +819,7 @@ impl Texture
         Hull::new(half_height, -half_height, -half_width, half_width)
     }
 
+    /// Returns a new [`Texture`].
     #[inline]
     pub fn new(name: impl Into<String>, image: Image, images: &mut Assets<Image>) -> Self
     {
@@ -764,21 +840,7 @@ impl Texture
         }
     }
 
-    #[inline]
-    pub unsafe fn placeholder() -> Self
-    {
-        Self {
-            name:      String::new(),
-            size:      UVec2::new(1, 1),
-            label:     String::new(),
-            size_str:  String::new(),
-            hull:      Hull::new(1f32, 0f32, 0f32, 1f32),
-            handle:    Handle::default(),
-            animation: Animation::default(),
-            dirty:     false
-        }
-    }
-
+    /// Returns a new [`Texture`] from the arguments.
     #[inline]
     pub fn from_parts(name: impl Into<String>, size: UVec2, handle: Handle<Image>) -> Self
     {
@@ -798,46 +860,61 @@ impl Texture
         }
     }
 
-    #[inline]
+    /// The name of the texture.
+    #[inline(always)]
     #[must_use]
     pub fn name(&self) -> &str { &self.name }
 
-    #[inline]
+    /// The UI label of the texture.
+    #[inline(always)]
     #[must_use]
     pub fn label(&self) -> &str { &self.label }
 
-    #[inline]
+    /// The size of the texture.
+    #[inline(always)]
     #[must_use]
     pub const fn size(&self) -> UVec2 { self.size }
 
-    #[inline]
+    /// A stringal representation of the size of the texture.
+    #[inline(always)]
     #[must_use]
     pub fn size_str(&self) -> &str { &self.size_str }
 
-    #[inline]
+    /// The [`Handle<Image>`] of the texture.
+    #[inline(always)]
     #[must_use]
     pub fn handle(&self) -> Handle<Image> { self.handle.clone_weak() }
 
-    #[inline]
-    pub fn animation(&self) -> &Animation { &self.animation }
+    /// Returns a reference to the texture's [`Animation`].
+    #[inline(always)]
+    pub const fn animation(&self) -> &Animation { &self.animation }
 
-    #[inline]
+    /// Returns a mutable reference to the texture [`Animation`].
+    #[inline(always)]
     pub fn animation_mut(&mut self) -> &mut Animation { &mut self.animation }
 
-    #[inline]
+    /// Returns a mutable reference to the texture [`Animation`] and marks it as changed.
+    #[inline(always)]
     pub fn animation_mut_set_dirty(&mut self) -> &mut Animation
     {
         self.dirty = true;
         &mut self.animation
     }
 
-    #[inline]
+    /// Whever the texture was edited.
+    #[inline(always)]
     #[must_use]
-    pub fn changed(&mut self) -> bool { std::mem::take(&mut self.dirty) }
+    pub const fn dirty(&self) -> bool { self.dirty }
+
+    /// Clears the texture dirty flag.
+    #[inline(always)]
+    pub fn clear_dirty_flag(&mut self) { self.dirty = false; }
 }
 
 //=======================================================================//
 
+/// The information relative to which texture should be drawn and how.
+#[allow(clippy::missing_docs_in_private_items)]
 #[allow(clippy::unsafe_derive_deserialize)]
 #[must_use]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -985,13 +1062,15 @@ impl TextureSettings
 {
     xy!(x, y);
 
+    /// Returns the maximum possible frames of the atlas animation.
     #[inline]
     #[must_use]
-    pub(in crate::map) fn atlas_animation_max_len(&self) -> usize
+    pub(in crate::map) const fn atlas_animation_max_len(&self) -> usize
     {
         self.animation.get_atlas_animation().max_len()
     }
 
+    /// Returns a reference to the list animation frame at `index`.
     #[inline]
     #[must_use]
     pub(in crate::map) fn list_animation_frame(&self, index: usize) -> &(String, f32)
@@ -999,21 +1078,15 @@ impl TextureSettings
         self.animation.get_list_animation().frame(index)
     }
 
+    /// Checks whever the move is valid.
     #[inline]
     pub(in crate::map) fn check_move(&self, delta: Vec2, center: Vec2) -> bool
     {
         !self.sprite.enabled() || !(self.sprite_hull(center) + delta).out_of_bounds()
     }
 
-    #[inline]
-    #[must_use]
-    fn post_scale_sprite_offset(&self, info: &ScaleInfo, old_center: Vec2, new_center: Vec2)
-        -> Vec2
-    {
-        let sprite_center = self.sprite_hull(old_center).center();
-        info.scaled_point(sprite_center) - new_center
-    }
-
+    /// Checks whever the scale is valid. Returns a [`TextureScale`] describing the outcome if it
+    /// is.
     #[inline]
     pub(in crate::map) fn check_scale(
         &mut self,
@@ -1036,7 +1109,7 @@ impl TextureSettings
             .into();
         }
 
-        let new_offset = self.post_scale_sprite_offset(info, old_center, new_center);
+        let new_offset = info.scaled_point(self.sprite_hull(old_center).center()) - new_center;
         let prev_offset_x = std::mem::replace(&mut self.offset_x, new_offset.x);
         let prev_offset_y = std::mem::replace(&mut self.offset_y, new_offset.y);
         let prev_scale_x = std::mem::replace(&mut self.scale_x, scale_x);
@@ -1064,6 +1137,8 @@ impl TextureSettings
         }
     }
 
+    /// Checks whever the scale and flipping of the texture is valid. Returns a [`TextureScale`]
+    /// describing the outcome if it is.
     #[inline]
     pub(in crate::map) fn check_flip_scale(
         &mut self,
@@ -1141,6 +1216,7 @@ impl TextureSettings
         }
     }
 
+    /// Whever the texture change is valid.
     #[inline]
     pub(in crate::map) fn check_texture_change(
         &mut self,
@@ -1160,6 +1236,7 @@ impl TextureSettings
         result
     }
 
+    /// Sets the texture, returns the previous value if different.
     #[inline]
     pub(in crate::map) fn set_texture(
         &mut self,
@@ -1182,6 +1259,7 @@ impl TextureSettings
         prev.into()
     }
 
+    /// Moves the offset.
     #[inline]
     pub(in crate::map) fn move_offset(
         &mut self,
@@ -1195,6 +1273,7 @@ impl TextureSettings
         self.update_sprite_vxs(drawing_resources, center);
     }
 
+    /// Sets the draw height, returns the previous value if different.
     #[inline]
     #[must_use]
     pub(in crate::map) fn set_height(&mut self, value: i8) -> Option<i8>
@@ -1209,6 +1288,7 @@ impl TextureSettings
         std::mem::replace(&mut self.height, value).into()
     }
 
+    /// Whever the new angle is valid.
     #[inline]
     pub(in crate::map) fn check_angle(
         &mut self,
@@ -1231,20 +1311,8 @@ impl TextureSettings
         result.is_ok()
     }
 
-    #[inline]
-    #[must_use]
-    fn post_rotation_sprite_offset(
-        &mut self,
-        pivot: Vec2,
-        angle: f32,
-        old_center: Vec2,
-        new_center: Vec2
-    ) -> Vec2
-    {
-        let sprite_center = self.sprite_hull(old_center).center();
-        rotate_point(sprite_center, pivot, angle) - new_center
-    }
-
+    /// Checks whever the rotation is valid. If valid returns a [`TextureRotation`] describing the
+    /// outcome, if valid.
     #[inline]
     pub(in crate::map) fn check_rotation(
         &mut self,
@@ -1266,8 +1334,8 @@ impl TextureSettings
             .into();
         }
 
-        let new_offset = self.post_rotation_sprite_offset(pivot, angle, old_center, new_center);
-
+        let new_offset =
+            rotate_point(self.sprite_hull(old_center).center(), pivot, angle) - new_center;
         let prev_offset_x = std::mem::replace(&mut self.offset_x, new_offset.x);
         let prev_offset_y = std::mem::replace(&mut self.offset_y, new_offset.y);
         let prev_angle = std::mem::replace(&mut self.angle, end_angle);
@@ -1292,6 +1360,7 @@ impl TextureSettings
         }
     }
 
+    /// Sets the angle, returns the previous value if different.
     #[inline]
     #[must_use]
     pub(in crate::map) fn set_angle(
@@ -1313,6 +1382,7 @@ impl TextureSettings
         prev.into()
     }
 
+    /// Whether the sprite value change is valid.
     #[inline]
     #[must_use]
     pub(in crate::map) fn check_sprite(
@@ -1354,6 +1424,8 @@ impl TextureSettings
         result
     }
 
+    /// Sets the texture sprite setting to `value`. If sprite is enabled the offsets are set to
+    /// zero. Returns the previous [`Sprite`] and offset values if different.
     #[inline]
     #[must_use]
     pub(in crate::map) fn set_sprite(
@@ -1384,6 +1456,7 @@ impl TextureSettings
         (prev, offset_x, offset_y).into()
     }
 
+    /// Checks whever the texture is within bounds.
     #[inline]
     #[must_use]
     pub(in crate::map) fn check_within_bounds(
@@ -1395,32 +1468,35 @@ impl TextureSettings
         self.check_sprite_vxs(drawing_resources, center).is_ok()
     }
 
+    /// Checks whever changing animation makes the sprite, if any, go out of bounds.
     #[inline]
     #[must_use]
     pub(in crate::map) fn check_animation_change(
         &mut self,
         drawing_resources: &DrawingResources,
+        animation: &Animation,
         center: Vec2
     ) -> bool
     {
-        if !matches!(self.animation, Animation::Atlas(_)) || !self.sprite.enabled()
+        if !self.sprite.enabled()
         {
             return true;
         }
 
-        // This check is animation agnostic so we use a default Atlas since it's the cheapest one.
-        let prev = std::mem::replace(&mut self.animation, Animation::atlas_animation());
+        let prev = std::mem::replace(&mut self.animation, animation.clone());
         let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
         self.animation = prev;
         result
     }
 
+    /// Sets the [`Animation`] without checking the map bounds.
     #[inline]
     pub(in crate::map) unsafe fn unsafe_set_animation(&mut self, animation: Animation)
     {
         self.animation = animation;
     }
 
+    /// Sets the [`Animation`].
     #[inline]
     pub(in crate::map) fn set_animation(
         &mut self,
@@ -1434,6 +1510,8 @@ impl TextureSettings
         prev
     }
 
+    /// Sets the [`Animation`] to list, using `texture` for the first frame, and returns the
+    /// previous one.
     #[inline]
     pub(in crate::map) fn set_list_animation(
         &mut self,
@@ -1447,6 +1525,7 @@ impl TextureSettings
         prev
     }
 
+    /// Sets the [`Animation`] to list and returns the previous one.
     #[inline]
     pub(in crate::map) fn generate_list_animation(
         &mut self,
@@ -1459,6 +1538,7 @@ impl TextureSettings
         prev
     }
 
+    /// Sets the amount of frames of the atlas animation. Returns the previous value, if different,
     #[inline]
     #[must_use]
     pub(in crate::map) fn set_atlas_animation_len(&mut self, len: usize) -> Option<usize>
@@ -1466,24 +1546,31 @@ impl TextureSettings
         self.animation.get_atlas_animation_mut().set_len(len)
     }
 
+    /// Sets the [`Timing`] of the atlas animation and returns the previous one.
     #[inline]
     pub(in crate::map) fn set_atlas_animation_timing(&mut self, timing: Timing) -> Timing
     {
         self.animation.get_atlas_animation_mut().set_timing(timing)
     }
 
+    /// Sets the [`Timing`] of the atlas animation to uniform and returns the previous value if
+    /// different.
     #[inline]
     pub(in crate::map) fn set_atlas_animation_uniform_timing(&mut self) -> Option<Timing>
     {
         self.animation.get_atlas_animation_mut().set_uniform()
     }
 
+    /// Sets the [`Timing`] of the atlas animation to per frame and returns the previous value if
+    /// different.
     #[inline]
     pub(in crate::map) fn set_atlas_animation_per_frame_timing(&mut self) -> Option<Timing>
     {
         self.animation.get_atlas_animation_mut().set_per_frame()
     }
 
+    /// Sets the uniform frame time of the atlas animation and returns the previous value if
+    /// different.
     #[inline]
     #[must_use]
     pub(in crate::map) fn set_atlas_animation_uniform_time(&mut self, value: f32) -> Option<f32>
@@ -1491,6 +1578,8 @@ impl TextureSettings
         self.animation.get_atlas_animation_mut().set_uniform_time(value)
     }
 
+    /// Sets the frame time of atlas animation frame at `index` and returns the previou value if
+    /// different.
     #[inline]
     #[must_use]
     pub(in crate::map) fn set_atlas_animation_frame_time(
@@ -1502,18 +1591,22 @@ impl TextureSettings
         self.animation.get_atlas_animation_mut().set_frame_time(index, value)
     }
 
-    #[inline]
-    pub(in crate::map) fn move_down_atlas_animation_frame_time(&mut self, index: usize)
-    {
-        self.animation.get_atlas_animation_mut().move_down(index);
-    }
-
+    /// Moves up the frame time of the atlas animation at `index`.
     #[inline]
     pub(in crate::map) fn move_up_atlas_animation_frame_time(&mut self, index: usize)
     {
         self.animation.get_atlas_animation_mut().move_up(index);
     }
 
+    /// Moves down the frame time of the atlas animation at `index`.
+    #[inline]
+    pub(in crate::map) fn move_down_atlas_animation_frame_time(&mut self, index: usize)
+    {
+        self.animation.get_atlas_animation_mut().move_down(index);
+    }
+
+    /// Sets the texture of the list animation frame at `index`, and returns the previous value if
+    /// different.
     #[inline]
     #[must_use]
     pub(in crate::map) fn set_list_animation_texture(
@@ -1525,6 +1618,8 @@ impl TextureSettings
         self.animation.get_list_animation_mut().set_texture(index, texture)
     }
 
+    /// Sets the time of the list animation frame at `index` and returns the previous value if
+    /// different.
     #[inline]
     #[must_use]
     pub(in crate::map) fn set_list_animation_time(&mut self, index: usize, time: f32)
@@ -1533,18 +1628,21 @@ impl TextureSettings
         self.animation.get_list_animation_mut().set_time(index, time)
     }
 
+    /// Moves up the frame of the list animation at `index`.
     #[inline]
     pub(in crate::map) fn move_up_list_animation_frame(&mut self, index: usize)
     {
         self.animation.get_list_animation_mut().move_up(index);
     }
 
+    /// Moves down the frame of the list animation at `index`.
     #[inline]
     pub(in crate::map) fn move_down_list_animation_frame(&mut self, index: usize)
     {
         self.animation.get_list_animation_mut().move_down(index);
     }
 
+    /// Inserts a new list animation frame at `index`.
     #[inline]
     pub(in crate::map) fn insert_list_animation_frame(
         &mut self,
@@ -1556,26 +1654,30 @@ impl TextureSettings
         self.animation.get_list_animation_mut().insert(index, texture, time);
     }
 
+    /// Removes the last frame of the list animation.
     #[inline]
     pub(in crate::map) fn pop_list_animation_frame(&mut self)
     {
         self.animation.get_list_animation_mut().pop();
     }
 
+    /// Removes the frame at `index` from the list animation.
     #[inline]
     pub(in crate::map) fn remove_list_animation_frame(&mut self, index: usize)
     {
         self.animation.get_list_animation_mut().remove(index);
     }
 
+    /// Pushes a new frame onto the list animation.
     #[inline]
     pub(in crate::map) fn push_list_animation_frame(&mut self, texture: &str)
     {
         self.animation.get_list_animation_mut().push(texture);
     }
 
+    /// Returns the new sprite vertexes if the texture is being rendered as a sprite.
     #[inline]
-    fn test_sprite_vxs(&self, drawing_resources: &DrawingResources) -> Option<[Vec2; 4]>
+    fn sprite_vxs(&self, drawing_resources: &DrawingResources) -> Option<[Vec2; 4]>
     {
         if !self.sprite.enabled()
         {
@@ -1606,6 +1708,7 @@ impl TextureSettings
         rect.into()
     }
 
+    /// Checks whever the sprite, if any, fits within the map.
     #[inline]
     pub(in crate::map) fn check_sprite_vxs(
         &self,
@@ -1613,7 +1716,7 @@ impl TextureSettings
         center: Vec2
     ) -> Result<Option<[Vec2; 4]>, ()>
     {
-        match self.test_sprite_vxs(drawing_resources)
+        match self.sprite_vxs(drawing_resources)
         {
             Some(rect) =>
             {
@@ -1630,6 +1733,7 @@ impl TextureSettings
         }
     }
 
+    /// Updates the bounds of the sprite.
     #[inline]
     fn update_sprite_vxs(&mut self, drawing_resources: &DrawingResources, center: Vec2)
     {
@@ -1641,10 +1745,13 @@ impl TextureSettings
 
 //=======================================================================//
 
+/// The animation associated to a texture.
 #[must_use]
 #[derive(Debug, Serialize, Deserialize)]
 pub(in crate::map) struct DefaultAnimation
 {
+    /// The texture.
     pub texture:   String,
+    /// The animation.
     pub animation: Animation
 }

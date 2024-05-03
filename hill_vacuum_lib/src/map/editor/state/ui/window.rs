@@ -12,11 +12,14 @@ use crate::utils::misc::Toggle;
 //
 //=======================================================================//
 
+/// A struct to keep track of the status of UI windows.
 #[must_use]
 #[derive(Default)]
 pub(in crate::map::editor::state::ui) struct Window
 {
+    /// Whever the window is open.
     open: bool,
+    /// The [`LayerId`] of the window, if it is open.
     id:   Option<egui::LayerId>
 }
 
@@ -36,6 +39,7 @@ impl Toggle for Window
 
 impl Window
 {
+    /// Returns a new [`Window`].
     #[inline]
     pub const fn new() -> Self
     {
@@ -45,6 +49,7 @@ impl Window
         }
     }
 
+    /// The [`LayerId`] of the window.
     #[inline]
     #[must_use]
     pub const fn layer_id(&self) -> Option<egui::LayerId>
@@ -59,13 +64,34 @@ impl Window
         }
     }
 
-    #[inline]
+    /// Whever the window is open.
+    #[inline(always)]
     #[must_use]
-    pub fn is_open(&self) -> bool { self.open }
+    pub const fn is_open(&self) -> bool { self.open }
 
-    #[inline]
+    /// Opens the window.
+    #[inline(always)]
     pub fn open(&mut self) { self.open = true; }
 
+    /// Checks whever the window should be opened.
+    /// Returns whever it is currently open.
+    #[inline]
+    #[must_use]
+    pub fn check_open(&mut self, keys_pressed: bool) -> bool
+    {
+        if keys_pressed
+        {
+            self.open();
+        }
+        else if !self.is_open()
+        {
+            return false;
+        }
+
+        true
+    }
+
+    /// Closes the window.
     #[inline]
     pub fn close(&mut self)
     {
@@ -73,6 +99,7 @@ impl Window
         self.id = None;
     }
 
+    /// If open, Shows the window and updates the [`LayerId`].
     #[inline]
     pub fn show<F, R>(
         &mut self,

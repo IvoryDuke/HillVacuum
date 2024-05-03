@@ -1,4 +1,11 @@
 #![allow(clippy::single_match_else)]
+#![allow(clippy::inline_always)]
+#![allow(clippy::module_name_repetitions)]
+#![warn(clippy::missing_assert_message)]
+#![warn(clippy::missing_const_for_fn)]
+// #![warn(clippy::missing_errors_doc)]
+// #![warn(clippy::missing_panics_doc_)]
+// #![warn(clippy::missing_docs_in_private_items)]
 #![cfg_attr(feature = "arena_alloc", feature(allocator_api))]
 
 mod config;
@@ -63,8 +70,9 @@ const NAME: &str = "HillVacuum";
 /// The folder where the assets are stored.
 const ASSETS_PATH: &str = "assets/";
 str_array!(INDEXES, 128);
-
+/// The rows of cameras used to take screenshots of the props placed around the map area.
 const PROP_CAMERAS_ROWS: usize = 2;
+/// The amount of prop screenshot taking cameras placed around the map.
 const PROP_CAMERAS_AMOUNT: usize = 8 * (PROP_CAMERAS_ROWS * (PROP_CAMERAS_ROWS + 1)) / 2;
 
 //=======================================================================//
@@ -72,7 +80,7 @@ const PROP_CAMERAS_AMOUNT: usize = 8 * (PROP_CAMERAS_ROWS * (PROP_CAMERAS_ROWS +
 //
 //=======================================================================//
 
-/// The overall states of the application.
+/// The overall state of the application.
 #[derive(States, Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 enum EditorState
 {
@@ -286,6 +294,7 @@ impl Plugin for HillVacuumPlugin
 //
 //=======================================================================//
 
+/// The error message showed on screen when issues arise.
 #[inline]
 pub fn error_message(error: &str)
 {

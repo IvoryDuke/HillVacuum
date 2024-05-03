@@ -27,17 +27,22 @@ use crate::{
 //
 //=======================================================================//
 
+/// An enum to create a new [`Path`].
 #[derive(Default, Debug)]
 pub(in crate::map::editor::state::core) enum PathCreation
 {
+    /// No [`Node`]s.
     #[default]
     None,
+    /// One [`Node`].
     Point(Vec2),
+    /// A [`Path`] (2+ [`Nodes`]).
     Path(Path)
 }
 
 impl PathCreation
 {
+    /// Returns the created [`Path`], if any, and resets the path creation process.
     #[inline]
     pub fn path(&mut self) -> Option<Path>
     {
@@ -45,6 +50,7 @@ impl PathCreation
             .then(|| match_or_panic!(std::mem::take(self), Self::Path(path), path))
     }
 
+    /// Pushes a new [`Node`].
     #[inline]
     pub fn push(&mut self, edits_history: &mut EditsHistory, p: Vec2, center: Vec2)
     {
@@ -81,6 +87,7 @@ impl PathCreation
         edits_history.free_draw_point_insertion(p, index);
     }
 
+    /// Inserts a [`Node`] with position `p` at `index`.
     #[inline]
     pub fn insert_at_index(&mut self, p: Vec2, index: usize, center: Vec2)
     {
@@ -111,6 +118,7 @@ impl PathCreation
         }
     }
 
+    /// Removes the latest [`Node`] at position `p`.
     #[inline]
     pub fn remove(
         &mut self,
@@ -154,6 +162,7 @@ impl PathCreation
         edits_history.free_draw_point_deletion(pos, index);
     }
 
+    /// Removes the [`Node`] at `index`.
     #[inline]
     pub fn remove_index(&mut self, index: usize, center: Vec2)
     {
@@ -174,6 +183,7 @@ impl PathCreation
         }
     }
 
+    /// Draws the tooltip of a [`Node`].
     #[inline]
     fn draw_point_tooltip(
         window: &Window,
@@ -197,6 +207,7 @@ impl PathCreation
         );
     }
 
+    /// Draws the [`Path`] being drawn plus a line showing which entity it belongs to.
     #[inline]
     pub fn draw_with_knot(
         &self,
@@ -236,6 +247,7 @@ impl PathCreation
         };
     }
 
+    /// Draws the [`Path`] being drawn.
     #[inline]
     pub fn draw(
         &self,

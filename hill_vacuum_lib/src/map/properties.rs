@@ -20,6 +20,7 @@ use crate::map::{
 //
 //=======================================================================//
 
+/// Generates [`ToValue`] implementations for `t`.
 macro_rules! to_value {
     ($(($value:ident, $t:ty)),+) => {$(
         impl ToValue for $t
@@ -38,6 +39,7 @@ macro_rules! to_value {
 //
 //=======================================================================//
 
+/// A trait to generated a [`Value`] from `self`.
 pub trait ToValue
 {
     /// Converts `self` to a [`Value`].
@@ -46,8 +48,10 @@ pub trait ToValue
 
 //=======================================================================//
 
+/// A trait for entities with associated [`Properties`] to set the value of a certain [`Value`].
 pub(in crate::map) trait SetProperty
 {
+    /// Sets the property `key` to `value`.
     fn set_property(&mut self, key: &str, value: &Value);
 }
 
@@ -139,7 +143,8 @@ impl std::fmt::Debug for Value
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
-        macro_rules! display {
+        /// Implements debug for all enum arms.
+        macro_rules! debug {
             ($(($value:ident, $t:literal)),+) => {
                 match self
                 {
@@ -148,7 +153,7 @@ impl std::fmt::Debug for Value
             }
         }
 
-        display!(
+        debug!(
             (Bool, "bool"),
             (U8, "u8"),
             (U16, "u16"),
@@ -180,6 +185,7 @@ impl std::fmt::Display for Value
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
+        /// Implements display for all enum arms.
         macro_rules! display {
             ($($value:ident),+) => {
                 match self
@@ -195,9 +201,11 @@ impl std::fmt::Display for Value
 
 impl Value
 {
+    /// The [`Discriminant`] of the boolean value.
     pub(in crate::map) const BOOL_DISCRIMINANT: Discriminant<Self> =
         std::mem::discriminant(&Self::Bool(true));
 
+    /// Whever `self` and `other` have the same [`Discriminant`].
     #[inline]
     #[must_use]
     pub(in crate::map) fn eq_discriminant(&self, other: &Self) -> bool
@@ -205,10 +213,11 @@ impl Value
         std::mem::discriminant(self) == std::mem::discriminant(other)
     }
 
+    /// Sets `self` to `value`. Returns the previous value if different.
     #[inline]
     pub(in crate::map) fn set(&mut self, value: &Self) -> Option<Self>
     {
-        assert!(self.eq_discriminant(value));
+        assert!(self.eq_discriminant(value), "Mismatching discriminants.");
 
         if *self == *value
         {
@@ -218,6 +227,7 @@ impl Value
         std::mem::replace(self, value.clone()).into()
     }
 
+    /// Tries to convert `value` to the same type of `self`.
     #[inline]
     #[must_use]
     pub(in crate::map) fn parse(&self, value: &Self) -> Option<Self>
@@ -229,6 +239,7 @@ impl Value
 
         let string = match_or_panic!(value, Self::String(s), s);
 
+        /// Implements the conversion of `string` to the [`Value`] variant of `self`, if possible.
         macro_rules! convert {
             ($(($value:ident, $t:ty)),+) => {
                 match value
@@ -267,9 +278,9 @@ impl Value
 //
 //=======================================================================//
 
+/// The default properties associated with all [`Brush`]es.
 #[must_use]
 #[derive(Resource)]
-/// The properties associated with all [`Brush`]es.
 pub struct BrushProperties(pub Vec<(&'static str, Value)>);
 
 impl BrushProperties
@@ -289,9 +300,9 @@ impl BrushProperties
 
 //=======================================================================//
 
+/// The default properties associated with all [`Thing`]s.
 #[must_use]
 #[derive(Resource)]
-/// The properties associated with all [`Thing`]s.
 pub struct ThingProperties(pub Vec<(&'static str, Value)>);
 
 impl ThingProperties
@@ -311,6 +322,7 @@ impl ThingProperties
 
 //=======================================================================//
 
+/// The default properties to be associated with certain entities.
 #[must_use]
 #[derive(Clone, Serialize, Deserialize)]
 pub(in crate::map) struct DefaultProperties(IndexedMap<String, Value>, Properties);
@@ -368,6 +380,7 @@ impl PartialEq for DefaultProperties
 
 impl DefaultProperties
 {
+    /// Returns a new [`DefaultProperties`] generated for the values contained in `values`.
     #[inline]
     pub fn new(values: Vec<(&'static str, Value)>) -> Self
     {
@@ -392,19 +405,25 @@ impl DefaultProperties
         Self(map, Properties(properties))
     }
 
+    /// Returns the amount of contained values.
     #[inline]
     #[must_use]
     pub fn len(&self) -> usize { self.0.len() }
 
+    /// Returns a reference to the [`Value`] associated with `k`.
     #[inline]
     pub fn get(&self, k: &str) -> &Value { self.0.get(k).unwrap() }
 
+    /// Returns an instance of [`Properties`] with default values.
     #[inline]
     pub fn instance(&self) -> Properties { self.1.clone() }
 
+    /// Returns an iterator the the key-value pairs.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = (&String, &Value)> { self.1 .0.iter() }
 
+    /// Generates a [`PropertiesRefactor`] describing how the [`Properties`] created from `self`
+    /// should be refactored to be compatible with `new`.
     #[inline]
     pub fn refactor<'a>(&self, new: &'a Self) -> PropertiesRefactor<'a>
     {
@@ -428,7 +447,7 @@ impl DefaultProperties
             }
         }
 
-        assert!(!remove.is_empty() || !insert.is_empty());
+        assert!(!remove.is_empty() || !insert.is_empty(), "Empty refactor.");
 
         PropertiesRefactor {
             remove,
@@ -440,16 +459,21 @@ impl DefaultProperties
 
 //=======================================================================//
 
+/// Information concerning how [`Properties`] instances should be refactored upon map file load.
 #[must_use]
 pub(in crate::map) struct PropertiesRefactor<'a>
 {
+    /// The keys of the values to be removed.
     remove:             HvVec<String>,
+    /// The keys of the values inside `default_properties` to be inserted.
     insert:             HvVec<&'a str>,
+    /// A reference to the [`DefaultProperties`] upon which [`PropertiesRefactor`] is based.
     default_properties: &'a DefaultProperties
 }
 
 //=======================================================================//
 
+/// Key-value pairs associated to an entity.
 #[must_use]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 
@@ -463,22 +487,28 @@ impl Default for Properties
 
 impl Properties
 {
+    /// Returns the amount of contained values.
     #[inline]
     #[must_use]
     pub fn len(&self) -> usize { self.0.len() }
 
+    /// Returns a reference to the [`Value`] associated with `k`.
     #[inline]
     pub fn get(&self, k: &str) -> &Value { self.0.get(k).unwrap() }
 
+    /// Consumes `self` and returns the underlying hashmap of values.
     #[inline]
     pub fn take(self) -> HvHashMap<String, Value> { self.0 }
 
+    /// Sets the [`Value`] associated with `k` to `value`.
+    /// Returns the previous value if different.
     #[inline]
     pub fn set(&mut self, k: &str, value: &Value) -> Option<Value>
     {
         self.0.get_mut(k).unwrap().set(value)
     }
 
+    /// Refactors `self` based on `refactor`.
     #[inline]
     pub fn refactor(&mut self, refactor: &PropertiesRefactor)
     {

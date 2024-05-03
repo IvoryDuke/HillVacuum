@@ -13,16 +13,22 @@ use crate::map::editor::{state::core::tool::ToolInterface, StateUpdateBundle};
 //
 //=======================================================================//
 
+/// A UI tooltip to show useful information.
 pub(in crate::map::editor::state::ui) struct Tooltip
 {
+    /// The text to show.
     text:       String,
+    /// When the tooltip should be spawned, if it should.
     spawn_time: Option<f32>,
+    /// The last recorded cursor position.
     cursor_pos: egui::Pos2,
-    working:    bool
+    /// Whever the tooltip is open.
+    open:       bool
 }
 
 impl Tooltip
 {
+    /// Returns a new tooltip.
     #[inline]
     #[must_use]
     pub const fn new() -> Self
@@ -31,17 +37,20 @@ impl Tooltip
             text:       String::new(),
             spawn_time: None,
             cursor_pos: egui::Pos2::new(f32::MAX, f32::MAX),
-            working:    false
+            open:       false
         }
     }
 
+    /// Resets the tooltip, hiding it.
     #[inline]
-    fn reset_timer(&mut self, elapsed_time: f32)
+    fn reset(&mut self, elapsed_time: f32)
     {
+        /// The time that has t
         const TOOLTIP_SPAWN_INTERVAL: f32 = 0.75;
         self.spawn_time = (elapsed_time + TOOLTIP_SPAWN_INTERVAL).into();
     }
 
+    /// Shows the tooltip.
     #[inline]
     pub fn show(
         &mut self,
@@ -52,7 +61,7 @@ impl Tooltip
     {
         if response.clicked()
         {
-            self.reset_timer(bundle.elapsed_time);
+            self.reset(bundle.elapsed_time);
             return;
         }
 
@@ -65,7 +74,7 @@ impl Tooltip
 
         if cursor_pos == self.cursor_pos
         {
-            self.working = true;
+            self.open = true;
 
             if let Some(time) = self.spawn_time
             {
@@ -85,8 +94,8 @@ impl Tooltip
             return;
         }
 
-        self.working = false;
+        self.open = false;
         self.cursor_pos = cursor_pos;
-        self.reset_timer(bundle.elapsed_time);
+        self.reset(bundle.elapsed_time);
     }
 }

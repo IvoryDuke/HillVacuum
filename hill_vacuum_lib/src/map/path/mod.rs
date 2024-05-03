@@ -58,22 +58,7 @@ use crate::{
 //
 //=======================================================================//
 
-macro_rules! index_func {
-    ($tooltip_text:ident, $index:ident, $f:block) => {
-        if !$tooltip_text.is_empty()
-        {
-            $tooltip_text.push_str(", ");
-        }
-
-        $f
-
-        // If this panics I recommend you rethink the choices that led you to this issue.
-        $tooltip_text.push_str(INDEXES[$index]);
-    };
-}
-
-//=======================================================================//
-
+/// Implements the functions to draw the [`Node`]s.
 macro_rules! draw_nodes {
     ($(($func:ident, $square:ident, $line:ident)),+) => { paste::paste! { $(
         #[inline]
@@ -150,6 +135,7 @@ macro_rules! draw_nodes {
 
 //=======================================================================//
 
+/// Implements the functions relative the selected [`Path`] nodes movement parameters.
 macro_rules! movement_values {
     ($(($value:ident, $opposite:ident)),+) => { paste::paste! { $(
         #[inline]
@@ -210,6 +196,7 @@ macro_rules! movement_values {
 
 //=======================================================================//
 
+/// Implements the functions common to all entities that implement [`EditPath`].
 macro_rules! common_edit_path {
     ($(($value:ident, $t:ty)),+) => { paste::paste! { $(
         #[inline]
@@ -233,9 +220,9 @@ macro_rules! common_edit_path {
 
     () => {
         #[inline]
-        fn toggle_path_node_at_index(&mut self, idx: usize) -> bool
+        fn toggle_path_node_at_index(&mut self, index: usize) -> bool
         {
-            self.path_mut().toggle_node_at_index(idx)
+            self.path_mut().toggle_node_at_index(index)
         }
 
         #[inline]
@@ -289,10 +276,10 @@ macro_rules! common_edit_path {
         }
 
         #[inline]
-        fn insert_path_node_at_index(&mut self, pos: Vec2, idx: usize)
+        fn insert_path_node_at_index(&mut self, pos: Vec2, index: usize)
         {
             let center = self.center();
-            self.path_mut().insert_node_at_index(pos, idx, center);
+            self.path_mut().insert_node_at_index(pos, index, center);
         }
 
         #[inline]
@@ -333,9 +320,9 @@ macro_rules! common_edit_path {
         }
 
         #[inline]
-        fn remove_path_node_at_index(&mut self, idx: usize)
+        fn remove_path_node_at_index(&mut self, index: usize)
         {
-            self.path_mut().remove_nodes_at_indexes(Some(idx).into_iter());
+            self.path_mut().remove_nodes_at_indexes(Some(index).into_iter());
         }
 
         #[inline]
@@ -372,6 +359,7 @@ pub(in crate::map) use common_edit_path;
 //
 //=======================================================================//
 
+/// A trait to get information on an entity that can have an associated [`Path`] and may have one.
 pub(in crate::map) trait Moving: EntityId + EntityCenter
 {
     /// Returns a reference to the associated [`Path`], if any.
@@ -531,7 +519,7 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
         catalog: &ThingsCatalog,
         drawer: &mut EditDrawer,
         pos: Vec2,
-        idx: usize,
+        index: usize,
         show_tooltips: bool
     );
 
@@ -566,15 +554,16 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
 
 //=======================================================================//
 
+/// A trait to edit the [`Path`] associated with an entity.
 pub(in crate::map) trait EditPath: EntityId + Moving
 {
     /// Binds a [`Path`] to the entity.
     fn set_path(&mut self, path: Path);
 
-    /// Toggles the selection of the [`Node`] at index `idx`.
+    /// Toggles the selection of the [`Node`] at index `index`.
     /// # Panics
     /// Panics if the entity has no [`Path`].
-    fn toggle_path_node_at_index(&mut self, idx: usize) -> bool;
+    fn toggle_path_node_at_index(&mut self, index: usize) -> bool;
 
     /// Only selectes the [`Node`] at `index` and returns a [`NodeSelectionResult`] describing what
     /// occurred.
@@ -622,7 +611,7 @@ pub(in crate::map) trait EditPath: EntityId + Moving
     /// Insert a [`Node`] with position `pos` at `index` into the [`Path`].
     /// # Panics
     /// Panics if the entity has no [`Path`] or if the inserted node generated an invalid path.
-    fn insert_path_node_at_index(&mut self, pos: Vec2, idx: usize);
+    fn insert_path_node_at_index(&mut self, pos: Vec2, index: usize);
 
     /// Inserts some [`Node`]s with certain position at a certain index in the [`Path`].
     /// # Panics
@@ -662,10 +651,10 @@ pub(in crate::map) trait EditPath: EntityId + Moving
     /// Panics if the entity has no [`Path`] or the resulting path was invalid.
     fn remove_selected_path_nodes(&mut self, payload: NodesDeletionPayload) -> HvVec<(Vec2, u8)>;
 
-    /// Redoes the [`Path`]'s [`Node`] at `idx`.
+    /// Redoes the [`Path`]'s [`Node`] at `index`.
     /// # Panics
     /// Panics if the entity has no [`Path`] or the resulting path was invalid.
-    fn remove_path_node_at_index(&mut self, idx: usize);
+    fn remove_path_node_at_index(&mut self, index: usize);
 
     /// Redoes the selected [`Path`]'s [`Node`]s deletion.
     /// # Panics
@@ -953,6 +942,7 @@ impl EntityId for NodesDeletionPayload
 
 impl NodesDeletionPayload
 {
+    /// Consumes `self` and returns the underlying data.
     #[inline]
     pub fn payload(self) -> HvVec<(Vec2, u8)> { self.1 }
 }
@@ -1198,6 +1188,7 @@ impl MovementSimulator
         target_node: &Node
     ) -> (Vec2, f32, Option<AccelerationInfo>, Option<DecelerationInfo>)
     {
+        /// Returns the value of the acceleration/deceleration based on the parameters.
         #[inline]
         #[must_use]
         fn xceleration(end_speed: f32, start_speed: f32, distance: f32) -> f32
@@ -1374,6 +1365,7 @@ impl MovementSimulator
     #[inline]
     pub fn update<T: Moving + ?Sized>(&mut self, moving: &T, mut delta_time: f32)
     {
+        /// Executs the post acceleration update.
         macro_rules! post_acceleration {
             ($info:ident) => {
                 if line_point_product(&$info.start, self.pos) > 0f32
@@ -1744,7 +1736,10 @@ impl Path
 
     /// Returns an instance of [`NodesWorld`] representing the [`Node`]s in world coordinates.
     #[inline]
-    fn nodes_world(&self, center: Vec2) -> NodesWorld { NodesWorld::new(self.nodes(), center) }
+    const fn nodes_world(&self, center: Vec2) -> NodesWorld
+    {
+        NodesWorld::new(self.nodes(), center)
+    }
 
     /// Returns an instance of [`NodesWorldMut`] representing the [`Node`]s in world coordinates.
     #[inline]
@@ -2020,7 +2015,7 @@ impl Path
             !pos.around_equal(&self.nodes[index].world_pos(center))
     }
 
-    /// Tries to insert a [`Node`] with position `pos` at `idx`.
+    /// Tries to insert a [`Node`] with position `pos` at `index`.
     /// # Panic
     /// Panics if inserting the node creates an invalid path.
     #[inline]
@@ -2042,14 +2037,14 @@ impl Path
         true
     }
 
-    /// Inserts a [`Node`] with position `pos` at index `idx`.
+    /// Inserts a [`Node`] with position `pos` at index `index`.
     /// # Panic
     /// Panics if inserting the node creates an invalid path.
     #[inline]
-    pub(in crate::map) fn insert_node_at_index(&mut self, pos: Vec2, idx: usize, center: Vec2)
+    pub(in crate::map) fn insert_node_at_index(&mut self, pos: Vec2, index: usize, center: Vec2)
     {
         assert!(
-            self.try_insert_node_at_index(pos, idx, center),
+            self.try_insert_node_at_index(pos, index, center),
             "insert_node_at_index generated an invalid Path."
         );
     }
@@ -2203,12 +2198,12 @@ impl Path
         }
     }
 
-    /// Toggles the selection status of the [`Node`] at index `idx` and returns whever it was
+    /// Toggles the selection status of the [`Node`] at index `index` and returns whever it was
     /// selected.
     #[inline]
-    pub(in crate::map) fn toggle_node_at_index(&mut self, idx: usize) -> bool
+    pub(in crate::map) fn toggle_node_at_index(&mut self, index: usize) -> bool
     {
-        let svec = &mut self.nodes[idx].selectable_vector;
+        let svec = &mut self.nodes[index].selectable_vector;
         let selected = svec.selected;
         svec.toggle();
         selected
@@ -2457,16 +2452,12 @@ impl Path
     #[inline]
     pub(in crate::map) fn overall_selected_nodes_movement(&self) -> OverallMovement
     {
-        let nodes = self.nodes().iter().filter(|n| n.selectable_vector.selected);
         let mut overall = OverallMovement::new();
-
-        for node in nodes
-        {
-            if overall.stack(&node.movement)
-            {
-                break;
-            }
-        }
+        _ = self
+            .nodes()
+            .iter()
+            .filter(|n| n.selectable_vector.selected)
+            .any(|node| overall.stack(&node.movement));
 
         overall
     }
@@ -2530,6 +2521,7 @@ impl Path
     #[inline]
     fn shifted_arrowed_line_points(drawer: &EditDrawer, start: Vec2, end: Vec2) -> (Vec2, Vec2)
     {
+        /// How much the arrow is shifted sideways from the segment connecting `start` and `end`.
         const ARROW_SHIFT: f32 = VX_HGL_SIDE / 2f32 * 3f32;
 
         let dir = (end - start).fast_normalize() * ARROW_SHIFT * drawer.camera_scale();
@@ -2726,6 +2718,8 @@ impl Path
         let mut tooltip_text = String::new();
         let key = pos - center;
 
+        /// Draws the tooltip of a bucket with indexes shifted by one if they come after the node
+        /// being inserted.
         macro_rules! bucket_with_plus_one {
             ($bucket:ident) => {
                 self.bucket_tooltip(
@@ -2868,14 +2862,34 @@ impl Path
         );
     }
 
+    /// Extends `tooltip_text` with a comma, whatever is inserted by `f` and the string
+    /// representation of `index`.
+    #[inline]
+    fn extend_bucket_tooltip<F: FnMut(&mut String)>(
+        tooltip_text: &mut String,
+        index: usize,
+        mut f: F
+    )
+    {
+        if !tooltip_text.is_empty()
+        {
+            tooltip_text.push_str(", ");
+        }
+
+        f(tooltip_text);
+
+        // If this panics I recommend you rethink the choices that led you to this issue.
+        tooltip_text.push_str(INDEXES[index]);
+    }
+
     /// Pushes a new index onto `tooltip_text`.
     #[inline]
     fn push_new_index(tooltip_text: &mut String, node: &NodeWorld, index: usize)
     {
-        index_func!(tooltip_text, index, {
+        Self::extend_bucket_tooltip(tooltip_text, index, |text| {
             if node.1
             {
-                tooltip_text.push('*');
+                text.push('*');
             }
         });
     }
@@ -3004,21 +3018,21 @@ impl Path
                 self.buckets.get(key.0).unwrap().iter(),
                 &mut tooltip_text,
                 |text, node, idx| {
-                    index_func!(text, idx, {
+                    Self::extend_bucket_tooltip(text, idx, |t| {
                         if idx == highlighted_node
                         {
                             if node.1
                             {
-                                text.push('#');
+                                t.push('#');
                             }
                             else
                             {
-                                text.push('~');
+                                t.push('~');
                             }
                         }
                         else if node.1
                         {
-                            text.push('*');
+                            t.push('*');
                         }
                     });
                 }

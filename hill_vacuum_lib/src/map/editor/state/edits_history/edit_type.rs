@@ -57,8 +57,11 @@ macro_rules! match_and_return {
 #[derive(Clone, Copy)]
 pub(in crate::map::editor::state) enum BrushType
 {
+    /// Non selected [`Brush`].
     NotSelected,
+    /// Selected [`Brush`].
     Selected,
+    /// Drawn [`Brush`].
     Drawn
 }
 
@@ -68,7 +71,7 @@ impl BrushType
     /// `BrushType::NotSelected`
     #[inline]
     #[must_use]
-    fn from_selection(selected: bool) -> Self
+    const fn from_selection(selected: bool) -> Self
     {
         if selected
         {
@@ -83,16 +86,17 @@ impl BrushType
     /// Whever `self` is `BrushType::Selected`.
     #[inline]
     #[must_use]
-    pub fn selected(self) -> bool { !matches!(self, Self::NotSelected) }
+    pub const fn selected(self) -> bool { !matches!(self, Self::NotSelected) }
 
     /// Whever `self` is `BrushType::Drawn`.
     #[inline]
     #[must_use]
-    pub fn drawn(self) -> bool { matches!(self, Self::Drawn) }
+    pub const fn drawn(self) -> bool { matches!(self, Self::Drawn) }
 }
 
 //=======================================================================//
 
+/// The type of the [`Edit`] stored in the [`EditsHistory`].
 #[derive(Debug)]
 pub(in crate::map::editor::state::edits_history) enum EditType
 {
@@ -176,6 +180,7 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     ThingChange(ThingId),
     /// Thing draw height change.
     ThingHeight(i8),
+    /// Thing angle change.
     ThingAngle(f32),
     /// Brush texture change.
     Texture(Option<String>),
@@ -267,6 +272,7 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     TAtlasAnimationFrameTime(String, usize, f32),
     /// Brush collision change.
     Collision(bool),
+    /// Entity property change.
     Property(Value)
 }
 
@@ -275,7 +281,7 @@ impl EditType
     /// Whever `self` is an edit that is only useful as long as the current tool remains unchanged.
     #[inline]
     #[must_use]
-    pub fn tool_edit(&self) -> bool
+    pub const fn tool_edit(&self) -> bool
     {
         matches!(
             self,
@@ -295,7 +301,7 @@ impl EditType
     /// Whever `self` is a texture edit.
     #[inline]
     #[must_use]
-    pub fn texture_edit(&self) -> bool
+    pub const fn texture_edit(&self) -> bool
     {
         matches!(
             self,
@@ -333,9 +339,10 @@ impl EditType
         )
     }
 
+    /// Whever `self` represents a [`ThingInstance`] edit.
     #[inline]
     #[must_use]
-    pub fn thing_edit(&self) -> bool
+    pub const fn thing_edit(&self) -> bool
     {
         matches!(
             self,
@@ -380,6 +387,7 @@ impl EditType
     }
 
     /// Actions common to both the undo and redo procedures that apply to multiple [`Brush`]es.
+    /// Returns whever the edit was undone/redone.
     #[inline]
     #[must_use]
     fn brushes_common(
@@ -482,6 +490,7 @@ impl EditType
     }
 
     /// Actions common to both the undo and redo procedures that apply to a single [`Brush`].
+    /// Returns whever the edit was undone/redone.
     #[inline]
     #[must_use]
     fn brush_common(
@@ -493,6 +502,7 @@ impl EditType
     {
         let mut brush = interface.brush_mut(identifier);
 
+        /// Generates the match arms.
         macro_rules! arms {
             ($((
                 $arm:ident,
@@ -542,7 +552,7 @@ impl EditType
                     {
                         *value = brush.set_collision(*value).unwrap();
                         drop(brush);
-                        interface.toggle_overall_collision_update();
+                        interface.schedule_overall_collision_update();
                     },
                     _ => return false
                 }
@@ -570,6 +580,7 @@ impl EditType
     }
 
     /// Actions common to both the undo and redo procedures that apply to a single [`Thing`].
+    /// Returns whever the edit was undone/redone.
     #[inline]
     #[must_use]
     fn thing_common(&mut self, interface: &mut UndoRedoInterface, identifier: Id) -> bool
@@ -580,12 +591,12 @@ impl EditType
             Self::ThingHeight(height) =>
             {
                 *height = interface.thing_mut(identifier).set_draw_height(*height).unwrap();
-                interface.toggle_overall_things_info_update();
+                interface.schedule_overall_things_info_update();
             },
             Self::ThingAngle(angle) =>
             {
                 *angle = interface.thing_mut(identifier).set_angle(*angle).unwrap();
-                interface.toggle_overall_things_info_update();
+                interface.schedule_overall_things_info_update();
             },
             _ => return false
         };
@@ -593,11 +604,13 @@ impl EditType
         true
     }
 
-    /// Actions common to both the undo and redo procedures that apply to a default animation
+    /// Actions common to both the undo and redo procedures that apply to a default animation.
+    /// Returns whever the edit was undone/redone.
     #[inline]
     #[must_use]
     fn default_animation_common(&mut self, animation: &mut Animation) -> bool
     {
+        /// Generates the match arms.
         macro_rules! arms {
             ($(($arm:ident, $value:ident)),+) => {
                 match self
@@ -676,6 +689,8 @@ impl EditType
         true
     }
 
+    /// Action common to both the undo and redo procedures concerning a property edit.
+    /// Returns whever the edit was undone/redone.
     #[inline]
     #[must_use]
     fn property(
@@ -708,12 +723,14 @@ impl EditType
         property: Option<&String>
     )
     {
+        /// Returns the first [`Id`] of `identifiers`
         macro_rules! single {
             () => {
                 identifiers[0]
             };
         }
 
+        /// Returns the [`MovingMut`] of the entity with the [`Id`] returned by `single`.
         macro_rules! moving_mut {
             () => {
                 interface.moving_mut(single!())
@@ -785,7 +802,7 @@ impl EditType
             },
             Self::PathDeletion(path) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 interface.set_path(single!(), std::mem::take(path).unwrap());
             },
             Self::EntitySelection =>
@@ -852,7 +869,7 @@ impl EditType
             Self::Disanchor(anchor) => interface.insert_anchor(single!(), *anchor),
             Self::PathNodesSelection(idxs) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
 
                 let mut moving = moving_mut!();
 
@@ -876,7 +893,7 @@ impl EditType
             },
             Self::PathNodesDeletion(nodes) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 moving_mut!().insert_path_nodes_at_indexes(nodes);
             },
             Self::PathNodesSnap(snap) =>
@@ -895,27 +912,27 @@ impl EditType
             },
             Self::PathNodeStandby(edit) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 moving_mut!().undo_path_nodes_standby_time_edit(edit);
             },
             Self::PathNodeMaxSpeed(edit) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 moving_mut!().undo_path_nodes_max_speed_edit(edit);
             },
             Self::PathNodeMinSpeed(edit) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 moving_mut!().undo_path_nodes_min_speed_edit(edit);
             },
             Self::PathNodeAccel(edit) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 moving_mut!().undo_path_nodes_accel_travel_percentage_edit(edit);
             },
             Self::PathNodeDecel(edit) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 moving_mut!().undo_path_nodes_decel_travel_percentage_edit(edit);
             },
             Self::ThingDraw(thing) => *thing = interface.despawn_thing(single!(), true).into(),
@@ -1067,12 +1084,14 @@ impl EditType
         property: Option<&String>
     )
     {
+        /// Returns the first [`Id`] of `identifiers`
         macro_rules! single {
             () => {
                 identifiers[0]
             };
         }
 
+        /// Returns the [`MovingMut`] of the entity with the [`Id`] returned by `single`.
         macro_rules! moving_mut {
             () => {
                 interface.moving_mut(single!())
@@ -1204,14 +1223,14 @@ impl EditType
             Self::PathCreation(path) => interface.set_path(single!(), std::mem::take(path).unwrap()),
             Self::PathDeletion(path) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 *path = interface.remove_path(single!()).into();
             },
             Self::Anchor(anchor) => interface.insert_anchor(single!(), *anchor),
             Self::Disanchor(anchor) => interface.remove_anchor(single!(), *anchor),
             Self::PathNodesSelection(idxs) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
 
                 let mut moving = moving_mut!();
 
@@ -1235,7 +1254,7 @@ impl EditType
             },
             Self::PathNodesDeletion(_) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 moving_mut!().redo_selected_path_nodes_deletion();
             },
             Self::PathNodesSnap(snap) =>
@@ -1244,27 +1263,27 @@ impl EditType
             },
             Self::PathNodeStandby(edit) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 moving_mut!().redo_path_nodes_standby_time_edit(edit);
             },
             Self::PathNodeMaxSpeed(edit) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 moving_mut!().redo_path_nodes_max_speed_edit(edit);
             },
             Self::PathNodeMinSpeed(edit) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 moving_mut!().redo_path_nodes_min_speed_edit(edit);
             },
             Self::PathNodeAccel(edit) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 moving_mut!().redo_path_nodes_accel_travel_percentage_edit(edit);
             },
             Self::PathNodeDecel(edit) =>
             {
-                interface.toggle_overall_node_update();
+                interface.schedule_overall_node_update();
                 moving_mut!().redo_path_nodes_decel_travel_percentage_edit(edit);
             },
             Self::ThingDraw(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), true),

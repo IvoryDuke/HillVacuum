@@ -1,5 +1,3 @@
-#![allow(clippy::module_name_repetitions)]
-
 //=======================================================================//
 // IMPORTS
 //
@@ -141,6 +139,7 @@ impl<T: PartialEq + Clone> OverallValue<T>
 
 #[must_use]
 #[derive(Clone, Debug)]
+/// An UI friendly representation of an [`OverallValue`].
 enum UiValueEnum<T: ToString + FromStr>
 {
     /// No elements.
@@ -150,8 +149,11 @@ enum UiValueEnum<T: ToString + FromStr>
     /// All elements have the same value.
     Uniform
     {
+        /// The overall value.
         value:     T,
+        /// A [`String`] representation of `value`.
         value_str: String,
+        /// The buffer where user types the new desired value.
         buffer:    String
     }
 }

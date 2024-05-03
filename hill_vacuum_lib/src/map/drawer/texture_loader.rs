@@ -27,6 +27,7 @@ use crate::map::editor::state::ui::centered_window;
 //
 //=======================================================================//
 
+/// The path of the folder containing the textures.
 const TEXTURES_PATH: &str = "assets/textures/";
 
 //=======================================================================//
@@ -34,24 +35,33 @@ const TEXTURES_PATH: &str = "assets/textures/";
 //
 //=======================================================================//
 
+/// The overall progress of the texture loading.
 #[derive(States, Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub(in crate::map) enum TextureLoadingProgress
 {
+    /// Started.
     #[default]
     Initiated,
+    /// Reading the files.
     LoadingFromFiles,
+    /// Generating the textures.
     GeneratingTextures,
+    /// Finished.
     Complete
 }
 
 //=======================================================================//
 
+/// The [`Image`]s load progress.
 #[derive(Default)]
 enum LoadedImages
 {
+    /// Nothing accomplished.
     #[default]
     Empty,
+    /// In progress.
     Loading(PartialImages),
+    /// Completed.
     Loaded(Vec<(String, Image)>)
 }
 
@@ -60,25 +70,36 @@ enum LoadedImages
 //
 //=======================================================================//
 
+/// The [`PathBuf`]s of the textures to load, distributed to the threads.
 type Paths = [Vec<PathBuf>; TextureLoader::THREADS_AMOUNT];
 
 //=======================================================================//
 
+/// The collection of the load-in-progress [`Images`].
 type PartialImages = Arc<Mutex<Vec<(String, Image)>>>;
 
 //=======================================================================//
 
+/// The texture loader.
 #[must_use]
 #[derive(Resource)]
 pub(in crate::map) struct TextureLoader
 {
+    /// The [`PathBuf`] vector.
     paths:               Arc<Paths>,
+    /// The loaded [`Image`]s.
     images:              LoadedImages,
+    /// The generated textures.
     textures:            Vec<(Texture, egui::TextureId)>,
+    /// The thread pool.
     thread_pool:         ThreadPool,
+    /// The active threads.
     active_workers:      usize,
+    /// The frames that have passed.
     cycles:              usize,
+    /// The frames required to read the files.
     file_reading_cycles: usize,
+    /// The frames required to load the textures.
     total_cycles:        f32
 }
 
@@ -104,13 +125,19 @@ impl Default for TextureLoader
 
 impl TextureLoader
 {
-    const DEFAULT_PATHBUF_VEC: Vec<PathBuf> = vec![];
+    /// The default vector of the paths of the textures.
+    const DEFAULT_PATHBUF_VEC: Vec<PathBuf> = Vec::new();
+    /// The default texture paths collector.
     const DEFAULT_PATHS: [Vec<PathBuf>; Self::THREADS_AMOUNT] =
         [Self::DEFAULT_PATHBUF_VEC; Self::THREADS_AMOUNT];
+    /// The amount of files loaded per frame per thread.
     const PER_FRAME_FILE_LOADS: usize = 3;
+    /// The amount of textures generated each frame.
     const PER_FRAME_TEXTURE_GENERATION: usize = Self::THREADS_AMOUNT;
+    /// The amount of threads used.
     const THREADS_AMOUNT: usize = 32;
 
+    /// Returns the loaded textures.
     #[inline]
     #[must_use]
     pub fn loaded_textures(&mut self) -> Vec<(Texture, egui::TextureId)>
@@ -118,6 +145,7 @@ impl TextureLoader
         std::mem::take(&mut self.textures)
     }
 
+    /// Extracts the vector inside `images`.
     #[inline]
     fn extract_images(mut images: PartialImages) -> Vec<(String, Image)>
     {
@@ -127,10 +155,12 @@ impl TextureLoader
             .unwrap()
     }
 
+    /// Collects the paths of the textures to load.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
     fn collect_paths(&mut self)
     {
+        /// Iterates through the subfolders collecting the paths of the textures.
         #[inline]
         fn collect_paths_recursive<P: AsRef<Path>>(
             path: P,
@@ -175,6 +205,7 @@ impl TextureLoader
         self.paths = Arc::new(paths);
     }
 
+    /// Loads the textures.
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
     #[inline]
@@ -272,6 +303,7 @@ impl TextureLoader
         };
     }
 
+    /// The UI showing the texture loading progress.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
     pub fn ui(&self, window: &Window, egui_context: &mut egui::Context)

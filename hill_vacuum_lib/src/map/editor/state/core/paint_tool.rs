@@ -9,9 +9,16 @@ use shared::{return_if_no_match, return_if_none};
 
 use super::{
     bottom_area,
-    drag::Drag,
+    cursor_delta::CursorDelta,
     draw_selected_and_non_selected_brushes,
-    tool::{ActiveTool, ChangeConditions, EnabledTool, SubTool}
+    tool::{
+        ActiveTool,
+        ChangeConditions,
+        DisableSubtool,
+        EnabledTool,
+        OngoingMultiframeChange,
+        SubTool
+    }
 };
 use crate::{
     map::editor::{
@@ -38,15 +45,22 @@ use crate::{
 //
 //=======================================================================//
 
+/// The state of the tool.
 #[derive(Debug)]
 enum Status
 {
+    /// Inactive.
     Inactive(()),
+    /// Setting the pivot of the new [`Prop`].
     SetPivot(Hull),
+    /// Waiting for the [`Prop`] screenshot to be taken.
     PropCreationScreenshot(PropScreenshotTimer, Prop),
+    /// Creating a [`Prop`] from the UI.
     PropCreationUi(Prop),
+    /// Preparing to spawn the quick [`Prop`].
     QuickPropSetup,
-    Paint(PaintingProp, Drag)
+    /// Spawing copies of a [`Prop`].
+    Paint(PaintingProp, CursorDelta)
 }
 
 impl Default for Status
@@ -76,18 +90,23 @@ impl EnabledTool for Status
 
 //=======================================================================//
 
+/// The source of the [`Prop`] to draw.
 #[derive(Debug, Clone, Copy)]
 enum PaintingProp
 {
+    /// Quick [`Prop`].
     Quick,
+    /// Slotted [`Prop`].
     Slotted
 }
 
+#[allow(clippy::missing_docs_in_private_items)]
 type PropSpawnFunc =
     fn(&mut Clipboard, &ToolUpdateBundle, &mut EntitiesManager, &mut EditsHistory, Vec2);
 
 impl PaintingProp
 {
+    /// The function that executes a [`Prop`] copy spawn.
     #[inline]
     #[must_use]
     fn spawn_func(self) -> PropSpawnFunc
@@ -105,46 +124,55 @@ impl PaintingProp
 //
 //=======================================================================//
 
+/// The paint tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct PaintTool
 {
-    slot:          String,
-    status:        Status,
-    max_ui_height: f32
+    /// The slot where to store the created [`Prop`].
+    slot:                    String,
+    /// The state of the tool.
+    status:                  Status,
+    /// The maximum height of the bottom panel.
+    max_bottom_panel_height: f32
 }
 
-impl PaintTool
+impl DisableSubtool for PaintTool
 {
     #[inline]
-    pub fn tool() -> ActiveTool
-    {
-        ActiveTool::Paint(PaintTool {
-            slot:          String::new(),
-            status:        Status::default(),
-            max_ui_height: 0f32
-        })
-    }
-
-    #[inline]
-    #[must_use]
-    pub const fn ongoing_multi_frame_changes(&self) -> bool
-    {
-        matches!(self.status, Status::Paint(..))
-    }
-
-    #[inline]
-    pub fn disable_subtool(&mut self)
+    fn disable_subtool(&mut self)
     {
         if !matches!(self.status, Status::Inactive(()) | Status::Paint(..))
         {
             self.status = Status::default();
         }
     }
+}
 
+impl OngoingMultiframeChange for PaintTool
+{
+    #[inline]
+    fn ongoing_multi_frame_change(&self) -> bool { matches!(self.status, Status::Paint(..)) }
+}
+
+impl PaintTool
+{
+    /// Returns an [`ActiveTool`] in its paint tool variant.
+    #[inline]
+    pub fn tool() -> ActiveTool
+    {
+        ActiveTool::Paint(PaintTool {
+            slot:                    String::new(),
+            status:                  Status::default(),
+            max_bottom_panel_height: 0f32
+        })
+    }
+
+    /// Returns the cursor position used by the tool.
     #[inline]
     #[must_use]
     const fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world_snapped() }
 
+    /// Updates the tool.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
     pub fn update(
@@ -188,7 +216,7 @@ impl PaintTool
                 }
 
                 clipboard.spawn_selected_prop(bundle, manager, edits_history, cursor_pos);
-                self.status = Status::Paint(PaintingProp::Slotted, Drag::new(cursor_pos));
+                self.status = Status::Paint(PaintingProp::Slotted, CursorDelta::new(cursor_pos));
             },
             Status::SetPivot(hull) =>
             {
@@ -250,7 +278,7 @@ impl PaintTool
                     edits_history,
                     bundle.cursor.world_snapped()
                 );
-                self.status = Status::Paint(PaintingProp::Quick, Drag::new(cursor_pos));
+                self.status = Status::Paint(PaintingProp::Quick, CursorDelta::new(cursor_pos));
             },
             Status::Paint(prop, drag) =>
             {
@@ -269,6 +297,7 @@ impl PaintTool
         };
     }
 
+    /// Returns the selected entities' outline.
     #[inline]
     #[must_use]
     fn outline(manager: &EntitiesManager, grid: Grid) -> Option<Hull>
@@ -276,6 +305,7 @@ impl PaintTool
         manager.selected_entities_hull().map(|hull| grid.snap_hull(&hull))
     }
 
+    /// Updates the selected entities' outline.
     #[inline]
     pub fn update_outline(&mut self, manager: &EntitiesManager, grid: Grid)
     {
@@ -283,11 +313,13 @@ impl PaintTool
             return_if_none!(Self::outline(manager, grid));
     }
 
+    /// Draws the UI.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
     #[must_use]
     pub fn ui(&mut self, bundle: &mut StateUpdateBundle, clipboard: &mut Clipboard) -> bool
     {
+        /// The size of the frame of the [`Prop`]s previews.
         const PREVIEW_SIZE: egui::Vec2 = egui::Vec2::new(
             PROP_SCREENSHOT_SIZE.x as f32 * 0.4f32,
             PROP_SCREENSHOT_SIZE.y as f32 * 0.4f32
@@ -337,6 +369,7 @@ impl PaintTool
         focused
     }
 
+    /// Draws the prop creation window.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
     #[must_use]
@@ -348,6 +381,7 @@ impl PaintTool
         texture: egui::TextureId
     ) -> bool
     {
+        /// The size of the frame of the new [`Prop`] screenshot.
         const PROP_SNAPSHOT_FRAME: egui::Vec2 =
             egui::Vec2::new(PROP_SCREENSHOT_SIZE.x as f32, PROP_SCREENSHOT_SIZE.y as f32);
 
@@ -388,6 +422,7 @@ impl PaintTool
         response.inner.unwrap()
     }
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
     {
@@ -404,8 +439,9 @@ impl PaintTool
         };
     }
 
+    /// Draws the subtools.
     #[inline]
-    pub fn draw_sub_tools(
+    pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
         bundle: &StateUpdateBundle,

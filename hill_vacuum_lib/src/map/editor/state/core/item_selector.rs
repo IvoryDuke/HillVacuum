@@ -3,6 +3,7 @@
 //
 //=======================================================================//
 
+use core::panic;
 use std::{cmp::Ordering, fmt::Debug, ops::Index};
 
 use bevy::prelude::Vec2;
@@ -20,18 +21,42 @@ use crate::{
 };
 
 //=======================================================================//
+// ENUMS
+//
+//=======================================================================//
+
+/// The position of the item.
+#[allow(clippy::missing_docs_in_private_items)]
+#[derive(Debug, Default, Clone, Copy)]
+enum Position
+{
+    #[default]
+    None,
+    Selected(usize),
+    NonSelected(usize)
+}
+
+//=======================================================================//
 // TYPES
 //
 //=======================================================================//
 
+#[allow(clippy::missing_docs_in_private_items)]
 type SelectorFunc<T> = fn(&EntitiesManager, Vec2, f32, &mut ItemsBeneathCursor<T>);
 
 //=======================================================================//
 
+/// The items beneath the cursor.
 #[derive(Debug)]
-pub(in crate::map::editor::state::core) struct ItemsBeneathCursor<T>(HvVec<T>, usize)
+pub(in crate::map::editor::state::core) struct ItemsBeneathCursor<T>
 where
-    T: EntityId + Copy + PartialEq;
+    T: EntityId + Copy + PartialEq
+{
+    /// The selected items.
+    selected:     HvVec<T>,
+    /// The non selected items.
+    non_selected: HvVec<T>
+}
 
 impl<T> Default for ItemsBeneathCursor<T>
 where
@@ -39,58 +64,85 @@ where
 {
     #[inline]
     #[must_use]
-    fn default() -> Self { Self(hv_vec![], Default::default()) }
+    fn default() -> Self
+    {
+        Self {
+            selected:     hv_vec![],
+            non_selected: hv_vec![]
+        }
+    }
 }
 
-impl<T> Index<usize> for ItemsBeneathCursor<T>
+impl<T> Index<Position> for ItemsBeneathCursor<T>
 where
     T: EntityId + Clone + Copy + PartialEq
 {
     type Output = T;
 
-    fn index(&self, index: usize) -> &Self::Output { &self.0[index] }
+    #[inline]
+    fn index(&self, index: Position) -> &Self::Output
+    {
+        match index
+        {
+            Position::None => panic!(),
+            Position::Selected(idx) => &self.selected[idx],
+            Position::NonSelected(idx) => &self.non_selected[idx]
+        }
+    }
 }
 
 impl<T> ItemsBeneathCursor<T>
 where
     T: EntityId + Clone + Copy + PartialEq
 {
+    /// Whever there are no items.
     #[inline]
-    fn len(&self) -> usize { self.0.len() }
+    fn is_empty(&self) -> bool { self.selected.is_empty() && self.non_selected.is_empty() }
 
+    /// The index of `value` in the vector.
     #[inline]
-    fn is_empty(&self) -> bool { self.0.is_empty() }
+    fn position(&self, value: T) -> Position
+    {
+        self.selected
+            .iter()
+            .position(|v| *v == value)
+            .map(Position::Selected)
+            .or_else(|| {
+                self.non_selected
+                    .iter()
+                    .position(|v| *v == value)
+                    .map(Position::NonSelected)
+            })
+            .unwrap_or_default()
+    }
 
+    /// Pushes `item`.
     #[inline]
-    fn position(&self, value: T) -> Option<usize> { self.0.iter().position(|v| *v == value) }
-
-    #[inline]
-    pub fn push(&mut self, identifier: T, selected: bool)
+    pub fn push(&mut self, item: T, selected: bool)
     {
         if selected
         {
-            self.0.insert(self.1, identifier);
-            self.1 += 1;
+            self.selected.push(item);
         }
         else
         {
-            self.0.push(identifier);
+            self.non_selected.push(item);
         }
     }
 
+    /// Clears the stored items.
     #[inline]
     fn clear(&mut self)
     {
-        self.0.clear();
-        self.1 = 0;
+        self.selected.clear();
+        self.non_selected.clear();
     }
 
+    /// Sorts the items based on the draw height.
     #[inline]
     fn sort(&mut self, manager: &EntitiesManager)
     {
-        let (selected, non_selected) = self.0.split_at_mut(self.1);
-
-        for slice in [selected, non_selected]
+        for slice in [&mut self.selected, &mut self.non_selected]
         {
             slice.sort_by(|a, b| {
                 let height_a = manager.entity(a.id()).draw_height();
@@ -110,14 +162,19 @@ where
 
 //=======================================================================//
 
+/// The selector of map items.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct ItemSelector<T>
 where
     T: EntityId + Copy + PartialEq
 {
-    brushes:  ItemsBeneathCursor<T>,
-    depth:    usize,
+    /// The items.
+    items:    ItemsBeneathCursor<T>,
+    /// The position of the previously returned value in the current items set.
+    depth:    Position,
+    /// The previously returned item, if any.
     previous: Option<T>,
+    /// The selector function.
     selector: SelectorFunc<T>
 }
 
@@ -125,18 +182,21 @@ impl<T> ItemSelector<T>
 where
     T: EntityId + Copy + PartialEq
 {
+    /// Returns a new [`ItemSelector`].
     #[inline]
     #[must_use]
     pub fn new(func: SelectorFunc<T>) -> Self
     {
         Self {
-            brushes:  ItemsBeneathCursor::default(),
-            depth:    0,
+            items:    ItemsBeneathCursor::default(),
+            depth:    Position::None,
             previous: None,
             selector: func
         }
     }
 
+    /// The item beneath the cursor, if any. If the item returned in the previous frame is still
+    /// present it is still returned.
     #[inline]
     #[must_use]
     pub fn item_beneath_cursor(
@@ -147,34 +207,55 @@ where
         inputs: &InputsPresses
     ) -> Option<T>
     {
-        self.brushes.clear();
-        (self.selector)(manager, cursor.world(), camera_scale, &mut self.brushes);
+        self.items.clear();
+        (self.selector)(manager, cursor.world(), camera_scale, &mut self.items);
 
-        if self.brushes.is_empty()
+        if self.items.is_empty()
         {
-            self.depth = 0;
+            self.depth = Position::None;
             self.previous = None;
             return None;
         }
 
-        self.brushes.sort(manager);
+        self.items.sort(manager);
 
-        if let Some(brush) = self.previous
+        match self.previous
         {
-            if let Some(idx) = self.brushes.position(brush)
+            Some(prev) =>
             {
-                self.depth = idx;
+                self.depth = self.items.position(prev);
+
+                if inputs.tab.just_pressed()
+                {
+                    match &mut self.depth
+                    {
+                        Position::None => panic!(),
+                        Position::Selected(idx) =>
+                        {
+                            *idx = next(*idx, self.items.selected.len());
+                        },
+                        Position::NonSelected(idx) =>
+                        {
+                            *idx = next(*idx, self.items.non_selected.len());
+                        }
+                    };
+                }
+            },
+            None =>
+            {
+                self.depth = if self.items.selected.is_empty()
+                {
+                    assert!(!self.items.non_selected.is_empty(), "No non selected items.");
+                    Position::NonSelected(0)
+                }
+                else
+                {
+                    Position::Selected(0)
+                };
             }
-        }
+        };
 
-        self.depth = self.depth.min(self.brushes.len() - 1);
-
-        if inputs.tab.just_pressed()
-        {
-            self.depth = next(self.depth, self.brushes.len());
-        }
-
-        let value = Some(self.brushes[self.depth]);
+        let value = Some(self.items[self.depth]);
         self.previous = value;
         value
     }

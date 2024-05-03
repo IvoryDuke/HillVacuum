@@ -147,8 +147,11 @@ impl<'a> IdsInRange<'a>
 #[must_use]
 pub(in crate::map::editor::state::manager) struct SelectedBrushesMut<'a>
 {
+    /// The [`Id`]s iterator.
     iter:       hashbrown::hash_set::Iter<'a, Id>,
+    /// The manager.
     manager:    &'a mut Innards,
+    /// The [`QuadTree`]s.
     quad_trees: &'a mut Trees
 }
 
@@ -191,6 +194,7 @@ impl<'a> SelectedBrushesMut<'a>
 
 //=======================================================================//
 
+/// A wrapper to the selected [`ThingInstances`].
 #[must_use]
 pub(in crate::map::editor::state) struct SelectedThingsIter<'a>(
     &'a EntitiesManager,
@@ -199,6 +203,7 @@ pub(in crate::map::editor::state) struct SelectedThingsIter<'a>(
 
 impl<'a> SelectedThingsIter<'a>
 {
+    /// Returns a new [`SelectedThingsIter`].
     #[inline]
     pub(in crate::map::editor::state::manager) const fn new(
         manager: &'a EntitiesManager,
@@ -208,6 +213,7 @@ impl<'a> SelectedThingsIter<'a>
         Self(manager, ids)
     }
 
+    /// Returns an iterator to the [`Id`]s.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &ThingInstance>
     {
@@ -224,8 +230,11 @@ impl<'a> SelectedThingsIter<'a>
 #[must_use]
 pub(in crate::map::editor::state::manager) struct SelectedThingsMut<'a>
 {
+    /// The [`Id`]s iterator.
     iter:       hashbrown::hash_set::Iter<'a, Id>,
+    /// The manager.
     manager:    &'a mut Innards,
+    /// The [`QuadTree`]s.
     quad_trees: &'a mut Trees
 }
 
@@ -268,6 +277,7 @@ impl<'a> SelectedThingsMut<'a>
 
 //=======================================================================//
 
+/// A wrapper to the selected entities with a [`Path`].
 #[must_use]
 pub(in crate::map::editor::state) struct SelectedMovingsIter<'a>(
     &'a EntitiesManager,
@@ -276,6 +286,7 @@ pub(in crate::map::editor::state) struct SelectedMovingsIter<'a>(
 
 impl<'a> SelectedMovingsIter<'a>
 {
+    /// Returns a new [`SelectedMovingsIter`].
     #[inline]
     pub(in crate::map::editor::state::manager) const fn new(
         manager: &'a EntitiesManager,
@@ -285,6 +296,7 @@ impl<'a> SelectedMovingsIter<'a>
         Self(manager, ids)
     }
 
+    /// Returns an iterator to the entities with a [`Path`] as [`Moving`] trait objects.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &dyn Moving>
     {
@@ -303,11 +315,13 @@ impl<'a> SelectedMovingsIter<'a>
 
 //=======================================================================//
 
+/// A wrapper to the [`Id`]s of entities which implement the [`Moving`] trait.
 #[must_use]
 pub(in crate::map::editor::state) struct MovingsIter<'a>(&'a EntitiesManager, Ref<'a, QuadTreeIds>);
 
 impl<'a> MovingsIter<'a>
 {
+    /// Returns a new [`MovingsIter`].
     #[inline]
     pub(in crate::map::editor::state::manager) const fn new(
         manager: &'a EntitiesManager,
@@ -317,6 +331,7 @@ impl<'a> MovingsIter<'a>
         Self(manager, ids)
     }
 
+    /// Returns an iterator to the entities with a [`Path`] as [`Moving`] trait objects.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &dyn Moving>
     {
@@ -335,11 +350,15 @@ impl<'a> MovingsIter<'a>
 
 //=======================================================================//
 
+/// A iterator to the selected entities wrapped in [`MovingMut`].
 #[must_use]
 pub(in crate::map::editor::state::manager) struct SelectedMovingsMut<'a>
 {
+    /// The iterator of the [`Id`]s.
     iter:       hashbrown::hash_set::Iter<'a, Id>,
+    /// The entities manager.
     manager:    &'a mut Innards,
+    /// The [`QuadTree`]s.
     quad_trees: &'a mut Trees
 }
 
@@ -363,6 +382,7 @@ impl<'a> Iterator for SelectedMovingsMut<'a>
 
 impl<'a> SelectedMovingsMut<'a>
 {
+    /// Returns a new [`SelectedMovingsMut`].
     #[inline]
     pub fn new(
         manager: &'a mut Innards,

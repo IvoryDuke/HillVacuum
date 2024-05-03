@@ -8,12 +8,20 @@ use bevy_egui::egui;
 use shared::{match_or_panic, return_if_no_match, return_if_none};
 
 use super::{
+    cursor_delta::CursorDelta,
     deselect_vertexes,
-    drag::Drag,
-    drag_area::DragArea,
     draw_non_selected_brushes,
+    rect::Rect,
     selected_vertexes,
-    tool::{subtools_buttons, ChangeConditions, EnabledTool, SubTool},
+    tool::{
+        subtools_buttons,
+        ChangeConditions,
+        DisableSubtool,
+        DragSelection,
+        EnabledTool,
+        OngoingMultiframeChange,
+        SubTool
+    },
     ActiveTool,
     VertexesToggle
 };
@@ -39,7 +47,7 @@ use crate::{
         editor::{
             cursor_pos::Cursor,
             state::{
-                core::drag_area::{self, DragAreaTrait},
+                core::rect::{self, RectTrait},
                 editor_state::InputsPresses,
                 edits_history::EditsHistory,
                 grid::Grid,
@@ -65,15 +73,18 @@ use crate::{
 //
 //=======================================================================//
 
+/// The cursor drag of an xtrusion.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct XTrusionDrag(Vec2);
 
 impl XTrusionDrag
 {
+    /// Returns a new [`XTrusionDrag`].
     #[inline]
     #[must_use]
     pub const fn new() -> Self { Self(Vec2::ZERO) }
 
+    /// Updates the drag amount and executes `dragger` if it changed.
     #[inline]
     pub fn conditional_update<F: FnMut(Vec2) -> bool>(
         &mut self,
@@ -109,33 +120,49 @@ impl XTrusionDrag
 //
 //=======================================================================//
 
+/// The xtrusion mode.
 #[derive(Debug)]
 enum XtrusionMode
 {
+    /// Started.
     Xtrusion(HvVec<XtrusionPayload>),
+    /// Intrusion.
     Intrusion
     {
+        /// The intrusion info of the [`Brush`]es.
         payloads: HvVec<XtrusionPayload>,
+        /// The generated polygons.
         polygons: HvVec<(ConvexPolygon, Id)>
     },
+    /// Extrusion.
     Extrusion(HvVec<(Id, XtrusionInfo, ConvexPolygon)>)
 }
 
 //=======================================================================//
 
+/// The state of the tool.
 #[derive(Debug)]
 enum Status
 {
-    Inactive(DragArea),
+    /// Inactive.
+    Inactive(Rect),
+    /// Preparing to drag sides.
     PreDrag(Vec2),
-    Drag(Drag, HvVec<(Id, HvVec<VertexesMove>)>),
+    /// Dragging sides.
+    Drag(CursorDelta, HvVec<(Id, HvVec<VertexesMove>)>),
+    /// Xtruding.
     Xtrusion
     {
+        /// The modality of the xtrusion.
         mode:   XtrusionMode,
+        /// The normal of the sides being xtruded.
         normal: Vec2,
+        /// The line of the side dragged to xtrude.
         line:   [Vec2; 2],
+        /// How much the sides where dragged.
         drag:   XTrusionDrag
     },
+    /// Attempting an xtrusion through UI.
     XtrusionUi
 }
 
@@ -143,7 +170,7 @@ impl Default for Status
 {
     #[inline]
     #[must_use]
-    fn default() -> Self { Self::Inactive(DragArea::default()) }
+    fn default() -> Self { Self::Inactive(Rect::default()) }
 }
 
 impl EnabledTool for Status
@@ -170,33 +197,41 @@ selected_vertexes!(selected_sides_amount);
 
 //=======================================================================//
 
+/// An extended record of the selected [`Brush`]es' selected sides.
 #[must_use]
 #[derive(Debug)]
 struct BrushesWithSelectedSides
 {
+    /// The [`Id`]s of the [`Brush`]es with selected sides.
     ids:               Ids,
-    selected_vxs:      SelectedVertexes,
+    /// The selected sides.
+    selected_sides:    SelectedVertexes,
+    /// The [`Id`]s of the [`Brush`]es with one selected side.
     one_selected_side: Ids,
+    /// The [`Id`] of the [`Brush`] that generates an error.
     error_id:          Option<Id>
 }
 
 impl BrushesWithSelectedSides
 {
+    /// Returns a new [`BrushesWithSelectedSides`].
     #[inline]
     fn new() -> Self
     {
         Self {
             ids:               hv_hash_set![],
-            selected_vxs:      SelectedVertexes::default(),
+            selected_sides:    SelectedVertexes::default(),
             one_selected_side: hv_hash_set![],
             error_id:          None
         }
     }
 
+    /// Whever the vertex merge is available.
     #[inline]
     #[must_use]
-    fn vx_merge_available(&self) -> bool { self.selected_vxs.vx_merge_available() }
+    const fn vx_merge_available(&self) -> bool { self.selected_sides.vx_merge_available() }
 
+    /// Whever the xtrusion is available.
     #[inline]
     #[must_use]
     fn xtrusion_available(&self) -> bool
@@ -205,12 +240,13 @@ impl BrushesWithSelectedSides
         len != 0 && len == self.one_selected_side.len()
     }
 
+    /// Inserts the selected sides info of `brush`.
     #[inline]
     fn insert(&mut self, brush: &Brush)
     {
         let id = brush.id();
 
-        self.selected_vxs.insert(brush);
+        self.selected_sides.insert(brush);
 
         match brush.selected_vertexes_amount()
         {
@@ -226,6 +262,7 @@ impl BrushesWithSelectedSides
         self.ids.insert(id);
     }
 
+    /// Removes the selected sides info of `brush`.
     #[inline]
     fn remove(&mut self, brush: &Brush)
     {
@@ -235,11 +272,12 @@ impl BrushesWithSelectedSides
 
         if self.ids.remove(id)
         {
-            self.selected_vxs.remove(brush);
+            self.selected_sides.remove(brush);
             self.one_selected_side.remove(id);
         }
     }
 
+    /// Removes the selected vertexes associated with the [`Brush`] with [`Id`] `identifier`.
     #[inline]
     fn remove_id(&mut self, manager: &EntitiesManager, identifier: Id)
     {
@@ -247,20 +285,22 @@ impl BrushesWithSelectedSides
 
         if self.ids.remove(&identifier)
         {
-            self.selected_vxs.remove_id(manager, identifier);
+            self.selected_sides.remove_id(manager, identifier);
             self.one_selected_side.remove(&identifier);
         }
     }
 
+    /// Clears the stored info.
     #[inline]
     fn clear(&mut self)
     {
         self.ids.clear();
-        self.selected_vxs.clear();
+        self.selected_sides.clear();
         self.one_selected_side.clear();
         self.error_id = None;
     }
 
+    /// Toggles the info of the selected sides of `brush`.
     #[inline]
     fn toggle_brush(&mut self, brush: &Brush)
     {
@@ -273,6 +313,7 @@ impl BrushesWithSelectedSides
         self.remove(brush);
     }
 
+    /// Initializes the intrusion.
     #[inline]
     fn initialize_xtrusion(
         &mut self,
@@ -332,13 +373,46 @@ impl BrushesWithSelectedSides
 
 //=======================================================================//
 
+/// The side tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct SideTool(Status, BrushesWithSelectedSides);
 
-impl SideTool
+impl DisableSubtool for SideTool
 {
     #[inline]
-    pub fn tool(drag_selection: DragArea) -> ActiveTool
+    fn disable_subtool(&mut self)
+    {
+        if matches!(self.0, Status::XtrusionUi)
+        {
+            self.0 = Status::default();
+        }
+    }
+}
+
+impl OngoingMultiframeChange for SideTool
+{
+    #[inline]
+    fn ongoing_multi_frame_change(&self) -> bool
+    {
+        !matches!(self.0, Status::Inactive(..) | Status::PreDrag(_) | Status::XtrusionUi)
+    }
+}
+
+impl DragSelection for SideTool
+{
+    #[inline]
+    fn drag_selection(&self) -> Option<Rect>
+    {
+        (*return_if_no_match!(&self.0, Status::Inactive(drag_selection), drag_selection, None))
+            .into()
+    }
+}
+
+impl SideTool
+{
+    /// Returns an [`ActiveTool`] in its side tool variant.
+    #[inline]
+    pub fn tool(drag_selection: Rect) -> ActiveTool
     {
         ActiveTool::Side(SideTool(
             Status::Inactive(drag_selection),
@@ -349,25 +423,7 @@ impl SideTool
     //==============================================================
     // Info
 
-    #[inline]
-    #[must_use]
-    pub const fn ongoing_multi_frame_changes(&self) -> bool
-    {
-        !matches!(self.0, Status::Inactive(..) | Status::PreDrag(_) | Status::XtrusionUi)
-    }
-
-    #[inline]
-    #[must_use]
-    pub const fn drag_selection(&self) -> Option<DragArea>
-    {
-        Some(*return_if_no_match!(
-            &self.0,
-            Status::Inactive(drag_selection),
-            drag_selection,
-            None
-        ))
-    }
-
+    /// Whever an intrusion is currently happening.
     #[inline]
     #[must_use]
     pub const fn intrusion(&self) -> bool
@@ -378,13 +434,16 @@ impl SideTool
         })
     }
 
+    /// The cursor position used by the tool.
     #[inline]
     #[must_use]
-    fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world() }
+    const fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world() }
 
+    /// Whever the vertexes merge is available.
     #[inline]
-    pub fn vx_merge_available(&self) -> bool { self.1.vx_merge_available() }
+    pub const fn vx_merge_available(&self) -> bool { self.1.vx_merge_available() }
 
+    /// Whever the xtrusion is available.
     #[inline]
     #[must_use]
     pub fn xtrusion_available(&self) -> bool { self.1.xtrusion_available() }
@@ -392,15 +451,7 @@ impl SideTool
     //==============================================================
     // Update
 
-    #[inline]
-    pub fn disable_subtool(&mut self)
-    {
-        if matches!(self.0, Status::XtrusionUi)
-        {
-            self.0 = Status::default();
-        }
-    }
-
+    /// Updates the tool.
     #[inline]
     pub fn update(
         &mut self,
@@ -417,9 +468,10 @@ impl SideTool
         {
             Status::Inactive(ds) =>
             {
-                drag_area::update!(
+                rect::update!(
                     ds,
                     cursor_pos,
+                    bundle.camera.scale(),
                     inputs.left_mouse.pressed(),
                     {
                         if !inputs.left_mouse.just_pressed()
@@ -505,7 +557,7 @@ impl SideTool
                 let dir = return_if_none!(inputs.directional_keys_vector(grid.size()));
                 let mut vxs_move = hv_vec![];
 
-                if self.1.selected_vxs.any_selected_vx() &&
+                if self.1.selected_sides.any_selected_vx() &&
                     Self::move_sides(bundle, manager, edits_history, dir, &mut vxs_move)
                 {
                     edits_history.vertexes_move(vxs_move);
@@ -515,7 +567,7 @@ impl SideTool
             {
                 if !inputs.left_mouse.pressed()
                 {
-                    self.0 = Status::Inactive(DragArea::default());
+                    self.0 = Status::Inactive(Rect::default());
                     return;
                 }
 
@@ -525,7 +577,7 @@ impl SideTool
                 }
 
                 self.0 = Status::Drag(
-                    return_if_none!(Drag::try_new_initiated(*pos, bundle.cursor, grid)),
+                    return_if_none!(CursorDelta::try_new(*pos, bundle.cursor, grid)),
                     hv_vec![]
                 );
                 edits_history.start_multiframe_edit();
@@ -606,6 +658,7 @@ impl SideTool
         };
     }
 
+    /// Exclusively selects the sides beneath the cursor position within vertex highlight distance.
     #[inline]
     fn exclusively_select_sides(
         manager: &mut EntitiesManager,
@@ -669,6 +722,7 @@ impl SideTool
         true
     }
 
+    /// Toggles the sides beneath the cursor position within vertex highlight distance.
     #[inline]
     #[must_use]
     fn toggle_sides(
@@ -699,6 +753,8 @@ impl SideTool
         selected.into()
     }
 
+    /// Moves the selected sides by `delta`, if possible. Also selects any non selected sides that
+    /// overlap the moved ones.
     #[inline]
     fn move_sides(
         bundle: &ToolUpdateBundle,
@@ -794,6 +850,7 @@ impl SideTool
         true
     }
 
+    /// Deletes the selected sides, if possible.
     #[inline]
     fn delete_selected_sides(
         bundle: &ToolUpdateBundle,
@@ -826,6 +883,7 @@ impl SideTool
         }));
     }
 
+    /// Selects the sides that fit in the drag selection.
     #[inline]
     fn select_sides_from_drag_selection(
         manager: &mut EntitiesManager,
@@ -850,6 +908,7 @@ impl SideTool
         );
     }
 
+    /// Generates the polygons result of the sides intrusion.
     #[inline]
     #[must_use]
     fn intrusion_polygons(
@@ -891,6 +950,7 @@ impl SideTool
         polygons.into()
     }
 
+    /// Attempts to start an xtrusion.
     #[inline]
     fn attempt_xtrusion(
         bundle: &ToolUpdateBundle,
@@ -962,9 +1022,11 @@ impl SideTool
         });
     }
 
+    /// Whever the xtrusion is moving against the side normal.
     #[inline]
     fn xtrusion_delta_against_normal(normal: Vec2, delta: Vec2) -> bool { delta.dot(normal) < 0f32 }
 
+    /// Intrudes the selected sides splitting the selected [`Brush`]es.
     #[inline]
     fn intrude_sides(
         bundle: &ToolUpdateBundle,
@@ -983,6 +1045,7 @@ impl SideTool
         });
     }
 
+    /// Extraude the selected sides.
     #[inline]
     fn extrude_sides(
         bundle: &ToolUpdateBundle,
@@ -1026,6 +1089,7 @@ impl SideTool
         });
     }
 
+    /// Finalizes the intrusion.
     #[inline]
     fn finalize_intrusion(
         &mut self,
@@ -1057,6 +1121,7 @@ impl SideTool
         self.1.clear();
     }
 
+    /// Finalizes the extrusion.
     #[inline]
     fn finalize_extrusion(
         &mut self,
@@ -1091,6 +1156,7 @@ impl SideTool
         self.1.clear();
     }
 
+    /// Updates the selected sides info.
     #[inline]
     pub fn update_selected_sides(&mut self, manager: &EntitiesManager, identifier: Id)
     {
@@ -1106,9 +1172,11 @@ impl SideTool
     //==============================================================
     // Draw
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager, show_tooltips: bool)
     {
+        /// Draws the selected [`Brush`]es.
         #[inline]
         fn draw_selected_brushes(
             bundle: &mut DrawBundle,
@@ -1194,8 +1262,9 @@ impl SideTool
         };
     }
 
+    /// Draws the subtools.
     #[inline]
-    pub fn draw_sub_tools(
+    pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
         bundle: &StateUpdateBundle,

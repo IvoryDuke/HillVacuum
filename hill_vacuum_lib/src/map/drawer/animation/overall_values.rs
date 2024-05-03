@@ -14,14 +14,19 @@ use crate::{
 //
 //=======================================================================//
 
+/// The overall [`Timing`].
 #[must_use]
 #[derive(Default, Debug)]
 pub(in crate::map) enum OverallTiming
 {
+    /// No entities.
     #[default]
     None,
+    /// Non uniform.
     NonUniform,
+    /// Uniform frame time.
     Uniform(OverallValue<f32>),
+    /// Per frame time.
     PerFrame(OverallValue<Vec<f32>>)
 }
 
@@ -93,12 +98,17 @@ impl OverallValueInterface<Timing> for OverallTiming
 
 //=======================================================================//
 
+/// The UI representation of an [`OverallTiming`].
 #[must_use]
 pub(in crate::map) enum UiOverallTiming
 {
+    /// No entities.
     None,
+    /// Non uniform.
     NonUniform,
-    Single(UiOverallValue<f32>),
+    /// Uniform frame time.
+    Uniform(UiOverallValue<f32>),
+    /// Per frame time.
     PerFrame(HvVec<UiOverallValue<f32>>)
 }
 
@@ -111,7 +121,7 @@ impl From<OverallTiming> for UiOverallTiming
         {
             OverallTiming::None => Self::None,
             OverallTiming::NonUniform => Self::NonUniform,
-            OverallTiming::Uniform(value) => Self::Single(value.into()),
+            OverallTiming::Uniform(value) => Self::Uniform(value.into()),
             OverallTiming::PerFrame(vec) =>
             {
                 match vec
@@ -135,15 +145,21 @@ impl From<OverallTiming> for UiOverallTiming
 
 //=======================================================================//
 
+/// The overall [`Animation`].
 #[must_use]
 #[derive(Default, Debug)]
 pub(in crate::map) enum OverallAnimation
 {
+    /// No selected entities.
     #[default]
     NoSelection,
+    /// No animation.
     None,
+    /// Non uniform.
     NonUniform,
+    /// [`List`] animation.
     List(OverallValue<Vec<(String, f32)>>),
+    /// [`Atlas`] animation.
     Atlas(OverallAtlasAnimation)
 }
 
@@ -234,13 +250,18 @@ impl OverallValueInterface<Animation> for OverallAnimation
 
 //=======================================================================//
 
+/// The overall [`Atlas`] animation.
 #[must_use]
 #[derive(Debug)]
 pub(in crate::map) struct OverallAtlasAnimation
 {
+    /// Overall x partitioning.
     pub x:      OverallValue<u32>,
+    /// Overall y partitioning.
     pub y:      OverallValue<u32>,
+    /// Overall amount of frames.
     pub len:    OverallValue<usize>,
+    /// The overall [`Timing`].
     pub timing: OverallTiming
 }
 
@@ -260,10 +281,13 @@ impl From<&Atlas> for OverallAtlasAnimation
 
 //=======================================================================//
 
+/// The UI representation of the overall list [`Animation`].
 #[must_use]
 pub(in crate::map) enum UiOverallListAnimation
 {
+    /// Non uniform frames.
     NonUniform(UiOverallValue<String>),
+    /// Uniform frames.
     Uniform(HvVec<(UiOverallValue<String>, UiOverallValue<f32>)>, UiOverallValue<String>)
 }
 
@@ -291,12 +315,17 @@ impl From<OverallValue<Vec<(String, f32)>>> for UiOverallListAnimation
 
 //=======================================================================//
 
+/// The UI representation of an [`OverallAtlasAnimation`].
 #[must_use]
 pub(in crate::map) struct UiOverallAtlasAnimation
 {
+    /// Overall x partitioning.
     pub x:      UiOverallValue<u32>,
+    /// Overall y partitioning.
     pub y:      UiOverallValue<u32>,
+    /// Overall amount of frames.
     pub len:    UiOverallValue<usize>,
+    /// Overall [`Timing`].
     pub timing: UiOverallTiming
 }
 
@@ -316,15 +345,21 @@ impl From<OverallAtlasAnimation> for UiOverallAtlasAnimation
 
 //=======================================================================//
 
+/// The UI representation of a [`OverallAnimation`].
 #[must_use]
 #[derive(Default)]
 pub(in crate::map) enum UiOverallAnimation
 {
+    /// Nothing selected.
     #[default]
     NoSelection,
+    /// Non uniform value.
     NonUniform,
+    /// No animation.
     None,
+    /// A list animation.
     List(UiOverallListAnimation),
+    /// An atlas animation.
     Atlas(UiOverallAtlasAnimation)
 }
 

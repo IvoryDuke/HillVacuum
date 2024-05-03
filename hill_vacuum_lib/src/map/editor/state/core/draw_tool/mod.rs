@@ -13,12 +13,12 @@ use self::cursor_polygon::{
     CircleCursorPolygon,
     DrawCursorPolygon,
     FreeDrawCursorPolygon,
+    FreeDrawStatus,
     SquareCursorPolygon,
-    Status,
     TriangleCursorPolygon
 };
 use super::{
-    tool::{EnabledTool, Tool},
+    tool::{DisableSubtool, EnabledTool, OngoingMultiframeChange, Tool},
     ActiveTool
 };
 use crate::{
@@ -48,6 +48,7 @@ use crate::{
 //
 //=======================================================================//
 
+/// Generates the functions that return the [`ActiveTool`]s relative to `shape`.
 macro_rules! draw_tools {
     ($(($name:ident, $shape:ident $(, $cursor:ident $(, $settings:ident)?)?)),+) => { $(
         #[inline]
@@ -76,22 +77,29 @@ macro_rules! draw_tools {
 //
 //=======================================================================//
 
+/// The shape to draw with [`DrawTool`].
 #[derive(Debug)]
 enum Shape
 {
+    /// A square,
     Square(SquareCursorPolygon),
+    /// A triangle.
     Triangle(TriangleCursorPolygon),
+    /// A "circle".
     Circle(CircleCursorPolygon),
+    /// A polygon.
     FreeDraw(FreeDrawCursorPolygon)
 }
 
 //=======================================================================//
 
-// The drawing mode.
+/// The draw tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct DrawTool
 {
+    /// The [`Id`]s of the drawn [`Brush`]es.
     drawn_brushes: Ids,
+    /// The shape being drawn.
     shape:         Shape
 }
 
@@ -125,6 +133,33 @@ impl EnabledTool for DrawTool
     }
 }
 
+impl DisableSubtool for DrawTool
+{
+    #[inline]
+    fn disable_subtool(&mut self)
+    {
+        if let Shape::FreeDraw(cb) = &mut self.shape
+        {
+            cb.disable_subtool();
+        }
+    }
+}
+
+impl OngoingMultiframeChange for DrawTool
+{
+    #[inline]
+    fn ongoing_multi_frame_change(&self) -> bool
+    {
+        match &self.shape
+        {
+            Shape::Square(cb) => cb.is_dragging(),
+            Shape::Triangle(cb) => cb.is_dragging(),
+            Shape::Circle(cb) => cb.is_dragging(),
+            Shape::FreeDraw(_) => false
+        }
+    }
+}
+
 impl DrawTool
 {
     draw_tools!(
@@ -134,6 +169,7 @@ impl DrawTool
         (free, FreeDraw)
     );
 
+    /// Returns an [`ActiveTool`] in its draw tool variant using `shape`.
     #[inline]
     fn shape_tool(shape: Shape) -> ActiveTool
     {
@@ -146,22 +182,9 @@ impl DrawTool
     //==============================================================
     // Info
 
+    /// Returns the [`Status`] of the free draw tool, if active.
     #[inline]
-    #[must_use]
-    pub const fn ongoing_multi_frame_changes(&self) -> bool
-    {
-        match &self.shape
-        {
-            Shape::Square(cb) => cb.is_dragging(),
-            Shape::Triangle(cb) => cb.is_dragging(),
-            Shape::Circle(cb) => cb.is_dragging(),
-            Shape::FreeDraw(_) => false
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub const fn free_draw_status(&self) -> Option<Status>
+    pub const fn free_draw_status(&self) -> Option<FreeDrawStatus>
     {
         match &self.shape
         {
@@ -173,15 +196,7 @@ impl DrawTool
     //==============================================================
     // Update
 
-    #[inline]
-    pub fn disable_subtool(&mut self)
-    {
-        if let Shape::FreeDraw(cb) = &mut self.shape
-        {
-            cb.disable_subtool();
-        }
-    }
-
+    /// Despawns the drawn [`Brush`]es.
     #[inline]
     pub fn despawn_drawn_brushes(
         &mut self,
@@ -192,6 +207,7 @@ impl DrawTool
         manager.despawn_drawn_brushes(&mut self.drawn_brushes, edits_history);
     }
 
+    /// Updates the tool.
     #[inline]
     pub fn update(
         &mut self,
@@ -236,18 +252,21 @@ impl DrawTool
         };
     }
 
+    /// Inserts the free draw vertex with position `p`.
     #[inline]
     pub fn delete_free_draw_vertex(&mut self, p: Vec2)
     {
         match_or_panic!(&mut self.shape, Shape::FreeDraw(cp), cp).delete_free_draw_vertex(p);
     }
 
+    /// Inserts a free draw vertex with position `p`.
     #[inline]
     pub fn insert_free_draw_vertex(&mut self, p: Vec2)
     {
         match_or_panic!(&mut self.shape, Shape::FreeDraw(cp), cp).insert_free_draw_vertex(p);
     }
 
+    /// Post undo/redo spawn update.
     #[inline]
     pub fn undo_redo_spawn(&mut self, manager: &EntitiesManager, identifier: Id)
     {
@@ -255,6 +274,7 @@ impl DrawTool
         self.drawn_brushes.asserted_insert(identifier);
     }
 
+    /// Post undo/redo despawn update.
     #[inline]
     pub fn undo_redo_despawn(&mut self, manager: &EntitiesManager, identifier: Id)
     {
@@ -265,6 +285,7 @@ impl DrawTool
     //==============================================================
     // Draw
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager, show_tooltips: bool)
     {
@@ -329,6 +350,7 @@ impl DrawTool
         };
     }
 
+    /// Draws the UI.
     #[inline]
     pub fn ui(&mut self, ui: &mut egui::Ui, settings: &mut ToolsSettings)
     {

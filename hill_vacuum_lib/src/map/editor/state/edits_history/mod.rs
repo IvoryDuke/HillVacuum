@@ -11,7 +11,7 @@ use shared::{continue_if_none, return_if_none};
 
 use self::{edit::Edit, edit_type::EditType};
 use super::{
-    core::{draw_tool::cursor_polygon::Status, tool::EditingTarget},
+    core::{draw_tool::cursor_polygon::FreeDrawStatus, tool::EditingTarget},
     manager::EntitiesManager,
     ui::Ui
 };
@@ -132,6 +132,7 @@ macro_rules! default_animation {
 
 //=======================================================================//
 
+/// Generates the functions to purge all edits of a certain type.
 macro_rules! purge {
     ($(($item:ident, $other:ident)),+) => { paste::paste! { $(
         #[inline]
@@ -175,19 +176,20 @@ macro_rules! purge {
 /// Stack of chronologically ordered pre-edit brush states.
 pub(in crate::map::editor::state) struct EditsHistory
 {
-    // The chronology of the edits.
+    /// The chronology of the edits.
     stack: HvVec<Edit>,
-    // The edit of the current frame, to be pushed onto the stack at the end of the current frame
-    // if it's not empty.
+    /// The edit of the current frame, to be pushed onto the stack at the end of the current frame
+    /// if it's not empty.
     current_edit: Edit,
-    // Whever an edit lasting more than a frame is happening.
+    /// Whever an edit lasting more than a frame is happening.
     multiframe_edit: bool,
-    // The amount of states we can undo.
+    /// The amount of states we can undo.
     prev_states_amount: usize,
     /// The index of the earliest tool edit, if any.
     earliest_tool_edit: Option<usize>,
     /// The index of the earliest texture edit, if any.
     earliest_texture_edit: Option<usize>,
+    /// The index of the earliest [`ThingInstance`] edit.
     earliest_thing_edit: Option<usize>,
     /// Whever the push of the new [`Edit`] was halted to avoid the truncation of the history
     /// because it only contains selection edits
@@ -384,7 +386,7 @@ impl EditsHistory
         self.push_onto_current_edit(identifiers, edit_type);
     }
 
-    /// Push a sub-edit if `identifiers` is not empty.
+    #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
     fn push_if_not_empty<'a>(
         &mut self,
@@ -402,6 +404,7 @@ impl EditsHistory
         self.push_onto_current_edit(identifiers, edit_type);
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
     pub fn brush_despawn(&mut self, brush: Brush, selected: bool)
     {
@@ -409,6 +412,7 @@ impl EditsHistory
         self.push_onto_current_edit(hv_vec![id], EditType::BrushDespawn(Some(data), selected));
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
     pub fn vertexes_move(&mut self, vxs_move: HvVec<(Id, HvVec<VertexesMove>)>)
     {
@@ -423,6 +427,7 @@ impl EditsHistory
         }
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
     pub fn entity_move_cluster(
         &mut self,
@@ -448,6 +453,14 @@ impl EditsHistory
         self.push_onto_current_edit(identifiers, EditType::ThingMove(delta));
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
+    #[inline]
+    pub fn thing_move(&mut self, identifier: Id, delta: Vec2)
+    {
+        self.push_onto_current_edit(hv_vec![identifier], EditType::ThingMove(delta));
+    }
+
+    #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
     pub fn texture_move_cluster(&mut self, manager: &EntitiesManager, delta: Vec2)
     {
@@ -467,6 +480,7 @@ impl EditsHistory
         self.push_onto_current_edit(identifiers, EditType::TextureMove(delta));
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
     pub fn path_nodes_move(&mut self, nodes_move: HvVec<(Id, HvVec<NodesMove>)>)
     {
@@ -481,6 +495,7 @@ impl EditsHistory
         }
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
     #[must_use]
     pub fn path_nodes_selection_cluster(
@@ -494,6 +509,7 @@ impl EditsHistory
         })
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
     pub fn property(&mut self, key: &str, iter: impl Iterator<Item = (Id, Value)>)
     {
@@ -506,13 +522,14 @@ impl EditsHistory
     }
 
     /// Pushes the current [`Edit`] on the history.
-    /// The history is truncated if a any edits were undone.
+    /// The history is truncated if any edits were undone.
     /// # Panics
     /// Panics if the current edit is empty, or the edit is not finished, or edit push is halted by
     /// a selection only edit.
     #[inline]
     fn execute_frame_edit_push(&mut self)
     {
+        /// Updates the `earliest_edit` to fit within `len`.
         #[inline]
         fn update_earliest_edit(earliest_edit: &mut Option<usize>, contains_edit: bool, len: usize)
         {
@@ -644,8 +661,8 @@ impl EditsHistory
             (prev_editing_target, current_editing_target),
             (EditingTarget::BrushFreeDraw(_), EditingTarget::Draw) |
                 (
-                    EditingTarget::BrushFreeDraw(Status::Polygon),
-                    EditingTarget::BrushFreeDraw(Status::Inactive)
+                    EditingTarget::BrushFreeDraw(FreeDrawStatus::Polygon),
+                    EditingTarget::BrushFreeDraw(FreeDrawStatus::Inactive)
                 ) |
                 (EditingTarget::PathFreeDraw, EditingTarget::Path)
         )
@@ -728,7 +745,7 @@ impl EditsHistory
     /// Whever there are no unsaved edits.
     #[inline]
     #[must_use]
-    pub fn no_unsaved_edits(&self) -> bool
+    pub const fn no_unsaved_edits(&self) -> bool
     {
         match self.last_save_edit
         {

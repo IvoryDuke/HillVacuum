@@ -13,42 +13,44 @@ use crate::utils::{hull::Hull, identifiers::EntityId};
 //
 //=======================================================================//
 
+/// Updates `rect`.
 macro_rules! update {
     (
-        $drag_area:expr,
+        $rect:expr,
         $p:expr,
+        $camera_scale:expr,
         $left_mouse_pressed:expr,
         $none:expr,
         $initiated:block,
         $hull:ident,
         $formed:block
     ) => {
-        if $drag_area.none()
+        if $rect.none()
         {
             if $none
             {
-                $drag_area.update_extremes($p);
+                $rect.update_extremes($p, $camera_scale);
             }
         }
-        else if $drag_area.initiated()
+        else if $rect.initiated()
         {
-            $drag_area.update_extremes($p);
+            $rect.update_extremes($p, $camera_scale);
 
             if !$left_mouse_pressed
             {
                 $initiated;
-                $drag_area.reset();
+                $rect.reset();
             }
         }
         else
         {
-            $drag_area.update_extremes($p);
+            $rect.update_extremes($p, $camera_scale);
 
             if !$left_mouse_pressed
             {
-                let $hull = $drag_area.hull().unwrap();
+                let $hull = $rect.hull().unwrap();
                 $formed;
-                $drag_area.reset();
+                $rect.reset();
             }
         }
     };
@@ -61,39 +63,49 @@ pub(in crate::map::editor::state::core) use update;
 //
 //=======================================================================//
 
-#[allow(clippy::module_name_repetitions)]
-pub trait DragAreaTrait
+/// A trait for structs that are built around a [`Rect`].
+pub trait RectTrait
 {
+    /// Returns a new `Self` created from just an origin point.
     #[must_use]
     fn from_origin(origin: Vec2) -> Self
     where
         Self: Sized;
 
+    /// Returns a new `Self` created from two points, if valid.
     #[must_use]
-    fn from_extremes(origin: Vec2, extreme: Vec2) -> Option<Self>
+    fn from_extremes(origin: Vec2, extreme: Vec2, camera_scale: f32) -> Option<Self>
     where
         Self: Sized;
 
+    /// Whever `self` represents an uninitiated drag area.
     #[must_use]
     fn none(&self) -> bool;
 
+    /// Whever `self` represents an initiated drag area.
     #[must_use]
     fn initiated(&self) -> bool;
 
+    /// Whever `self` represents a formed drag area.
     #[must_use]
     fn formed(&self) -> bool;
 
+    /// Returns the origin of the surface, if any.
     #[must_use]
     fn origin(&self) -> Option<Vec2>;
 
+    /// Returns the point opposite to the origin, if any.
     #[must_use]
     fn extreme(&self) -> Option<Vec2>;
 
+    /// Returns the [`Hull`] representing the surface of the drag area, if any.
     #[must_use]
     fn hull(&self) -> Option<Hull>;
 
-    fn update_extremes(&mut self, p: Vec2);
+    /// Updates the extremeties of the surface from `p`.
+    fn update_extremes(&mut self, p: Vec2, camera_scale: f32);
 
+    /// Resets the drag area.
     fn reset(&mut self);
 }
 
@@ -102,12 +114,16 @@ pub trait DragAreaTrait
 //
 //=======================================================================//
 
+/// The core of a [`Rect`].
 #[derive(Clone, Copy, Debug, Default)]
-enum DragAreaCore
+enum RectCore
 {
+    /// No area.
     #[default]
     None,
+    /// Just the starting point.
     Initiated(Vec2),
+    /// A rectangular surface.
     Formed(Vec2, Vec2)
 }
 
@@ -116,51 +132,48 @@ enum DragAreaCore
 //
 //=======================================================================//
 
+/// A rectangular area generated from two points that can be empty.
 #[must_use]
 #[derive(Clone, Copy, Debug, Default)]
-pub(in crate::map::editor::state::core) struct DragArea(DragAreaCore);
+pub(in crate::map::editor::state::core) struct Rect(RectCore);
 
-impl DragAreaTrait for DragArea
+impl RectTrait for Rect
 {
     //==============================================================
     // New
 
     #[inline]
-    fn from_origin(origin: Vec2) -> Self { Self(DragAreaCore::Initiated(origin)) }
+    fn from_origin(origin: Vec2) -> Self { Self(RectCore::Initiated(origin)) }
 
     #[inline]
-    fn from_extremes(origin: Vec2, extreme: Vec2) -> Option<Self>
+    fn from_extremes(origin: Vec2, extreme: Vec2, camera_scale: f32) -> Option<Self>
     {
-        valid_points(origin, extreme).then_some(Self(DragAreaCore::Formed(origin, extreme)))
+        valid_points(origin, extreme, camera_scale)
+            .then_some(Self(RectCore::Formed(origin, extreme)))
     }
 
     //==============================================================
     // Info
 
     #[inline]
-    fn none(&self) -> bool { matches!(self.0, DragAreaCore::None) }
+    fn none(&self) -> bool { matches!(self.0, RectCore::None) }
 
     #[inline]
-    fn initiated(&self) -> bool { matches!(self.0, DragAreaCore::Initiated(_)) }
+    fn initiated(&self) -> bool { matches!(self.0, RectCore::Initiated(_)) }
 
     #[inline]
-    fn formed(&self) -> bool { matches!(self.0, DragAreaCore::Formed(..)) }
+    fn formed(&self) -> bool { matches!(self.0, RectCore::Formed(..)) }
 
     #[inline]
     fn origin(&self) -> Option<Vec2>
     {
-        return_if_no_match!(
-            self.0,
-            DragAreaCore::Initiated(o) | DragAreaCore::Formed(o, _),
-            Some(o),
-            None
-        )
+        return_if_no_match!(self.0, RectCore::Initiated(o) | RectCore::Formed(o, _), Some(o), None)
     }
 
     #[inline]
     fn extreme(&self) -> Option<Vec2>
     {
-        return_if_no_match!(self.0, DragAreaCore::Formed(_, e), Some(e), None)
+        return_if_no_match!(self.0, RectCore::Formed(_, e), Some(e), None)
     }
 
     #[inline]
@@ -168,8 +181,8 @@ impl DragAreaTrait for DragArea
     {
         match self.0
         {
-            DragAreaCore::None | DragAreaCore::Initiated(_) => None,
-            DragAreaCore::Formed(o, e) => Some(Hull::from_opposite_vertexes(o, e).unwrap())
+            RectCore::None | RectCore::Initiated(_) => None,
+            RectCore::Formed(o, e) => Some(Hull::from_opposite_vertexes(o, e).unwrap())
         }
     }
 
@@ -177,24 +190,24 @@ impl DragAreaTrait for DragArea
     // Update
 
     #[inline]
-    fn update_extremes(&mut self, p: Vec2)
+    fn update_extremes(&mut self, p: Vec2, camera_scale: f32)
     {
         match &mut self.0
         {
-            DragAreaCore::None =>
+            RectCore::None =>
             {
-                *self = Self(DragAreaCore::Initiated(p));
+                *self = Self(RectCore::Initiated(p));
             },
-            DragAreaCore::Initiated(o) =>
+            RectCore::Initiated(o) =>
             {
-                if valid_points(*o, p)
+                if valid_points(*o, p, camera_scale)
                 {
-                    *self = Self(DragAreaCore::Formed(*o, p));
+                    *self = Self(RectCore::Formed(*o, p));
                 }
             },
-            DragAreaCore::Formed(o, e) =>
+            RectCore::Formed(o, e) =>
             {
-                if valid_points(*o, p)
+                if valid_points(*o, p, camera_scale)
                 {
                     *e = p;
                 }
@@ -203,59 +216,60 @@ impl DragAreaTrait for DragArea
     }
 
     #[inline]
-    fn reset(&mut self) { *self = DragArea::default(); }
+    fn reset(&mut self) { *self = Rect::default(); }
 }
 
 //=======================================================================//
 
+/// A [`Rect`] that can store an [`Id`] that represents an entity to highlight.
 #[must_use]
 #[derive(Clone, Copy, Debug)]
-pub(in crate::map::editor::state::core) struct DragAreaHighlightedEntity<T>(DragArea, Option<T>)
+pub(in crate::map::editor::state::core) struct RectHighlightedEntity<T>(Rect, Option<T>)
 where
     T: EntityId + Clone + Copy;
 
-impl<T> Default for DragAreaHighlightedEntity<T>
+impl<T> Default for RectHighlightedEntity<T>
 where
     T: EntityId + Clone + Copy
 {
-    fn default() -> Self { Self(DragArea::default(), None) }
+    fn default() -> Self { Self(Rect::default(), None) }
 }
 
-impl<T> From<Option<T>> for DragAreaHighlightedEntity<T>
+impl<T> From<Option<T>> for RectHighlightedEntity<T>
 where
     T: EntityId + Clone + Copy
 {
     #[inline]
-    fn from(value: Option<T>) -> Self { Self(DragArea::default(), value) }
+    fn from(value: Option<T>) -> Self { Self(Rect::default(), value) }
 }
 
-impl<T> From<DragAreaHighlightedEntity<T>> for DragArea
+impl<T> From<RectHighlightedEntity<T>> for Rect
 where
     T: EntityId + Clone + Copy
 {
     #[inline]
-    fn from(value: DragAreaHighlightedEntity<T>) -> Self { value.0 }
+    fn from(value: RectHighlightedEntity<T>) -> Self { value.0 }
 }
 
-impl<T> From<DragArea> for DragAreaHighlightedEntity<T>
+impl<T> From<Rect> for RectHighlightedEntity<T>
 where
     T: EntityId + Clone + Copy
 {
     #[inline]
-    fn from(value: DragArea) -> Self { Self(value, None) }
+    fn from(value: Rect) -> Self { Self(value, None) }
 }
 
-impl<T> DragAreaTrait for DragAreaHighlightedEntity<T>
+impl<T> RectTrait for RectHighlightedEntity<T>
 where
     T: EntityId + Clone + Copy
 {
     #[inline]
-    fn from_origin(origin: Vec2) -> Self { Self(DragArea::from_origin(origin), None) }
+    fn from_origin(origin: Vec2) -> Self { Self(Rect::from_origin(origin), None) }
 
     #[inline]
-    fn from_extremes(origin: Vec2, extreme: Vec2) -> Option<Self>
+    fn from_extremes(origin: Vec2, extreme: Vec2, camera_scale: f32) -> Option<Self>
     {
-        DragArea::from_extremes(origin, extreme).map(|da| Self(da, None))
+        Rect::from_extremes(origin, extreme, camera_scale).map(|da| Self(da, None))
     }
 
     #[inline]
@@ -268,9 +282,9 @@ where
     fn hull(&self) -> Option<crate::utils::hull::Hull> { self.0.hull() }
 
     #[inline]
-    fn update_extremes(&mut self, p: Vec2)
+    fn update_extremes(&mut self, p: Vec2, camera_scale: f32)
     {
-        self.0.update_extremes(p);
+        self.0.update_extremes(p, camera_scale);
 
         if self.0.formed()
         {
@@ -291,18 +305,21 @@ where
     fn formed(&self) -> bool { self.0.formed() }
 }
 
-impl<T> DragAreaHighlightedEntity<T>
+impl<T> RectHighlightedEntity<T>
 where
     T: EntityId + Clone + Copy
 {
+    /// Returns the highlighted entity, if any.
     #[inline]
     #[must_use]
     pub const fn highlighted_entity(&self) -> Option<T> { self.1 }
 
+    /// Whever there is an highlighted entity.
     #[inline]
     #[must_use]
     pub const fn has_highlighted_entity(&self) -> bool { self.1.is_some() }
 
+    /// Sets the highlighted entity, if any.
     #[inline]
     pub fn set_highlighted_entity(&mut self, entity: Option<T>) { self.1 = entity; }
 }
@@ -312,6 +329,10 @@ where
 //
 //=======================================================================//
 
+/// Whever `a` and `b` are valid points to generate a [`Rect`].
 #[inline]
 #[must_use]
-fn valid_points(a: Vec2, b: Vec2) -> bool { (a.x - b.x).abs() >= 2f32 && (a.y - b.y).abs() >= 2f32 }
+fn valid_points(a: Vec2, b: Vec2, camera_scale: f32) -> bool
+{
+    (a.x - b.x).abs() * camera_scale >= 2f32 && (a.y - b.y).abs() * camera_scale >= 2f32
+}

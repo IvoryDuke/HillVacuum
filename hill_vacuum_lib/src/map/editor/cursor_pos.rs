@@ -47,6 +47,7 @@ impl Default for Cursor
     #[must_use]
     fn default() -> Self
     {
+        /// The position used at startup.
         const START_POS: Vec2 = Vec2::splat(MAP_HALF_SIZE / 2f32);
 
         Self {

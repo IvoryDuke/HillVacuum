@@ -9,6 +9,7 @@ use shared::{match_or_panic, NextValue};
 use super::animation_pick;
 use crate::{
     map::{
+        brush::Brush,
         drawer::{
             animation::{
                 overall_values::{
@@ -42,10 +43,12 @@ use crate::{
 //
 //=======================================================================//
 
+/// The editor of the selected [`Brush`]es texture [`Animation`].
 pub(in crate::map::editor::state::ui::texture_editor::animation_editor) struct InstancesEditor;
 
 impl InstancesEditor
 {
+    /// UI elements to edit a list animation.
     #[inline]
     fn list(
         ui: &mut egui::Ui,
@@ -152,6 +155,7 @@ impl InstancesEditor
         )
     }
 
+    /// UI elements to edit an atlas animation.
     #[inline]
     fn atlas(
         ui: &mut egui::Ui,
@@ -169,6 +173,7 @@ impl InstancesEditor
             ..
         } = bundle;
 
+        /// Shows the UI elements to edit the x or y partitioning of the animation based on `xy`.
         macro_rules! xy_partition {
             ($xy:ident) => {
                 paste::paste! {
@@ -204,6 +209,7 @@ impl InstancesEditor
             };
         }
 
+        /// Moves the frame up or down based on `ud`.
         macro_rules! move_up_down {
             ($ud:ident) => {
                 paste::paste! {
@@ -280,7 +286,7 @@ impl InstancesEditor
                 {
                     UiOverallTiming::None => unreachable!(),
                     UiOverallTiming::NonUniform => None,
-                    UiOverallTiming::Single(_) => uniform.into(),
+                    UiOverallTiming::Uniform(_) => uniform.into(),
                     UiOverallTiming::PerFrame(_) => per_frame.into()
                 }
             },
@@ -307,6 +313,7 @@ impl InstancesEditor
         )
     }
 
+    /// Shows the UI elements of the editor.
     #[inline]
     pub fn show(
         ui: &mut egui::Ui,
@@ -329,59 +336,45 @@ impl InstancesEditor
         ui.vertical(|ui| {
             ui.set_height(SETTING_HEIGHT);
             animation_pick(ui, |[none, list, atlas]| {
-                macro_rules! test_animation_change {
-                    ($f:block) => {
+                /// Changes the [`Animations`] to the clicked one.
+                macro_rules! anim_change {
+                    ($new:expr, $f:expr) => {{
+                        let new = &$new;
                         let valid = manager.test_operation_validity(|manager| {
                             manager.selected_brushes_with_sprite_mut().find_map(|mut brush| {
-                                (!brush.check_texture_animation_change(drawing_resources))
+                                (!brush.check_texture_animation_change(drawing_resources, new))
                                     .then_some(brush.id())
                             })
                         });
 
+                        #[allow(clippy::redundant_closure_call)]
                         if valid
                         {
-                            $f
+                            edits_history.animation_cluster(
+                                manager
+                                    .selected_textured_brushes_mut()
+                                    .map(|mut brush| (brush.id(), $f(&mut brush)))
+                            );
                         }
-                    };
+                    }};
                 }
 
                 if none.clicked()
                 {
-                    test_animation_change!({
-                        edits_history.animation_cluster(
-                            manager.selected_textured_brushes_mut().map(|mut brush| {
-                                (
-                                    brush.id(),
-                                    brush.set_texture_animation(drawing_resources, Animation::None)
-                                )
-                            })
-                        );
+                    anim_change!(Animation::None, |brush: &mut Brush| {
+                        brush.set_texture_animation(drawing_resources, Animation::None)
                     });
                 }
                 else if list.clicked()
                 {
-                    test_animation_change!({
-                        edits_history.animation_cluster(
-                            manager.selected_textured_brushes_mut().map(|mut brush| {
-                                (brush.id(), brush.generate_list_animation(drawing_resources))
-                            })
-                        );
+                    anim_change!(Animation::None, |brush: &mut Brush| {
+                        brush.generate_list_animation(drawing_resources)
                     });
                 }
                 else if atlas.clicked()
                 {
-                    test_animation_change!({
-                        edits_history.animation_cluster(
-                            manager.selected_textured_brushes_mut().map(|mut brush| {
-                                (
-                                    brush.id(),
-                                    brush.set_texture_animation(
-                                        drawing_resources,
-                                        Animation::atlas_animation()
-                                    )
-                                )
-                            })
-                        );
+                    anim_change!(Animation::atlas_animation(), |brush: &mut Brush| {
+                        brush.set_texture_animation(drawing_resources, Animation::atlas_animation())
                     });
                 }
 
