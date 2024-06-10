@@ -7,7 +7,12 @@ use bevy::prelude::Vec2;
 use bevy_egui::egui;
 use shared::return_if_none;
 
-use super::{drag::Drag, draw_selected_and_non_selected_brushes, ActiveTool};
+use super::{
+    cursor_delta::CursorDelta,
+    draw_selected_and_non_selected_brushes,
+    tool::OngoingMultiframeChange,
+    ActiveTool
+};
 use crate::{
     map::{
         brush::{
@@ -39,11 +44,14 @@ use crate::{
 //
 //=======================================================================//
 
+/// The state of the tool.
 #[derive(Debug)]
 enum Status
 {
+    /// Shearing by keyboard.
     Keyboard,
-    Drag(Drag, Option<ShearInfo>, HvVec<(Id, ConvexPolygon)>)
+    /// Shearing by mouse drag.
+    Drag(CursorDelta, Option<ShearInfo>, HvVec<(Id, ConvexPolygon)>)
 }
 
 //=======================================================================//
@@ -51,16 +59,27 @@ enum Status
 //
 //=======================================================================//
 
+/// The shear tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct ShearTool
 {
+    /// The state.
     status:        Status,
+    /// The outline of the [`Brush`]es.
     outline:       Hull,
+    /// The selected side of the outline.
     selected_side: Side
+}
+
+impl OngoingMultiframeChange for ShearTool
+{
+    #[inline]
+    fn ongoing_multi_frame_change(&self) -> bool { matches!(self.status, Status::Drag(..)) }
 }
 
 impl ShearTool
 {
+    /// Return an [`ActiveTool`] in its shear tool variant.
     #[inline]
     pub fn tool(manager: &EntitiesManager, grid: Grid) -> ActiveTool
     {
@@ -72,18 +91,9 @@ impl ShearTool
     }
 
     //==============================================================
-    // Info
-
-    #[inline]
-    #[must_use]
-    pub const fn ongoing_multi_frame_changes(&self) -> bool
-    {
-        matches!(self.status, Status::Drag(..))
-    }
-
-    //==============================================================
     // Update
 
+    /// Updates the tool.
     #[inline]
     pub fn update(
         &mut self,
@@ -129,7 +139,7 @@ impl ShearTool
                 }
                 else if inputs.left_mouse.just_pressed()
                 {
-                    self.check_shear_corner_proximity(cursor.world_snapped(), camera.scale());
+                    self.check_shear_side_proximity(cursor.world_snapped(), camera.scale());
                 }
             },
             Status::Drag(drag, info, backup_polygons) =>
@@ -178,6 +188,7 @@ impl ShearTool
         };
     }
 
+    /// Pushes the edit to the [`EditsHistory`].
     #[inline]
     fn push_edit(edits_history: &mut EditsHistory, backup_polygons: HvVec<(Id, ConvexPolygon)>)
     {
@@ -187,6 +198,7 @@ impl ShearTool
         }
     }
 
+    /// Shears the [`Brush`]es if possible.
     #[inline]
     fn shear_brushes(
         manager: &mut EntitiesManager,
@@ -197,6 +209,7 @@ impl ShearTool
         backup_polygons: &mut HvVec<(Id, ConvexPolygon)>
     ) -> Option<ShearInfo>
     {
+        /// Shears the brushes according to the parameters.
         macro_rules! shear {
             ($xy:ident, $dimension:ident, $pivot:ident, $check:ident, $shear:ident) => {{
                 let info = ShearInfo::new(delta.$xy, outline.$dimension(), outline.$pivot());
@@ -255,6 +268,7 @@ impl ShearTool
         info.into()
     }
 
+    /// Selects the previous side.
     #[inline]
     fn previous_side(&mut self)
     {
@@ -267,6 +281,7 @@ impl ShearTool
         };
     }
 
+    /// Selects the next side.
     #[inline]
     fn next_side(&mut self)
     {
@@ -279,13 +294,15 @@ impl ShearTool
         };
     }
 
+    /// Checks whever there is a side of the outline near `cursor_pos`.
     #[inline]
-    fn check_shear_corner_proximity(&mut self, cursor_pos: Vec2, camera_scale: f32)
+    fn check_shear_side_proximity(&mut self, cursor_pos: Vec2, camera_scale: f32)
     {
         self.selected_side = return_if_none!(self.outline.nearby_side(cursor_pos, camera_scale));
-        self.status = Status::Drag(Drag::new(cursor_pos), None, hv_vec![]);
+        self.status = Status::Drag(CursorDelta::new(cursor_pos), None, hv_vec![]);
     }
 
+    /// Returns the [`Hull`] describing the tool outline.
     #[inline]
     #[must_use]
     fn outline(manager: &EntitiesManager, grid: Grid) -> Hull
@@ -293,10 +310,11 @@ impl ShearTool
         grid.snap_hull(&manager.selected_brushes_hull().unwrap())
     }
 
+    /// Updates the tool outline.
     #[inline]
     pub fn update_outline(&mut self, manager: &EntitiesManager, grid: Grid)
     {
-        if !self.ongoing_multi_frame_changes()
+        if !self.ongoing_multi_frame_change()
         {
             self.outline = Self::outline(manager, grid);
         }
@@ -305,6 +323,7 @@ impl ShearTool
     //==============================================================
     // Draw
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
     {
@@ -318,6 +337,7 @@ impl ShearTool
         );
     }
 
+    /// Draws the UI.
     #[inline]
     pub fn ui(&mut self, ui: &mut egui::Ui)
     {

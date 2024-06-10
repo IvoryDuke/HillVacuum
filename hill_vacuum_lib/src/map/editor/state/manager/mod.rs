@@ -137,12 +137,16 @@ pub(in crate::map::editor::state) enum TextureResult
 
 //=======================================================================//
 
+/// The modality of the scheduled overall properties update.
 #[derive(Default)]
 enum PropertyUpdate
 {
+    /// No update.
     #[default]
     None,
+    /// Update all the properties.
     Total,
+    /// Update the property with the stored key.
     Single(String)
 }
 
@@ -239,7 +243,7 @@ impl ErrorHighlight
 
     /// Returns a new [`ErrorHighlight`].
     #[inline]
-    fn new() -> Self
+    const fn new() -> Self
     {
         Self {
             error:   None,
@@ -392,7 +396,9 @@ struct Innards
     moving: Ids,
     /// The [`Id`]s of the selected moving [`Brush`]es.
     selected_moving: Ids,
+    /// The [`Id`]s of the entities that do not have a [`Path`] but could have one.
     possible_moving: Ids,
+    /// The [`Id`]s of the selected entities that do not have a [`Path`] but could have one.
     selected_possible_moving: Ids,
     /// The [`Id`]s of the textured moving [`Brush`]es.
     textured: Ids,
@@ -417,10 +423,13 @@ struct Innards
     overall_node_update: bool,
     /// Whever the overall value of the selected [`Brush`]es' collision should be updated.
     overall_collision_update: bool,
+    /// Whever the overall properties of the [`Brush`]es should be updated.
     overall_brushes_properties_update: PropertyUpdate,
     /// Whever the overall value of the draw height of the selected [`Thing`]s should be updated.
     overall_things_info_update: bool,
+    /// Whever the overall properties of the [`ThingInstance`]s should be updated.
     overall_things_properties_update: PropertyUpdate,
+    /// Whever the properties where refactored after loading a map file.
     refactored_properties: bool
 }
 
@@ -470,6 +479,7 @@ impl Innards
         quad_trees: &mut Trees
     ) -> Result<(), &'static str>
     {
+        /// Tests the validity of `value`.
         macro_rules! test {
             ($value:expr, $error:literal) => {
                 match $value
@@ -480,6 +490,8 @@ impl Innards
             };
         }
 
+        /// Stores in `map_default_properties` the desired properties and returns a
+        /// [`PropertiesRefactor`] if the default and file properties do not match.
         #[inline]
         #[must_use]
         fn mismatching_properties<'a>(
@@ -682,6 +694,7 @@ impl Innards
             .unwrap()
     }
 
+    /// Spawns an entity pasted from the [`Clipboard`].
     #[inline]
     #[must_use]
     pub fn spawn_pasted_entity(
@@ -898,6 +911,8 @@ impl Innards
             .asserted_remove(&identifier);
     }
 
+    /// Removes the texture from the [`Brush`] with [`Id`] `identifier`, and returns its
+    /// [`TextureSettings`].
     #[inline]
     pub fn remove_texture(&mut self, quad_trees: &mut Trees, identifier: Id) -> TextureSettings
     {
@@ -1021,6 +1036,7 @@ impl Innards
     #[inline]
     const fn brushes(&self) -> Brushes { Brushes(&self.brushes) }
 
+    /// Disanchors the [`Brush`] with [`Id`] `anchor_id` to the one with [`Id`] `owner_id`.
     #[inline]
     fn anchor(&mut self, quad_trees: &mut Trees, owner_id: Id, anchor_id: Id)
     {
@@ -1034,6 +1050,7 @@ impl Innards
         assert!(self.insert_anchors_hull(quad_trees, owner_id), "Could not insert anchor.");
     }
 
+    /// Disanchors the [`Brush`] with [`Id`] `anchor_id` from the one with [`Id`] `owner_id`.
     #[inline]
     pub fn disanchor(&mut self, quad_trees: &mut Trees, owner_id: Id, anchor_id: Id)
     {
@@ -1344,6 +1361,8 @@ impl Innards
         result
     }
 
+    /// Sets the [`Path`] of the entity with [`Id`] `identifier` to `path` and updates the edits
+    /// history.
     #[inline]
     pub fn create_path(
         &mut self,
@@ -1359,6 +1378,7 @@ impl Innards
         edits_history.path_creation(identifier);
     }
 
+    /// Sets the [`Path`] of the entity with [`Id`] `identifier` to `path`.
     #[inline]
     pub fn set_path(&mut self, quad_trees: &mut Trees, identifier: Id, path: Path)
     {
@@ -1370,6 +1390,7 @@ impl Innards
         self.selected_possible_moving.asserted_remove(&identifier);
     }
 
+    /// Removes the [`Path`] of the selected entity.
     #[inline]
     fn remove_selected_path(
         &mut self,
@@ -1391,6 +1412,7 @@ impl Innards
             .path_deletion(identifier, self.moving_mut(quad_trees, identifier).take_path());
     }
 
+    /// Replaces the [`Path`] of the selected entity with `path`.
     #[inline]
     fn replace_selected_path(
         &mut self,
@@ -1574,6 +1596,8 @@ impl Innards
     //==============================================================
     // Paths
 
+    /// Returns a reference to the entity with id `identifier` as a trait object which implements
+    /// the [`Moving`] trait.
     #[inline]
     pub fn moving(&self, identifier: Id) -> &dyn Moving
     {
@@ -1585,6 +1609,7 @@ impl Innards
         self.brush(identifier)
     }
 
+    /// Returns a [`MovingMut`] wrapping the entity with id `identifier`.
     #[inline]
     pub fn moving_mut<'a>(&'a mut self, quad_trees: &'a mut Trees, identifier: Id)
         -> MovingMut<'a>
@@ -1604,6 +1629,7 @@ pub(in crate::map::editor::state) struct EntitiesManager
     quad_trees:      Trees,
     /// The auxiliary container used to avoid using unsafe code in certain procedures.
     auxiliary:       AuxiliaryIds,
+    /// Vector to help in the despawn of the selected [`Brush`]es.
     brushes_despawn: HvVec<Id>
 }
 
@@ -1652,10 +1678,12 @@ impl EntitiesManager
     //==============================================================
     // General
 
-    #[inline]
+    /// Whever the entities properties have been refactored on file load.
+    #[inline(always)]
     #[must_use]
-    pub fn refactored_properties(&self) -> bool { self.innards.refactored_properties }
+    pub const fn refactored_properties(&self) -> bool { self.innards.refactored_properties }
 
+    /// Turns off the refactored properties flag.
     #[inline]
     pub fn reset_refactored_properties(&mut self) { self.innards.refactored_properties = false; }
 
@@ -1751,36 +1779,42 @@ impl EntitiesManager
         false
     }
 
+    /// Schedules the update of the overall collision of the [`Brush`]es.
     #[inline]
-    pub fn toggle_overall_collision_update(&mut self)
+    pub fn schedule_overall_collision_update(&mut self)
     {
         self.innards.overall_collision_update = true;
     }
 
+    /// Schedules the update of the overall [`Brush`]s property with key `k` value.
     #[inline]
-    pub fn toggle_overall_brushes_property_update(&mut self, key: &str)
+    pub fn schedule_overall_brushes_property_update(&mut self, k: &str)
     {
-        self.innards.overall_brushes_properties_update = PropertyUpdate::Single(key.to_string());
+        self.innards.overall_brushes_properties_update = PropertyUpdate::Single(k.to_string());
     }
 
+    /// Schedules the update of the overall [`ThingInstance`]s infos.
     #[inline]
-    pub fn toggle_overall_things_info_update(&mut self)
+    pub fn schedule_overall_things_info_update(&mut self)
     {
         self.innards.overall_things_info_update = true;
     }
 
+    /// Schedules the update of the overall [`ThingInstance`]s property with key `k` value.
     #[inline]
-    pub fn toggle_overall_things_property_update(&mut self, key: &str)
+    pub fn schedule_overall_things_property_update(&mut self, k: &str)
     {
-        self.innards.overall_things_properties_update = PropertyUpdate::Single(key.to_string());
+        self.innards.overall_things_properties_update = PropertyUpdate::Single(k.to_string());
     }
 
+    /// Schedules the update of the overall [`Path`]s node values.
     #[inline]
-    pub fn toggle_overall_node_update(&mut self) { self.innards.overall_node_update = true; }
+    pub fn schedule_overall_node_update(&mut self) { self.innards.overall_node_update = true; }
 
     //==============================================================
     // Selection
 
+    /// Whever there are any currently selected entities.
     #[inline]
     #[must_use]
     pub fn any_selected_entities(&self) -> bool
@@ -1912,6 +1946,7 @@ impl EntitiesManager
     #[must_use]
     pub fn selected_brushes_amount(&self) -> usize { self.innards.selected_brushes_amount() }
 
+    /// Whever there are any currently selected [`Brush`]es.
     #[inline]
     #[must_use]
     pub fn any_selected_brushes(&self) -> bool { self.selected_brushes_amount() != 0 }
@@ -1929,14 +1964,17 @@ impl EntitiesManager
 
     /// Returns a [`BrushesIter`] created from `ids`.
     #[inline]
-    fn brushes_iter<'a>(&'a self, ids: Ref<'a, QuadTreeIds>) -> BrushesIter<'a>
+    const fn brushes_iter<'a>(&'a self, ids: Ref<'a, QuadTreeIds>) -> BrushesIter<'a>
     {
         BrushesIter::new(self, ids)
     }
 
     /// Returns a [`SelectedBrushesIter`] created from `ids`
     #[inline]
-    fn selected_brushes_iter<'a>(&'a self, ids: Ref<'a, QuadTreeIds>) -> SelectedBrushesIter<'a>
+    const fn selected_brushes_iter<'a>(
+        &'a self,
+        ids: Ref<'a, QuadTreeIds>
+    ) -> SelectedBrushesIter<'a>
     {
         SelectedBrushesIter::new(self, ids)
     }
@@ -2049,6 +2087,7 @@ impl EntitiesManager
         settings: &ToolsSettings
     )
     {
+        /// Executes the ranged selection.
         macro_rules! select {
             ($func:ident $(, $ctrl_pressed:ident)?) => {{
                 let in_range = self.quad_trees.$func(range);
@@ -2103,6 +2142,7 @@ impl EntitiesManager
         settings: &ToolsSettings
     )
     {
+        /// Executes the ranged selection.
         macro_rules! select_and_deselect {
             ($selected_entities:expr, $in_range:expr) => {
                 let in_range = $in_range;
@@ -2275,9 +2315,12 @@ impl EntitiesManager
     #[inline]
     pub fn selected_brushes_with_sprites(&mut self) -> impl Iterator<Item = &Brush>
     {
+        /// The iterator to the brushes.
         struct Iter<'a>
         {
+            /// All the identifiers.
             iter:     hashbrown::hash_map::Values<'a, String, Ids>,
+            /// Identifiers of the [`Brush`]es with same sprite.
             sub_iter: hashbrown::hash_set::Iter<'a, Id>
         }
 
@@ -2667,14 +2710,6 @@ impl EntitiesManager
         self.brushes_iter(self.quad_trees.visible_sprites(camera, window))
     }
 
-    /// Returns a [`BrushesIter`] returning the [`Brush`]es whose sprite highlights are visible.
-    #[inline]
-    pub fn visible_sprite_highlights(&self, window: &Window, camera: &Transform)
-        -> BrushesIter<'_>
-    {
-        self.brushes_iter(self.quad_trees.visible_sprite_highlights(camera, window))
-    }
-
     /// Anchors the [`Brush`] with [`Id`] `anchor_id` to the one with [`Id`] `owner_id`.
     #[inline]
     pub fn anchor(&mut self, owner_id: Id, anchor_id: Id)
@@ -2844,6 +2879,7 @@ impl EntitiesManager
 
         self.auxiliary.replace_values(self.innards.selected_brushes_ids());
 
+        /// Sets the sprite value.
         macro_rules! set {
             ($func:ident) => {
                 for id in &self.auxiliary
@@ -2869,6 +2905,8 @@ impl EntitiesManager
         set!(remove_selected_sprite);
     }
 
+    /// Sets whever the texture of the selected [`Brush`] with [`Id`] `identifier` should be
+    /// rendered as a sprite or not. Returns the previous sprite rendering parameters.
     #[inline]
     pub fn set_single_sprite(
         &mut self,
@@ -2894,6 +2932,7 @@ impl EntitiesManager
         out
     }
 
+    /// Completes the texture reload.
     #[inline]
     pub fn finish_textures_reload(&mut self, drawing_resources: &DrawingResources)
     {
@@ -2923,6 +2962,7 @@ impl EntitiesManager
     //==============================================================
     // Things
 
+    /// Whever `identifier` belongs to a [`ThingInstance`].
     #[inline]
     #[must_use]
     pub fn is_thing(&self, identifier: Id) -> bool { self.innards.is_thing(identifier) }
@@ -2951,6 +2991,7 @@ impl EntitiesManager
     #[inline]
     pub fn selected_things_amount(&self) -> usize { self.innards.selected_things_amount() }
 
+    /// Whever any [`ThingInstance`] is currently selected.
     #[inline]
     #[must_use]
     pub fn any_selected_things(&self) -> bool { self.selected_things_amount() != 0 }
@@ -2977,6 +3018,7 @@ impl EntitiesManager
         SelectedThingsMut::new(&mut self.innards, &mut self.quad_trees, &self.auxiliary)
     }
 
+    /// Spawns a new [`ThingInstance`] with id [`identifier`].
     #[inline]
     pub fn spawn_thing_from_parts(&mut self, identifier: Id, data: ThingInstanceData)
     {
@@ -3028,7 +3070,7 @@ impl EntitiesManager
         drawn_things.clear();
     }
 
-    /// Returns a [`ThinsIter`] returning the [`ThingInstance`]s near `cursor_pos`. If
+    /// Returns a [`ThingsIter`] returning the [`ThingInstance`]s near `cursor_pos`. If
     /// `camera_scale` contains a value it returns the ones inside the cursor highlight.
     #[inline]
     pub fn things_at_pos(
@@ -3040,6 +3082,8 @@ impl EntitiesManager
         ThingsIter::new(self, self.quad_trees.things_at_pos(cursor_pos, camera_scale.into()))
     }
 
+    /// Returns a [`SelectedThingsIter`] returning the selected [`ThingInstance`]s at the cursor
+    /// pos, or near it if `camera_scale` contains a value.
     #[inline]
     pub fn selected_things_at_pos(
         &self,
@@ -3102,6 +3146,7 @@ impl EntitiesManager
         self.innards.selected_moving.contains(&identifier)
     }
 
+    /// Whever there are any entities that don't have a [`Path`] but could have one.
     #[inline]
     #[must_use]
     pub fn any_selected_possible_moving(&self) -> bool
@@ -3136,6 +3181,7 @@ impl EntitiesManager
         SelectedMovingsMut::new(&mut self.innards, &mut self.quad_trees, &self.auxiliary)
     }
 
+    /// Returns all the [`MovementSimulator`] of the entities with a [`Path`].
     #[inline]
     pub fn movement_simulators(&self) -> HvVec<MovementSimulator>
     {
@@ -3155,15 +3201,20 @@ impl EntitiesManager
         ]
     }
 
+    /// Returns a reference to the entity with id `identifier` as a trait object which implements
+    /// the [`Moving`] trait.
     #[inline]
     pub fn moving(&self, identifier: Id) -> &dyn Moving { self.innards.moving(identifier) }
 
+    /// Returns a [`MovingMut`] wrapping the entity with id `identifier`.
     #[inline]
     pub fn moving_mut(&mut self, identifier: Id) -> MovingMut<'_>
     {
         self.innards.moving_mut(&mut self.quad_trees, identifier)
     }
 
+    /// Returns a [`SelectedMovingsIter`] returning an iterator to the selected entities with
+    /// [`Path`]s.
     #[inline]
     pub fn selected_movings_at_pos(
         &self,
@@ -3174,6 +3225,7 @@ impl EntitiesManager
         SelectedMovingsIter::new(self, self.quad_trees.paths_at_pos(cursor_pos, camera_scale))
     }
 
+    /// Returns a [`MovingsIter`] returning an iterator to the entities with visible [`Path`]s.
     #[inline]
     pub fn visible_paths(&self, window: &Window, camera: &Transform) -> MovingsIter<'_>
     {
@@ -3264,7 +3316,7 @@ pub(in crate::map) struct BrushMut<'a>
     path_hull:         Option<Hull>,
     /// The [`Hull`] of the sprite and sprite highlight of the [`Brush`], if any, at the moment the
     /// struct was created.
-    sprite_hull:       Option<(Hull, Hull)>,
+    sprite_hull:       Option<Hull>,
     /// The amount of selected vertexes of the [`Brush`] at the moment the struct was created.
     selected_vertexes: bool
 }
@@ -3296,8 +3348,9 @@ impl<'a> Drop for BrushMut<'a>
                 .unwrap()
         };
 
-        macro_rules! update_hulls {
-            ($(($name:ident, $func:ident $(, $n_0:literal, $n_1:literal, $schedule:block)?)),+) => { paste::paste! { $(
+        /// Updates the quad trees storing the brush's hulls.
+        macro_rules! update_quad_tree {
+            ($(($name:ident, $func:ident $(, $schedule:block)?)),+) => { paste::paste! { $(
                 match (&self.[< $name _hull >], brush.$func())
                 {
                     (None, None) => (),
@@ -3311,19 +3364,11 @@ impl<'a> Drop for BrushMut<'a>
                     },
                     (Some(prev_hull), Some(hull)) =>
                     {
-                        if !prev_hull$(.$n_0)?.around_equal_narrow(&hull$(.$n_0)?)
+                        if !prev_hull.around_equal_narrow(&hull)
                         {
                             $($schedule)?
                             self.quad_trees.[< replace_ $name _hull >](brush, &hull, prev_hull);
                         }
-                        $(else if !prev_hull.$n_1.around_equal_narrow(&hull.$n_1)
-                        {
-                            self.quad_trees.[< replace_ $name _anchor_hull >](
-                                brush,
-                                &hull.$n_1,
-                                &prev_hull.$n_1
-                            );
-                        })?
                     }
                 };
             )+ }};
@@ -3355,9 +3400,9 @@ impl<'a> Drop for BrushMut<'a>
             }
         }
 
-        update_hulls!(
+        update_quad_tree!(
             (path, path_hull),
-            (sprite, sprite_and_anchor_hull, 0, 1, {
+            (sprite, sprite_and_anchor_hull, {
                 self.manager.outline_update = true;
             })
         );
@@ -3419,6 +3464,8 @@ pub(in crate::map) struct ThingMut<'a>
     id:         Id,
     /// The [`Hull`] of the [`ThingInstance`] at the moment the struct was created.
     hull:       Hull,
+    /// The [`Hull`] of the [`Path`] of the [`ThingInstance`] at the moment the struct was created,
+    /// if any.
     path_hull:  Option<Hull>
 }
 
@@ -3493,10 +3540,13 @@ impl<'a> ThingMut<'a>
 
 //=======================================================================//
 
+/// A wrapper for an entity that implements the [`EditPath`] trait.
 #[must_use]
 pub(in crate::map) enum MovingMut<'a>
 {
+    /// A [`Brush`].
     Brush(BrushMut<'a>),
+    /// A [`ThingInstance`].
     Thing(ThingMut<'a>)
 }
 
@@ -3561,6 +3611,7 @@ impl<'a> EntityCenter for MovingMut<'a>
 
 impl<'a> MovingMut<'a>
 {
+    /// Returns a new [`MovingMut`].
     #[inline]
     pub(in crate::map::editor::state::manager) fn new(
         manager: &'a mut Innards,

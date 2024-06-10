@@ -14,10 +14,13 @@ use crate::utils::overall_value::OverallValue;
 //
 //=======================================================================//
 
+/// A checkbox that returns whever the value was changed.
 pub(in crate::map::editor) struct CheckBox;
 
 impl CheckBox
 {
+    /// Shows a checkbox and returns whever it was toggled after being clicked.
+    /// `f` determines how the boolean on/off is generated from `value`.
     #[inline]
     #[must_use]
     pub fn show<T, F>(ui: &mut egui::Ui, value: &OverallValue<T>, extractor: F) -> Option<bool>

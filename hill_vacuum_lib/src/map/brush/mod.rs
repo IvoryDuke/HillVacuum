@@ -399,6 +399,7 @@ pub(in crate::map) struct BrushData
     polygon:    ConvexPolygon,
     /// Platform path and anchored brushes.
     mover:      Mover,
+    /// The properties of the brush.
     properties: Properties
 }
 
@@ -425,7 +426,7 @@ impl BrushData
 
     #[inline]
     #[must_use]
-    pub fn has_path(&self) -> bool { self.mover.has_path() }
+    pub const fn has_path(&self) -> bool { self.mover.has_path() }
 
     #[inline]
     #[must_use]
@@ -433,7 +434,7 @@ impl BrushData
 
     #[inline]
     #[must_use]
-    pub fn is_anchored(&self) -> bool { self.mover.is_anchored().is_some() }
+    pub const fn is_anchored(&self) -> bool { self.mover.is_anchored().is_some() }
 
     #[inline]
     #[must_use]
@@ -479,7 +480,7 @@ impl BrushData
     #[inline]
     pub fn disanchor(&mut self)
     {
-        assert!(self.is_anchored());
+        assert!(self.is_anchored(), "Tried to disanchor brush that is not anchored.");
         self.mover = Mover::None;
     }
 
@@ -609,7 +610,7 @@ impl Moving for Brush
         _: &ThingsCatalog,
         drawer: &mut EditDrawer,
         pos: Vec2,
-        idx: usize,
+        index: usize,
         show_tooltips: bool
     )
     {
@@ -620,7 +621,7 @@ impl Moving for Brush
             egui_context,
             drawer,
             pos,
-            idx,
+            index,
             self.center(),
             show_tooltips
         );
@@ -878,10 +879,10 @@ impl Brush
 
     #[inline]
     #[must_use]
-    pub fn sprite_and_anchor_hull(&self) -> Option<(Hull, Hull)>
+    pub fn sprite_and_anchor_hull(&self) -> Option<Hull>
     {
         self.sprite_hull()
-            .map(|hull| (hull, self.sprite_anchor_hull().unwrap()))
+            .map(|hull| hull.merged(&self.sprite_anchor_hull().unwrap()))
     }
 
     #[inline]
@@ -1341,9 +1342,15 @@ impl Brush
 
     #[inline]
     #[must_use]
-    pub fn check_texture_animation_change(&mut self, drawing_resources: &DrawingResources) -> bool
+    pub fn check_texture_animation_change(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        animation: &Animation
+    ) -> bool
     {
-        self.data.polygon.check_texture_animation_change(drawing_resources)
+        self.data
+            .polygon
+            .check_texture_animation_change(drawing_resources, animation)
     }
 
     #[inline]
@@ -1555,13 +1562,13 @@ impl Brush
 
     #[inline]
     #[must_use]
-    pub fn collision(&self) -> bool { self.data.polygon.collision() }
+    pub const fn collision(&self) -> bool { self.data.polygon.collision() }
 
     #[inline]
     pub fn properties(&self) -> Properties { self.data.properties.clone() }
 
     #[inline]
-    pub fn properties_as_ref(&self) -> &Properties { &self.data.properties }
+    pub const fn properties_as_ref(&self) -> &Properties { &self.data.properties }
 
     #[inline]
     pub fn set_property(&mut self, key: &str, value: &Value) -> Option<Value>
@@ -1620,26 +1627,26 @@ impl Brush
 
     #[inline]
     #[must_use]
-    pub fn try_select_vertex(&mut self, vx: Vec2) -> Option<u8>
+    pub fn try_select_vertex(&mut self, pos: Vec2) -> Option<u8>
     {
-        self.data.polygon.try_select_vertex(vx)
+        self.data.polygon.try_select_vertex(pos)
     }
 
     #[inline]
     #[must_use]
-    pub fn vertex_at_index(&self, idx: usize) -> Vec2 { self.data.polygon.vertex_at_index(idx) }
+    pub fn vertex_at_index(&self, index: usize) -> Vec2 { self.data.polygon.vertex_at_index(index) }
 
     #[inline]
-    pub fn toggle_vertex_at_index(&mut self, idx: usize)
+    pub fn toggle_vertex_at_index(&mut self, index: usize)
     {
-        self.data.polygon.toggle_vertex_at_index(idx);
+        self.data.polygon.toggle_vertex_at_index(index);
     }
 
     #[inline]
     #[must_use]
-    pub fn try_exclusively_select_vertex(&mut self, vx: Vec2) -> Option<HvVec<u8>>
+    pub fn try_exclusively_select_vertex(&mut self, pos: Vec2) -> Option<HvVec<u8>>
     {
-        self.data.polygon.try_exclusively_select_vertex(vx)
+        self.data.polygon.try_exclusively_select_vertex(pos)
     }
 
     #[inline]
@@ -1663,13 +1670,13 @@ impl Brush
         self.data.polygon.select_all_vertexes()
     }
 
-    /// Toggles the selection of the `SelectableVertex` with coordinates `vx`,
+    /// Toggles the selection of the `SelectableVertex` with coordinates `pos`,
     /// if any.
     #[inline]
     #[must_use]
-    pub fn toggle_vertex_at_pos(&mut self, vx: Vec2) -> Option<u8>
+    pub fn toggle_vertex_at_pos(&mut self, pos: Vec2) -> Option<u8>
     {
-        self.data.polygon.toggle_vertex_at_pos(vx)
+        self.data.polygon.toggle_vertex_at_pos(pos)
     }
 
     /// Toggles the selection of the first `SelectableVertex` found to be close
@@ -1695,39 +1702,43 @@ impl Brush
         self.data.polygon.deselect_vertexes()
     }
 
+    /// Deselects all selected vertexes.
     #[inline]
     pub fn deselect_vertexes_no_indexes(&mut self)
     {
         self.data.polygon.deselect_vertexes_no_indexes();
     }
 
+    /// Adds a vertex to the polygon if it's possible to do so without losing convexity and returns
+    /// whever it was possible to do so.
     #[inline]
     #[must_use]
     pub fn try_vertex_insertion_at_index(
         &mut self,
         drawing_resources: &DrawingResources,
-        vx: Vec2,
-        idx: usize,
+        pos: Vec2,
+        index: usize,
         selected: bool
     ) -> bool
     {
         self.data
             .polygon
-            .try_vertex_insertion_at_index(drawing_resources, vx, idx, selected)
+            .try_vertex_insertion_at_index(drawing_resources, pos, index, selected)
     }
 
+    /// Inserts a new vertex with position `pos` at `index`.
     #[inline]
     pub fn insert_vertex_at_index(
         &mut self,
         drawing_resources: &DrawingResources,
-        vx: Vec2,
-        idx: usize,
+        pos: Vec2,
+        index: usize,
         selected: bool
     )
     {
         self.data
             .polygon
-            .insert_vertex_at_index(drawing_resources, vx, idx, selected);
+            .insert_vertex_at_index(drawing_resources, pos, index, selected);
     }
 
     /// Returns the index the closest projection of `cursor_pos` on the shape of
@@ -1739,21 +1750,24 @@ impl Brush
         self.data.polygon.vertex_insertion_index(cursor_pos)
     }
 
-    /// Returns true if inserting `vx` in the underlying `ConvexPolygon` at
-    /// index `vx_idx` generates a valid polygon.
+    /// Returns true if inserting `pos` in the underlying `ConvexPolygon` at
+    /// index `index` generates a valid polygon.
     #[inline]
     #[must_use]
-    pub fn is_new_vertex_at_index_valid(&mut self, vx: Vec2, idx: usize) -> bool
+    pub fn is_new_vertex_at_index_valid(&mut self, pos: Vec2, index: usize) -> bool
     {
-        self.data.polygon.is_new_vertex_at_index_valid(vx, idx)
+        self.data.polygon.is_new_vertex_at_index_valid(pos, index)
     }
 
+    /// Deletes the vertex at `index`.
     #[inline]
-    pub fn delete_vertex_at_index(&mut self, drawing_resources: &DrawingResources, idx: usize)
+    pub fn delete_vertex_at_index(&mut self, drawing_resources: &DrawingResources, index: usize)
     {
-        self.data.polygon.delete_vertex_at_index(drawing_resources, idx);
+        self.data.polygon.delete_vertex_at_index(drawing_resources, index);
     }
 
+    /// Returns a [`VertexesDeletionResult`] describing the outcome of the deletion of the selected
+    /// vertexes.
     #[inline]
     pub fn check_selected_vertexes_deletion(&self) -> VertexesDeletionResult
     {
@@ -1778,6 +1792,7 @@ impl Brush
         VertexesMoveResult::from_result(self.data.polygon.check_selected_vertexes_move(delta), self)
     }
 
+    /// Applies the vertexes move described by `payload`.
     #[inline]
     pub fn apply_vertexes_move_result(
         &mut self,
@@ -1790,6 +1805,7 @@ impl Brush
         payload.1
     }
 
+    /// Undoes a vertexes move.
     #[inline]
     pub fn undo_vertexes_move(
         &mut self,
@@ -1809,6 +1825,7 @@ impl Brush
         self.path_mut().translate(old_center - center);
     }
 
+    /// Redoes a vertexes move.
     #[inline]
     pub fn redo_vertexes_move(
         &mut self,
@@ -1830,9 +1847,11 @@ impl Brush
         self.path_mut().translate(old_center - center);
     }
 
+    /// Returns a [`SplitResult`] describing whever the polygon can be split.
     #[inline]
     pub fn check_split(&self) -> SplitResult { (self.data.polygon.check_split(), self.id).into() }
 
+    /// Splits the polygon in two halves based on the `payload`.
     #[inline]
     pub fn split(
         &mut self,
@@ -1844,6 +1863,7 @@ impl Brush
         self.data.polygon.split(drawing_resources, &payload.1)
     }
 
+    /// Moves the vertexes at the indexes and by the deltas specified in the iterator.
     #[inline]
     pub fn move_vertexes_at_indexes<'a, I: Iterator<Item = &'a u8>>(
         &mut self,
@@ -1856,6 +1876,7 @@ impl Brush
     //==============================================================
     // Side editing
 
+    /// Returns the coordinates and index of the side near the cursor, if any.
     #[inline]
     #[must_use]
     pub fn nearby_side(&self, cursor_pos: Vec2, camera_scale: f32) -> Option<([Vec2; 2], usize)>
@@ -1879,6 +1900,8 @@ impl Brush
             .check_side_proximity_and_select(cursor_pos, camera_scale)
     }
 
+    /// The information required to start an xtrusion attempt based on the side near the cursor, if
+    /// any.
     #[inline]
     pub fn xtrusion_info(
         &self,
@@ -1892,12 +1915,15 @@ impl Brush
             .map(|(side, normal, info)| (side, normal, XtrusionPayload(self.id, info)))
     }
 
+    /// Returns a [`XtrusionResult`] describing whever the xtrusion attempt can occur.
     #[inline]
     pub fn matching_xtrusion_info(&self, normal: Vec2) -> XtrusionResult
     {
         (self.data.polygon.matching_xtrusion_info(normal), self.id).into()
     }
 
+    /// Tries to select the side with the same coordinates a `side`, and returns the index of the
+    /// selected side, if any.
     #[inline]
     #[must_use]
     pub fn try_select_side(&mut self, side: &[Vec2; 2]) -> Option<u8>
@@ -1905,6 +1931,8 @@ impl Brush
         self.data.polygon.try_select_side(side)
     }
 
+    /// Tries to exclusively select the side with the same coordinates a `side`, and returns the
+    /// indexes of the sides whose selection has changed, if any.
     #[inline]
     #[must_use]
     pub fn try_exclusively_select_side(&mut self, side: &[Vec2; 2]) -> Option<HvVec<u8>>
@@ -1912,6 +1940,8 @@ impl Brush
         self.data.polygon.try_exclusively_select_side(side)
     }
 
+    /// Selects the sides in `range` and returns the indexes of the sides that were selected, if
+    /// any.
     #[inline]
     #[must_use]
     pub fn select_sides_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
@@ -1919,6 +1949,8 @@ impl Brush
         self.data.polygon.select_sides_in_range(range)
     }
 
+    /// Exclusively selects the sides in `range` and returns the indexes of the sides whose
+    /// selection has changed, if any.
     #[inline]
     #[must_use]
     pub fn exclusively_select_sides_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
@@ -1949,6 +1981,8 @@ impl Brush
             .toggle_side_nearby_cursor_pos(cursor_pos, camera_scale)
     }
 
+    /// Returns a [`SidesDeletionResult`] describing the outcome of the deletion of the selected
+    /// sides.
     #[inline]
     pub fn check_selected_sides_deletion(&self) -> SidesDeletionResult
     {
@@ -2051,6 +2085,7 @@ impl Brush
     //==============================================================
     // Hollow
 
+    /// Returns the four wall [`Brush`]es generated from the shape of `self`, if any.
     #[inline]
     pub fn hollow(
         &self,
@@ -2064,6 +2099,7 @@ impl Brush
     //==============================================================
     // Intersection
 
+    /// Returns the intersection between the shapes of `self` and `other`, if any.
     #[inline]
     #[must_use]
     pub fn intersection(&self, other: &Self) -> Option<ConvexPolygon>
@@ -2071,6 +2107,7 @@ impl Brush
         self.data.polygon.intersection(&other.data.polygon)
     }
 
+    /// Sets the shape of `other` to the intersection between `self` and `other`.
     #[inline]
     #[must_use]
     pub fn intersect(&self, other: &mut ConvexPolygon) -> bool
@@ -2087,6 +2124,8 @@ impl Brush
     //==============================================================
     // Subtract
 
+    /// Returns a [`SubtractResult`] describing the outcome of the subtraction of `other`'s shape
+    /// from `self`'s.
     #[inline]
     pub fn subtract(&self, drawing_resources: &DrawingResources, other: &Self) -> SubtractResult
     {
@@ -2096,6 +2135,7 @@ impl Brush
     //==============================================================
     // Scale
 
+    /// Returns a [`ScaleResult`] describing the validity of a scale.
     #[inline]
     pub fn check_scale(
         &mut self,
@@ -2110,6 +2150,7 @@ impl Brush
         )
     }
 
+    /// Returns a [`ScaleResult`] describing the validity of a scale with flip.
     #[inline]
     pub fn check_flip_scale(
         &mut self,
@@ -2127,6 +2168,7 @@ impl Brush
         )
     }
 
+    /// Scales `self` based on `payload`.
     #[inline]
     pub fn set_scale_coordinates(
         &mut self,
@@ -2159,12 +2201,14 @@ impl Brush
     //==============================================================
     // Shear
 
+    /// Returns a [`ShearResult`] describing the validity of the vertical shear.
     #[inline]
     pub fn check_horizontal_shear(&self, info: &ShearInfo) -> ShearResult
     {
         ShearResult::from_result(self.data.polygon.check_horizontal_shear(info), self)
     }
 
+    /// Sets the x coordinates of the vertexes based on `payload`.
     #[inline]
     pub fn set_x_coordinates(&mut self, payload: ShearPayload)
     {
@@ -2172,12 +2216,14 @@ impl Brush
         self.data.polygon.set_x_coordinates(payload.1);
     }
 
+    /// Returns a [`ShearResult`] describing the validity of the vertical shear.
     #[inline]
     pub fn check_vertical_shear(&self, info: &ShearInfo) -> ShearResult
     {
         ShearResult::from_result(self.data.polygon.check_vertical_shear(info), self)
     }
 
+    /// Sets the y coordinates of the vertexes based on `payload`.
     #[inline]
     pub fn set_y_coordinates(&mut self, payload: ShearPayload)
     {
@@ -2188,6 +2234,7 @@ impl Brush
     //==============================================================
     // Rotate
 
+    /// Returns a [`RotateResult`] describing the validity of the rotation.
     #[inline]
     pub fn check_rotate(
         &mut self,
@@ -2205,6 +2252,7 @@ impl Brush
         )
     }
 
+    /// Rotates `self` based on `payload`.
     #[inline]
     pub fn set_rotation_coordinates(
         &mut self,
@@ -2233,6 +2281,7 @@ impl Brush
     //==============================================================
     // Draw
 
+    /// Draws the polygon for the map preview.
     #[inline]
     pub fn draw_map_preview(
         &self,
@@ -2249,47 +2298,49 @@ impl Brush
         self.data.polygon.draw_map_preview(camera, drawer, animator);
     }
 
-    /// Draws the `Brush` with the desired `Color`.
+    /// Draws the polygon with the desired `color`.
     #[inline]
     pub fn draw_with_color(&self, camera: &Transform, drawer: &mut EditDrawer, color: Color)
     {
         self.data.polygon.draw(camera, drawer, color);
     }
 
-    /// Draws the `Brush` with the not-selected `Color`.
+    /// Draws the polygon not-selected.
     #[inline]
     pub fn draw_non_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
     {
         self.draw_with_color(camera, drawer, Color::NonSelectedEntity);
     }
 
-    /// Draws the `Brush` with the selected `Color`.
+    /// Draws the polygon selected.
     #[inline]
     pub fn draw_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
     {
         self.draw_with_color(camera, drawer, Color::SelectedEntity);
     }
 
-    /// Draws the `Brush` with the highlight `Color`.
+    /// Draws the polygon highlighted selected.
     #[inline]
     pub fn draw_highlighted_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
     {
         self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
     }
 
-    /// Draws the `Brush` with the highlight `Color`.
+    /// Draws the polygon highlighted non selected.
     #[inline]
     pub fn draw_highlighted_non_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
     {
         self.draw_with_color(camera, drawer, Color::HighlightedNonSelectedEntity);
     }
 
+    /// Draws the polygon opaque.
     #[inline]
     pub fn draw_opaque(&self, camera: &Transform, drawer: &mut EditDrawer)
     {
         self.draw_with_color(camera, drawer, Color::OpaqueEntity);
     }
 
+    /// Draws the line passing through the side at `index`.
     #[inline]
     pub fn draw_extended_side(
         &self,
@@ -2328,12 +2379,15 @@ impl Brush
         );
     }
 
+    /// Draws the polygon with a solid color.
     #[inline]
     pub fn draw_wih_solid_color(&self, drawer: &mut EditDrawer, color: Color)
     {
         drawer.polygon_with_solid_color(self.vertexes(), color);
     }
 
+    /// Draws the anchors connecting the center of `self` to the centers of the anchored
+    /// [`Brush`]es.
     #[inline]
     pub fn draw_anchors(&self, brushes: Brushes, drawer: &mut EditDrawer)
     {
@@ -2350,6 +2404,7 @@ impl Brush
         }
     }
 
+    /// Draws the anchored [`Brush`]es based on `f`.
     #[inline]
     fn draw_anchored_brushes<F>(
         &self,
@@ -2366,18 +2421,15 @@ impl Brush
         }
     }
 
+    /// Draws the sprite.
     #[inline]
     pub fn draw_sprite(&self, drawer: &mut EditDrawer, color: Color)
     {
         self.data.polygon.draw_sprite(drawer, color);
-    }
-
-    #[inline]
-    pub fn draw_sprite_highlight(&self, drawer: &mut EditDrawer)
-    {
         self.data.polygon.draw_sprite_highlight(drawer);
     }
 
+    /// Draws the sprite for the map preview.
     #[inline]
     pub fn draw_map_preview_sprite(
         &self,
@@ -2391,19 +2443,28 @@ impl Brush
 
 //=======================================================================//
 
+/// A convex polygon characterized by an optional [`Mover`], an optional texture, and certain
+/// properties.
 #[must_use]
 pub struct BrushViewer
 {
+    /// The [`Id`].
     pub id:         Id,
+    /// The vertexes.
     pub vertexes:   HvVec<Vec2>,
+    /// The texture.
     pub texture:    Option<TextureSettings>,
+    /// The [`Mover`].
     pub mover:      Mover,
+    /// Whever collision against the polygonal shape is enabled.
     pub collision:  bool,
+    /// The properties.
     pub properties: HvHashMap<String, Value>
 }
 
 impl BrushViewer
 {
+    /// Returns a new [`BrushViewer`].
     #[inline]
     pub(in crate::map) fn new(brush: Brush) -> Self
     {
@@ -2427,6 +2488,7 @@ impl BrushViewer
         }
     }
 
+    /// Sets the [`Animation`] of the texture.
     #[inline]
     pub(in crate::map) fn set_texture_animation(&mut self, animation: Animation)
     {

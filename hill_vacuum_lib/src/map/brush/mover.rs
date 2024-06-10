@@ -199,7 +199,7 @@ impl Motor
     }
 
     #[inline]
-    pub fn path(&self) -> &Path { &self.path }
+    pub const fn path(&self) -> &Path { &self.path }
 
     #[inline]
     #[must_use]
@@ -207,7 +207,7 @@ impl Motor
 
     #[inline]
     #[must_use]
-    pub fn anchored_brushes(&self) -> &Ids { &self.anchored_brushes }
+    pub const fn anchored_brushes(&self) -> &Ids { &self.anchored_brushes }
 
     #[inline]
     fn insert_anchor(&mut self, identifier: Id)

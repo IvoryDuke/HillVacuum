@@ -319,7 +319,7 @@ impl NodeWorld
     /// Creates a new [`NodeWorld`]. It is assumed that `pos` is a world coordinate.
     #[inline]
     #[must_use]
-    fn from_world_pos(pos: Vec2, selected: bool) -> Self { Self(pos, selected) }
+    const fn from_world_pos(pos: Vec2, selected: bool) -> Self { Self(pos, selected) }
 }
 
 //=======================================================================//
@@ -363,10 +363,10 @@ impl<'a> NodesWorld<'a>
     #[must_use]
     pub fn first(&self) -> NodeWorld { NodeWorld::new(&self.slice[0], self.center) }
 
-    /// Returns the [`NodeWorld`] at index `idx`.
+    /// Returns the [`NodeWorld`] at index `index`.
     #[inline]
     #[must_use]
-    pub fn nth(&self, idx: usize) -> NodeWorld { NodeWorld::new(&self.slice[idx], self.center) }
+    pub fn nth(&self, index: usize) -> NodeWorld { NodeWorld::new(&self.slice[index], self.center) }
 }
 
 //=======================================================================//
@@ -508,13 +508,13 @@ impl<'a> NodesInsertionIter<'a>
     /// Creates a new [`NodesInsertionIter`].
     #[inline]
     #[must_use]
-    pub fn new(slice: &'a HvVec<Node>, pos: Vec2, idx: usize, center: Vec2) -> Self
+    pub fn new(slice: &'a HvVec<Node>, pos: Vec2, index: usize, center: Vec2) -> Self
     {
         Self {
             slice,
             center,
             new_node: NodeWorld::from_world_pos(pos, false),
-            new_node_index: idx,
+            new_node_index: index,
             new_node_returned: 2,
             i: 0,
             j: slice.len() - 1

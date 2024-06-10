@@ -41,7 +41,7 @@ use crate::{
     embedded_assets::embedded_asset_path,
     map::{
         drawer::drawing_resources::DrawingResources,
-        editor::{cursor_pos::Cursor, StateUpdateBundle},
+        editor::{cursor_pos::Cursor, Placeholder, StateUpdateBundle},
         properties::DefaultProperties
     },
     utils::misc::{Camera, FromToStr, Toggle},
@@ -53,13 +53,21 @@ use crate::{
 //
 //=======================================================================//
 
+/// The width of the left panel.
 const LEFT_SIDE_PANEL_WIDTH: f32 = 184f32;
+/// The width of the right panel.
 const RIGHT_SIDE_PANEL_WIDTH: f32 = 54f32;
+/// The height of the menu bar.
 const MENU_BAR_HEIGHT: f32 = 28f32;
+/// The actual with of the left panel.
 const LEFT_SIDE_PANEL_REAL_WIDTH: f32 = 1.08 * LEFT_SIDE_PANEL_WIDTH;
+/// The actual with of the right panel.
 const RIGHT_SIDE_PANEL_REAL_WIDTH: f32 = 0.99 * RIGHT_SIDE_PANEL_WIDTH;
+/// The actual height of the menu bar.
 const MENU_BAR_REAL_HEIGHT: f32 = 1.08 * MENU_BAR_HEIGHT;
+/// The size of the tool icons.
 const ICON_DRAW_SIZE: egui::Vec2 = egui::Vec2::splat(32f32);
+/// The padding between two icons.
 const ICONS_PADDING: egui::Vec2 = egui::Vec2::new(8f32, 4f32);
 
 //=======================================================================//
@@ -67,6 +75,7 @@ const ICONS_PADDING: egui::Vec2 = egui::Vec2::new(8f32, 4f32);
 //
 //=======================================================================//
 
+/// Draws a gallery of textures.
 macro_rules! textures_gallery {
     (
         $ui:ident,
@@ -136,8 +145,10 @@ pub(in crate::map::editor::state) use textures_gallery;
 //
 //=======================================================================//
 
+/// A trait to know whever an UI element has lost focus by the standards required by the editor.
 pub(in crate::map::editor::state) trait ActuallyLostFocus
 {
+    /// Whever an UI element has lost focus by the standards required by the editor.
     #[must_use]
     fn actually_lost_focus(&self) -> bool;
 }
@@ -161,8 +172,10 @@ impl ActuallyLostFocus for egui::Response
 
 //=======================================================================//
 
+/// A trait to know if an UI element is being interacted with.
 pub(in crate::map::editor::state) trait Interacting
 {
+    /// Whever the UI element is being interacted with.
     #[must_use]
     fn interacting(&self) -> bool;
 }
@@ -175,8 +188,10 @@ impl Interacting for egui::Response
 
 //=======================================================================//
 
+/// A trait to return the info to close a window.
 trait WindowCloserInfo
 {
+    /// Returns the info to close the window, if open.
     fn window_closer(&self) -> Option<WindowCloser>;
 }
 
@@ -185,50 +200,84 @@ trait WindowCloserInfo
 //
 //=======================================================================//
 
+/// A command to be executed following a UI element press.
 #[derive(Clone, Copy, Default)]
 pub(in crate::map::editor::state) enum Command
 {
+    /// Nothing to do.
     #[default]
     None,
+    /// Change the active tool.
     ChangeTool(Tool),
+    /// Open new map.
     New,
+    /// Save current map.
     Save,
+    /// Save current map to new path.
     SaveAs,
+    /// Open map.
     Open,
+    /// Export map.
     Export,
+    /// Export the map's animations to a .anms file.
     ExportAnimations,
+    /// Import an .anms file.
     ImportAnimations,
+    /// Export the map's props  to a .prps file.
     ExportProps,
+    /// Import a .prps file.
     ImportProps,
+    /// Select all entities.
     SelectAll,
+    /// Copy the selected entities.
     Copy,
+    /// Paste the copied entities.
     Paste,
+    /// Cut the selected entities.
     Cut,
+    /// Duplicate the selected entities.
     Duplicate,
+    /// Undo.
     Undo,
+    /// Redo.
     Redo,
+    /// Toggle the grid.
     ToggleGrid,
+    /// Increase the grid size.
     IncreaseGridSize,
+    /// Decrease the grid size.
     DecreaseGridSize,
+    /// Shift the grid.
     ShifGrid,
+    /// Toggle the tooltips.
     ToggleTooltips,
+    /// Toggle the cursor grid snap.
     ToggleCursorSnap,
+    /// Toggles the map preview.
     ToggleMapPreview,
+    /// Toggles the collision of the selected brushes.
     ToggleCollision,
+    /// Reload the textures.
     ReloadTextures,
+    /// Reload the things.
     ReloadThings,
+    /// Zoom on the selected entities.
     QuickZoom,
+    /// Snap the vertexes of the selected brushes.
     QuickSnap,
+    /// Quits the application
     Quit,
     #[cfg(feature = "debug")]
+    /// Toggles the debug lines.
     ToggleDebugLines
 }
 
 impl Command
 {
+    /// Returns whever `self` represents a command that changes the entities in the map.
     #[inline]
     #[must_use]
-    pub fn world_edit(self) -> bool
+    pub const fn world_edit(self) -> bool
     {
         matches!(
             self,
@@ -245,22 +294,28 @@ impl Command
 
 //=======================================================================//
 
+/// The information required to close a UI window.
 #[allow(clippy::type_complexity)]
 #[must_use]
 #[derive(Clone, Copy)]
 enum WindowCloser
 {
+    /// Texture editor.
     TextureEditor(egui::LayerId, fn(&mut TextureEditor)),
+    /// Settings window.
     Settings(egui::LayerId, fn(&mut SettingsWindow)),
+    /// Properties window.
     Properties(egui::LayerId, fn(&mut PropertiesWindow)),
+    /// Manual window.
     Manual(egui::LayerId, fn(&mut Manual))
 }
 
 impl WindowCloser
 {
+    /// Returns the contained [`LayerId`].
     #[inline]
     #[must_use]
-    fn layer_id(self) -> egui::LayerId
+    const fn layer_id(self) -> egui::LayerId
     {
         let (Self::TextureEditor(id, _) |
         Self::Settings(id, _) |
@@ -269,6 +324,7 @@ impl WindowCloser
         id
     }
 
+    /// Checks whever a UI window should be closed.
     #[inline]
     fn check_window_close(
         layer_ids: impl ExactSizeIterator<Item = egui::LayerId>,
@@ -336,14 +392,18 @@ impl WindowCloser
 //
 //=======================================================================//
 
+/// The buttons used to change the currently used tool.
 pub(in crate::map::editor::state) struct ToolsButtons
 {
+    /// The icons of the tools.
     icons:   [egui::TextureId; Tool::SIZE + SubTool::SIZE],
+    /// The tooltip showed when a tool button is being hovered.
     tooltip: Tooltip
 }
 
 impl ToolsButtons
 {
+    /// Returns a new [`ToolsButtons`].
     #[inline]
     #[must_use]
     fn new(asset_server: &AssetServer, user_textures: &mut EguiUserTextures) -> Self
@@ -359,6 +419,7 @@ impl ToolsButtons
         }
     }
 
+    /// The index of `tool`.
     #[inline]
     #[must_use]
     fn index(tool: impl ToolInterface) -> usize
@@ -373,6 +434,7 @@ impl ToolsButtons
         }
     }
 
+    /// Draws the tool's UI element.
     #[inline]
     #[must_use]
     pub fn draw<T, E>(
@@ -406,6 +468,7 @@ impl ToolsButtons
         clicked
     }
 
+    /// Draws the image representing `tool`.
     #[inline]
     fn image(&self, ui: &mut egui::Ui, tool: impl ToolInterface)
     {
@@ -415,28 +478,60 @@ impl ToolsButtons
 
 //=======================================================================//
 
+/// The result of the interaction with the UI elements.
 #[must_use]
 pub(in crate::map::editor::state) struct Interaction
 {
+    /// Whever the UI is currently being hovered
     pub hovered: bool,
+    /// A command to be executed.
     pub command: Command
 }
 
 //=======================================================================//
 
+/// The UI of the editor.
 pub(in crate::map::editor::state) struct Ui
 {
+    /// The buttons to enable the tools.
     tools_buttons:        ToolsButtons,
+    /// The id of the left panel
     left_panel_layer_id:  egui::LayerId,
+    /// The id of the right panel.
     right_panel_layer_id: egui::LayerId,
+    /// The settings window.
     settings_window:      SettingsWindow,
+    /// The parameters window.
     properties_window:    PropertiesWindow,
+    /// The texture editor.
     texture_editor:       TextureEditor,
+    /// The manual.
     manual:               Manual
+}
+
+impl Placeholder for Ui
+{
+    #[inline]
+    unsafe fn placeholder() -> Self
+    {
+        Self {
+            tools_buttons:        ToolsButtons {
+                icons:   [egui::TextureId::default(); Tool::SIZE + SubTool::SIZE],
+                tooltip: Tooltip::new()
+            },
+            left_panel_layer_id:  egui::LayerId::background(),
+            right_panel_layer_id: egui::LayerId::background(),
+            settings_window:      SettingsWindow::default(),
+            properties_window:    PropertiesWindow::placeholder(),
+            texture_editor:       TextureEditor::default(),
+            manual:               Manual::default()
+        }
+    }
 }
 
 impl Ui
 {
+    /// Returns a new [`Ui`].
     #[inline]
     #[must_use]
     pub fn new(
@@ -460,23 +555,7 @@ impl Ui
         }
     }
 
-    #[inline]
-    pub unsafe fn placeholder() -> Self
-    {
-        Self {
-            tools_buttons:        ToolsButtons {
-                icons:   [egui::TextureId::default(); Tool::SIZE + SubTool::SIZE],
-                tooltip: Tooltip::new()
-            },
-            left_panel_layer_id:  egui::LayerId::background(),
-            right_panel_layer_id: egui::LayerId::background(),
-            settings_window:      SettingsWindow::default(),
-            properties_window:    PropertiesWindow::placeholder(),
-            texture_editor:       TextureEditor::default(),
-            manual:               Manual::default()
-        }
-    }
-
+    /// Updates the UI.
     #[inline]
     pub fn frame_start_update(
         &mut self,
@@ -499,7 +578,7 @@ impl Ui
         let mut command = self.menu_bar(bundle, manager, core);
 
         // Manual menu.
-        self.manual.draw(bundle, &self.tools_buttons);
+        self.manual.show(bundle, &self.tools_buttons);
 
         // Floating windows.
         let mut focused = if core.map_preview()
@@ -509,7 +588,7 @@ impl Ui
         else
         {
             self.texture_editor
-                .draw(bundle, manager, edits_history, clipboard, inputs, settings)
+                .show(bundle, manager, edits_history, clipboard, inputs, settings)
         };
 
         focused |= self.settings_window.show(bundle, inputs) |
@@ -520,7 +599,7 @@ impl Ui
         let us_context = unsafe { std::ptr::from_mut(bundle.egui_context).as_mut().unwrap() };
 
         // Panels.
-        self.right_panel_layer_id = egui::SidePanel::right("sub_tools")
+        self.right_panel_layer_id = egui::SidePanel::right("subtools")
             .resizable(false)
             .exact_width(RIGHT_SIDE_PANEL_WIDTH)
             .show(us_context, |ui| {
@@ -528,7 +607,7 @@ impl Ui
                     ui.add_space(ICONS_PADDING.y);
                     ui.spacing_mut().item_spacing = ICONS_PADDING;
 
-                    core.draw_sub_tools(
+                    core.draw_subtools(
                         ui,
                         bundle,
                         manager,
@@ -588,6 +667,7 @@ impl Ui
         }
     }
 
+    /// Concludes the UI update.
     #[inline]
     pub(in crate::map) fn frame_end_update(&self, egui_context: &egui::Context)
     {
@@ -595,6 +675,7 @@ impl Ui
         egui_context.move_to_top(self.right_panel_layer_id);
     }
 
+    /// Updates the overall texture.
     #[inline]
     pub fn update_overall_texture(
         &mut self,
@@ -605,48 +686,56 @@ impl Ui
         self.texture_editor.update_overall_texture(drawing_resources, manager);
     }
 
+    /// Updates the overall [`Brush`] collision.
     #[inline]
     pub fn update_overall_brushes_collision(&mut self, manager: &EntitiesManager)
     {
         self.properties_window.update_overall_brushes_collision(manager);
     }
 
+    /// Updates all overall [`Brush`] properties.
     #[inline]
     pub fn update_overall_total_brush_properties(&mut self, manager: &EntitiesManager)
     {
         self.properties_window.update_overall_total_brush_properties(manager);
     }
 
+    /// Updates the overall [`Brush`] property with key `k`.
     #[inline]
     pub fn update_overall_brushes_property(&mut self, manager: &EntitiesManager, k: &str)
     {
         self.properties_window.update_overall_brushes_property(manager, k);
     }
 
+    /// Updates the hardcoded [`ThingInstance`] properties.
     #[inline]
     pub fn update_overall_things_info(&mut self, manager: &EntitiesManager)
     {
         self.properties_window.update_overall_things_info(manager);
     }
 
+    /// Updates the overall [`ThingInstance`] properties.
     #[inline]
     pub fn update_overall_total_things_properties(&mut self, manager: &EntitiesManager)
     {
         self.properties_window.update_overall_total_things_properties(manager);
     }
 
+    /// Updates the overall [`ThingInstance`] property with key `k`.
     #[inline]
     pub fn update_overall_things_property(&mut self, manager: &EntitiesManager, k: &str)
     {
         self.properties_window.update_overall_things_property(manager, k);
     }
 
+    /// Schedules the texture animation update.
     #[inline]
     pub fn schedule_texture_animation_update(&mut self)
     {
         self.texture_editor.schedule_texture_animation_update();
     }
 
+    /// Draws the menu bar.
     #[inline]
     #[must_use]
     fn menu_bar(
@@ -677,6 +766,7 @@ impl Ui
                 let quick_snap = manager.any_selected_brushes();
                 let quick_zoom = manager.any_selected_entities();
 
+                /// Draws a menu button.
                 macro_rules! menu_button {
                     (
                         $ui:ident,
@@ -706,6 +796,7 @@ impl Ui
                     };
                 }
 
+                /// Draws a submenu.
                 macro_rules! submenu {
                     (
                         $ui:ident,
@@ -876,6 +967,7 @@ impl Ui
         command
     }
 
+    /// Draws the tools icons. Returns the clicked tool, if any.
     #[inline]
     #[must_use]
     fn tool_icons(
@@ -886,7 +978,9 @@ impl Ui
         tool_change_conditions: &ChangeConditions
     ) -> Option<Tool>
     {
+        /// The icons in each row.
         const ICONS_PER_ROW: usize = 3;
+
         let row_padding =
             (ui.available_width() - 24f32 - ICON_DRAW_SIZE[1] * 3f32 - ICONS_PADDING.x * 2f32) /
                 2f32; // Magic magic magic
@@ -926,6 +1020,7 @@ impl Ui
         tool_to_enable
     }
 
+    /// The info concerning the cursor.
     #[inline]
     fn cursor_info(cursor: &Cursor, ui: &mut egui::Ui)
     {
@@ -941,6 +1036,7 @@ impl Ui
         )));
     }
 
+    /// The info concerning the grid.
     #[inline]
     fn grid_info(grid: Grid, ui: &mut egui::Ui)
     {
@@ -953,12 +1049,13 @@ impl Ui
         )));
     }
 
+    /// The info concerning the camera.
     #[inline]
     fn camera_info(camera: &Transform, ui: &mut egui::Ui)
     {
         ui.separator();
 
-        let ui_vector = half_ui_vector() * camera.scale();
+        let ui_vector = ui_camera_displacement() * camera.scale();
         let pos = camera.pos() + ui_vector;
 
         ui.label(egui::RichText::new(format!(
@@ -975,39 +1072,39 @@ impl Ui
 //
 //=======================================================================//
 
+/// Returns the width taken by the UI elements on the left of the screen.
 #[inline]
 #[must_use]
-pub(in crate::map) fn ui_left_space() -> f32 { LEFT_SIDE_PANEL_REAL_WIDTH }
+pub(in crate::map) const fn ui_left_space() -> f32 { LEFT_SIDE_PANEL_REAL_WIDTH }
 
 //=======================================================================//
 
+/// Returns the width taken by the UI elements on the right of the screen.
 #[inline]
 #[must_use]
-pub(in crate::map) fn ui_right_space() -> f32 { RIGHT_SIDE_PANEL_REAL_WIDTH }
+pub(in crate::map) const fn ui_right_space() -> f32 { RIGHT_SIDE_PANEL_REAL_WIDTH }
 
 //=======================================================================//
 
+/// Returns the width taken by the UI elements on the top of the screen.
 #[inline]
 #[must_use]
-pub(in crate::map) fn ui_top_space() -> f32 { MENU_BAR_REAL_HEIGHT }
+pub(in crate::map) const fn ui_top_space() -> f32 { MENU_BAR_REAL_HEIGHT }
 
 //=======================================================================//
 
+/// The amount the camera needs to be shifted to be centered in the portion of the window where the
+/// drawn map can be seen.
 #[inline]
 #[must_use]
-pub(in crate::map) fn ui_vector() -> Vec2
+pub(in crate::map) fn ui_camera_displacement() -> Vec2
 {
-    Vec2::new(ui_left_space() - ui_right_space(), -ui_top_space())
+    Vec2::new(ui_left_space() - ui_right_space(), -ui_top_space()) / 2f32
 }
 
 //=======================================================================//
 
-#[inline]
-#[must_use]
-pub(in crate::map) fn half_ui_vector() -> Vec2 { ui_vector() / 2f32 }
-
-//=======================================================================//
-
+/// Returns a vector describing the area of the window taken by permanent UI elements.
 #[inline]
 #[must_use]
 pub(in crate::map) fn ui_size() -> Vec2
@@ -1017,6 +1114,7 @@ pub(in crate::map) fn ui_size() -> Vec2
 
 //=======================================================================//
 
+/// Returns a window centered in the portion of the window where the map can be seen.
 pub(in crate::map) fn centered_window<'open>(
     window: &bevy::prelude::Window,
     title: &'static str
@@ -1032,6 +1130,7 @@ pub(in crate::map) fn centered_window<'open>(
 
 //=======================================================================//
 
+/// Returns the UI size of the viewport based on the `window` sizes.
 #[inline]
 #[must_use]
 pub(in crate::map) fn map_view_center(window: &bevy::prelude::Window) -> egui::Pos2

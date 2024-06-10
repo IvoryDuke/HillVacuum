@@ -149,6 +149,8 @@ pub fn clip_polygon(
     clip_segment: &[Vec2; 2]
 ) -> Option<HvVec<Vec2>>
 {
+    /// Inserts `point` into `collected_points` if it is not around equal to any other point inside
+    /// it.
     #[inline]
     fn check_clip_point(point: Vec2, collected_points: &mut HvVec<Vec2>)
     {

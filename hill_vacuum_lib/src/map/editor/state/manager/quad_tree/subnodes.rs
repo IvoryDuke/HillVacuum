@@ -13,17 +13,24 @@ use super::{node::Square, QuadTree};
 //
 //=======================================================================//
 
+/// The cardinality of a subnode.
 #[derive(EnumIter, Clone, Copy)]
 enum Cardinality
 {
+    /// North-West.
     NorthWest,
+    /// South-West.
     SouthWest,
+    /// South-East.
     SouthEast,
+    /// North-East.
     NorthEast
 }
 
 impl Cardinality
 {
+    /// Returns the [`Square`] describing the area covered by the subsquare of `square` with the
+    /// `cardinality` of `self`.
     #[inline]
     #[must_use]
     fn subsquare(self, square: &Square) -> Square
@@ -46,6 +53,7 @@ impl Cardinality
 //
 //=======================================================================//
 
+/// The indexes of the subnodes of a partitioned [`Node`].
 #[derive(Debug)]
 pub(in crate::map::editor::state::manager::quad_tree) struct Subnodes([usize; 4]);
 
@@ -60,6 +68,7 @@ impl<'a> IntoIterator for &'a Subnodes
 
 impl Subnodes
 {
+    /// Returns the [`Subnodes`] of the [`Node`] of `quad_tree` at `index`.
     #[inline]
     #[must_use]
     pub fn new(quad_tree: &mut QuadTree, index: usize) -> Self
@@ -75,6 +84,7 @@ impl Subnodes
         subnodes
     }
 
+    /// Returns an iterator to the indexes of the subnodes.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = usize> + Clone { self.0.into_iter() }
 }

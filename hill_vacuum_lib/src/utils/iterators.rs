@@ -15,8 +15,11 @@ use arrayvec::ArrayVec;
 /// The result of the iteration of [`FilteredSet`].
 enum FilterResult
 {
+    /// The element was filtered out.
     Filtered,
+    /// The element was not filtered.
     NotFiltered,
+    /// There are no more filters.
     Empty
 }
 
@@ -39,9 +42,10 @@ pub trait FilterSet
         Self: Sized + Iterator<Item = T>,
         T: PartialEq + Eq + Copy
     {
+        /// Copies the value for comparison.
         #[inline]
         #[must_use]
-        fn predicate<T: PartialEq + Eq + Copy>(value: &T) -> T { *value }
+        const fn predicate<T: PartialEq + Eq + Copy>(value: &T) -> T { *value }
         FilteredSet::new(self, filters, predicate)
     }
 
@@ -349,7 +353,7 @@ impl<'a, T> SlicePairIter<'a, T>
     /// elements themselves.
     #[inline]
     #[must_use]
-    pub fn enumerate(self) -> Enumerate<Self, &'a T, 2> { Enumerate(self) }
+    pub const fn enumerate(self) -> Enumerate<Self, &'a T, 2> { Enumerate(self) }
 }
 
 impl<'a, T> Enumeration<2> for SlicePairIter<'a, T>
@@ -544,7 +548,7 @@ impl<'a, T> SliceTripletIter<'a, T>
     /// elements themselves.
     #[inline]
     #[must_use]
-    pub fn enumerate(self) -> Enumerate<Self, &'a T, 3> { Enumerate(self) }
+    pub const fn enumerate(self) -> Enumerate<Self, &'a T, 3> { Enumerate(self) }
 }
 
 impl<'a, T> Enumeration<3> for SliceTripletIter<'a, T>

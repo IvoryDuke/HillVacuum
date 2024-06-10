@@ -173,6 +173,7 @@ where
     fn to_str(self) -> &'static str;
 }
 
+/// Implements [`FromToStr`] for [`bevy::prelude::KeyCode`].
 macro_rules! keycode_from_to_str {
     ($(($str:expr, $kc:ident)),+) => (
         impl FromToStr for bevy::prelude::KeyCode

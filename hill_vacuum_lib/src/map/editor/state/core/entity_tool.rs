@@ -8,13 +8,20 @@ use bevy_egui::egui;
 use shared::{match_or_panic, return_if_no_match, return_if_none};
 
 use super::{
-    drag_area::{DragArea, DragAreaHighlightedEntity, DragAreaTrait},
     draw_selected_and_non_selected_brushes,
     draw_selected_and_non_selected_things,
     item_selector::{ItemSelector, ItemsBeneathCursor},
-    tool::{ChangeConditions, EnabledTool, SubTool},
+    rect::{Rect, RectHighlightedEntity, RectTrait},
+    tool::{
+        ChangeConditions,
+        DisableSubtool,
+        DragSelection,
+        EnabledTool,
+        OngoingMultiframeChange,
+        SubTool
+    },
     ActiveTool,
-    Drag
+    CursorDelta
 };
 use crate::{
     map::{
@@ -23,7 +30,7 @@ use crate::{
         editor::{
             cursor_pos::Cursor,
             state::{
-                core::{drag_area, tool::subtools_buttons},
+                core::{rect, tool::subtools_buttons},
                 editor_state::{edit_target, InputsPresses, TargetSwitch, ToolsSettings},
                 edits_history::EditsHistory,
                 grid::Grid,
@@ -38,7 +45,8 @@ use crate::{
     utils::{
         hull::{EntityHull, Hull},
         identifiers::{EntityId, Id},
-        iterators::FilterSet
+        iterators::FilterSet,
+        misc::Camera
     }
 };
 
@@ -51,11 +59,17 @@ use crate::{
 #[derive(Debug)]
 enum Status
 {
-    Inactive(DragAreaHighlightedEntity<ItemBeneathCursor>),
-    Drag(Drag, bool),
+    /// Inactive.
+    Inactive(RectHighlightedEntity<ItemBeneathCursor>),
+    /// Dragging entities.
+    Drag(CursorDelta, bool),
+    /// Preparing for drag.
     PreDrag(Vec2, ItemBeneathCursor, bool),
+    /// Anchoring a [`Brush`] to another.
     Anchor(Id, Option<Id>),
+    /// Attempting a drag spawn from the UI.
     DragSpawnUi(Option<ItemBeneathCursor>),
+    /// Attempting a [`Brush`] anchoring from the UI.
     AnchorUi(Option<Id>)
 }
 
@@ -63,7 +77,7 @@ impl Default for Status
 {
     #[inline]
     #[must_use]
-    fn default() -> Self { Self::Inactive(DragAreaHighlightedEntity::default()) }
+    fn default() -> Self { Self::Inactive(RectHighlightedEntity::default()) }
 }
 
 impl EnabledTool for Status
@@ -87,11 +101,15 @@ impl EnabledTool for Status
 //
 //=======================================================================//
 
+/// The item beneath the cursor.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum ItemBeneathCursor
 {
+    /// A polygon.
     Polygon(Id),
+    /// A thing.
     Thing(Id),
+    /// A sprite.
     Sprite(Id)
 }
 
@@ -112,136 +130,147 @@ impl EntityId for ItemBeneathCursor
 
 //=======================================================================//
 
+/// The entity selector.
 #[must_use]
 #[derive(Debug)]
 struct Selector
 {
-    polygons_and_things: ItemSelector<ItemBeneathCursor>,
-    polygons:            ItemSelector<ItemBeneathCursor>,
-    textured_brushes:    ItemSelector<ItemBeneathCursor>,
-    everything:          ItemSelector<ItemBeneathCursor>
+    /// Selector of [`Brush`]es and [`ThingInstance`]s.
+    brushes_and_things: ItemSelector<ItemBeneathCursor>,
+    /// Selector of [`Brush`]es.
+    brushes:            ItemSelector<ItemBeneathCursor>,
+    /// Selector of textured [`Brush`]es.
+    textured_brushes:   ItemSelector<ItemBeneathCursor>,
+    /// Selector of any item.
+    everything:         ItemSelector<ItemBeneathCursor>
 }
 
 impl Selector
 {
+    /// Returns a new [`Selector`].
     #[inline]
     fn new() -> Self
     {
+        /// [`Brush`] and [`ThingInstance`] selection update.
+        #[inline]
+        fn entity_selector(
+            manager: &EntitiesManager,
+            cursor_pos: Vec2,
+            _: f32,
+            items: &mut ItemsBeneathCursor<ItemBeneathCursor>
+        )
+        {
+            for brush in manager
+                .brushes_at_pos(cursor_pos, None)
+                .iter()
+                .filter(|brush| brush.contains_point(cursor_pos))
+            {
+                let id = brush.id();
+                items.push(ItemBeneathCursor::Polygon(id), manager.is_selected(id));
+            }
+
+            for thing in manager
+                .things_at_pos(cursor_pos, None)
+                .iter()
+                .filter(|thing| thing.contains_point(cursor_pos))
+            {
+                let id = thing.id();
+                items.push(ItemBeneathCursor::Thing(id), manager.is_selected(id));
+            }
+        }
+
+        /// Polygons selection update.
+        #[inline]
+        fn polygon_selector(
+            manager: &EntitiesManager,
+            cursor_pos: Vec2,
+            _: f32,
+            items: &mut ItemsBeneathCursor<ItemBeneathCursor>
+        )
+        {
+            for brush in manager
+                .brushes_at_pos(cursor_pos, None)
+                .iter()
+                .filter(|brush| brush.contains_point(cursor_pos))
+            {
+                let id = brush.id();
+                items.push(ItemBeneathCursor::Polygon(id), manager.is_selected(id));
+            }
+        }
+
+        /// Textured [`Brush`] selection update.
+        #[inline]
+        fn textured_brush_selector(
+            manager: &EntitiesManager,
+            cursor_pos: Vec2,
+            _: f32,
+            items: &mut ItemsBeneathCursor<ItemBeneathCursor>
+        )
+        {
+            for brush in manager
+                .sprites_at_pos(cursor_pos)
+                .iter()
+                .filter(|brush| brush.sprite_hull().unwrap().contains_point(cursor_pos))
+            {
+                let id = brush.id();
+                items.push(ItemBeneathCursor::Sprite(id), manager.is_selected(id));
+            }
+
+            for brush in manager.brushes_at_pos(cursor_pos, None).iter().filter(|brush| {
+                brush.has_texture() && !brush.has_sprite() && brush.contains_point(cursor_pos)
+            })
+            {
+                let id = brush.id();
+                items.push(ItemBeneathCursor::Polygon(id), manager.is_selected(id));
+            }
+        }
+
+        /// Any item selection update.
+        #[inline]
+        fn both_selector(
+            manager: &EntitiesManager,
+            cursor_pos: Vec2,
+            _: f32,
+            items: &mut ItemsBeneathCursor<ItemBeneathCursor>
+        )
+        {
+            for brush in manager
+                .sprites_at_pos(cursor_pos)
+                .iter()
+                .filter(|brush| brush.sprite_hull().unwrap().contains_point(cursor_pos))
+            {
+                let id = brush.id();
+                items.push(ItemBeneathCursor::Sprite(id), manager.is_selected(id));
+            }
+
+            for brush in manager
+                .brushes_at_pos(cursor_pos, None)
+                .iter()
+                .filter(|brush| brush.contains_point(cursor_pos))
+            {
+                let id = brush.id();
+                items.push(ItemBeneathCursor::Polygon(id), manager.is_selected(id));
+            }
+
+            for thing in manager
+                .things_at_pos(cursor_pos, None)
+                .iter()
+                .filter(|thing| thing.contains_point(cursor_pos))
+            {
+                let id = thing.id();
+                items.push(ItemBeneathCursor::Thing(id), manager.is_selected(id));
+            }
+        }
+
         Self {
-            polygons_and_things: ItemSelector::new(Self::entity_selector),
-            polygons:            ItemSelector::new(Self::polygon_selector),
-            textured_brushes:    ItemSelector::new(Self::textured_brush_selector),
-            everything:          ItemSelector::new(Self::both_selector)
+            brushes_and_things: ItemSelector::new(entity_selector),
+            brushes:            ItemSelector::new(polygon_selector),
+            textured_brushes:   ItemSelector::new(textured_brush_selector),
+            everything:         ItemSelector::new(both_selector)
         }
     }
 
-    #[inline]
-    fn entity_selector(
-        manager: &EntitiesManager,
-        cursor_pos: Vec2,
-        _: f32,
-        items: &mut ItemsBeneathCursor<ItemBeneathCursor>
-    )
-    {
-        for brush in manager
-            .brushes_at_pos(cursor_pos, None)
-            .iter()
-            .filter(|brush| brush.contains_point(cursor_pos))
-        {
-            let id = brush.id();
-            items.push(ItemBeneathCursor::Polygon(id), manager.is_selected(id));
-        }
-
-        for thing in manager
-            .things_at_pos(cursor_pos, None)
-            .iter()
-            .filter(|thing| thing.contains_point(cursor_pos))
-        {
-            let id = thing.id();
-            items.push(ItemBeneathCursor::Thing(id), manager.is_selected(id));
-        }
-    }
-
-    #[inline]
-    fn polygon_selector(
-        manager: &EntitiesManager,
-        cursor_pos: Vec2,
-        _: f32,
-        items: &mut ItemsBeneathCursor<ItemBeneathCursor>
-    )
-    {
-        for brush in manager
-            .brushes_at_pos(cursor_pos, None)
-            .iter()
-            .filter(|brush| brush.contains_point(cursor_pos))
-        {
-            let id = brush.id();
-            items.push(ItemBeneathCursor::Polygon(id), manager.is_selected(id));
-        }
-    }
-
-    #[inline]
-    fn textured_brush_selector(
-        manager: &EntitiesManager,
-        cursor_pos: Vec2,
-        _: f32,
-        items: &mut ItemsBeneathCursor<ItemBeneathCursor>
-    )
-    {
-        for brush in manager
-            .sprites_at_pos(cursor_pos)
-            .iter()
-            .filter(|brush| brush.sprite_hull().unwrap().contains_point(cursor_pos))
-        {
-            let id = brush.id();
-            items.push(ItemBeneathCursor::Sprite(id), manager.is_selected(id));
-        }
-
-        for brush in manager.brushes_at_pos(cursor_pos, None).iter().filter(|brush| {
-            brush.has_texture() && !brush.has_sprite() && brush.contains_point(cursor_pos)
-        })
-        {
-            let id = brush.id();
-            items.push(ItemBeneathCursor::Polygon(id), manager.is_selected(id));
-        }
-    }
-
-    #[inline]
-    fn both_selector(
-        manager: &EntitiesManager,
-        cursor_pos: Vec2,
-        _: f32,
-        items: &mut ItemsBeneathCursor<ItemBeneathCursor>
-    )
-    {
-        for brush in manager
-            .sprites_at_pos(cursor_pos)
-            .iter()
-            .filter(|brush| brush.sprite_hull().unwrap().contains_point(cursor_pos))
-        {
-            let id = brush.id();
-            items.push(ItemBeneathCursor::Sprite(id), manager.is_selected(id));
-        }
-
-        for brush in manager
-            .brushes_at_pos(cursor_pos, None)
-            .iter()
-            .filter(|brush| brush.contains_point(cursor_pos))
-        {
-            let id = brush.id();
-            items.push(ItemBeneathCursor::Polygon(id), manager.is_selected(id));
-        }
-
-        for thing in manager
-            .things_at_pos(cursor_pos, None)
-            .iter()
-            .filter(|thing| thing.contains_point(cursor_pos))
-        {
-            let id = thing.id();
-            items.push(ItemBeneathCursor::Thing(id), manager.is_selected(id));
-        }
-    }
-
+    /// Returns the entity beneath the cursor.
     #[inline]
     #[must_use]
     fn entity_beneath_cursor(
@@ -251,10 +280,11 @@ impl Selector
         inputs: &InputsPresses
     ) -> Option<ItemBeneathCursor>
     {
-        self.polygons_and_things
+        self.brushes_and_things
             .item_beneath_cursor(manager, cursor, 0f32, inputs)
     }
 
+    /// Returns the [`Brush`] beneath the cursor.
     #[inline]
     #[must_use]
     fn brush_beneath_cursor(
@@ -264,9 +294,10 @@ impl Selector
         inputs: &InputsPresses
     ) -> Option<ItemBeneathCursor>
     {
-        self.polygons.item_beneath_cursor(manager, cursor, 0f32, inputs)
+        self.brushes.item_beneath_cursor(manager, cursor, 0f32, inputs)
     }
 
+    /// Returns the textured [`Brush`] or sprite beneath the cursor.
     #[inline]
     #[must_use]
     fn textured_brush_beneath_cursor(
@@ -280,6 +311,7 @@ impl Selector
             .item_beneath_cursor(manager, cursor, 0f32, inputs)
     }
 
+    /// Returns the entity or the sprite beneath the cursor.
     #[inline]
     #[must_use]
     fn both_beneath_cursor(
@@ -292,6 +324,7 @@ impl Selector
         self.everything.item_beneath_cursor(manager, cursor, 0f32, inputs)
     }
 
+    /// Returns the item beneath the cursor, if any.
     #[inline]
     #[must_use]
     fn item_beneath_cursor(
@@ -316,6 +349,7 @@ impl Selector
 
 //=======================================================================//
 
+/// The entity tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct EntityTool(Status, Selector);
 
@@ -326,10 +360,44 @@ impl Default for EntityTool
     fn default() -> Self { Self(Status::default(), Selector::new()) }
 }
 
-impl EntityTool
+impl DisableSubtool for EntityTool
 {
     #[inline]
-    pub fn tool(drag_selection: DragArea) -> ActiveTool
+    fn disable_subtool(&mut self)
+    {
+        if matches!(self.0, Status::Anchor(..) | Status::DragSpawnUi(_) | Status::AnchorUi(_))
+        {
+            self.0 = Status::default();
+        }
+    }
+}
+
+impl OngoingMultiframeChange for EntityTool
+{
+    #[inline]
+    fn ongoing_multi_frame_change(&self) -> bool
+    {
+        !matches!(self.0, Status::Inactive(_) | Status::PreDrag(..))
+    }
+}
+
+impl DragSelection for EntityTool
+{
+    #[inline]
+    fn drag_selection(&self) -> Option<Rect>
+    {
+        Some(
+            (*return_if_no_match!(&self.0, Status::Inactive(drag_selection), drag_selection, None))
+                .into()
+        )
+    }
+}
+
+impl EntityTool
+{
+    /// Returns an [`ActiveTool`] in its entity tool variant.
+    #[inline]
+    pub fn tool(drag_selection: Rect) -> ActiveTool
     {
         ActiveTool::Entity(Self(Status::Inactive(drag_selection.into()), Selector::new()))
     }
@@ -337,23 +405,7 @@ impl EntityTool
     //==============================================================
     // Info
 
-    #[inline]
-    #[must_use]
-    pub const fn ongoing_multi_frame_changes(&self) -> bool
-    {
-        !matches!(self.0, Status::Inactive(_) | Status::PreDrag(..))
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn drag_selection(&self) -> Option<DragArea>
-    {
-        Some(
-            (*return_if_no_match!(&self.0, Status::Inactive(drag_selection), drag_selection, None))
-                .into()
-        )
-    }
-
+    /// The cursor pos used by the tool.
     #[inline]
     #[must_use]
     const fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world() }
@@ -361,15 +413,7 @@ impl EntityTool
     //==============================================================
     // Update
 
-    #[inline]
-    pub fn disable_subtool(&mut self)
-    {
-        if matches!(self.0, Status::Anchor(..) | Status::DragSpawnUi(_) | Status::AnchorUi(_))
-        {
-            self.0 = Status::default();
-        }
-    }
-
+    /// Updates the tool.
     #[inline]
     pub fn update(
         &mut self,
@@ -390,9 +434,10 @@ impl EntityTool
                     self.1.item_beneath_cursor(bundle, manager, settings, inputs);
                 let cursor_pos = Self::cursor_pos(bundle.cursor);
 
-                drag_area::update!(
+                rect::update!(
                     ds,
                     cursor_pos,
+                    bundle.camera.scale(),
                     inputs.left_mouse.pressed(),
                     {
                         if settings.entity_editing()
@@ -545,7 +590,7 @@ impl EntityTool
                     return;
                 }
 
-                let drag = return_if_none!(Drag::try_new_initiated(*pos, bundle.cursor, grid));
+                let drag = return_if_none!(CursorDelta::try_new(*pos, bundle.cursor, grid));
 
                 // Drag the brushes.
                 if *forced_spawn || inputs.alt_pressed()
@@ -688,6 +733,7 @@ impl EntityTool
         };
     }
 
+    /// Finalizes the entities drag.
     #[inline]
     fn finalize_entities_drag(
         &mut self,
@@ -725,6 +771,7 @@ impl EntityTool
         self.0 = Status::default();
     }
 
+    /// Toggles the selection of the entity with [`Id`] `identifier`.
     #[inline]
     fn toggle_entity_selection(
         manager: &mut EntitiesManager,
@@ -742,6 +789,7 @@ impl EntityTool
         manager.select_entity(identifier, inputs, edits_history);
     }
 
+    /// Exclusively selects the entity with [`Id`] `identifier`.
     #[inline]
     fn exclusively_select_entity(
         manager: &mut EntitiesManager,
@@ -754,6 +802,7 @@ impl EntityTool
         manager.select_entity(identifier, inputs, edits_history);
     }
 
+    /// Move spawn the selected entities.
     #[inline]
     fn move_spawn_entities(
         bundle: &ToolUpdateBundle,
@@ -775,6 +824,7 @@ impl EntityTool
         );
     }
 
+    /// Selects the entities inside the drag selection.
     #[inline]
     fn select_entities_from_drag_selection(
         manager: &mut EntitiesManager,
@@ -799,6 +849,7 @@ impl EntityTool
         );
     }
 
+    /// Moves the selected entities.
     #[inline]
     fn move_selected_entities(
         bundle: &ToolUpdateBundle,
@@ -834,6 +885,7 @@ impl EntityTool
         true
     }
 
+    /// Moves the selected textures.
     #[inline]
     fn move_selected_textures(
         bundle: &ToolUpdateBundle,
@@ -860,6 +912,7 @@ impl EntityTool
         true
     }
 
+    /// Removes the highlighted entity.
     #[inline]
     pub fn remove_highlighted_entity(&mut self)
     {
@@ -869,6 +922,7 @@ impl EntityTool
     //==============================================================
     // Draw
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(
         &self,
@@ -878,12 +932,14 @@ impl EntityTool
         show_tooltips: bool
     )
     {
+        /// Draws the sprite outline.
         #[inline]
         fn sprite_outline(brush: &Brush, drawer: &mut EditDrawer, color: Color)
         {
             drawer.sides(brush.sprite_hull().unwrap().rectangle().into_iter(), color);
         }
 
+        /// Draws the selected and non selected entities, except `filters`.
         macro_rules! draw_selected_and_non_selected {
             ($bundle:ident, $manager:ident $(, $filters:expr)?) => {
                 draw_selected_and_non_selected_brushes!(bundle, manager $(, $filters)?);
@@ -932,8 +988,9 @@ impl EntityTool
             Status::PreDrag(_, hgl_e, _) => Some(*hgl_e),
             Status::Anchor(id, hgl_e) =>
             {
+                /// Draws the highlighted sprite's outline.
                 #[inline]
-                fn anchor_sprite_outline(
+                fn highlighted_sprite_outline(
                     brush: &Brush,
                     drawer: &mut EditDrawer,
                     settings: &ToolsSettings
@@ -951,7 +1008,7 @@ impl EntityTool
 
                     let brush = manager.brush(hgl_e);
                     brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
-                    anchor_sprite_outline(brush, &mut bundle.drawer, settings);
+                    highlighted_sprite_outline(brush, &mut bundle.drawer, settings);
 
                     brush.center()
                 }
@@ -963,7 +1020,7 @@ impl EntityTool
 
                 let brush = manager.brush(*id);
                 brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
-                anchor_sprite_outline(brush, &mut bundle.drawer, settings);
+                highlighted_sprite_outline(brush, &mut bundle.drawer, settings);
 
                 let start = brush.center();
                 bundle.drawer.square_highlight(start, Color::BrushAnchor);
@@ -1066,15 +1123,17 @@ impl EntityTool
         }
     }
 
+    /// Draws the tool's UI.
     #[inline]
     pub fn ui(&self, ui: &mut egui::Ui, settings: &mut ToolsSettings)
     {
         ui.label(egui::RichText::new("BRUSH TOOL"));
-        settings.ui(ui, !self.ongoing_multi_frame_changes());
+        settings.ui(ui, !self.ongoing_multi_frame_change());
     }
 
+    /// Draws the subtools.
     #[inline]
-    pub fn draw_sub_tools(
+    pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
         bundle: &StateUpdateBundle,

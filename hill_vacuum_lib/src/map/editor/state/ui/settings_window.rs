@@ -23,30 +23,40 @@ use crate::{
 //
 //=======================================================================//
 
+/// Info about the bind being edited.
 #[derive(Default)]
 enum BindEdit
 {
+    /// Inactive
     #[default]
     None,
+    /// Working
     Some(Bind, Blinker)
 }
 
 impl BindEdit
 {
+    /// The duration time of a blink.
     const BLINK_INTERVAL: f32 = 0.75;
+    /// The blink off string.
     const BLINK_OFF: &'static str = " ";
+    /// The blink on string.
     const BLINK_ON: &'static str = "_";
 
+    /// Whever a bind is being edited.
     #[inline]
     #[must_use]
     const fn being_edited(&self) -> bool { matches!(self, Self::Some(..)) }
 
+    /// Starts a bind edit.
     #[inline]
     fn initialize(&mut self, bind: Bind)
     {
         *self = Self::Some(bind, Blinker::new(Self::BLINK_INTERVAL));
     }
 
+    /// Updates `self` and returns the [`Bind`] being edited and the string to show in place of the
+    /// keyboard key.
     #[inline]
     #[must_use]
     fn update(&mut self, delta_time: f32) -> Option<(Bind, &'static str)>
@@ -55,16 +65,20 @@ impl BindEdit
         Some((*b, if blinker.update(delta_time) { Self::BLINK_ON } else { Self::BLINK_OFF }))
     }
 
+    /// Resets the bind edit.
     #[inline]
     fn reset(&mut self) { *self = BindEdit::default(); }
 }
 
 //=======================================================================//
 
+/// The settings window.
 #[derive(Default)]
 pub(in crate::map::editor::state::ui) struct SettingsWindow
 {
+    /// The window data.
     window:    Window,
+    /// Data concerning the bind being edited.
     bind_edit: BindEdit
 }
 
@@ -87,6 +101,7 @@ impl WindowCloserInfo for SettingsWindow
     #[inline]
     fn window_closer(&self) -> Option<WindowCloser>
     {
+        /// Calls the window close.
         #[inline]
         fn close(controls: &mut SettingsWindow)
         {
@@ -102,6 +117,7 @@ impl WindowCloserInfo for SettingsWindow
 
 impl SettingsWindow
 {
+    /// Shows the settings window.
     #[inline]
     #[must_use]
     pub fn show(&mut self, bundle: &mut StateUpdateBundle, inputs: &mut InputsPresses) -> bool
@@ -120,12 +136,7 @@ impl SettingsWindow
             ..
         } = bundle;
 
-        if Bind::Settings.just_pressed(key_inputs, binds)
-        {
-            self.window.open();
-        }
-
-        if !self.window.is_open()
+        if !self.window.check_open(Bind::Settings.just_pressed(key_inputs, binds))
         {
             return false;
         }
@@ -144,6 +155,7 @@ impl SettingsWindow
                 .collapsible(true)
                 .max_width(250f32),
             |ui| {
+                /// Shows a button to redefine a keyboard bind.
                 #[inline]
                 fn bind_button(
                     ui: &mut egui::Ui,

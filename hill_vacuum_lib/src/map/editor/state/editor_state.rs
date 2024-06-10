@@ -18,7 +18,7 @@ use shared::{return_if_none, FILE_EXTENSION};
 use super::{
     clipboard::{Clipboard, PropCamerasMut},
     core::{
-        rotate_tool::RotateSnap,
+        rotate_tool::RotateAngle,
         tool::{ChangeConditions, Tool}
     },
     edits_history::EditsHistory,
@@ -48,6 +48,7 @@ use crate::{
             AllDefaultProperties,
             DrawBundle,
             DrawBundleMapPreview,
+            Placeholder,
             StateUpdateBundle,
             ToolUpdateBundle
         },
@@ -177,9 +178,12 @@ pub(in crate::map::editor::state) use edit_target;
 #[derive(Clone, Copy, Default, EnumIter, EnumSize, EnumFromUsize, PartialEq, Eq)]
 pub(in crate::map::editor::state) enum TargetSwitch
 {
+    /// Edit entities.
     #[default]
     Entity,
+    /// Edit both entities and textures.
     Both,
+    /// Edit textures.
     Texture
 }
 
@@ -197,7 +201,7 @@ impl TargetSwitch
     /// Returns a string representation of `self`.
     #[inline]
     #[must_use]
-    fn tag(self) -> &'static str
+    const fn tag(self) -> &'static str
     {
         match self
         {
@@ -256,11 +260,11 @@ impl TargetSwitch
 
     /// Whever `self` allows editing of entities.
     #[inline]
-    pub fn entity_editing(self) -> bool { matches!(self, Self::Entity | Self::Both) }
+    pub const fn entity_editing(self) -> bool { matches!(self, Self::Entity | Self::Both) }
 
     /// Whever `self` allows editing of textures.
     #[inline]
-    pub fn texture_editing(self) -> bool { matches!(self, Self::Texture | Self::Both) }
+    pub const fn texture_editing(self) -> bool { matches!(self, Self::Texture | Self::Both) }
 
     /// Draws an UI combobox that does not allow the value of `self` to be changed.
     #[inline]
@@ -298,15 +302,24 @@ impl TargetSwitch
 #[derive(Default, Clone, Copy, PartialEq, EnumIter, EnumFromUsize, EnumSize)]
 pub(in crate::map::editor::state) enum ThingPivot
 {
+    /// Top left.
     TopLeft,
+    /// Top center.
     TopCenter,
+    /// Top right.
     TopRight,
+    /// Center left.
     CenterLeft,
+    /// Center.
     #[default]
     Center,
+    /// Center right.
     CenterRight,
+    /// Bottom left.
     BottomLeft,
+    /// Bottom center.
     BottomCenter,
+    /// Bottom right.
     BottomRight
 }
 
@@ -324,7 +337,7 @@ impl ThingPivot
     /// A string representation of `self`.
     #[inline]
     #[must_use]
-    fn tag(self) -> &'static str
+    const fn tag(self) -> &'static str
     {
         match self
         {
@@ -512,7 +525,7 @@ pub(in crate::map) struct ToolsSettings
     /// are being edited.
     pub(in crate::map::editor::state) texture_scale_interval: f32,
     /// The minimum angle the entities can be rotated when using the rotate tool.
-    pub(in crate::map::editor::state) rotate_snap: RotateSnap,
+    pub(in crate::map::editor::state) rotate_angle: RotateAngle,
     /// Whever texture scrolling is enabled while editing the map.
     pub scroll_enabled: bool,
     /// Whever texture parallax is enabled while editing the map.
@@ -532,7 +545,7 @@ impl Default for ToolsSettings
             can_switch:             false,
             circle_draw_resolution: 2,
             texture_scale_interval: 0.5,
-            rotate_snap:            RotateSnap::default(),
+            rotate_angle:           RotateAngle::default(),
             scroll_enabled:         true,
             parallax_enabled:       true,
             thing_pivot:            ThingPivot::default()
@@ -552,7 +565,7 @@ impl ToolsSettings
         inputs: &InputsPresses
     )
     {
-        if !core.texture_tool() || core.ongoing_multi_frame_changes()
+        if !core.texture_tool() || core.ongoing_multi_frame_change()
         {
             return;
         }
@@ -577,12 +590,15 @@ impl ToolsSettings
     /// Returns a copy of the [`TargetSwitch`].
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) fn target_switch(self) -> TargetSwitch { self.target_switch }
+    pub(in crate::map::editor::state) const fn target_switch(&self) -> TargetSwitch
+    {
+        self.target_switch
+    }
 
     /// Whever entities editing is enabled.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) fn entity_editing(self) -> bool
+    pub(in crate::map::editor::state) const fn entity_editing(&self) -> bool
     {
         self.target_switch.entity_editing()
     }
@@ -590,7 +606,7 @@ impl ToolsSettings
     /// Whever texture editing is enabled.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) fn texture_editing(self) -> bool
+    pub(in crate::map::editor::state) const fn texture_editing(&self) -> bool
     {
         self.target_switch.texture_editing()
     }
@@ -615,6 +631,7 @@ impl ToolsSettings
 
 //=======================================================================//
 
+/// The state of the [`Editor`].
 pub(in crate::map::editor) struct State
 {
     /// The core of the editor.
@@ -639,12 +656,38 @@ pub(in crate::map::editor) struct State
     cursor_snap:        bool,
     /// Whever a grey semitransparent rectangle should be drawn on the map beneath the cursor.
     show_cursor:        bool,
+    /// Whever the "clip" texture should be drawn on top of the [`Brush`]es with collision enabled.
     show_collision:     bool,
     /// Whever textures are currently being reloaded.
     reloading_textures: bool,
     #[cfg(feature = "debug")]
     /// Whever debug lines should be drawn on top of the map.
     show_debug_lines:   bool
+}
+
+impl Placeholder for State
+{
+    #[inline]
+    unsafe fn placeholder() -> Self
+    {
+        Self {
+            core: Core::default(),
+            manager: EntitiesManager::new(),
+            clipboard: Clipboard::new(),
+            edits_history: EditsHistory::default(),
+            inputs: InputsPresses::default(),
+            grid: Grid::default(),
+            tools_settings: ToolsSettings::default(),
+            ui: Ui::placeholder(),
+            show_tooltips: true,
+            cursor_snap: true,
+            show_cursor: true,
+            show_collision: true,
+            reloading_textures: false,
+            #[cfg(feature = "debug")]
+            show_debug_lines: false
+        }
+    }
 }
 
 impl State
@@ -675,6 +718,8 @@ impl State
         file: Option<File>
     ) -> Self
     {
+        /// The [`State`] to default to in case of errors in the file load or if there is no file to
+        /// load.
         #[inline]
         fn default(
             asset_server: &AssetServer,
@@ -770,28 +815,6 @@ impl State
         }
     }
 
-    #[inline]
-    pub unsafe fn placeholder() -> Self
-    {
-        Self {
-            core: Core::default(),
-            manager: EntitiesManager::new(),
-            clipboard: Clipboard::new(),
-            edits_history: EditsHistory::default(),
-            inputs: InputsPresses::default(),
-            grid: Grid::default(),
-            tools_settings: ToolsSettings::default(),
-            ui: Ui::placeholder(),
-            show_tooltips: true,
-            cursor_snap: true,
-            show_cursor: true,
-            show_collision: true,
-            reloading_textures: false,
-            #[cfg(feature = "debug")]
-            show_debug_lines: false
-        }
-    }
-
     //==============================================================
     // Info
 
@@ -827,6 +850,7 @@ impl State
     #[must_use]
     pub const fn map_preview(&self) -> bool { self.core.map_preview() }
 
+    /// Whever the [`Brush`]es collision overlay should be drawn.
     #[inline]
     #[must_use]
     pub const fn show_collision_overlay(&self) -> bool { self.show_collision }
@@ -1046,7 +1070,7 @@ impl State
     /// Whever there are no unsaved changes.
     #[inline]
     #[must_use]
-    fn no_edits(&self, drawing_resources: &DrawingResources) -> bool
+    const fn no_edits(&self, drawing_resources: &DrawingResources) -> bool
     {
         self.edits_history.no_unsaved_edits() &&
             !self.clipboard.props_changed() &&
@@ -1065,6 +1089,7 @@ impl State
         save_as: Option<&'static str>
     ) -> Result<(), &'static str>
     {
+        /// Tests whever `test` is an error and returns an [`Err`] wrapping the error message `err`.
         macro_rules! test {
             ($test:expr, $err:literal) => {
                 if $test.is_err()
@@ -1074,20 +1099,26 @@ impl State
             };
         }
 
+        /// The target of the file save process.
         enum SaveTarget
         {
+            /// No save.
             None,
+            /// Save to new file.
             New(PathBuf),
+            /// Save to open file.
             Open
         }
 
         impl SaveTarget
         {
+            /// Whever `self` represents a new file to create.
             #[inline]
             #[must_use]
-            fn is_new(&self) -> bool { matches!(self, Self::New(_)) }
+            const fn is_new(&self) -> bool { matches!(self, Self::New(_)) }
         }
 
+        /// The dialog window to save the file. Returns a [`SaveTarget`] describing the outcome.
         #[inline]
         #[must_use]
         fn save_as_dialog(title: &'static str) -> SaveTarget
@@ -1391,7 +1422,7 @@ impl State
     /// Whever copy paste is available.
     #[inline]
     #[must_use]
-    const fn copy_paste_available(&self) -> bool { self.core.copy_paste_available() }
+    fn copy_paste_available(&self) -> bool { self.core.copy_paste_available() }
 
     /// Initiates the copy procedure.
     /// # Panics
@@ -1525,6 +1556,7 @@ impl State
         ui_interaction: &Interaction
     ) -> bool
     {
+        /// Generates the procedure to save an export type file.
         macro_rules! save_export {
             ($extension:ident, $label:literal, $argument:ident, $source:expr) => {{ paste::paste! {
                 let path = return_if_none!(
@@ -1940,6 +1972,7 @@ impl State
         self.core.toggle_map_preview(drawing_resources, &self.manager);
     }
 
+    /// Toggles the collision overlay.
     #[inline]
     fn toggle_collision(&mut self) { self.show_collision.toggle(); }
 
@@ -2112,6 +2145,7 @@ impl State
 //
 //=======================================================================//
 
+/// Adds `extension` to `path` if it doesn't already end with it.
 #[inline]
 #[must_use]
 fn check_path_extension(path: PathBuf, extension: &'static str) -> PathBuf

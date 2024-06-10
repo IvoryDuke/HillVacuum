@@ -12,6 +12,7 @@ pub(in crate::map) mod ui;
 //
 //=======================================================================//
 
+/// Formats the texture with id `texture_id` to fit frame of the `widget`.
 macro_rules! format_texture_preview {
     ($widget:ident, $ui:ident, $texture_id:expr, $size:expr, $frame_size:expr) => {{
         macro_rules! uneven {

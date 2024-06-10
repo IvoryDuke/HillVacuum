@@ -66,7 +66,7 @@ impl Grid
     /// Returns the length of the sides of the squares.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) fn size(self) -> i16 { self.size }
+    pub(in crate::map::editor::state) const fn size(self) -> i16 { self.size }
 
     /// Returns the length of the sides of the squares as an `f32`.
     #[inline]
@@ -427,9 +427,10 @@ impl GridLines
     #[inline]
     fn new(top: f32, bottom: f32, left: f32, right: f32, grid: Grid) -> Self
     {
+        /// Returns the result of the division of `value`/`rhs` rounded to the higher integer.
         #[inline]
         #[must_use]
-        fn div_ceil(value: i16, rhs: i16) -> i16
+        const fn div_ceil(value: i16, rhs: i16) -> i16
         {
             let d = value / rhs;
             let r = value % rhs;
@@ -506,7 +507,7 @@ impl GridLines
     #[allow(clippy::cast_possible_truncation)]
     #[inline]
     #[must_use]
-    fn grid_less_than_64_line_color(_: f32, line: f32) -> Color
+    const fn grid_less_than_64_line_color(_: f32, line: f32) -> Color
     {
         if line as i16 % 64 == 0
         {

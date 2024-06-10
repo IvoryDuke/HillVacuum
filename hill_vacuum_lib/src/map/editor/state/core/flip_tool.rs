@@ -33,17 +33,20 @@ use crate::{
 //
 //=======================================================================//
 
+/// The flip tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct FlipTool(Hull);
 
 impl FlipTool
 {
+    /// Returns an [`ActiveTool`] in its flip tool variant.
     #[inline]
     pub fn tool(manager: &EntitiesManager) -> ActiveTool
     {
         ActiveTool::Flip(Self(manager.selected_brushes_hull().unwrap()))
     }
 
+    /// Updates the tool.
     #[inline]
     pub fn update(
         &mut self,
@@ -60,6 +63,7 @@ impl FlipTool
         edit_target!(
             settings.target_switch(),
             |flip_texture| {
+                #[allow(clippy::missing_docs_in_private_items)]
                 type FlipSteps = (
                     fn(&mut Brush, &DrawingResources, f32, bool) -> bool,
                     fn(&mut Brush, &DrawingResources, f32, bool),
@@ -104,17 +108,7 @@ impl FlipTool
                 self.update_outline(manager, grid);
             },
             {
-                #[allow(clippy::if_not_else)]
-                let y = if dir.x != 0f32
-                {
-                    for mut brush in manager.selected_brushes_mut()
-                    {
-                        brush.flip_texture_scale_x(bundle.drawing_resources);
-                    }
-
-                    false
-                }
-                else
+                let y = if dir.x == 0f32
                 {
                     for mut brush in manager.selected_brushes_mut()
                     {
@@ -122,6 +116,15 @@ impl FlipTool
                     }
 
                     true
+                }
+                else
+                {
+                    for mut brush in manager.selected_brushes_mut()
+                    {
+                        brush.flip_texture_scale_x(bundle.drawing_resources);
+                    }
+
+                    false
                 };
 
                 edits_history.texture_flip(manager.selected_brushes_ids().copied(), y);
@@ -129,12 +132,14 @@ impl FlipTool
         );
     }
 
+    /// Updates the [`Brush`]es outline.
     #[inline]
     pub fn update_outline(&mut self, manager: &EntitiesManager, grid: Grid)
     {
         self.0 = grid.snap_hull(&manager.selected_brushes_hull().unwrap());
     }
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
     {
@@ -142,6 +147,7 @@ impl FlipTool
         bundle.drawer.hull(&self.0, Color::ToolCursor);
     }
 
+    /// Draws the UI.
     #[inline]
     pub fn ui(ui: &mut egui::Ui, settings: &mut ToolsSettings)
     {

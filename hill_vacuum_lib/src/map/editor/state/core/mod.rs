@@ -1,6 +1,5 @@
 mod clip_tool;
-pub(in crate::map) mod drag;
-mod drag_area;
+pub(in crate::map) mod cursor_delta;
 pub(in crate::map::editor::state) mod draw_tool;
 mod entity_tool;
 mod flip_tool;
@@ -8,6 +7,7 @@ mod item_selector;
 mod map_preview;
 mod paint_tool;
 mod path_tool;
+mod rect;
 pub(in crate::map::editor::state) mod rotate_tool;
 mod scale_tool;
 mod shatter_tool;
@@ -29,8 +29,16 @@ use bevy_egui::egui;
 use shared::{match_or_panic, return_if_no_match};
 
 use self::{
-    drag::Drag,
-    tool::{ActiveTool, ChangeConditions, EditingTarget, EnabledTool, Tool}
+    cursor_delta::CursorDelta,
+    tool::{
+        ActiveTool,
+        ChangeConditions,
+        DisableSubtool,
+        EditingTarget,
+        EnabledTool,
+        OngoingMultiframeChange,
+        Tool
+    }
 };
 use super::{
     clipboard::Clipboard,
@@ -66,6 +74,7 @@ use crate::{
 //
 //=======================================================================//
 
+/// Draws the selected and non selected [`Brush`]es.
 macro_rules! draw_selected_and_non_selected_brushes {
     ($bundle:ident, $manager:ident $(, $filters:expr)?) => {
         crate::map::editor::state::core::draw_selected_and_non_selected!(
@@ -84,6 +93,7 @@ use draw_selected_and_non_selected_brushes;
 
 //=======================================================================//
 
+/// Draws the selected and non selected [`ThingInstance`]s.
 macro_rules! draw_selected_and_non_selected_things {
     ($bundle:ident, $manager:ident $(, $filters:expr)?) => {{
         crate::map::editor::state::core::draw_selected_and_non_selected!(
@@ -102,6 +112,7 @@ use draw_selected_and_non_selected_things;
 
 //=======================================================================//
 
+/// Draws the selected and non selected `entities`.
 macro_rules! draw_selected_and_non_selected {
     ($entities:ident, $bundle:ident, $manager:ident, $draw:expr $(, $filters:expr)?) => { paste::paste! {
         use crate::map::drawer::color::Color;
@@ -153,6 +164,7 @@ use draw_selected_and_non_selected;
 
 //=======================================================================//
 
+/// Draws the bottom UI panel.
 macro_rules! bottom_area {
     (
         $self:ident,
@@ -168,7 +180,7 @@ macro_rules! bottom_area {
         egui::TopBottomPanel::bottom($label)
             .resizable(true)
             .min_height($min_height)
-            .max_height($self.max_ui_height)
+            .max_height($self.max_bottom_panel_height)
             .show($egui_context, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     const PREVIEW_FRAME: egui::Vec2 = $preview_frame;
@@ -222,7 +234,7 @@ macro_rules! bottom_area {
                         );
 
                         let vertical_spacing = ui.spacing().item_spacing.y;
-                        $self.max_ui_height = rows as f32 * (PREVIEW_FRAME.y + 20f32 + 3f32 * vertical_spacing) + vertical_spacing;
+                        $self.max_bottom_panel_height = rows as f32 * (PREVIEW_FRAME.y + 20f32 + 3f32 * vertical_spacing) + vertical_spacing;
                         clicked
                     }
                 }).inner
@@ -234,8 +246,10 @@ use bottom_area;
 
 //=======================================================================//
 
+/// Generates the definition of a [`SelectedVertexes`] struct.
 macro_rules! selected_vertexes {
     ($count:ident) => {
+        /// A record of the selected [`Brush`]es selected vertexes.
         #[must_use]
         #[derive(Debug)]
         struct SelectedVertexes(crate::map::containers::HvHashMap<Id, u8>, usize);
@@ -248,14 +262,20 @@ macro_rules! selected_vertexes {
 
         impl SelectedVertexes
         {
+            /// Whever there are any selected vertexes.
             #[inline]
             #[must_use]
-            pub fn any_selected_vx(&self) -> bool { self.1 != 0 }
+            pub const fn any_selected_vx(&self) -> bool { self.1 != 0 }
 
+            /// Whever the vertexes merge is available.
             #[inline]
             #[must_use]
-            pub fn vx_merge_available(&self) -> bool { self.1 > 2 && self.1 < u8::MAX as usize }
+            pub const fn vx_merge_available(&self) -> bool
+            {
+                self.1 > 2 && self.1 < u8::MAX as usize
+            }
 
+            /// Inserts the selected vertexes of `brush`.
             #[inline]
             pub fn insert(&mut self, brush: &Brush)
             {
@@ -265,6 +285,7 @@ macro_rules! selected_vertexes {
                 self.1 = self.0.iter().fold(0, |acc, (_, n)| acc + *n as usize);
             }
 
+            /// Removes the selected vertexes of `brush`.
             #[inline]
             pub fn remove(&mut self, brush: &Brush)
             {
@@ -274,6 +295,8 @@ macro_rules! selected_vertexes {
                 self.1 -= self.0.asserted_remove(brush.id_as_ref()) as usize;
             }
 
+            /// Removes the selected vertexes associated with the [`Brush`] with [`Id`]
+            /// `identifier`.
             #[inline]
             pub fn remove_id(&mut self, manager: &EntitiesManager, identifier: Id)
             {
@@ -283,6 +306,7 @@ macro_rules! selected_vertexes {
                 self.1 -= self.0.asserted_remove(&identifier) as usize;
             }
 
+            /// Clears the selected vertexes.
             #[allow(dead_code)]
             #[inline]
             pub fn clear(&mut self)
@@ -301,10 +325,14 @@ use selected_vertexes;
 //
 //=======================================================================//
 
+/// The result of a vertex selection toggle.
 enum VertexesToggle
 {
+    /// None.
     None,
+    /// Vertex is now selected.
     Selected,
+    /// Vertex is now not selected.
     NonSelected
 }
 
@@ -328,10 +356,13 @@ impl From<bool> for VertexesToggle
 //
 //=======================================================================//
 
+#[allow(clippy::missing_docs_in_private_items)]
 type PreviousActiveTool = HvBox<ActiveTool>;
 
 //=======================================================================//
 
+/// An interface to the editor [`Core`] for the undo/redo routines.
+#[allow(clippy::missing_docs_in_private_items)]
 pub(in crate::map::editor::state) struct UndoRedoInterface<'a>
 {
     things_catalog: &'a ThingsCatalog,
@@ -341,6 +372,7 @@ pub(in crate::map::editor::state) struct UndoRedoInterface<'a>
 
 impl<'a> UndoRedoInterface<'a>
 {
+    /// Returns a new [`UndoRedoInterface`].
     #[inline]
     #[must_use]
     fn new(
@@ -370,18 +402,21 @@ impl<'a> UndoRedoInterface<'a>
         }
     }
 
+    /// Selects the entity with [`Id`] `identifier`.
     #[inline]
     pub fn select_entity(&mut self, identifier: Id)
     {
         self.manager.insert_entity_selection(identifier);
     }
 
+    /// Deselects the entity with [`Id`] `identifier`.
     #[inline]
     pub fn deselect_entity(&mut self, identifier: Id)
     {
         self.manager.remove_entity_selection(identifier);
     }
 
+    /// Spawns a new [`Brush`].
     #[inline]
     pub fn spawn_brush(&mut self, identifier: Id, data: BrushData, b_type: BrushType)
     {
@@ -395,6 +430,7 @@ impl<'a> UndoRedoInterface<'a>
         }
     }
 
+    /// Despawns the [`Brush`] with [`Id`] `identifier`.
     #[inline]
     pub fn despawn_brush(&mut self, identifier: Id, b_type: BrushType) -> BrushData
     {
@@ -423,21 +459,25 @@ impl<'a> UndoRedoInterface<'a>
         data
     }
 
+    /// Returns a [`BrushMut`] wrapping the [`Brush`] with [`Id`] `identifier`.
     #[inline]
     pub fn brush_mut(&mut self, identifier: Id) -> BrushMut { self.manager.brush_mut(identifier) }
 
+    /// Returns a [`MovingMut`] wrapping the entity with id `identifier`.
     #[inline]
     pub fn moving_mut(&mut self, identifier: Id) -> MovingMut<'_>
     {
         self.manager.moving_mut(identifier)
     }
 
+    /// Gives the [`Brush`] with [`Id`] `identifier` a [`Motor`].
     #[inline]
     pub fn set_path(&mut self, identifier: Id, path: Path)
     {
         self.manager.set_path(identifier, path);
     }
 
+    /// Removes the [`Path`] from the entity with [`Id`] `identifier`.
     #[inline]
     pub fn remove_path(&mut self, identifier: Id) -> Path
     {
@@ -454,6 +494,9 @@ impl<'a> UndoRedoInterface<'a>
         motor
     }
 
+    /// Inserts the [`Brush`] with [`Id`] `identifier` in the subtractees.
+    /// # Panics
+    /// Panics if the subtract tool is not currently active.
     #[inline]
     pub fn insert_subtractee(&mut self, identifier: Id)
     {
@@ -461,6 +504,9 @@ impl<'a> UndoRedoInterface<'a>
             .insert_subtractee(self.manager, identifier);
     }
 
+    /// Removes the [`Brush`] with [`Id`] `identifier` from the subtractees.
+    /// # Panics
+    /// Panics if the subtract tool is not currently active.
     #[inline]
     pub fn remove_subtractee(&mut self, identifier: Id)
     {
@@ -468,18 +514,22 @@ impl<'a> UndoRedoInterface<'a>
             .remove_subtractee(self.manager, identifier);
     }
 
+    /// Anchors the [`Brush`] with [`Id`] `anchor_id` to the one with [`Id`] `owner_id`.
     #[inline]
     pub fn insert_anchor(&mut self, platform: Id, anchor: Id)
     {
         self.manager.anchor(platform, anchor);
     }
 
+    /// Disanchors the [`Brush`] with [`Id`] `anchor_id` from the one with [`Id`] `owner_id`.
     #[inline]
     pub fn remove_anchor(&mut self, platform: Id, anchor: Id)
     {
         self.manager.disanchor(platform, anchor);
     }
 
+    /// Sets the texture of the [`Brush`] with [`Id`] identifier.
+    /// Returns the name of the replaced texture, if any.
     #[inline]
     pub fn set_texture(
         &mut self,
@@ -491,18 +541,23 @@ impl<'a> UndoRedoInterface<'a>
         self.manager.set_texture(drawing_resources, identifier, texture)
     }
 
+    /// Set the [`TextureSettings`] of the [`Brush`] with [`Id`] `identifier`.
     #[inline]
     pub fn set_texture_settings(&mut self, identifier: Id, texture: TextureSettings)
     {
         self.manager.set_texture_settings(identifier, texture);
     }
 
+    /// Removes the texture from the [`Brush`] with [`Id`] identifier, and returns its
+    /// [`TextureSettings`].
     #[inline]
     pub fn remove_texture(&mut self, identifier: Id) -> TextureSettings
     {
         self.manager.remove_texture(identifier)
     }
 
+    /// Sets whever the texture of the selected [`Brush`] with [`Id`] `identifier` should be
+    /// rendered as a sprite or not. Returns the previous sprite rendering parameters.
     #[inline]
     pub fn set_single_sprite(
         &mut self,
@@ -514,6 +569,7 @@ impl<'a> UndoRedoInterface<'a>
         self.manager.set_single_sprite(drawing_resources, identifier, value)
     }
 
+    /// Deletes the free draw point at position `p` or `index` depending on the active tool.
     #[inline]
     pub fn delete_free_draw_point(&mut self, p: Vec2, index: usize)
     {
@@ -526,6 +582,7 @@ impl<'a> UndoRedoInterface<'a>
         };
     }
 
+    /// Inserts a free draw point at `index` and position `p`.
     #[inline]
     pub fn insert_free_draw_point(&mut self, p: Vec2, index: usize)
     {
@@ -538,6 +595,7 @@ impl<'a> UndoRedoInterface<'a>
         };
     }
 
+    /// Sets the [`ThingId`] of the [`ThingInstance`] with [`Id`] `identifier`.
     #[inline]
     pub fn set_thing(&mut self, identifier: Id, thing: ThingId) -> ThingId
     {
@@ -547,9 +605,11 @@ impl<'a> UndoRedoInterface<'a>
             .unwrap()
     }
 
+    /// Returns the [`ThingMut`] with [`Id`] `identifier`.
     #[inline]
     pub fn thing_mut(&mut self, identifier: Id) -> ThingMut { self.manager.thing_mut(identifier) }
 
+    /// Spawns a new [`ThingInstance`].
     #[inline]
     pub fn spawn_thing(&mut self, identifier: Id, data: ThingInstanceData, drawn: bool)
     {
@@ -562,6 +622,7 @@ impl<'a> UndoRedoInterface<'a>
         }
     }
 
+    /// Despawns the [`ThingInstance`] with [`Id`] `identifier`.
     #[inline]
     pub fn despawn_thing(&mut self, identifier: Id, drawn: bool) -> ThingInstanceData
     {
@@ -578,43 +639,50 @@ impl<'a> UndoRedoInterface<'a>
         thing.take_data()
     }
 
+    /// Schedules the overall [`Brush`]es collision update.
     #[inline]
-    pub fn toggle_overall_collision_update(&mut self)
+    pub fn schedule_overall_collision_update(&mut self)
     {
-        self.manager.toggle_overall_collision_update();
+        self.manager.schedule_overall_collision_update();
     }
 
+    /// Schedules the overall [`ThingInstance`]s info update.
     #[inline]
-    pub fn toggle_overall_things_info_update(&mut self)
+    pub fn schedule_overall_things_info_update(&mut self)
     {
-        self.manager.toggle_overall_things_info_update();
+        self.manager.schedule_overall_things_info_update();
     }
 
+    /// Schedule the overall node update.
     #[inline]
-    pub fn toggle_overall_node_update(&mut self) { self.manager.toggle_overall_node_update(); }
+    pub fn schedule_overall_node_update(&mut self) { self.manager.schedule_overall_node_update(); }
 
+    /// Sets the property with key `k` of the entity with [`Id`] `identifier` to `value`.
     #[inline]
-    pub fn set_property(&mut self, identifier: Id, key: &str, value: &Value) -> Value
+    pub fn set_property(&mut self, identifier: Id, k: &str, value: &Value) -> Value
     {
         if self.manager.is_thing(identifier)
         {
-            self.manager.toggle_overall_things_property_update(key);
-            self.manager.thing_mut(identifier).set_property(key, value).unwrap()
+            self.manager.schedule_overall_things_property_update(k);
+            self.manager.thing_mut(identifier).set_property(k, value).unwrap()
         }
         else
         {
-            self.manager.toggle_overall_brushes_property_update(key);
-            self.manager.brush_mut(identifier).set_property(key, value).unwrap()
+            self.manager.schedule_overall_brushes_property_update(k);
+            self.manager.brush_mut(identifier).set_property(k, value).unwrap()
         }
     }
 }
 
 //=======================================================================//
 
+/// The core of the [`Editor`].
 #[derive(Default)]
 pub(in crate::map::editor::state) struct Core
 {
+    /// The active tool.
     active_tool:         ActiveTool,
+    /// The [`EditingTarget`] of the previous frame.
     prev_editing_target: EditingTarget
 }
 
@@ -631,21 +699,25 @@ impl Core
     //==============================================================
     // Info
 
+    /// Whever an ongoing multiframe change is happening.
     #[inline]
     #[must_use]
-    pub const fn ongoing_multi_frame_changes(&self) -> bool
+    pub fn ongoing_multi_frame_change(&self) -> bool
     {
-        self.active_tool.ongoing_multi_frame_changes()
+        self.active_tool.ongoing_multi_frame_change()
     }
 
+    /// Whever the entity tool is active.
     #[inline]
     #[must_use]
     pub const fn entity_tool(&self) -> bool { self.active_tool.entity_tool() }
 
+    /// Whever the active tool has texture editing capabilities.
     #[inline]
     #[must_use]
     pub const fn texture_tool(&self) -> bool { self.active_tool.texture_tool() }
 
+    /// Whever the map preview is active.
     #[inline]
     #[must_use]
     pub const fn map_preview(&self) -> bool { self.active_tool.map_preview() }
@@ -653,20 +725,20 @@ impl Core
     //==============================================================
     // Save
 
+    /// Whever it is possible to save the file.
     #[inline]
     #[must_use]
-    pub const fn save_available(&self) -> bool { !self.active_tool.ongoing_multi_frame_changes() }
+    pub fn save_available(&self) -> bool { !self.active_tool.ongoing_multi_frame_change() }
 
     //==============================================================
     // Select all
 
+    /// Whever select all is available.
     #[inline]
     #[must_use]
-    pub const fn select_all_available(&self) -> bool
-    {
-        !self.active_tool.ongoing_multi_frame_changes()
-    }
+    pub fn select_all_available(&self) -> bool { !self.active_tool.ongoing_multi_frame_change() }
 
+    /// Selects all.
     #[inline]
     pub fn select_all(
         &mut self,
@@ -682,10 +754,12 @@ impl Core
     //==============================================================
     // Undo/Redo
 
+    /// Whever undo/redo is available.
     #[inline]
     #[must_use]
-    pub const fn undo_redo_available(&self) -> bool { self.active_tool.undo_redo_available() }
+    pub fn undo_redo_available(&self) -> bool { self.active_tool.undo_redo_available() }
 
+    /// Undoes an edit.
     #[inline]
     pub fn undo(
         &mut self,
@@ -703,6 +777,7 @@ impl Core
         );
     }
 
+    /// Redoes an edit.
     #[inline]
     pub fn redo(
         &mut self,
@@ -723,10 +798,12 @@ impl Core
     //==============================================================
     // Copy/Paste
 
+    /// Whever it is possible to copy/paste.
     #[inline]
     #[must_use]
-    pub const fn copy_paste_available(&self) -> bool { self.active_tool.copy_paste_available() }
+    pub fn copy_paste_available(&self) -> bool { self.active_tool.copy_paste_available() }
 
+    /// Copies the selected entities.
     #[inline]
     pub fn copy(
         &mut self,
@@ -739,6 +816,7 @@ impl Core
         self.active_tool.copy(bundle, manager, inputs, clipboard);
     }
 
+    /// Cuts the selected entities
     #[inline]
     pub fn cut(
         &mut self,
@@ -753,6 +831,7 @@ impl Core
             .cut(bundle, manager, inputs, clipboard, edits_history);
     }
 
+    /// Pastes the copied entities.
     #[inline]
     pub fn paste(
         &mut self,
@@ -770,9 +849,11 @@ impl Core
     //==============================================================
     // Update
 
+    /// Disables the currently active subtool.
     #[inline]
     pub fn disable_subtool(&mut self) { self.active_tool.disable_subtool(); }
 
+    /// Toggles the map preview.
     #[inline]
     pub fn toggle_map_preview(
         &mut self,
@@ -783,6 +864,7 @@ impl Core
         self.active_tool.toggle_map_preview(drawing_resources, manager);
     }
 
+    /// Updates the outline of certain tools.
     #[inline]
     pub fn update_outline(
         &mut self,
@@ -794,6 +876,7 @@ impl Core
         self.active_tool.update_outline(manager, settings, grid);
     }
 
+    /// Updates the data stored concerning the selected vertexes.
     #[inline]
     pub fn update_selected_vertexes<'a>(
         &mut self,
@@ -804,12 +887,14 @@ impl Core
         self.active_tool.update_selected_vertexes(manager, ids);
     }
 
+    /// Updates the overall node UI elements.
     #[inline]
     pub fn update_overall_node(&mut self, manager: &EntitiesManager)
     {
         self.active_tool.update_overall_node(manager);
     }
 
+    /// Updates the tool.
     #[inline]
     pub fn update(
         &mut self,
@@ -829,6 +914,7 @@ impl Core
         edits_history.push_frame_edit();
     }
 
+    /// Changes the active tool.
     #[inline]
     pub fn change_tool(
         &mut self,
@@ -852,6 +938,7 @@ impl Core
         );
     }
 
+    /// Executes the update of the frame start.
     #[inline]
     pub fn frame_start_update(
         &mut self,
@@ -891,6 +978,7 @@ impl Core
         self.prev_editing_target = editing_target;
     }
 
+    /// Executes a snap to a [`Grid`] with size 2.
     #[inline]
     pub fn quick_snap(
         &mut self,
@@ -901,11 +989,6 @@ impl Core
         grid_shifted: bool
     )
     {
-        if !manager.any_selected_brushes()
-        {
-            return;
-        }
-
         self.active_tool.snap_tool(
             drawing_resources,
             manager,
@@ -918,6 +1001,7 @@ impl Core
     //==============================================================
     // Draw
 
+    /// Draws the active tool.
     #[inline]
     pub fn draw_active_tool(
         &self,
@@ -930,12 +1014,14 @@ impl Core
         self.active_tool.draw(bundle, manager, settings, show_tooltips);
     }
 
+    /// Draws the map preview.
     #[inline]
     pub fn draw_map_preview(&self, bundle: &mut DrawBundleMapPreview, manager: &EntitiesManager)
     {
         self.active_tool.draw_map_preview(bundle, manager);
     }
 
+    /// Draws the bottom panel.
     #[inline]
     #[must_use]
     pub fn bottom_panel(
@@ -951,6 +1037,7 @@ impl Core
             .bottom_panel(bundle, manager, inputs, edits_history, clipboard)
     }
 
+    /// Draws the UI of the tool.
     #[inline]
     #[must_use]
     pub fn tool_ui(
@@ -967,8 +1054,9 @@ impl Core
             .ui(manager, inputs, edits_history, clipboard, ui, settings)
     }
 
+    /// Draws the subtools.
     #[inline]
-    pub fn draw_sub_tools(
+    pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
         bundle: &StateUpdateBundle,
@@ -979,7 +1067,7 @@ impl Core
         tool_change_conditions: &ChangeConditions
     )
     {
-        self.active_tool.draw_sub_tools(
+        self.active_tool.draw_subtools(
             ui,
             bundle,
             manager,
@@ -996,6 +1084,7 @@ impl Core
 //
 //=======================================================================//
 
+/// Deselects all the selecte vertexes.
 #[inline]
 fn deselect_vertexes(manager: &mut EntitiesManager, edits_history: &mut EditsHistory)
 {
@@ -1008,6 +1097,7 @@ fn deselect_vertexes(manager: &mut EntitiesManager, edits_history: &mut EditsHis
 
 //=======================================================================//
 
+/// Draws the non selected [`Brush`]es.
 #[inline]
 fn draw_non_selected_brushes(bundle: &mut DrawBundle, manager: &EntitiesManager)
 {

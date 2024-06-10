@@ -9,7 +9,7 @@ use shared::return_if_none;
 
 use super::{
     bottom_area,
-    tool::{ActiveTool, ChangeConditions, EnabledTool, SubTool}
+    tool::{ActiveTool, ChangeConditions, DisableSubtool, EnabledTool, SubTool}
 };
 use crate::{
     map::{
@@ -38,10 +38,13 @@ use crate::{
 //
 //=======================================================================//
 
+/// The state of the tool.
 #[derive(Debug)]
 enum Status
 {
+    /// Inactive.
     Inactive(()),
+    /// Thing change UI.
     ChangeUi
 }
 
@@ -71,35 +74,44 @@ impl EnabledTool for Status
 //
 //=======================================================================//
 
+/// The thing tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct ThingTool
 {
-    drawn_things:  Ids,
-    max_ui_height: f32,
-    status:        Status
+    /// The [`Id`]s of the drawn things.
+    drawn_things:            Ids,
+    /// The maximum height of the bottom panel.
+    max_bottom_panel_height: f32,
+    /// The state of the tool.
+    status:                  Status
 }
 
-impl ThingTool
+impl DisableSubtool for ThingTool
 {
     #[inline]
-    pub fn tool() -> ActiveTool
-    {
-        ActiveTool::Thing(ThingTool {
-            drawn_things:  hv_hash_set![],
-            max_ui_height: 0f32,
-            status:        Status::default()
-        })
-    }
-
-    #[inline]
-    pub fn disable_subtool(&mut self)
+    fn disable_subtool(&mut self)
     {
         if matches!(self.status, Status::ChangeUi)
         {
             self.status = Status::Inactive(());
         }
     }
+}
 
+impl ThingTool
+{
+    /// Returns an [`ActiveTool`] in its thing tool variant.
+    #[inline]
+    pub fn tool() -> ActiveTool
+    {
+        ActiveTool::Thing(ThingTool {
+            drawn_things:            hv_hash_set![],
+            max_bottom_panel_height: 0f32,
+            status:                  Status::default()
+        })
+    }
+
+    /// Updates the tool.
     #[inline]
     pub fn update(
         &mut self,
@@ -140,6 +152,7 @@ impl ThingTool
         }
     }
 
+    /// Post undo/redo spawn.
     #[inline]
     pub fn undo_redo_spawn(&mut self, manager: &EntitiesManager, identifier: Id)
     {
@@ -147,6 +160,7 @@ impl ThingTool
         self.drawn_things.asserted_insert(identifier);
     }
 
+    /// Post undo/redo despawn.
     #[inline]
     pub fn undo_redo_despawn(&mut self, manager: &EntitiesManager, identifier: Id)
     {
@@ -154,6 +168,7 @@ impl ThingTool
         self.drawn_things.asserted_remove(&identifier);
     }
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
     {
@@ -216,9 +231,11 @@ impl ThingTool
         }
     }
 
+    /// The left UI panel.
     #[inline]
     pub fn left_panel(ui: &mut egui::Ui, settings: &mut ToolsSettings)
     {
+        /// The width of the label.
         const LABEL_WIDTH: f32 = 50f32;
 
         ui.spacing_mut().item_spacing.x = 2f32;
@@ -241,6 +258,7 @@ impl ThingTool
             });
     }
 
+    /// Bottom UI panel.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
     pub fn bottom_panel(
@@ -251,6 +269,7 @@ impl ThingTool
         edits_history: &mut EditsHistory
     )
     {
+        /// The size of the things' preview frame.
         const PREVIEW_SIZE: egui::Vec2 = egui::Vec2::splat(128f32);
 
         let StateUpdateBundle {
@@ -314,8 +333,9 @@ impl ThingTool
         );
     }
 
+    /// Draw subtools.
     #[inline]
-    pub fn draw_sub_tools(
+    pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
         bundle: &StateUpdateBundle,

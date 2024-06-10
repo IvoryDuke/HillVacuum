@@ -12,10 +12,18 @@ use shared::{match_or_panic, return_if_no_match, return_if_none};
 
 use self::{nodes_editor::NodesEditor, path_creation::PathCreation};
 use super::{
-    drag::Drag,
-    drag_area::{DragArea, DragAreaHighlightedEntity, DragAreaTrait},
+    cursor_delta::CursorDelta,
     item_selector::{ItemSelector, ItemsBeneathCursor},
-    tool::{ActiveTool, ChangeConditions, EnabledTool, SubTool}
+    rect::{Rect, RectHighlightedEntity, RectTrait},
+    tool::{
+        ActiveTool,
+        ChangeConditions,
+        DisableSubtool,
+        DragSelection,
+        EnabledTool,
+        OngoingMultiframeChange,
+        SubTool
+    }
 };
 use crate::{
     map::{
@@ -24,7 +32,7 @@ use crate::{
             cursor_pos::Cursor,
             state::{
                 clipboard::Clipboard,
-                core::{drag_area, tool::subtools_buttons},
+                core::{rect, tool::subtools_buttons},
                 editor_state::InputsPresses,
                 edits_history::EditsHistory,
                 grid::Grid,
@@ -61,16 +69,25 @@ use crate::{
 //
 //=======================================================================//
 
+/// The state of the tool.
 #[derive(Debug)]
 enum Status
 {
-    Inactive(DragAreaHighlightedEntity<ItemBeneathCursor>),
+    /// Inactive.
+    Inactive(RectHighlightedEntity<ItemBeneathCursor>),
+    /// Preparing for dragging [`Node`]s.
     PreDrag(Vec2, Option<ItemBeneathCursor>),
-    Drag(Drag, HvVec<(Id, HvVec<NodesMove>)>),
+    /// Dragging [`Node`]s.
+    Drag(CursorDelta, HvVec<(Id, HvVec<NodesMove>)>),
+    /// Editing an existing [`Path`].
     SingleEditing(Id, PathEditing),
+    /// Attaching a [`Path`] to an entity.
     PathConnection(Option<Path>, Option<ItemBeneathCursor>),
+    /// Simulating the entity movement.
     Simulation(HvVec<MovementSimulator>, bool),
+    /// Starting a [`Path`] free draw from the UI.
     FreeDrawUi(Option<Id>),
+    /// Starting a [`Node`] insertion from the UI.
     AddNodeUi(Option<ItemBeneathCursor>)
 }
 
@@ -78,7 +95,7 @@ impl Default for Status
 {
     #[inline]
     #[must_use]
-    fn default() -> Self { Self::Inactive(DragAreaHighlightedEntity::default()) }
+    fn default() -> Self { Self::Inactive(RectHighlightedEntity::default()) }
 }
 
 impl EnabledTool for Status
@@ -100,24 +117,33 @@ impl EnabledTool for Status
 
 //=======================================================================/
 
+/// The edits that can be done to a [`Path`].
 #[derive(Debug)]
 enum PathEditing
 {
+    /// Creating a new [`Path`].
     FreeDraw(PathCreation),
+    /// Adding a [`Node`] to a [`Path`].
     AddNode
     {
+        /// The position of the [`Node`].
         pos: Vec2,
+        /// The index where the [`Node`] is inserted in the [`Path`].
         idx: u8
     }
 }
 
 //=======================================================================//
 
+/// The items that can be selected.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum ItemBeneathCursor
 {
+    /// A selected moving entity.
     SelectedMoving(Id),
+    /// An entity that could have a [`Path`].
     PossibleMoving(Id),
+    /// A [`Path`] [`Node`].
     PathNode(Id, u8)
 }
 
@@ -136,15 +162,18 @@ impl EntityId for ItemBeneathCursor
 
 //=======================================================================//
 
+/// The items selector.
 #[derive(Debug)]
 struct Selector(ItemSelector<ItemBeneathCursor>);
 
 impl Selector
 {
+    /// Returns a new [`Selector`].
     #[inline]
     #[must_use]
     fn new() -> Self
     {
+        /// The selector function.
         #[inline]
         fn selector(
             manager: &EntitiesManager,
@@ -201,6 +230,7 @@ impl Selector
         Self(ItemSelector::new(selector))
     }
 
+    /// Returns the item beneth the cursor.
     #[inline]
     #[must_use]
     fn item_beneath_cursor(
@@ -217,19 +247,71 @@ impl Selector
 
 //=======================================================================//
 
+/// The path tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct PathTool
 {
+    /// The state of the tool.
     status:       Status,
+    /// The [`Node`]s parameters editor.
     nodes_editor: NodesEditor,
+    /// The items selector.
     selector:     Selector
+}
+
+impl DisableSubtool for PathTool
+{
+    #[inline]
+    fn disable_subtool(&mut self)
+    {
+        if matches!(
+            self.status,
+            Status::AddNodeUi(_) |
+                Status::FreeDrawUi(_) |
+                Status::Simulation(..) |
+                Status::SingleEditing(_, PathEditing::FreeDraw(..))
+        )
+        {
+            self.status = Status::default();
+        }
+    }
+}
+
+impl OngoingMultiframeChange for PathTool
+{
+    #[inline]
+    fn ongoing_multi_frame_change(&self) -> bool
+    {
+        matches!(
+            self.status,
+            Status::Drag(..) |
+                Status::Simulation(..) |
+                Status::SingleEditing(_, PathEditing::AddNode { .. })
+        )
+    }
+}
+
+impl DragSelection for PathTool
+{
+    #[inline]
+    fn drag_selection(&self) -> Option<Rect>
+    {
+        Rect::from(*return_if_no_match!(
+            &self.status,
+            Status::Inactive(drag_selection),
+            drag_selection,
+            None
+        ))
+        .into()
+    }
 }
 
 impl PathTool
 {
+    /// Returns a new [`PathTool`].
     #[inline]
     #[must_use]
-    fn new(drag_selection: DragArea) -> Self
+    fn new(drag_selection: Rect) -> Self
     {
         PathTool {
             status:       Status::Inactive(drag_selection.into()),
@@ -238,12 +320,11 @@ impl PathTool
         }
     }
 
+    /// Returns an [`ActiveTool`] in its path tool variant.
     #[inline]
-    pub fn tool(drag_selection: DragArea) -> ActiveTool
-    {
-        ActiveTool::Path(Self::new(drag_selection))
-    }
+    pub fn tool(drag_selection: Rect) -> ActiveTool { ActiveTool::Path(Self::new(drag_selection)) }
 
+    /// Returns an [`ActiveTool`] in its path tool variant in its [`Path`] attachement state.
     #[inline]
     pub fn path_connection(
         bundle: &ToolUpdateBundle,
@@ -252,7 +333,7 @@ impl PathTool
         path: Path
     ) -> ActiveTool
     {
-        let mut tool = PathTool::new(DragArea::default());
+        let mut tool = PathTool::new(Rect::default());
         let item_beneath_cursor = tool.selector.item_beneath_cursor(
             manager,
             bundle.cursor,
@@ -267,18 +348,7 @@ impl PathTool
     //==============================================================
     // Info
 
-    #[inline]
-    #[must_use]
-    pub const fn ongoing_multi_frame_changes(&self) -> bool
-    {
-        matches!(
-            self.status,
-            Status::Drag(..) |
-                Status::Simulation(..) |
-                Status::SingleEditing(_, PathEditing::AddNode { .. })
-        )
-    }
-
+    /// Whever copy/paste is available.
     #[inline]
     #[must_use]
     pub const fn copy_paste_available(&self) -> bool
@@ -286,21 +356,7 @@ impl PathTool
         matches!(self.status, Status::Inactive(..) | Status::AddNodeUi(_) | Status::FreeDrawUi(_))
     }
 
-    #[inline]
-    #[must_use]
-    pub fn drag_selection(&self) -> Option<DragArea>
-    {
-        Some(
-            (*return_if_no_match!(
-                &self.status,
-                Status::Inactive(drag_selection),
-                drag_selection,
-                None
-            ))
-            .into()
-        )
-    }
-
+    /// Whever free draw is active.
     #[inline]
     #[must_use]
     pub const fn is_free_draw_active(&self) -> bool
@@ -308,10 +364,12 @@ impl PathTool
         matches!(self.status, Status::SingleEditing(_, PathEditing::FreeDraw(..)))
     }
 
+    /// Whever the movement simulation is active.
     #[inline]
     #[must_use]
     pub const fn simulation_active(&self) -> bool { matches!(self.status, Status::Simulation(..)) }
 
+    /// The cursor position to be used by the tool, if any.
     #[inline]
     #[must_use]
     const fn cursor_pos(status: &Status, cursor: &Cursor) -> Option<Vec2>
@@ -326,14 +384,7 @@ impl PathTool
         Some(value)
     }
 
-    #[inline]
-    #[must_use]
-    fn cursor_color(&self, cursor: &Cursor) -> Option<(Vec2, Color)>
-    {
-        matches!(self.status, Status::SingleEditing(..))
-            .then(|| (Self::cursor_pos(&self.status, cursor).unwrap(), Color::CursorPolygon))
-    }
-
+    /// Returns the [`Id`] of the selected moving entity beneath the cursor, if any.
     #[inline]
     #[must_use]
     pub fn selected_moving_beneath_cursor(
@@ -354,6 +405,7 @@ impl PathTool
             })
     }
 
+    /// Returns the [`Id`] of the entity that can have a [`Path`] beneath the cursor, if any.
     #[inline]
     #[must_use]
     pub fn possible_moving_beneath_cursor(
@@ -377,27 +429,14 @@ impl PathTool
     //==============================================================
     // Update
 
-    #[inline]
-    pub fn disable_subtool(&mut self)
-    {
-        if matches!(
-            self.status,
-            Status::AddNodeUi(_) |
-                Status::FreeDrawUi(_) |
-                Status::Simulation(..) |
-                Status::SingleEditing(_, PathEditing::FreeDraw(..))
-        )
-        {
-            self.status = Status::default();
-        }
-    }
-
+    /// Updates the overall [`Node`] info.
     #[inline]
     pub fn update_overall_node(&mut self, manager: &EntitiesManager)
     {
         self.nodes_editor.update_overall_node(manager);
     }
 
+    /// Updates the tool.
     #[inline]
     pub fn update(
         &mut self,
@@ -420,9 +459,10 @@ impl PathTool
         {
             Status::Inactive(ds) =>
             {
-                drag_area::update!(
+                rect::update!(
                     ds,
                     bundle.cursor.world(),
+                    bundle.camera.scale(),
                     inputs.left_mouse.pressed(),
                     {
                         ds.set_highlighted_entity(item_beneath_cursor);
@@ -487,7 +527,7 @@ impl PathTool
                             })
                         )
                         {
-                            manager.toggle_overall_node_update();
+                            manager.schedule_overall_node_update();
                         }
                     },
                     hull,
@@ -551,7 +591,7 @@ impl PathTool
                 }
 
                 self.status = Status::Drag(
-                    return_if_none!(Drag::try_new_initiated(*pos, bundle.cursor, grid)),
+                    return_if_none!(CursorDelta::try_new(*pos, bundle.cursor, grid)),
                     hv_vec![]
                 );
                 edits_history.start_multiframe_edit();
@@ -679,9 +719,11 @@ impl PathTool
         };
     }
 
+    /// Returns a [`Status`] to add a [`Node`] to the [`Path`] of the entity with [`Id`]
+    /// `identifier`.
     #[inline]
     #[must_use]
-    fn add_node_status(cursor: &Cursor, identifier: Id, index: u8) -> Status
+    const fn add_node_status(cursor: &Cursor, identifier: Id, index: u8) -> Status
     {
         Status::SingleEditing(identifier, PathEditing::AddNode {
             idx: index + 1,
@@ -689,6 +731,7 @@ impl PathTool
         })
     }
 
+    /// Updates the tool after a post undo/redo despawn.
     #[inline]
     pub fn undo_redo_despawn(&mut self, manager: &EntitiesManager, identifier: Id)
     {
@@ -707,6 +750,7 @@ impl PathTool
         };
     }
 
+    /// Toggles the [`Node`] of the entity with [`Id`] `identifier` at `index`.
     #[inline]
     #[must_use]
     fn toggle_node(
@@ -718,12 +762,13 @@ impl PathTool
     {
         let selected = manager
             .moving_mut(identifier)
-            .toggle_path_node_at_index(index as usize);
-        manager.toggle_overall_node_update();
+            .toggle_path_node_at_index(usize::from(index));
+        manager.schedule_overall_node_update();
         edits_history.path_nodes_selection(identifier, hv_vec![index]);
         selected
     }
 
+    /// Selects the [`Node`] of the entity with [`Id`] `identifier` at `index`.
     #[inline]
     fn select_node(
         manager: &mut EntitiesManager,
@@ -734,7 +779,7 @@ impl PathTool
     {
         match manager
             .moving_mut(identifier)
-            .exclusively_select_path_node_at_index(index as usize)
+            .exclusively_select_path_node_at_index(usize::from(index))
         {
             NodeSelectionResult::Selected => return,
             NodeSelectionResult::NotSelected(idxs) =>
@@ -743,9 +788,10 @@ impl PathTool
             }
         };
 
-        manager.toggle_overall_node_update();
+        manager.schedule_overall_node_update();
     }
 
+    /// Selects the [`Node`]s within `range`.
     #[inline]
     fn select_nodes_from_drag_selection(
         manager: &mut EntitiesManager,
@@ -769,10 +815,11 @@ impl PathTool
                 .filter_map(|mut entity| func(&mut *entity, range).map(|vxs| (entity.id(), vxs)))
         )
         {
-            manager.toggle_overall_node_update();
+            manager.schedule_overall_node_update();
         }
     }
 
+    /// Moves the selected [`Node`]s. Returns whever it was possible.
     #[inline]
     fn move_nodes(
         manager: &mut EntitiesManager,
@@ -821,6 +868,7 @@ impl PathTool
         true
     }
 
+    /// Updates the editing of a single entity. Returns whever the editing was concluded.
     #[inline]
     #[must_use]
     fn single_editing(
@@ -881,6 +929,7 @@ impl PathTool
         false
     }
 
+    /// Deletes the selected [`Node`]s or [`Path`]s depending on whever alt is pressed.
     #[inline]
     #[must_use]
     fn delete(
@@ -923,6 +972,7 @@ impl PathTool
         true
     }
 
+    /// Deletes the free draw [`Node`] at `index`.
     #[inline]
     pub fn delete_free_draw_path_node(&mut self, manager: &EntitiesManager, index: usize)
     {
@@ -935,6 +985,7 @@ impl PathTool
         path.remove_index(index, manager.moving(id).center());
     }
 
+    /// Inserts a free draw [`Node`] at position `p` and `index`.
     #[inline]
     pub fn insert_free_draw_path_node(&mut self, manager: &EntitiesManager, p: Vec2, index: usize)
     {
@@ -947,6 +998,7 @@ impl PathTool
         path.insert_at_index(p, index, manager.moving(id).center());
     }
 
+    /// Enables the movement simulation.
     #[inline]
     pub fn enable_simulation(&mut self, manager: &EntitiesManager)
     {
@@ -966,6 +1018,7 @@ impl PathTool
     //==============================================================
     // Draw
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager, show_tooltips: bool)
     {
@@ -981,6 +1034,7 @@ impl PathTool
 
         let brushes = manager.brushes();
 
+        /// Draws the entities except `filters`.
         macro_rules! draw_entities {
             ($($filters:expr)?) => {{
                 for entity in manager.visible_paths(window, camera).iter()
@@ -1044,6 +1098,7 @@ impl PathTool
             }};
         }
 
+        /// Draws the entities highlighting `hgl_e`.
         macro_rules! draw_entities_with_highlight {
             ($hgl_e:expr) => {
                 if $hgl_e.is_none()
@@ -1090,7 +1145,7 @@ impl PathTool
                                 brushes,
                                 things_catalog,
                                 drawer,
-                                idx as usize,
+                                usize::from(idx),
                                 show_tooltips
                             );
                         }
@@ -1101,9 +1156,12 @@ impl PathTool
             };
         }
 
-        if let Some((pos, color)) = self.cursor_color(cursor)
+        if matches!(self.status, Status::SingleEditing(..))
         {
-            drawer.square_highlight(pos, color);
+            drawer.square_highlight(
+                PathTool::cursor_pos(&self.status, cursor).unwrap(),
+                Color::CursorPolygon
+            );
         }
 
         match &self.status
@@ -1197,14 +1255,6 @@ impl PathTool
                 }
 
                 for brush in manager
-                    .visible_sprite_highlights(window, camera)
-                    .iter()
-                    .filter(|brush| !is_moving(manager, brush.id()))
-                {
-                    brush.draw_sprite_highlight(drawer);
-                }
-
-                for brush in manager
                     .visible_sprites(window, camera)
                     .iter()
                     .filter(|brush| !is_moving(manager, brush.id()))
@@ -1266,6 +1316,7 @@ impl PathTool
         };
     }
 
+    /// Draws the UI.
     #[inline]
     #[must_use]
     pub fn ui(
@@ -1277,7 +1328,7 @@ impl PathTool
         ui: &mut egui::Ui
     ) -> bool
     {
-        self.nodes_editor.update(
+        self.nodes_editor.show(
             manager,
             edits_history,
             clipboard,
@@ -1287,8 +1338,9 @@ impl PathTool
         )
     }
 
+    /// Draws the subtools.
     #[inline]
-    pub fn draw_sub_tools(
+    pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
         bundle: &StateUpdateBundle,
@@ -1341,6 +1393,7 @@ impl PathTool
 //
 //=======================================================================//
 
+/// Whever the [`Brush`] with [`Id`] `identifier` is anchored to a selected moving [`Brush`].
 #[inline]
 #[must_use]
 fn is_anchored_to_selected_moving(manager: &EntitiesManager, identifier: Id) -> bool
@@ -1354,6 +1407,7 @@ fn is_anchored_to_selected_moving(manager: &EntitiesManager, identifier: Id) -> 
 
 //=======================================================================//
 
+/// Whever the entity with [`Id`] `identifier` moves.
 #[inline]
 #[must_use]
 fn is_moving(manager: &EntitiesManager, identifier: Id) -> bool

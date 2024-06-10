@@ -18,12 +18,16 @@ use crate::{
 //
 //=======================================================================//
 
+/// The response of the UI element.
 #[must_use]
 #[derive(Default, Clone, Copy)]
 pub(in crate::map::editor::state) struct Response
 {
+    /// Whever the UI element has focus.
     pub has_focus:     bool,
+    /// Whever the UI element is being interacted with.
     pub interacting:   bool,
+    /// Whever the value was changed.
     pub value_changed: bool
 }
 
@@ -55,17 +59,20 @@ impl std::ops::BitOrAssign for Response
 
 //=======================================================================//
 
+/// A field where to edit an overall value and update the value itself in the entities.
 #[must_use]
 pub(in crate::map) struct OverallValueField<T: ToString + FromStr>(PhantomData<T>);
 
 impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
 {
+    /// The text editor of the value.
     #[inline]
     fn singleline_textedit(buffer: &mut String) -> egui::TextEdit
     {
         egui::TextEdit::singleline(buffer).desired_width(f32::INFINITY)
     }
 
+    /// Shows the [`OverallValueField`] enabled depending on the `enabled` parameter.
     #[inline]
     pub fn show<F: FnMut(T) -> Option<T>>(
         ui: &mut egui::Ui,
@@ -85,6 +92,7 @@ impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
         Self::show_always_enabled(ui, clipboard, inputs, value, f)
     }
 
+    /// Always shows the [`OverallValueField`] enabled.
     #[inline]
     pub fn show_always_enabled<F: FnMut(T) -> Option<T>>(
         ui: &mut egui::Ui,
@@ -108,12 +116,15 @@ impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
 
 //=======================================================================//
 
+/// An [`OverallValueField`] combined with a minus and plus buttons.
 #[must_use]
 pub(in crate::map::editor::state) struct MinusPlusOverallValueField<T>
 where
     T: ToString + FromStr + std::ops::Add<Output = T> + std::ops::Neg<Output = T> + Clone + Copy
 {
+    /// The minus and plus buttons.
     minus_plus: MinusPlusButtons,
+    /// Phantom data.
     data:       PhantomData<T>
 }
 
@@ -127,6 +138,7 @@ where
         + Copy
         + PartialEq
 {
+    /// Returns a new [`MinusPlusOverallValueField`].
     #[inline]
     pub const fn new(min_size: egui::Vec2) -> Self
     {
@@ -136,6 +148,7 @@ where
         }
     }
 
+    /// Shows the [`OverallValueField`] and the [`MinusPlusButtons`].
     #[inline]
     pub fn show<C: Fn(T, T) -> T, F: FnMut(T) -> Option<T>>(
         &mut self,

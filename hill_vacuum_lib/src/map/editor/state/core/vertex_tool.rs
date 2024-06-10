@@ -8,13 +8,21 @@ use bevy_egui::egui;
 use shared::{continue_if_none, match_or_panic, return_if_no_match, return_if_none, NextValue};
 
 use super::{
+    cursor_delta::CursorDelta,
     deselect_vertexes,
-    drag::Drag,
-    drag_area::{DragArea, DragAreaTrait},
     draw_non_selected_brushes,
     path_tool::path_creation::PathCreation,
+    rect::{Rect, RectTrait},
     selected_vertexes,
-    tool::{subtools_buttons, ChangeConditions, EnabledTool, SubTool},
+    tool::{
+        subtools_buttons,
+        ChangeConditions,
+        DisableSubtool,
+        DragSelection,
+        EnabledTool,
+        OngoingMultiframeChange,
+        SubTool
+    },
     ActiveTool
 };
 use crate::{
@@ -31,7 +39,7 @@ use crate::{
         editor::{
             cursor_pos::Cursor,
             state::{
-                core::{drag_area, VertexesToggle},
+                core::{rect, VertexesToggle},
                 editor_state::InputsPresses,
                 edits_history::EditsHistory,
                 grid::Grid,
@@ -60,19 +68,30 @@ use crate::{
 //
 //=======================================================================//
 
+/// The state of the tool.
 #[derive(Debug)]
 enum Status
 {
-    Inactive(DragArea),
+    /// Inactive.
+    Inactive(Rect),
+    /// Preparing for dragging vertexes.
     PreDrag(Vec2),
-    Drag(Drag, HvVec<(Id, HvVec<VertexesMove>)>),
+    /// Dragging vertexes.
+    Drag(CursorDelta, HvVec<(Id, HvVec<VertexesMove>)>),
+    /// Inserting a new vertex.
     NewVertex
     {
+        /// The [`Id`] of the [`Brush`] where the vertex is being inserted.
         identifier: Id,
+        /// The index where the vertex is being inserted.
         idx:        usize,
+        /// The position of the vertex.
         vx:         Vec2
     },
+    /// Selecting the [`Brush`] where to insert a new vertex after having enabled it from the UI
+    /// button.
     NewVertexUi,
+    /// Creating a [`Path`] by clicking of the vertexes of the selected [`Brush`]es.
     PolygonToPath(PathCreation)
 }
 
@@ -80,7 +99,7 @@ impl Default for Status
 {
     #[inline]
     #[must_use]
-    fn default() -> Self { Self::Inactive(DragArea::default()) }
+    fn default() -> Self { Self::Inactive(Rect::default()) }
 }
 
 impl EnabledTool for Status
@@ -108,18 +127,24 @@ selected_vertexes!(selected_vertexes_amount);
 
 //=======================================================================//
 
+/// An extended record of the selected [`Brush`]es' selected vertexes.
 #[must_use]
 #[derive(Debug)]
 struct BrushesWithSelectedVertexes
 {
+    /// The [`Id`]s of the [`Brush`]es with selected vertexes.
     ids:            Ids,
+    /// The seleted vertexes.
     selected_vxs:   SelectedVertexes,
+    /// The [`Id`]s of the [`Brush`]es that can be split.
     splittable_ids: HvHashMap<Id, SplitPayload>,
+    /// The [`Id`] of the [`Brush`] that does not allow the split to occur.
     error_id:       Option<Id>
 }
 
 impl BrushesWithSelectedVertexes
 {
+    /// Returns a new [`BrushesWithSelectedVertexes`].
     #[inline]
     fn new() -> Self
     {
@@ -131,10 +156,12 @@ impl BrushesWithSelectedVertexes
         }
     }
 
+    /// Whever the merge subtool is available.
     #[inline]
     #[must_use]
-    fn vx_merge_available(&self) -> bool { self.selected_vxs.vx_merge_available() }
+    const fn vx_merge_available(&self) -> bool { self.selected_vxs.vx_merge_available() }
 
+    /// Whever the split is available.
     #[inline]
     #[must_use]
     fn split_available(&self) -> bool
@@ -148,6 +175,7 @@ impl BrushesWithSelectedVertexes
         false
     }
 
+    /// Removes the stored error [`Id`] if it is equal to `identifier`.
     #[inline]
     fn check_error_removal(&mut self, identifier: Id)
     {
@@ -157,6 +185,7 @@ impl BrushesWithSelectedVertexes
         }
     }
 
+    /// Inserts the selected vertexes info of `brush`.
     #[inline]
     fn insert(&mut self, brush: &Brush)
     {
@@ -183,6 +212,7 @@ impl BrushesWithSelectedVertexes
         };
     }
 
+    /// Removes the selected vertexes info of `brush`.
     #[inline]
     fn remove(&mut self, brush: &Brush)
     {
@@ -198,6 +228,7 @@ impl BrushesWithSelectedVertexes
         }
     }
 
+    /// Removes the selected vertexes associated with the [`Brush`] with [`Id`] `identifier`.
     #[inline]
     fn remove_id(&mut self, manager: &EntitiesManager, identifier: Id)
     {
@@ -211,6 +242,7 @@ impl BrushesWithSelectedVertexes
         }
     }
 
+    /// Toggles the info of the selected vertexes of `brush`.
     #[inline]
     fn toggle_brush(&mut self, brush: &Brush)
     {
@@ -223,6 +255,7 @@ impl BrushesWithSelectedVertexes
         self.remove(brush);
     }
 
+    /// Executes the split.
     #[inline]
     fn split_brushes(
         &mut self,
@@ -257,14 +290,56 @@ impl BrushesWithSelectedVertexes
 
 //=======================================================================//
 
-/// The status of the vertex drag.
+/// The vertex tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct VertexTool(Status, BrushesWithSelectedVertexes);
 
-impl VertexTool
+impl DisableSubtool for VertexTool
 {
     #[inline]
-    pub fn tool(drag_selection: DragArea) -> ActiveTool
+    fn disable_subtool(&mut self)
+    {
+        if matches!(
+            self.0,
+            Status::NewVertex { .. } | Status::NewVertexUi | Status::PolygonToPath(..)
+        )
+        {
+            self.0 = Status::default();
+        }
+    }
+}
+
+impl OngoingMultiframeChange for VertexTool
+{
+    #[inline]
+    #[must_use]
+    fn ongoing_multi_frame_change(&self) -> bool
+    {
+        !matches!(
+            self.0,
+            Status::Inactive(..) |
+                Status::PreDrag(_) |
+                Status::NewVertexUi |
+                Status::PolygonToPath(..)
+        )
+    }
+}
+
+impl DragSelection for VertexTool
+{
+    #[inline]
+    fn drag_selection(&self) -> Option<Rect>
+    {
+        (*return_if_no_match!(&self.0, Status::Inactive(drag_selection), drag_selection, None))
+            .into()
+    }
+}
+
+impl VertexTool
+{
+    /// Returns a new [`ActiveTool`] in its vertex tool variant.
+    #[inline]
+    pub fn tool(drag_selection: Rect) -> ActiveTool
     {
         ActiveTool::Vertex(VertexTool(
             Status::Inactive(drag_selection),
@@ -275,60 +350,28 @@ impl VertexTool
     //==============================================================
     // Info
 
-    #[inline]
-    #[must_use]
-    pub const fn ongoing_multi_frame_changes(&self) -> bool
-    {
-        !matches!(
-            self.0,
-            Status::Inactive(..) |
-                Status::PreDrag(_) |
-                Status::NewVertexUi |
-                Status::PolygonToPath(..)
-        )
-    }
-
-    #[inline]
-    #[must_use]
-    pub const fn drag_selection(&self) -> Option<DragArea>
-    {
-        Some(*return_if_no_match!(
-            &self.0,
-            Status::Inactive(drag_selection),
-            drag_selection,
-            None
-        ))
-    }
-
+    /// Whever free draw is active.
     #[inline]
     #[must_use]
     pub const fn is_free_draw_active(&self) -> bool { matches!(self.0, Status::PolygonToPath(_)) }
 
+    /// The cursor position to be used.
     #[inline]
     #[must_use]
-    fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world() }
+    const fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world() }
 
+    /// Whever the merge subtool is available.
     #[inline]
-    pub fn vx_merge_available(&self) -> bool { self.1.vx_merge_available() }
+    pub const fn vx_merge_available(&self) -> bool { self.1.vx_merge_available() }
 
+    /// Whever the split subtool is available.
     #[inline]
     pub fn split_available(&self) -> bool { self.1.split_available() }
 
     //==============================================================
     // Update
 
-    #[inline]
-    pub fn disable_subtool(&mut self)
-    {
-        if matches!(
-            self.0,
-            Status::NewVertex { .. } | Status::NewVertexUi | Status::PolygonToPath(..)
-        )
-        {
-            self.0 = Status::default();
-        }
-    }
-
+    /// Updates the tool.
     #[inline]
     #[must_use]
     pub fn update(
@@ -346,9 +389,10 @@ impl VertexTool
         {
             Status::Inactive(ds) =>
             {
-                drag_area::update!(
+                rect::update!(
                     ds,
                     cursor_pos,
+                    bundle.camera.scale(),
                     inputs.left_mouse.pressed(),
                     {
                         if !inputs.left_mouse.just_pressed()
@@ -457,7 +501,7 @@ impl VertexTool
             {
                 if !inputs.left_mouse.pressed()
                 {
-                    self.0 = Status::Inactive(DragArea::default());
+                    self.0 = Status::Inactive(Rect::default());
                     return None;
                 }
 
@@ -467,7 +511,7 @@ impl VertexTool
                 }
 
                 self.0 = Status::Drag(
-                    return_if_none!(Drag::try_new_initiated(*pos, bundle.cursor, grid), None),
+                    return_if_none!(CursorDelta::try_new(*pos, bundle.cursor, grid), None),
                     hv_vec![]
                 );
                 edits_history.start_multiframe_edit();
@@ -544,7 +588,7 @@ impl VertexTool
                 {
                     let mut path = return_if_none!(path.path(), None);
                     path.translate(-path.node_at_index_pos(0));
-                    self.0 = Status::Inactive(DragArea::default());
+                    self.0 = Status::Inactive(Rect::default());
                     return path.into();
                 }
 
@@ -572,6 +616,7 @@ impl VertexTool
         None
     }
 
+    /// Initializes the insertion of a new vertex.
     #[inline]
     fn initialize_new_vertex_insertion(
         manager: &EntitiesManager,
@@ -595,6 +640,7 @@ impl VertexTool
         })
     }
 
+    /// Exclusively selects the vertexes whose highlight is beneath `cursor_pos`.
     #[inline]
     fn exclusively_select_vertexes(
         manager: &mut EntitiesManager,
@@ -659,6 +705,7 @@ impl VertexTool
         true
     }
 
+    /// Toggles the vertexes whose highlight is beneath `cursor_pos`.
     #[inline]
     #[must_use]
     fn toggle_vertexes(
@@ -691,6 +738,8 @@ impl VertexTool
         selected.into()
     }
 
+    /// Moves the selected vertexes by `delta`, if possible. Also selects any non selected vertexes
+    /// that overlap the moved ones.
     #[inline]
     fn move_vertexes(
         bundle: &mut ToolUpdateBundle,
@@ -776,6 +825,7 @@ impl VertexTool
         true
     }
 
+    /// Deletes the selected vertexes, if possible.
     #[inline]
     fn delete_selected_vertexes(
         bundle: &mut ToolUpdateBundle,
@@ -807,6 +857,7 @@ impl VertexTool
         }
     }
 
+    /// Selects the vertexes within `range`.
     #[inline]
     fn select_vertexes_from_drag_selection(
         manager: &mut EntitiesManager,
@@ -831,6 +882,7 @@ impl VertexTool
         );
     }
 
+    /// Deletes the free draw path [`Node`] at `index`.
     #[inline]
     pub fn delete_free_draw_path_node(&mut self, index: usize)
     {
@@ -838,6 +890,7 @@ impl VertexTool
         path.remove_index(index, Vec2::ZERO);
     }
 
+    /// Inserts a free draw path [`Node`] at `index`.
     #[inline]
     pub fn insert_free_draw_path_node(&mut self, p: Vec2, index: usize)
     {
@@ -845,6 +898,7 @@ impl VertexTool
         path.insert_at_index(p, index, Vec2::ZERO);
     }
 
+    /// Updates the stored selected vertexes info.
     #[inline]
     pub fn update_selected_vertexes(&mut self, manager: &EntitiesManager, identifier: Id)
     {
@@ -860,9 +914,11 @@ impl VertexTool
     //==============================================================
     // Draw
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager, show_tooltips: bool)
     {
+        /// Draws the selected and non selected brushes.
         #[inline]
         fn draw_selected_and_non_selected_brushes(
             bundle: &mut DrawBundle,
@@ -969,8 +1025,9 @@ impl VertexTool
         };
     }
 
+    /// Draws the subtools.
     #[inline]
-    pub fn draw_sub_tools(
+    pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
         bundle: &StateUpdateBundle,

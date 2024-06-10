@@ -1,4 +1,3 @@
-#[allow(clippy::module_name_repetitions)]
 pub mod catalog;
 
 //=======================================================================//
@@ -17,6 +16,7 @@ use super::{
     drawer::{color::Color, EditDrawer, MapPreviewDrawer},
     editor::state::{
         clipboard::{ClipboardData, CopyToClipboard},
+        grid::Grid,
         manager::{Animators, Brushes}
     },
     path::{common_edit_path, EditPath, MovementSimulator, Moving, NodesDeletionPayload, Path},
@@ -43,6 +43,7 @@ pub trait MapThing
 
 //=======================================================================//
 
+/// A trait with methods returning basic information about a type representing a thing.
 pub trait ThingInterface
 {
     /// Returns the [`ThingId`].
@@ -78,7 +79,7 @@ impl ThingId
     /// Returns a new [`ThingId`] with value `id`.
     #[inline]
     #[must_use]
-    pub fn new(id: u16) -> Self { Self(id) }
+    pub const fn new(id: u16) -> Self { Self(id) }
 }
 
 //=======================================================================//
@@ -122,17 +123,17 @@ impl Thing
     /// Returns the [`ThingId`].
     #[inline]
     #[must_use]
-    pub fn id(&self) -> ThingId { self.id }
+    pub const fn id(&self) -> ThingId { self.id }
 
     /// Returns the width of the bounding box.
     #[inline]
     #[must_use]
-    pub fn width(&self) -> f32 { self.width }
+    pub const fn width(&self) -> f32 { self.width }
 
     /// Returns the height of the bounding box.
     #[inline]
     #[must_use]
-    pub fn height(&self) -> f32 { self.height }
+    pub const fn height(&self) -> f32 { self.height }
 }
 
 //=======================================================================//
@@ -169,6 +170,7 @@ impl<'a> ThingInterface for MovedThingInstance<'a>
 
 //=======================================================================//
 
+/// The data of [`ThingInstance`].
 #[must_use]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 
@@ -186,6 +188,7 @@ pub(in crate::map) struct ThingInstanceData
     hull:        Hull,
     /// The path describing the [`ThingInstance`] movement, if any.
     path:        Option<Path>,
+    /// The associated properties.
     properties:  Properties
 }
 
@@ -197,9 +200,11 @@ impl EntityHull for ThingInstanceData
 
 impl ThingInstanceData
 {
+    /// Returns the [`ThingId`] of the [`Thing`] represented by `self`.
     #[inline]
-    pub fn thing(&self) -> ThingId { self.thing }
+    pub const fn thing(&self) -> ThingId { self.thing }
 
+    /// Returns the [`Hull`] of [`Thing`] with center at `pos`.
     #[inline]
     #[must_use]
     fn create_hull(pos: Vec2, thing: &Thing) -> Hull
@@ -214,6 +219,7 @@ impl ThingInstanceData
         .unwrap()
     }
 
+    /// Return the [`Hull`] of the associated [`Path`], if any.
     #[inline]
     #[must_use]
     pub fn path_hull(&self) -> Option<Hull>
@@ -221,6 +227,8 @@ impl ThingInstanceData
         self.path.as_ref().map(|path| path.hull() + self.pos)
     }
 
+    /// Sets the [`Thing`] represented by `self` to `thing`.
+    /// Returns the [`ThingId`] of the previous [`Thing`] if different.
     #[inline]
     #[must_use]
     pub fn set_thing(&mut self, thing: &Thing) -> Option<ThingId>
@@ -235,6 +243,7 @@ impl ThingInstanceData
         std::mem::replace(&mut self.thing, thing.id).into()
     }
 
+    /// Draw `self` displaced by `delta` for a prop screenshot.
     #[inline]
     pub fn draw_prop(&self, drawer: &mut EditDrawer, catalog: &ThingsCatalog, delta: Vec2)
     {
@@ -253,6 +262,7 @@ pub(in crate::map) struct ThingInstance
 {
     /// The id.
     id:   Id,
+    /// All entity data.
     data: ThingInstanceData
 }
 
@@ -370,7 +380,7 @@ impl Moving for ThingInstance
         catalog: &ThingsCatalog,
         drawer: &mut EditDrawer,
         pos: Vec2,
-        idx: usize,
+        index: usize,
         show_tooltips: bool
     )
     {
@@ -381,7 +391,7 @@ impl Moving for ThingInstance
             egui_context,
             drawer,
             pos,
-            idx,
+            index,
             self.center(),
             show_tooltips
         );
@@ -400,7 +410,7 @@ impl Moving for ThingInstance
         simulator: &MovementSimulator
     )
     {
-        assert!(simulator.id() == self.id);
+        assert!(simulator.id() == self.id, "Simulator and thing have mismatching ids.");
 
         let movement_vec = simulator.movement_vec();
 
@@ -451,7 +461,7 @@ impl EditPath for ThingInstance
     #[inline]
     fn set_path(&mut self, path: Path)
     {
-        assert!(self.data.path.is_none());
+        assert!(self.data.path.is_none(), "Thing already has a Path.");
         self.data.path = path.into();
     }
 
@@ -481,22 +491,26 @@ impl ThingInstance
         }
     }
 
+    /// Creates a new [`ThingInstance`] from `id` and `data`.
     #[inline]
-    pub fn from_parts(id: Id, data: ThingInstanceData) -> Self { Self { id, data } }
+    pub const fn from_parts(id: Id, data: ThingInstanceData) -> Self { Self { id, data } }
 
+    /// Returns a reference to the underlying [`ThingInstanceData`].
     #[inline]
-    pub fn data(&self) -> &ThingInstanceData { &self.data }
+    pub const fn data(&self) -> &ThingInstanceData { &self.data }
 
+    /// Consumes `self` and returns the underlying [`ThingInstanceData`].
     #[inline]
     pub fn take_data(self) -> ThingInstanceData { self.data }
 
     /// Returns the draw height.
     #[inline]
     #[must_use]
-    pub fn draw_height(&self) -> i8 { self.data.draw_height }
+    pub const fn draw_height(&self) -> i8 { self.data.draw_height }
 
+    /// Returns a reference to the associated [`Properties`].
     #[inline]
-    pub fn properties(&self) -> &Properties { &self.data.properties }
+    pub const fn properties(&self) -> &Properties { &self.data.properties }
 
     /// Whever the bounding box contains the point `p`.
     #[inline]
@@ -571,12 +585,22 @@ impl ThingInstance
         std::mem::replace(&mut self.data.angle, angle).into()
     }
 
+    /// Snaps `self` to the grid. Returns how much `self` was moved, if it was.
+    #[inline]
+    pub fn snap(&mut self, grid: Grid) -> Option<Vec2>
+    {
+        let delta = grid.snap_point(self.center())?;
+        self.check_move(delta).then_some(delta)
+    }
+
+    /// Sets the property `key` to `value`. Returns the previous value if different.
     #[inline]
     pub fn set_property(&mut self, key: &str, value: &Value) -> Option<Value>
     {
         self.data.properties.set(key, value)
     }
 
+    /// Refactors the [`Peoperties`] based on `refactor`.
     #[inline]
     pub fn refactor_properties(&mut self, refactor: &PropertiesRefactor)
     {

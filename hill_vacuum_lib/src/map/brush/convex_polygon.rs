@@ -1937,11 +1937,15 @@ impl ConvexPolygon
 
     #[inline]
     #[must_use]
-    pub fn check_texture_animation_change(&mut self, drawing_resources: &DrawingResources) -> bool
+    pub fn check_texture_animation_change(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        animation: &Animation
+    ) -> bool
     {
         let center = self.center;
         self.texture_settings_mut()
-            .check_animation_change(drawing_resources, center)
+            .check_animation_change(drawing_resources, animation, center)
     }
 
     #[inline]
@@ -2220,7 +2224,7 @@ impl ConvexPolygon
 
     #[inline]
     #[must_use]
-    pub(in crate::map::brush) fn collision(&self) -> bool { self.collision }
+    pub(in crate::map::brush) const fn collision(&self) -> bool { self.collision }
 
     //==============================================================
     // Snap
@@ -2419,11 +2423,11 @@ impl ConvexPolygon
 
     #[inline]
     #[must_use]
-    pub(in crate::map::brush) fn try_select_vertex(&mut self, vx: Vec2) -> Option<u8>
+    pub(in crate::map::brush) fn try_select_vertex(&mut self, pos: Vec2) -> Option<u8>
     {
         for (i, svx) in self.vertexes.iter_mut().enumerate()
         {
-            if !svx.vec.around_equal_narrow(&vx)
+            if !svx.vec.around_equal_narrow(&pos)
             {
                 continue;
             }
@@ -2442,35 +2446,35 @@ impl ConvexPolygon
 
     #[inline]
     #[must_use]
-    pub(in crate::map::brush) fn vertex_at_index(&self, idx: usize) -> Vec2
+    pub(in crate::map::brush) fn vertex_at_index(&self, index: usize) -> Vec2
     {
-        self.vertexes[idx].vec
+        self.vertexes[index].vec
     }
 
     #[inline]
-    pub(in crate::map::brush) fn toggle_vertex_at_index(&mut self, idx: usize)
+    pub(in crate::map::brush) fn toggle_vertex_at_index(&mut self, index: usize)
     {
-        if self.vertexes[idx].selected
+        if self.vertexes[index].selected
         {
             self.selected_vertexes -= 1;
-            self.vertexes[idx].selected = false;
+            self.vertexes[index].selected = false;
             return;
         }
 
         self.selected_vertexes += 1;
-        self.vertexes[idx].selected = true;
+        self.vertexes[index].selected = true;
     }
 
     #[inline]
     #[must_use]
     pub(in crate::map::brush) fn try_exclusively_select_vertex(
         &mut self,
-        vx: Vec2
+        pos: Vec2
     ) -> Option<HvVec<u8>>
     {
         let mut idxs = self.deselect_vertexes();
 
-        if let Some(s_idx) = self.try_select_vertex(vx)
+        if let Some(s_idx) = self.try_select_vertex(pos)
         {
             if idxs.is_none()
             {
@@ -2585,10 +2589,10 @@ impl ConvexPolygon
 
     #[inline]
     #[must_use]
-    pub(in crate::map::brush) fn toggle_vertex_at_pos(&mut self, vx: Vec2) -> Option<u8>
+    pub(in crate::map::brush) fn toggle_vertex_at_pos(&mut self, pos: Vec2) -> Option<u8>
     {
         let idx = self.vertexes.iter_mut().enumerate().find_map(|(i, svx)| {
-            (svx.vec.around_equal_narrow(&vx)).then(|| u8::try_from(i).unwrap())
+            (svx.vec.around_equal_narrow(&pos)).then(|| u8::try_from(i).unwrap())
         });
 
         if let Some(idx) = idx
@@ -2731,39 +2735,40 @@ impl ConvexPolygon
     pub(in crate::map) fn insert_vertex_at_index(
         &mut self,
         drawing_resources: &DrawingResources,
-        vx: Vec2,
-        idx: usize,
+        pos: Vec2,
+        index: usize,
         selected: bool
     )
     {
         assert!(
-            self.try_vertex_insertion_at_index(drawing_resources, vx, idx, selected),
+            self.try_vertex_insertion_at_index(drawing_resources, pos, index, selected),
             "insert_vertex_at_index generated an invalid polygon."
         );
     }
 
-    /// Adds a vertex to the polygon if it's possible to do so without losing convexity.
+    /// Adds a vertex to the polygon if it's possible to do so without losing convexity and returns
+    /// whever it was possible to do so.
     #[inline]
     pub(in crate::map::brush) fn try_vertex_insertion_at_index(
         &mut self,
         drawing_resources: &DrawingResources,
-        vx: Vec2,
-        idx: usize,
+        pos: Vec2,
+        index: usize,
         selected: bool
     ) -> bool
     {
         let len = self.sides();
 
-        assert!(idx <= len, "Insertion index is higher or equal to vertexes len.");
+        assert!(index <= len, "Insertion index is higher or equal to vertexes len.");
 
-        let idx_fit = idx % len;
+        let idx_fit = index % len;
         let p = prev(idx_fit, len);
 
         if [
-            [self.vertexes[prev(p, len)].vec, self.vertexes[p].vec, vx],
-            [self.vertexes[p].vec, vx, self.vertexes[idx_fit].vec],
+            [self.vertexes[prev(p, len)].vec, self.vertexes[p].vec, pos],
+            [self.vertexes[p].vec, pos, self.vertexes[idx_fit].vec],
             [
-                vx,
+                pos,
                 self.vertexes[idx_fit].vec,
                 self.vertexes[next(idx_fit, len)].vec
             ]
@@ -2775,7 +2780,7 @@ impl ConvexPolygon
         }
 
         self.vertexes
-            .insert(idx, SelectableVector::with_selected(vx, selected));
+            .insert(index, SelectableVector::with_selected(pos, selected));
 
         if selected
         {
@@ -2826,29 +2831,29 @@ impl ConvexPolygon
         idx
     }
 
-    /// Returns true if inserting `vx` in the shape at index `vx_idx` generates
+    /// Returns true if inserting `pos` in the shape at index `vx_idx` generates
     /// a valid polygon.
     #[inline]
     #[must_use]
     pub(in crate::map::brush) fn is_new_vertex_at_index_valid(
         &mut self,
-        vx: Vec2,
-        idx: usize
+        pos: Vec2,
+        index: usize
     ) -> bool
     {
-        if self.point_in_polygon(vx)
+        if self.point_in_polygon(pos)
         {
             return false;
         }
 
-        let idx = idx % self.sides();
+        let idx = index % self.sides();
         let vxs = &self.vertexes;
         let (vx_at_idx, prev) = (vxs[idx].vec, prev_element(idx, vxs).vec);
 
         ![
-            [prev_element_n_steps(idx, 2, vxs).vec, prev, vx],
-            [prev, vx, vx_at_idx],
-            [vx, vx_at_idx, next_element(idx, vxs).vec]
+            [prev_element_n_steps(idx, 2, vxs).vec, prev, pos],
+            [prev, pos, vx_at_idx],
+            [pos, vx_at_idx, next_element(idx, vxs).vec]
         ]
         .iter()
         .any(|vxs| !are_vxs_ccw(vxs))
@@ -2858,15 +2863,15 @@ impl ConvexPolygon
     pub(in crate::map) fn delete_vertex_at_index(
         &mut self,
         drawing_resources: &DrawingResources,
-        idx: usize
+        index: usize
     )
     {
-        if self.vertexes[idx].selected
+        if self.vertexes[index].selected
         {
             self.selected_vertexes -= 1;
         }
 
-        self.vertexes.remove(idx);
+        self.vertexes.remove(index);
         self.update_center_hull_vertexes(drawing_resources);
     }
 
@@ -3022,7 +3027,7 @@ impl ConvexPolygon
 
         for idx in vxs_move.merged.iter().rev().map(|(_, idx)| usize::from(*idx))
         {
-            assert!(!self.vertexes[idx].selected);
+            assert!(!self.vertexes[idx].selected, "Tried to remove selected vertex.");
             self.vertexes.remove(idx);
         }
 
@@ -4885,13 +4890,13 @@ impl ConvexPolygon
         camera: &Transform,
         drawer: &mut EditDrawer,
         color: Color,
-        new_vx: Vec2,
-        new_vx_index: usize
+        pos: Vec2,
+        index: usize
     )
     {
         drawer.brush(
             camera,
-            NewVertexIterator::new(&self.vertexes, new_vx, new_vx_index),
+            NewVertexIterator::new(&self.vertexes, pos, index),
             self.center,
             color,
             self.texture.as_ref(),
@@ -5083,12 +5088,12 @@ impl<'a> Iterator for NewVertexIterator<'a>
 impl<'a> NewVertexIterator<'a>
 {
     #[inline]
-    fn new(vertexes: &'a HvVec<SelectableVector>, new_vx: Vec2, new_vx_index: usize) -> Self
+    fn new(vertexes: &'a HvVec<SelectableVector>, pos: Vec2, index: usize) -> Self
     {
         Self {
             vertexes,
-            new_vx,
-            new_vx_index,
+            new_vx: pos,
+            new_vx_index: index,
             new_vx_returned: false,
             left: 0,
             right: vertexes.len()
@@ -5119,7 +5124,7 @@ pub(in crate::map) fn vx_tooltip(
     window: &Window,
     camera: &Transform,
     egui_context: &egui::Context,
-    vx: Vec2,
+    pos: Vec2,
     label: &'static str,
     text: &mut String,
     text_color: egui::Color32,
@@ -5127,7 +5132,7 @@ pub(in crate::map) fn vx_tooltip(
 )
 {
     text.clear();
-    write!(text, "{}", vx.necessary_precision_value()).ok();
+    write!(text, "{}", pos.necessary_precision_value()).ok();
 
     draw_tooltip_x_centered_above_pos(
         egui_context,
@@ -5135,7 +5140,7 @@ pub(in crate::map) fn vx_tooltip(
         egui::Order::Background,
         text,
         egui::TextStyle::Monospace,
-        to_egui_coordinates(vx, window, camera),
+        to_egui_coordinates(pos, window, camera),
         TOOLTIP_OFFSET,
         text_color,
         fill_color,
@@ -5150,7 +5155,7 @@ pub(in crate::map) fn vertex_tooltip(
     window: &Window,
     camera: &Transform,
     egui_context: &egui::Context,
-    vx: Vec2,
+    pos: Vec2,
     label: &'static str,
     text: &mut String
 )
@@ -5159,7 +5164,7 @@ pub(in crate::map) fn vertex_tooltip(
         window,
         camera,
         egui_context,
-        vx,
+        pos,
         label,
         text,
         egui::Color32::BLACK,
@@ -5175,7 +5180,7 @@ pub(in crate::map) fn free_draw_tooltip(
     camera: &Transform,
     egui_context: &egui::Context,
     color_resources: &ColorResources,
-    vx: Vec2,
+    pos: Vec2,
     label: &'static str,
     text: &mut String
 )
@@ -5184,7 +5189,7 @@ pub(in crate::map) fn free_draw_tooltip(
         window,
         camera,
         egui_context,
-        vx,
+        pos,
         label,
         text,
         egui::Color32::BLACK,

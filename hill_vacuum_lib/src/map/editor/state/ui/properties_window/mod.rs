@@ -23,6 +23,7 @@ use crate::{
                 ui::{checkbox::CheckBox, overall_value_field::OverallValueField}
             },
             AllDefaultProperties,
+            Placeholder,
             StateUpdateBundle
         },
         properties::{DefaultProperties, SetProperty, Value},
@@ -40,12 +41,16 @@ use crate::{
 //
 //=======================================================================//
 
+/// The properties to edit.
 #[derive(Default)]
 enum Target
 {
+    /// None.
     #[default]
     None,
+    /// The properties of the [`Brush`]es.
     Brushes,
+    /// The properties of the [`ThingInstance`]s.
     Things
 }
 
@@ -54,21 +59,32 @@ enum Target
 //
 //=======================================================================//
 
+/// The core of the editor.
 struct Innards
 {
+    /// The properties to edit.
     target:                     Target,
+    /// The overall collision of the [`Brush`]es.
     overall_brushes_collision:  OverallValue<bool>,
+    /// The overall [`Brush`]es properties.
     overall_brushes_properties: UiOverallProperties,
+    /// The overall draw height of the [`ThingInstance`]s.
     overall_things_draw_height: UiOverallValue<i8>,
+    /// The overall angle of the [`ThingInstance`]s.
     overall_things_angle:       UiOverallValue<f32>,
+    /// The overall [`ThingInstance`]s properties.
     overall_things_properties:  UiOverallProperties,
+    /// The maximum amount of rows of the grid.
     max_rows:                   usize,
+    /// The filler rows of the [`Brush`]es grid.
     brushes_filler:             usize,
+    /// The filler rows of the [`ThingInstance`]s grid.
     things_filler:              usize
 }
 
 impl Innards
 {
+    /// Shows the properties editor.
     #[inline]
     fn show(
         &mut self,
@@ -81,6 +97,7 @@ impl Innards
         inputs: &InputsPresses
     ) -> bool
     {
+        /// The width of the columns of the grid.
         const COLUMN_WIDTH: f32 = 122f32;
 
         ui.horizontal(|ui| {
@@ -140,6 +157,7 @@ impl Innards
             .inner
     }
 
+    /// The grid of the properties.
     #[inline]
     #[must_use]
     fn grid(
@@ -153,6 +171,7 @@ impl Innards
         inputs: &InputsPresses
     ) -> bool
     {
+        /// Sets a property.
         macro_rules! set_property {
             ($self:ident, $key:ident, $value:ident, $entities:ident) => {
                 $self.edits_history.property(
@@ -164,6 +183,7 @@ impl Innards
             };
         }
 
+        /// Filld the grid in case of few or unuven properties.
         #[inline]
         fn filler(ui: &mut egui::Ui, length: usize)
         {
@@ -175,6 +195,8 @@ impl Innards
             }
         }
 
+        /// The struct that updates the properties of the [`Brush`]es.
+        #[allow(clippy::missing_docs_in_private_items)]
         struct BrushesPropertySetter<'a>
         {
             manager:       &'a mut EntitiesManager,
@@ -190,6 +212,8 @@ impl Innards
             }
         }
 
+        /// The struct that updates the properties of the [`ThingInstance`]s.
+        #[allow(clippy::missing_docs_in_private_items)]
         struct ThingsPropertySetter<'a>
         {
             manager:       &'a mut EntitiesManager,
@@ -246,6 +270,7 @@ impl Innards
             },
             Target::Things =>
             {
+                /// The angle and draw height UI elements.
                 macro_rules! angle_height {
                     ($label:literal, $value:ident, $min:expr, $max:expr) => {{
                         paste::paste! {
@@ -308,10 +333,13 @@ impl Innards
 
 //=======================================================================//
 
+/// The window to edit the properties of the [`Brush`]es and [`ThingInstance`]s.
 #[must_use]
 pub(in crate::map::editor::state::ui) struct PropertiesWindow
 {
+    /// The window data.
     window:  Window,
+    /// The core of the window.
     innards: Innards
 }
 
@@ -326,6 +354,7 @@ impl WindowCloserInfo for PropertiesWindow
     #[inline]
     fn window_closer(&self) -> Option<WindowCloser>
     {
+        /// Calls the window close.
         #[inline]
         fn close(properties: &mut PropertiesWindow) { properties.window.close(); }
 
@@ -335,8 +364,31 @@ impl WindowCloserInfo for PropertiesWindow
     }
 }
 
+impl Placeholder for PropertiesWindow
+{
+    #[inline]
+    unsafe fn placeholder() -> Self
+    {
+        Self {
+            window:  Window::default(),
+            innards: Innards {
+                target:                     Target::default(),
+                overall_brushes_collision:  true.into(),
+                overall_brushes_properties: UiOverallProperties::placeholder(),
+                overall_things_draw_height: UiOverallValue::none(),
+                overall_things_angle:       UiOverallValue::none(),
+                overall_things_properties:  UiOverallProperties::placeholder(),
+                max_rows:                   0,
+                brushes_filler:             0,
+                things_filler:              0
+            }
+        }
+    }
+}
+
 impl PropertiesWindow
 {
+    /// Returns a new [`PropertiesWindow`].
     #[inline]
     pub fn new(
         brushes_default_properties: &DefaultProperties,
@@ -363,25 +415,7 @@ impl PropertiesWindow
         }
     }
 
-    #[inline]
-    pub unsafe fn placeholder() -> Self
-    {
-        Self {
-            window:  Window::default(),
-            innards: Innards {
-                target:                     Target::default(),
-                overall_brushes_collision:  true.into(),
-                overall_brushes_properties: UiOverallProperties::placeholder(),
-                overall_things_draw_height: UiOverallValue::none(),
-                overall_things_angle:       UiOverallValue::none(),
-                overall_things_properties:  UiOverallProperties::placeholder(),
-                max_rows:                   0,
-                brushes_filler:             0,
-                things_filler:              0
-            }
-        }
-    }
-
+    /// Updates the [`Brush`]es collision.
     #[inline]
     pub fn update_overall_brushes_collision(&mut self, manager: &EntitiesManager)
     {
@@ -391,16 +425,12 @@ impl PropertiesWindow
         }
 
         self.innards.overall_brushes_collision = OverallValue::None;
-
-        for brush in manager.selected_brushes()
-        {
-            if self.innards.overall_brushes_collision.stack(&brush.collision())
-            {
-                return;
-            }
-        }
+        _ = manager
+            .selected_brushes()
+            .any(|brush| self.innards.overall_brushes_collision.stack(&brush.collision()));
     }
 
+    /// Updates all the overall [`Brush`]es properties.
     #[inline]
     pub fn update_overall_total_brush_properties(&mut self, manager: &EntitiesManager)
     {
@@ -414,6 +444,7 @@ impl PropertiesWindow
             .total_overwrite(manager.selected_brushes().map(Brush::properties_as_ref));
     }
 
+    /// Update the overall [`Brush`]es property with key `k`.
     #[inline]
     pub fn update_overall_brushes_property(&mut self, manager: &EntitiesManager, k: &str)
     {
@@ -427,6 +458,7 @@ impl PropertiesWindow
             .overwrite(k, manager.selected_brushes().map(Brush::properties_as_ref));
     }
 
+    /// Updates the [`ThingInstance`]s draw height and angle.
     #[inline]
     pub fn update_overall_things_info(&mut self, manager: &EntitiesManager)
     {
@@ -437,21 +469,16 @@ impl PropertiesWindow
 
         let mut draw_height = OverallValue::None;
         let mut angle = OverallValue::None;
-
-        for thing in manager.selected_things()
-        {
+        _ = manager.selected_things().any(|thing| {
             let non_uni = draw_height.stack(&thing.draw_height());
-
-            if angle.stack(&thing.angle()) && non_uni
-            {
-                break;
-            }
-        }
+            angle.stack(&thing.angle()) && non_uni
+        });
 
         self.innards.overall_things_draw_height = draw_height.ui();
         self.innards.overall_things_angle = angle.ui();
     }
 
+    /// Updates all the overall [`ThingInstance`]s properties.
     #[inline]
     pub fn update_overall_total_things_properties(&mut self, manager: &EntitiesManager)
     {
@@ -465,6 +492,7 @@ impl PropertiesWindow
             .total_overwrite(manager.selected_things().map(ThingInstance::properties));
     }
 
+    /// Update the overall [`ThingInstance`]s property with key `k`.
     #[inline]
     pub fn update_overall_things_property(&mut self, manager: &EntitiesManager, k: &str)
     {
@@ -478,6 +506,7 @@ impl PropertiesWindow
             .overwrite(k, manager.selected_things().map(ThingInstance::properties));
     }
 
+    /// Shows the properties window.
     #[inline]
     #[must_use]
     pub fn show(
@@ -489,10 +518,25 @@ impl PropertiesWindow
         inputs: &InputsPresses
     ) -> bool
     {
-        if !inputs.ctrl_pressed() &&
-            Bind::PropertiesEditor.just_pressed(bundle.key_inputs, &bundle.config.binds)
+        let StateUpdateBundle {
+            egui_context,
+            key_inputs,
+            config,
+            default_properties:
+                AllDefaultProperties {
+                    map_brushes,
+                    map_things,
+                    ..
+                },
+            ..
+        } = bundle;
+
+        if !self.window.check_open(
+            !inputs.ctrl_pressed() &&
+                Bind::PropertiesEditor.just_pressed(key_inputs, &config.binds)
+        )
         {
-            self.window.open();
+            return false;
         }
 
         let any_sel_brushes = manager.any_selected_brushes();
@@ -505,25 +549,7 @@ impl PropertiesWindow
             _ => ()
         };
 
-        if !self.window.is_open()
-        {
-            return false;
-        }
-
-        let StateUpdateBundle {
-            egui_context,
-            default_properties:
-                AllDefaultProperties {
-                    map_brushes: map_brushes_default_properties,
-                    map_things: map_things_default_properties,
-                    ..
-                },
-            ..
-        } = bundle;
-
-        let Self { window, innards } = self;
-
-        window
+        self.window
             .show(
                 egui_context,
                 egui::Window::new("Properties")
@@ -531,10 +557,10 @@ impl PropertiesWindow
                     .collapsible(true)
                     .resizable(true),
                 |ui| {
-                    innards.show(
+                    self.innards.show(
                         ui,
-                        map_brushes_default_properties,
-                        map_things_default_properties,
+                        map_brushes,
+                        map_things,
                         manager,
                         edits_history,
                         clipboard,

@@ -41,7 +41,7 @@ use crate::utils::{
 //
 //=======================================================================//
 
-/// Trait for creating an array of XYX coordinates from a value.
+/// A trait for creating an array of XYZ coordinates from a value.
 pub(in crate::map::drawer) trait IntoArray3
 {
     /// Returns an array of three `f32` representation of `self`.
@@ -67,19 +67,22 @@ impl IntoArray3 for Vec2
 //
 //=======================================================================//
 
+/// The position of a vertex.
 type VxPos = [f32; 3];
 
 //=======================================================================//
 
+/// The color of a vertex.
 type VxColor = [f32; 4];
 
 //=======================================================================//
 
+/// A UV coordinate.
 type Uv = [f32; 2];
 
 //=======================================================================//
 
-/// The struct handling all the draw calls.
+/// The struct handling all the draw calls while editing the map.
 pub(in crate::map) struct EditDrawer<'w, 's, 'a>
 {
     /// The [`Commands`] necessary to spawn the new [`Mesh`]es.
@@ -88,11 +91,15 @@ pub(in crate::map) struct EditDrawer<'w, 's, 'a>
     meshes:                 &'a mut Assets<Mesh>,
     /// The resources required to draw things.
     resources:              &'a mut DrawingResources,
+    /// The color resources.
     color_resources:        &'a ColorResources,
     /// The scale of the current frame's camera.
     camera_scale:           f32,
+    /// The time that has passed since startup.
     elapsed_time:           f32,
+    /// Whever the collision overlay of the [`Brush`]es should be shown.
     show_collision_overlay: bool,
+    /// Whever parallax is enabled.
     parallax_enabled:       bool
 }
 
@@ -107,6 +114,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     //==============================================================
     // Info
 
+    /// Returns the camera scale.
     #[inline]
     #[must_use]
     pub const fn camera_scale(&self) -> f32 { self.camera_scale }
@@ -114,9 +122,11 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     //==============================================================
     // Draw
 
+    /// Spawns the meshes.
     #[inline]
     fn spawn_meshes(&mut self) { self.resources.spawn_meshes(self.commands); }
 
+    /// Draws a line.
     #[inline]
     pub fn line(&mut self, start: Vec2, end: Vec2, color: Color)
     {
@@ -124,6 +134,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(line, self.color_resources.line_material(color), color.line_height());
     }
 
+    /// Draws a semitransparent line.
     #[inline]
     pub fn semitransparent_line(&mut self, start: Vec2, end: Vec2, color: Color)
     {
@@ -136,6 +147,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         );
     }
 
+    /// Draws an arrowed line.
     #[inline]
     pub fn arrowed_line(&mut self, start: Vec2, end: Vec2, color: Color)
     {
@@ -143,6 +155,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(line, self.color_resources.line_material(color), color.line_height());
     }
 
+    /// Draws a semitransparent arrowed line.
     #[inline]
     pub fn semitransparent_arrowed_line(&mut self, start: Vec2, end: Vec2, color: Color)
     {
@@ -155,6 +168,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         );
     }
 
+    /// Draws the sides of a polygon.
     #[inline]
     pub fn sides(&mut self, mut vertexes: impl Iterator<Item = Vec2>, color: Color)
     {
@@ -168,6 +182,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(mesh, self.color_resources.line_material(color), color.line_height());
     }
 
+    /// Draws `grid`.
     #[inline]
     pub fn grid(&mut self, grid: Grid, window: &Window, camera: &Transform)
     {
@@ -204,6 +219,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         );
     }
 
+    /// Draws the lines returned by `lines`.
     #[inline]
     fn lines(&mut self, lines: impl Iterator<Item = (Vec2, Vec2, Color)>)
     {
@@ -223,6 +239,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(mesh, self.resources.default_material(), max_height);
     }
 
+    /// Draws a line within the bounds of `window`.
     #[inline]
     pub fn line_within_window_bounds(
         &mut self,
@@ -299,6 +316,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.line(start, end, color);
     }
 
+    /// Draws a circle.
     #[inline]
     pub fn circle(&mut self, center: Vec2, resolution: u8, radius: f32, color: Color)
     {
@@ -306,9 +324,11 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(mesh, self.color_resources.line_material(color), color.line_height());
     }
 
+    /// Draws `hull`.
     #[inline]
     pub fn hull(&mut self, hull: &Hull, color: Color) { self.sides(hull.vertexes(), color); }
 
+    /// Draws `hull` with corners highlights. The selected [`Corner`] is drawn with `hgl_color`.
     #[inline]
     pub fn hull_with_corner_highlights(
         &mut self,
@@ -327,6 +347,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.sides(hull.vertexes(), color);
     }
 
+    /// Draws `hull` with an highlighted side.
     #[inline]
     pub fn hull_with_highlighted_side(
         &mut self,
@@ -341,6 +362,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.sides(hull.vertexes(), color);
     }
 
+    /// Draws the line extensions of `hull`.
     #[inline]
     pub fn hull_extensions(
         &mut self,
@@ -350,6 +372,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         egui_context: &egui::Context
     )
     {
+        /// The color of the text of the tooltip showing the size of the hull.
         const TOOLTIP_TEXT_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 165, 0);
 
         let window_hull = camera.viewport_ui_constricted(window);
@@ -412,21 +435,23 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         );
     }
 
+    /// Draws a square.
     #[inline]
     pub fn square_highlight(&mut self, center: Vec2, color: Color)
     {
         self.push_square_highlight_mesh(self.color_resources.line_material(color), center, color);
     }
 
+    /// Draws the pivot of a [`Prop`].
     #[inline]
-    pub fn prop_square_highlight(
+    pub fn prop_pivot(
         &mut self,
         center: Vec2,
         color: Color,
         camera_id: Option<bevy::prelude::Entity>
     )
     {
-        self.resources.push_prop_square_highlight_mesh(
+        self.resources.push_prop_pivot_mesh(
             self.color_resources.line_material(color),
             center,
             color.square_hgl_height(),
@@ -434,6 +459,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         );
     }
 
+    /// Draws a semitransparent square.
     #[inline]
     pub fn semitransparent_square_highlight(&mut self, center: Vec2, color: Color)
     {
@@ -444,6 +470,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         );
     }
 
+    /// Draws a [`Brush`] anchor highlight.
     #[inline]
     pub fn anchor_highlight(&mut self, center: Vec2, color: Color)
     {
@@ -454,6 +481,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         );
     }
 
+    /// Draws a sprite highlight.
     #[inline]
     pub fn sprite_highlight(&mut self, center: Vec2, color: Color)
     {
@@ -464,6 +492,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         );
     }
 
+    /// Draws the collision overlay.
     #[inline]
     fn collision_overlay(&mut self, vertexes: impl ExactSizeIterator<Item = Vec2>, color: Color)
     {
@@ -473,9 +502,10 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         mesh_generator.clip_uv();
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
-        self.push_mesh(mesh, self.resources.clip_material(), color.clip_height());
+        self.push_mesh(mesh, self.resources.clip_texture(), color.clip_height());
     }
 
+    /// Draws `settings` mapped to `vertexes`.
     #[inline]
     fn polygon_texture<T: TextureInterface>(
         &mut self,
@@ -508,6 +538,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             .push_textured_mesh(self.meshes.add(mesh).into(), settings, color);
     }
 
+    /// Draws `settings` as a [`Brush`].
     #[inline]
     pub fn sideless_brush<T: TextureInterface>(
         &mut self,
@@ -537,6 +568,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(mesh, self.color_resources.brush_material(color), color.height());
     }
 
+    /// Draws `settings` as a [`Brush`] also drawing the sides.
     #[inline]
     pub fn brush<T: TextureInterface>(
         &mut self,
@@ -552,6 +584,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.sideless_brush(camera, vertexes, center, color, texture, collision);
     }
 
+    /// Draws a polygon filled with a solid color.
     #[inline]
     pub fn polygon_with_solid_color(
         &mut self,
@@ -571,6 +604,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(mesh, self.color_resources.line_material(color), color.height());
     }
 
+    /// Draws `settings` mapping the texture to `sides` and also drawing colored lines at the sides.
     #[inline]
     pub fn brush_with_sides_colors<T: TextureInterface>(
         &mut self,
@@ -593,6 +627,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         );
     }
 
+    /// Draws `settings` as a sprite.
     #[inline]
     pub fn sprite<T: TextureInterface + TextureInterfaceExtra>(
         &mut self,
@@ -612,6 +647,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             .push_sprite(self.meshes.add(mesh).into(), settings, color);
     }
 
+    /// Draws `thing`.
     #[inline]
     pub fn thing<T: ThingInterface + EntityHull>(
         &mut self,
@@ -620,24 +656,34 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         color: Color
     )
     {
+        /// The resolution of the corners of the [`ThingOutline`].
         const CORNER_RESOLUTION: u8 = 6;
 
+        /// The steps to draw a rectangle with smoothed corners.
         #[derive(Clone, Copy)]
         enum SmoothRectangleSteps
         {
+            /// Drawing the top left corner.
             TopLeftCorner(u8),
+            /// Drawing the bottom left corner.
             BottomLeftCorner(u8),
+            /// Drawing the bottom right corner.
             BottomRightCorner(u8),
+            /// Drawing the top right corner.
             TopRightCorner(u8),
+            /// Drawing the line going from the top right corner to the first point.
             Last,
+            /// No more drawing.
             Finished
         }
 
         impl SmoothRectangleSteps
         {
+            /// Returns the next point of the outline.
             #[inline]
             fn next(&mut self, iter: &mut CircleIterator)
             {
+                /// Progresses the iteration.
                 macro_rules! countdown {
                     ($res:ident, $next:expr) => {{
                         *$res -= 1;
@@ -673,17 +719,23 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             }
         }
 
+        /// The outline of a [`ThingInstance`] showing its bounding box.
         #[must_use]
         struct ThingOutline
         {
+            /// The horizontal distance between two corners.
             x_delta:     f32,
+            /// The vertical distance between two corners.
             y_delta:     f32,
+            /// The points of the corners.
             circle_iter: CircleIterator,
+            /// The draw progress.
             step:        SmoothRectangleSteps
         }
 
         impl ThingOutline
         {
+            /// Returns a new [`ThingOutline`].
             #[inline]
             fn new<T: ThingInterface + EntityHull>(thing: &T) -> Self
             {
@@ -800,12 +852,12 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     //==============================================================
     // Misc
 
-    /// Returns a static `str` to be used as tooltip label for `vx`.
+    /// Returns a static `str` to be used as tooltip label for `pos`.
     #[inline]
     #[must_use]
-    pub fn vx_tooltip_label(&mut self, vx: Vec2) -> Option<&'static str>
+    pub fn vx_tooltip_label(&mut self, pos: Vec2) -> Option<&'static str>
     {
-        self.resources.vx_tooltip_label(vx)
+        self.resources.vx_tooltip_label(pos)
     }
 }
 
@@ -861,9 +913,11 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     //==============================================================
     // Mesh creation
 
+    /// Returns a reference to the [`ColorResources`].
     #[inline]
     pub const fn color_resources(&self) -> &ColorResources { self.color_resources }
 
+    /// Returns the [`egui::Color32`] associated with [`Color`].
     #[inline]
     #[must_use]
     pub fn egui_color(&self, color: Color) -> egui::Color32
@@ -962,6 +1016,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
 //=======================================================================//
 
+/// The struct handling all the draw calls during the map preview.
 pub(in crate::map) struct MapPreviewDrawer<'w, 's, 'a>
 {
     /// The [`Commands`] necessary to spawn the new [`Mesh`]es.
@@ -970,6 +1025,7 @@ pub(in crate::map) struct MapPreviewDrawer<'w, 's, 'a>
     meshes:       &'a mut Assets<Mesh>,
     /// The resources required to draw things.
     resources:    &'a mut DrawingResources,
+    /// The time that has passed.
     elapsed_time: f32
 }
 
@@ -1003,9 +1059,11 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
         }
     }
 
+    /// Spawns the meshes.
     #[inline]
     fn spawn_meshes(&mut self) { self.resources.spawn_meshes(self.commands); }
 
+    /// Draws `settings` mapping the texture to `vertexes`.
     #[inline]
     pub fn brush<T: TextureInterface + TextureInterfaceExtra>(
         &mut self,
@@ -1071,6 +1129,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
         resources.push_map_preview_textured_mesh(self.meshes.add(mesh).into(), texture, settings);
     }
 
+    /// Draws `settings` as a sprite.
     #[inline]
     pub fn sprite<T: TextureInterface + TextureInterfaceExtra>(
         &mut self,
@@ -1102,6 +1161,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
             .push_map_preview_sprite(self.meshes.add(mesh).into(), settings);
     }
 
+    /// Draws `thing`.
     #[inline]
     pub fn thing<T: ThingInterface + EntityHull>(&mut self, catalog: &ThingsCatalog, thing: &T)
     {

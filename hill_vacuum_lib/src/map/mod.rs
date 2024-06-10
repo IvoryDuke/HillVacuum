@@ -48,7 +48,8 @@ use self::{
     },
     editor::{
         state::clipboard::{Prop, PropCameras, PropCamerasMut},
-        Editor
+        Editor,
+        Placeholder
     },
     properties::{BrushProperties, ThingProperties},
     thing::ThingInstance
@@ -199,6 +200,7 @@ enum EditorSet
 //
 //=======================================================================//
 
+/// The query of the main camera.
 type MainCameraQuery<'world, 'state, 'a> = Query<
     'world,
     'state,
@@ -208,6 +210,7 @@ type MainCameraQuery<'world, 'state, 'a> = Query<
 
 //=======================================================================//
 
+/// The query of the mutable main camera.
 type MainCameraQueryMut<'world, 'state, 'a> = Query<
     'world,
     'state,
@@ -217,11 +220,13 @@ type MainCameraQueryMut<'world, 'state, 'a> = Query<
 
 //=======================================================================//
 
+/// The query of the camera used by the paint tool.
 type PaintToolCameraQuery<'world, 'state, 'a> =
     Query<'world, 'state, &'a Transform, (With<PaintToolPropCamera>, Without<PropCamera>)>;
 
 //=======================================================================//
 
+/// The query of the mutable camera used by the paint tool.
 type PaintToolCameraQueryMut<'world, 'state, 'a> = Query<
     'world,
     'state,
@@ -232,7 +237,6 @@ type PaintToolCameraQueryMut<'world, 'state, 'a> = Query<
 //=======================================================================//
 
 /// The plugin that builds the map editor.
-#[allow(clippy::module_name_repetitions)]
 pub struct MapEditorPlugin;
 
 impl Plugin for MapEditorPlugin
@@ -418,6 +422,7 @@ pub(in crate::map) fn initialize(
     mut egui_contexts: Query<EguiContextQuery>
 )
 {
+    /// Spawns a [`bevy::prelude::Camera`] with the added `marker`.
     macro_rules! camera {
         ($marker:ident) => {
             #[must_use]
@@ -484,7 +489,7 @@ pub(in crate::map) fn initialize(
         }
     }
 
-    assert!(prop_cameras_amount == PROP_CAMERAS_AMOUNT);
+    assert!(prop_cameras_amount == PROP_CAMERAS_AMOUNT, "Incoherent prop cameras.");
 
     camera!(PaintToolPropCamera);
     commands.spawn(prop_camera(&mut images, Vec2::new(0f32, y + MAP_SIZE)));
@@ -522,6 +527,7 @@ pub(in crate::map) fn initialize(
 
 //=======================================================================//
 
+/// Removes tab for the inputs fed to `egui`.
 #[inline]
 fn clean_egui_inputs(mut input: Query<&mut EguiInput>)
 {

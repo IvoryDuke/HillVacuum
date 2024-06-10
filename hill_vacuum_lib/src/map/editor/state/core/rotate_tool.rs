@@ -11,20 +11,19 @@ use shared::match_or_panic;
 
 use super::{
     draw_selected_and_non_selected_brushes,
-    tool::{ChangeConditions, EnabledTool, SubTool},
+    tool::{ChangeConditions, DisableSubtool, EnabledTool, OngoingMultiframeChange, SubTool},
     ActiveTool
 };
 use crate::{
     map::{
         brush::{convex_polygon::ConvexPolygon, RotateResult},
-        drawer::{drawing_resources::DrawingResources, texture::TextureInterface},
+        drawer::texture::TextureInterface,
         editor::{
             cursor_pos::Cursor,
             state::{
                 core::tool::subtools_buttons,
                 editor_state::{edit_target, InputsPresses, ToolsSettings},
                 edits_history::EditsHistory,
-                grid::Grid,
                 manager::EntitiesManager,
                 ui::ToolsButtons
             },
@@ -52,12 +51,17 @@ use crate::{
 //
 //=======================================================================//
 
+/// The state of the tool.
 #[derive(Debug)]
 enum Status
 {
+    /// Inactive.
     Inactive(()),
+    /// Moving the pivot.
     MovePivot,
+    /// Moving the pivot through the UI.
     MovePivotUi,
+    /// Dragging the mouse to rotate.
     Drag(Vec2, Vec2, HvVec<(Id, ConvexPolygon)>)
 }
 
@@ -85,34 +89,37 @@ impl EnabledTool for Status
 
 //=======================================================================//
 
+/// The rotation angle.
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub(in crate::map::editor::state) enum RotateSnap
+pub(in crate::map::editor::state) enum RotateAngle
 {
+    /// Free.
     Free,
+    /// A fixed value.
     Fixed(u16)
 }
 
-impl Display for RotateSnap
+impl Display for RotateAngle
 {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
         match self
         {
-            RotateSnap::Free => write!(f, "Free"),
-            RotateSnap::Fixed(angle) => write!(f, "{angle}")
+            RotateAngle::Free => write!(f, "Free"),
+            RotateAngle::Fixed(angle) => write!(f, "{angle}")
         }
     }
 }
 
-impl Default for RotateSnap
+impl Default for RotateAngle
 {
     #[inline]
     #[must_use]
     fn default() -> Self { Self::Fixed(Self::MAX_ROTATE_ANGLE) }
 }
 
-impl Numeric for RotateSnap
+impl Numeric for RotateAngle
 {
     const INTEGRAL: bool = true;
     const MAX: Self = Self::Fixed(Self::MAX_ROTATE_ANGLE);
@@ -124,8 +131,8 @@ impl Numeric for RotateSnap
     {
         match self
         {
-            RotateSnap::Free => 0f64,
-            RotateSnap::Fixed(n) => f64::from(n)
+            RotateAngle::Free => 0f64,
+            RotateAngle::Fixed(n) => f64::from(n)
         }
     }
 
@@ -145,23 +152,27 @@ impl Numeric for RotateSnap
     }
 }
 
-impl RotateSnap
+impl RotateAngle
 {
+    /// The maximum fixed rotation angle.
     const MAX_ROTATE_ANGLE: u16 = 90;
-    pub(in crate::map::editor) const MIN_ROTATE_ANGLE: u16 = 5;
+    /// The minimum fixed rotation angle.
+    const MIN_ROTATE_ANGLE: u16 = 5;
 
+    /// Returns the range of possible the rotation angles.
     #[inline]
     #[must_use]
-    pub const fn range() -> RangeInclusive<RotateSnap> { RotateSnap::MIN..=RotateSnap::MAX }
+    const fn range() -> RangeInclusive<RotateAngle> { RotateAngle::MIN..=RotateAngle::MAX }
 
+    /// Decreases the rotation angle.
     #[inline]
-    pub fn decrease(&mut self)
+    fn decrease(&mut self)
     {
-        if let RotateSnap::Fixed(snap) = self
+        if let RotateAngle::Fixed(snap) = self
         {
             if *snap == Self::MIN_ROTATE_ANGLE
             {
-                *self = RotateSnap::Free;
+                *self = RotateAngle::Free;
                 return;
             }
 
@@ -169,13 +180,14 @@ impl RotateSnap
         }
     }
 
+    /// Increases the rotation angle.
     #[inline]
-    pub fn increase(&mut self)
+    fn increase(&mut self)
     {
         match self
         {
-            RotateSnap::Free => *self = RotateSnap::Fixed(5),
-            RotateSnap::Fixed(snap) =>
+            RotateAngle::Free => *self = RotateAngle::Fixed(5),
+            RotateAngle::Fixed(snap) =>
             {
                 if *snap == Self::MAX_ROTATE_ANGLE
                 {
@@ -187,9 +199,10 @@ impl RotateSnap
         };
     }
 
+    /// Returns the rotation angle in radians.
     #[inline]
     #[must_use]
-    pub fn snap_angle(self, angle: f32) -> f32
+    fn snap_angle(self, angle: f32) -> f32
     {
         if let Self::Fixed(snap) = self
         {
@@ -207,15 +220,37 @@ impl RotateSnap
 //
 //=======================================================================//
 
+/// The rotate tool.
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct RotateTool
 {
+    /// The state of the tool.
     status: Status,
+    /// The rotation pivot.
     pivot:  Vec2
+}
+
+impl DisableSubtool for RotateTool
+{
+    #[inline]
+    fn disable_subtool(&mut self)
+    {
+        if matches!(self.status, Status::MovePivotUi)
+        {
+            self.status = Status::default();
+        }
+    }
+}
+
+impl OngoingMultiframeChange for RotateTool
+{
+    #[inline]
+    fn ongoing_multi_frame_change(&self) -> bool { matches!(self.status, Status::Drag(..)) }
 }
 
 impl RotateTool
 {
+    /// Returns an [`ActiveTool`] in its rotate tool variant.
     #[inline]
     pub fn tool(manager: &EntitiesManager, settings: &ToolsSettings) -> ActiveTool
     {
@@ -228,6 +263,8 @@ impl RotateTool
     //==============================================================
     // Info
 
+    /// Returns the center of the selected [`Brush`]es' polygons if the entities are being edited,
+    /// otherwise the center of the textures.
     #[inline]
     #[must_use]
     fn pivot(manager: &EntitiesManager, settings: &ToolsSettings) -> Vec2
@@ -240,13 +277,7 @@ impl RotateTool
         manager.selected_textured_brushes_center().unwrap()
     }
 
-    #[inline]
-    #[must_use]
-    pub const fn ongoing_multi_frame_changes(&self) -> bool
-    {
-        matches!(self.status, Status::Drag(..))
-    }
-
+    /// Returns the cursor position used by the tool.
     #[inline]
     #[must_use]
     const fn cursor_pos(&self, cursor: &Cursor) -> Vec2
@@ -261,24 +292,7 @@ impl RotateTool
     //==============================================================
     // Update
 
-    #[inline]
-    fn snap(drawing_resources: &DrawingResources, manager: &mut EntitiesManager)
-    {
-        for mut brush in manager.selected_brushes_mut()
-        {
-            _ = brush.snap_vertexes(drawing_resources, Grid::new(1, false, false));
-        }
-    }
-
-    #[inline]
-    pub fn disable_subtool(&mut self)
-    {
-        if matches!(self.status, Status::MovePivotUi)
-        {
-            self.status = Status::default();
-        }
-    }
-
+    /// Updates the tool.
     #[inline]
     pub fn update(
         &mut self,
@@ -294,11 +308,11 @@ impl RotateTool
 
         if inputs.plus.just_pressed()
         {
-            settings.rotate_snap.increase();
+            settings.rotate_angle.increase();
         }
         else if inputs.minus.just_pressed()
         {
-            settings.rotate_snap.decrease();
+            settings.rotate_angle.decrease();
         }
 
         let cursor_pos = self.cursor_pos(cursor);
@@ -371,7 +385,7 @@ impl RotateTool
                     return;
                 }
 
-                let angle = settings.rotate_snap.snap_angle(
+                let angle = settings.rotate_angle.snap_angle(
                     vectors_angle_cosine(*start_pos - self.pivot, *last_pos - self.pivot).acos()
                 );
 
@@ -391,12 +405,12 @@ impl RotateTool
                     }
                 }
 
-                Self::snap(bundle.drawing_resources, manager);
                 self.status = Status::default();
             }
         };
     }
 
+    /// Rotates the selected [`Brush`]es.
     #[inline]
     fn rotate_brushes_with_keyboard(
         &self,
@@ -407,10 +421,10 @@ impl RotateTool
         direction: f32
     )
     {
-        let angle = match settings.rotate_snap
+        let angle = match settings.rotate_angle
         {
-            RotateSnap::Free => 1f32 * direction,
-            RotateSnap::Fixed(n) => f32::from(n) * direction
+            RotateAngle::Free => 1f32 * direction,
+            RotateAngle::Fixed(n) => f32::from(n) * direction
         }
         .to_radians();
 
@@ -429,7 +443,6 @@ impl RotateTool
                 )
                 {
                     edits_history.polygon_edit_cluster(backup_polygons.take_value().into_iter());
-                    Self::snap(bundle.drawing_resources, manager);
                 }
             },
             {
@@ -444,6 +457,7 @@ impl RotateTool
         );
     }
 
+    /// Rotates the selected [`Brush`]es clockwise.
     #[inline]
     fn rotate_brushes_cw(
         &self,
@@ -456,6 +470,7 @@ impl RotateTool
         self.rotate_brushes_with_keyboard(bundle, manager, edits_history, settings, -1f32);
     }
 
+    /// Rotates the selected [`Brush`]es counter-clockwise.
     #[inline]
     fn rotate_brushes_ccw(
         &self,
@@ -468,6 +483,7 @@ impl RotateTool
         self.rotate_brushes_with_keyboard(bundle, manager, edits_history, settings, 1f32);
     }
 
+    /// Rotates the selected [`Brush`]es through the mouse drag.
     #[inline]
     fn rotate_brushes_with_mouse(
         bundle: &ToolUpdateBundle,
@@ -493,7 +509,7 @@ impl RotateTool
         }
 
         // "Snap to grid" using degrees conversion.
-        let mut angle = settings.rotate_snap.snap_angle(angle);
+        let mut angle = settings.rotate_angle.snap_angle(angle);
 
         if angle == 0f32
         {
@@ -520,6 +536,7 @@ impl RotateTool
         }
     }
 
+    /// Rotates the selected [`Brush`]es. Returns whever it was possible.
     #[inline]
     fn rotate_brushes(
         bundle: &ToolUpdateBundle,
@@ -567,6 +584,7 @@ impl RotateTool
         true
     }
 
+    /// Rotates the textures of the selected [`Brush`]es. Returns whever it could be done.
     #[inline]
     fn rotate_textures(bundle: &ToolUpdateBundle, manager: &mut EntitiesManager, angle: f32)
         -> bool
@@ -597,10 +615,11 @@ impl RotateTool
         true
     }
 
+    /// Updates the rotation pivot.
     #[inline]
     pub fn update_pivot(&mut self, manager: &EntitiesManager, settings: &ToolsSettings)
     {
-        if !self.ongoing_multi_frame_changes()
+        if !self.ongoing_multi_frame_change()
         {
             self.pivot = Self::pivot(manager, settings);
         }
@@ -609,6 +628,7 @@ impl RotateTool
     //==============================================================
     // Draw
 
+    /// Draws the tool.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
     {
@@ -639,12 +659,13 @@ impl RotateTool
             .circle(self.pivot, 64, pivot_to_cursor_distance, Color::ToolCursor);
     }
 
+    /// Draws the UI elements.
     #[inline]
     pub fn ui(&mut self, ui: &mut egui::Ui, settings: &mut ToolsSettings)
     {
         ui.label(egui::RichText::new("ROTATE TOOL"));
 
-        settings.ui(ui, !self.ongoing_multi_frame_changes());
+        settings.ui(ui, !self.ongoing_multi_frame_change());
 
         ui.label(egui::RichText::new(format!(
             "Pivot: [{:.2}, {:.2}]",
@@ -655,17 +676,18 @@ impl RotateTool
             ui.label(egui::RichText::new("Angle:"));
 
             ui.add(
-                egui::Slider::new(&mut settings.rotate_snap, RotateSnap::range())
+                egui::Slider::new(&mut settings.rotate_angle, RotateAngle::range())
                     .show_value(false)
-                    .step_by(f64::from(RotateSnap::MIN_ROTATE_ANGLE))
+                    .step_by(f64::from(RotateAngle::MIN_ROTATE_ANGLE))
                     .integer()
             );
-            ui.label(egui::RichText::new(format!("{}", settings.rotate_snap)));
+            ui.label(egui::RichText::new(format!("{}", settings.rotate_angle)));
         });
     }
 
+    /// Draws the subtools.
     #[inline]
-    pub fn draw_sub_tools(
+    pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
         bundle: &StateUpdateBundle,

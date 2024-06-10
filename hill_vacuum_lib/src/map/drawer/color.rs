@@ -17,6 +17,7 @@ use crate::{config::IniConfig, map::containers::hv_vec};
 //
 //=======================================================================//
 
+/// The name of the section of the .ini config containing the color settings.
 const INI_SECTION: &str = "COLORS";
 
 //=======================================================================//
@@ -24,8 +25,10 @@ const INI_SECTION: &str = "COLORS";
 //
 //=======================================================================//
 
+/// A trait to generate a value from and rbg array.
 trait FromArray
 {
+    /// Returns a new `Self` instance from an rgb array.
     fn from_array(rgb: &[f32; 3]) -> Self;
 }
 
@@ -93,6 +96,7 @@ pub(crate) enum Color
     PathNode,
     /// The color of the selected path tool path node.
     SelectedPathNode,
+    /// The color of the highlighted path.
     HighlightedPath,
     /// The color of the lines showing the brushes tied together.
     BrushAnchor,
@@ -110,6 +114,7 @@ pub(crate) enum Color
     CursorPolygon,
     /// The color of the [`Hull`] of the cursor cursor polygons of the draw tools.
     CursorPolygonHull,
+    /// The color drawn on top of an entity that caused an edit to fail.
     ErrorHighlight
 }
 
@@ -143,9 +148,11 @@ impl Color
         ErrorHighlight
     );
 
+    /// Returns an iterator to the [`Color`]s that can be customized.
     #[inline]
     fn customizable_colors() -> impl Iterator<Item = Color> { Color::iter().skip(1) }
 
+    /// Returns a [`String`] containing the default colors configuration.
     #[inline]
     #[must_use]
     pub fn default_colors() -> String
@@ -165,7 +172,7 @@ impl Color
         config
     }
 
-    /// The [`BevyColor`] which corresponds to [`Color`].
+    /// The [`BevyColor`] associated with `self`.
     #[inline]
     #[must_use]
     pub const fn default_bevy_color(self) -> BevyColor
@@ -206,6 +213,7 @@ impl Color
 //
 //=======================================================================//
 
+/// A wrapper for [`bevy::prelude::Color`] to format it in a specific way.
 struct ColorWrapper(BevyColor);
 
 impl std::fmt::Display for ColorWrapper
@@ -223,13 +231,17 @@ impl std::fmt::Display for ColorWrapper
 #[derive(Clone)]
 pub(in crate::map::drawer) struct ColorHandles
 {
+    /// Material to draw an entity body.
     body:                 Handle<ColorMaterial>,
+    /// Material to draw a line.
     line:                 Handle<ColorMaterial>,
+    /// Material to draw a semitransparent line.
     semitransparent_line: Handle<ColorMaterial>
 }
 
 impl ColorHandles
 {
+    /// Returns a new [`ColorHandles`].
     #[inline]
     fn new(materials: &mut Assets<ColorMaterial>, color: Color, mut bevy_color: BevyColor) -> Self
     {
@@ -257,16 +269,22 @@ impl ColorHandles
 
 //=======================================================================//
 
+/// The data associated with a [`Color`].
 struct Slot
 {
+    /// The RGB values.
     rgb:        [f32; 3],
+    /// The [`bevy::prelude::Color`].
     bevy_color: BevyColor,
+    /// The [`egui::Color32`].
     egui_color: egui::Color32,
+    /// The handles of the color materials used for the entities.
     handles:    ColorHandles
 }
 
 //=======================================================================//
 
+/// The color settings and the related resources.
 #[must_use]
 pub(crate) struct ColorResources(HashMap<Color, Slot>);
 
@@ -278,6 +296,7 @@ impl Default for ColorResources
 
 impl ColorResources
 {
+    /// Loads the color settings from `ini`.
     #[inline]
     pub fn load(&mut self, ini: &Ini, materials: &mut Assets<ColorMaterial>)
     {
@@ -287,6 +306,9 @@ impl ColorResources
             {
                 Some(string) =>
                 {
+                    /// Parses the [`bevy::prelude::Color`] defined in `string` and returns it. If
+                    /// it cannot be parsed the default [`bevy::prelude::Color`] associated with
+                    /// `color` is returned.
                     #[inline]
                     #[must_use]
                     fn parse(color: Color, string: &str) -> BevyColor
@@ -333,12 +355,15 @@ impl ColorResources
         }
     }
 
+    /// Returns a reference to the [`Slot`] associated with `color`.
     #[inline]
     fn get(&self, color: Color) -> &Slot { self.0.get(&color).unwrap() }
 
+    /// Returns a mutable reference to the [`Slot`] associated with `color`.
     #[inline]
     fn get_mut(&mut self, color: Color) -> &mut Slot { self.0.get_mut(&color).unwrap() }
 
+    /// Returns the [`ColorHandles`] associated with `color`.
     #[inline]
     fn handles<F: Fn(Color, &Slot) -> bool>(
         &self,
@@ -358,18 +383,26 @@ impl ColorResources
         }
     }
 
+    /// Returns the [`bevy::prelude::Color`] associated with `color`.
     #[inline]
     #[must_use]
     pub fn bevy_color(&self, color: Color) -> BevyColor { self.get(color).bevy_color }
 
+    /// Returns the [`egui::Color32`] associated with `color`.
     #[inline]
     #[must_use]
     pub fn egui_color(&self, color: Color) -> egui::Color32
     {
-        assert!(matches!(
-            color,
-            Color::PathNode | Color::SelectedVertex | Color::HighlightedPath | Color::CursorPolygon
-        ));
+        assert!(
+            matches!(
+                color,
+                Color::PathNode |
+                    Color::SelectedVertex |
+                    Color::HighlightedPath |
+                    Color::CursorPolygon
+            ),
+            "Color does not have an associated egui color."
+        );
 
         self.get(color).egui_color
     }
@@ -410,6 +443,7 @@ impl ColorResources
         self.get(color).handles.semitransparent_line.clone()
     }
 
+    /// Saves the colors to `config`.
     #[inline]
     pub fn save(&self, config: &mut IniConfig)
     {
@@ -423,6 +457,7 @@ impl ColorResources
         }
     }
 
+    /// Shows the color customization options.
     #[inline]
     pub fn show(&mut self, materials: &mut Assets<ColorMaterial>, ui: &mut egui::Ui)
     {
@@ -464,6 +499,7 @@ impl ColorResources
             });
     }
 
+    /// Resets to the default colors.
     #[inline]
     pub fn reset(&mut self, materials: &mut Assets<ColorMaterial>)
     {

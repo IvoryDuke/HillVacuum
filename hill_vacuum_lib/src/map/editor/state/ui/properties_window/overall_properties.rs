@@ -11,10 +11,13 @@ use shared::{match_or_panic, NextValue};
 use crate::{
     map::{
         containers::hv_vec,
-        editor::state::{
-            clipboard::Clipboard,
-            editor_state::InputsPresses,
-            ui::{checkbox::CheckBox, overall_value_field::OverallValueField}
+        editor::{
+            state::{
+                clipboard::Clipboard,
+                editor_state::InputsPresses,
+                ui::{checkbox::CheckBox, overall_value_field::OverallValueField}
+            },
+            Placeholder
         },
         indexed_map::IndexedMap,
         properties::{DefaultProperties, Properties, SetProperty, Value}
@@ -27,17 +30,28 @@ use crate::{
 //
 //=======================================================================//
 
+/// The info concerning an overall property of an entity.
 struct OverallProperty
 {
+    /// The discriminant of the [`Value`].
     d:     Discriminant<Value>,
+    /// The overall [`Value`].
     value: OverallValue<Value>,
+    /// The UI representation of the overall [`Value`].
     ui:    UiOverallValue<Value>
 }
 
 //=======================================================================//
 
+/// The UI elements to edit the overall [`Properties`].
 #[must_use]
 pub(in crate::map) struct UiOverallProperties(IndexedMap<String, OverallProperty>);
+
+impl Placeholder for UiOverallProperties
+{
+    #[inline]
+    unsafe fn placeholder() -> Self { Self(IndexedMap::default()) }
+}
 
 impl From<&DefaultProperties> for UiOverallProperties
 {
@@ -47,6 +61,7 @@ impl From<&DefaultProperties> for UiOverallProperties
 
 impl UiOverallProperties
 {
+    /// Returns a new [`UiOverallProperties`].
     #[inline]
     pub fn new(values: &DefaultProperties) -> Self
     {
@@ -75,24 +90,23 @@ impl UiOverallProperties
         Self(IndexedMap::new(values, |_| keys.next_value()))
     }
 
-    #[inline]
-    pub unsafe fn placeholder() -> Self { Self(IndexedMap::default()) }
-
+    /// The amount of overall properties.
     #[inline]
     #[must_use]
     pub fn len(&self) -> usize { self.0.len() }
 
+    /// Overwrites all the overall properties.
     #[inline]
     pub fn total_overwrite<'a>(&mut self, mut iter: impl Iterator<Item = &'a Properties>)
     {
         {
             let properties = iter.next_value();
-            assert!(properties.len() == self.len());
+            assert!(properties.len() == self.len(), "Different lengths.");
 
             for (k, o) in self.0.iter_mut()
             {
                 let b = properties.get(k);
-                assert!(o.d == std::mem::discriminant(b));
+                assert!(o.d == std::mem::discriminant(b), "Mismatching discriminants.");
                 o.value = b.clone().into();
             }
         }
@@ -101,12 +115,12 @@ impl UiOverallProperties
 
         for properties in iter
         {
-            assert!(properties.len() == self.len());
+            assert!(properties.len() == self.len(), "Different lengths.");
 
             for (k, o) in self.0.iter_mut()
             {
                 let b = properties.get(k);
-                assert!(o.d == std::mem::discriminant(b));
+                assert!(o.d == std::mem::discriminant(b), "Mismatching discriminants.");
                 uniform |= !o.value.stack(b);
             }
 
@@ -122,31 +136,27 @@ impl UiOverallProperties
         }
     }
 
+    /// Overwrite the overall property with key `k`.
     #[inline]
     pub fn overwrite<'a>(&mut self, k: &str, mut iter: impl Iterator<Item = &'a Properties>)
     {
         {
             let properties = iter.next_value();
-            assert!(properties.len() == self.len());
+            assert!(properties.len() == self.len(), "Different lengths.");
 
             let o = self.0.get_mut(k).unwrap();
             let b = properties.get(k);
-            assert!(o.d == std::mem::discriminant(b));
+            assert!(o.d == std::mem::discriminant(b), "Mismatching discriminants.");
             o.value = b.clone().into();
         }
 
-        for properties in iter
-        {
-            if self.0.get_mut(k).unwrap().value.stack(properties.get(k))
-            {
-                break;
-            }
-        }
+        _ = iter.any(|properties| self.0.get_mut(k).unwrap().value.stack(properties.get(k)));
 
         let o = self.0.get_mut(k).unwrap();
         o.ui = o.value.clone().ui();
     }
 
+    /// Shows the [`Properties`] fields.
     #[inline]
     #[must_use]
     pub fn show<S: SetProperty>(
@@ -158,14 +168,14 @@ impl UiOverallProperties
         default_properties: &DefaultProperties
     ) -> bool
     {
-        assert!(default_properties.len() == self.0.len());
+        assert!(default_properties.len() == self.0.len(), "Different lengths.");
 
         let mut focused = false;
 
         for (k, o) in self.0.iter_mut()
         {
             let d_v = default_properties.get(k);
-            assert!(o.d == std::mem::discriminant(d_v));
+            assert!(o.d == std::mem::discriminant(d_v), "Mismatching discriminants.");
 
             ui.label(k);
 

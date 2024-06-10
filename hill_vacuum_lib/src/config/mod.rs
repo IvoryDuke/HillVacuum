@@ -55,7 +55,6 @@ const EXPORTER_FIELD: &str = "exporter";
 //=======================================================================//
 
 /// Plugin in charge of loading and saving the config file.
-#[allow(clippy::module_name_repetitions)]
 pub struct ConfigPlugin;
 
 impl Plugin for ConfigPlugin
@@ -83,7 +82,10 @@ impl OpenFile
     pub fn new(path: impl Into<String>) -> Self
     {
         let path = PathBuf::from(Into::<String>::into(path));
-        assert!(path.extension().unwrap().to_str().unwrap() == FILE_EXTENSION);
+        assert!(
+            path.extension().unwrap().to_str().unwrap() == FILE_EXTENSION,
+            "Improper file load."
+        );
         Self(path.into())
     }
 

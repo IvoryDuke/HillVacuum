@@ -16,7 +16,10 @@ use crate::{
         editor::{
             cursor_pos::Cursor,
             state::{
-                core::drag_area::{DragArea, DragAreaTrait},
+                core::{
+                    rect::{Rect, RectTrait},
+                    tool::DisableSubtool
+                },
                 editor_state::{InputsPresses, ToolsSettings},
                 edits_history::EditsHistory,
                 manager::EntitiesManager
@@ -42,6 +45,7 @@ use crate::{
 //
 //=======================================================================//
 
+/// Generates some functions of the cursor polygons.
 macro_rules! shape_cursor_brush {
     ($(($shape:ident $(, $orientation:ident)? $( | $settings:ident)?)),+) => { paste::paste! { $(
         impl Core for [<$shape CursorPolygon>]
@@ -70,7 +74,7 @@ macro_rules! shape_cursor_brush {
             {
                 self.state_update(inputs, bundle.cursor $(, $settings)?);
                 $(let $orientation = self.$orientation();)?
-                self.core_mut().update(inputs, bundle.cursor, |hull| {
+                self.core_mut().update(inputs, bundle.cursor, bundle.camera.scale(), |hull| {
                     Self::vertex_gen(&hull $(, $orientation)? $(, $settings)?)
                 });
 
@@ -79,7 +83,7 @@ macro_rules! shape_cursor_brush {
                     return;
                 }
 
-                let vxs = return_if_none!(self.core_mut().generate_brush(bundle.cursor, |hull| {
+                let vxs = return_if_none!(self.core_mut().generate_polygon(bundle.cursor, |hull| {
                     $(let $orientation = TriangleOrientation::new(bundle.cursor.world_snapped(), bundle.cursor.grid_square());)?
                     Self::vertex_gen(&hull $(, $orientation)? $(, $settings)?)
                 }));
@@ -128,16 +132,21 @@ macro_rules! shape_cursor_brush {
 //
 //=======================================================================//
 
+/// The core of a cursor polygon.
 trait Core
 {
+    /// Returns a reference to the [`DrawMode`].
     fn core(&self) -> &DrawMode;
+    /// Returns a mutable reference to the [`DrawMode`].
     fn core_mut(&mut self) -> &mut DrawMode;
 }
 
 //=======================================================================//
 
+/// A trait for cursor polygons to draw their shape.
 pub(in crate::map::editor::state) trait DrawCursorPolygon
 {
+    /// Draws the polygon.
     fn draw(&self, drawer: &mut EditDrawer);
 }
 
@@ -146,20 +155,26 @@ pub(in crate::map::editor::state) trait DrawCursorPolygon
 //
 //=======================================================================//
 
+/// The state of the spawn variant of [`DrawMode`].
 #[derive(Debug)]
 enum SpawnStatus
 {
+    /// Mouse has not been pressed.
     MouseNotPressed,
+    /// Mouse pressed at a certain position.
     MousePressed(Vec2)
 }
 
 //=======================================================================//
 
+/// The drawig mode of a shaped cursor polygon.
 #[derive(Debug)]
 enum DrawMode
 {
+    /// Spawn on click.
     Spawn(Hull, SpawnStatus, HvVec<Vec2>),
-    Drag(DragArea, HvVec<Vec2>)
+    /// Drag cursor and release to spawn.
+    Drag(Rect, HvVec<Vec2>)
 }
 
 impl Default for DrawMode
@@ -171,7 +186,7 @@ impl Default for DrawMode
         Self::Spawn(
             Hull::new(0f32, 0f32, 0f32, 0f32),
             SpawnStatus::MouseNotPressed,
-            // Not very cool, only needed for the first frame
+            // Not very cool, only needed at startup.
             hv_vec![Vec2::splat(MAP_HALF_SIZE); 4]
         )
     }
@@ -179,6 +194,7 @@ impl Default for DrawMode
 
 impl DrawMode
 {
+    /// Returns a new [`DrawMode`] in its spawn variant.
     #[inline]
     fn new<I: IntoIterator<Item = Vec2>, V: Fn(&Hull) -> I>(cursor: &Cursor, v: V) -> Self
     {
@@ -186,6 +202,7 @@ impl DrawMode
         Self::Spawn(*hull, SpawnStatus::MouseNotPressed, hv_vec![collect; v(hull)])
     }
 
+    /// The vertexes of the drawn shape, if any.
     #[inline]
     fn vertexes(&self) -> Option<Copied<std::slice::Iter<Vec2>>>
     {
@@ -193,6 +210,7 @@ impl DrawMode
         (!shape.is_empty()).then(|| shape.iter().copied())
     }
 
+    /// Returns a mutable reference to the vector containing the vertexes of the drawn shape.
     #[inline]
     fn shape_mut(&mut self) -> &mut HvVec<Vec2>
     {
@@ -200,6 +218,7 @@ impl DrawMode
         shape
     }
 
+    /// Returns the [`Hull`] encompassing the drawn shape, if any.
     #[inline]
     #[must_use]
     fn hull(&self) -> Option<Hull>
@@ -211,11 +230,13 @@ impl DrawMode
         }
     }
 
+    /// Updates `self`.
     #[inline]
     fn update<I: IntoIterator<Item = Vec2>, V: Fn(&Hull) -> I>(
         &mut self,
         inputs: &InputsPresses,
         cursor: &Cursor,
+        camera_scale: f32,
         v: V
     )
     {
@@ -240,12 +261,12 @@ impl DrawMode
                     {
                         if !pos.around_equal(&cursor_pos)
                         {
-                            *self = Self::Drag(DragArea::from_origin(*pos), shape.take_value());
+                            *self = Self::Drag(Rect::from_origin(*pos), shape.take_value());
                         }
                     }
                 };
             },
-            Self::Drag(da, _) => da.update_extremes(cursor_pos)
+            Self::Drag(da, _) => da.update_extremes(cursor_pos, camera_scale)
         };
 
         match self.hull().map(|hull| v(&hull))
@@ -255,9 +276,10 @@ impl DrawMode
         };
     }
 
+    /// Returns an iterator describing the vertexes of the [`Brush`] to draw, if any.
     #[inline]
     #[must_use]
-    fn generate_brush<I: IntoIterator<Item = Vec2>, V: Fn(&Hull) -> I>(
+    fn generate_polygon<I: IntoIterator<Item = Vec2>, V: Fn(&Hull) -> I>(
         &mut self,
         cursor: &Cursor,
         v: V
@@ -282,12 +304,34 @@ impl DrawMode
 
 //=======================================================================//
 
+/// A superficial description of the state of the free draw tool.
+#[must_use]
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::map) enum Status
+pub(in crate::map) enum FreeDrawStatus
 {
+    /// Inactive.
     Inactive,
+    /// Point or line drawn.
     Active,
+    /// Polygon drawn.
     Polygon
+}
+
+//=======================================================================//
+
+/// The state of the [`FreeDrawCursorPolygon`].
+#[derive(Clone, Default, Debug)]
+enum Status
+{
+    /// Nothing drawn.
+    #[default]
+    None,
+    /// Point drawn.
+    Point(Vec2),
+    /// Line drawn.
+    Line([Vec2; 2]),
+    /// Polygon drawn.
+    Polygon(ConvexPolygon)
 }
 
 //=======================================================================//
@@ -297,25 +341,30 @@ pub(in crate::map) enum Status
 
 shape_cursor_brush!((Square), (Triangle, orientation), (Circle | settings));
 
+/// A cursor to draw a square.
 #[derive(Debug, Default)]
 pub(in crate::map::editor::state) struct SquareCursorPolygon(DrawMode);
 
 impl SquareCursorPolygon
 {
+    /// Returns a new [`SquareCursorPolygon`].
     #[inline]
     #[must_use]
     pub fn new(cursor: &Cursor) -> Self { Self(DrawMode::new(cursor, Self::vertex_gen)) }
 
+    /// Returns an iterator returning the vertexes of the square.
     #[inline]
     fn vertex_gen(hull: &Hull) -> std::array::IntoIter<Vec2, 4> { hull.rectangle().into_iter() }
 
+    /// Updates the state of `self`.
     #[allow(clippy::unused_self)]
-    #[inline]
+    #[inline(always)]
     fn state_update(&mut self, _: &InputsPresses, _: &Cursor) {}
 }
 
 //=======================================================================//
 
+/// A cursor to draw rectangle triangle.
 #[derive(Debug)]
 pub(in crate::map::editor::state) struct TriangleCursorPolygon(DrawMode, TriangleOrientation);
 
@@ -328,6 +377,7 @@ impl Default for TriangleCursorPolygon
 
 impl TriangleCursorPolygon
 {
+    /// Returns a new [`TriangleCursorPolygon`].
     #[inline]
     #[must_use]
     pub fn new(cursor: &Cursor) -> Self
@@ -336,16 +386,19 @@ impl TriangleCursorPolygon
         Self(DrawMode::new(cursor, |hull| Self::vertex_gen(hull, orientation)), orientation)
     }
 
+    /// Returns an iterator returning the vertexes of the triangle.
     #[inline]
     fn vertex_gen(hull: &Hull, orientation: TriangleOrientation) -> std::array::IntoIter<Vec2, 3>
     {
         hull.triangle(orientation).into_iter()
     }
 
+    /// Returns the current [`TriangleOrientation`].
     #[inline]
     #[must_use]
     const fn orientation(&self) -> TriangleOrientation { self.1 }
 
+    /// Sets the orientation of the triangle to the next one in cw order.
     #[inline]
     pub fn next_orientation(&mut self)
     {
@@ -358,6 +411,7 @@ impl TriangleCursorPolygon
         };
     }
 
+    /// Sets the orientation of the triangle to the previous one in cw order.
     #[inline]
     pub fn previous_orientation(&mut self)
     {
@@ -370,6 +424,7 @@ impl TriangleCursorPolygon
         };
     }
 
+    /// Updates the state of `self`.
     #[inline]
     fn state_update(&mut self, inputs: &InputsPresses, cursor: &Cursor)
     {
@@ -404,6 +459,7 @@ impl TriangleCursorPolygon
 
 //=======================================================================//
 
+/// The cursor to draw a "circle".
 #[derive(Debug)]
 pub(in crate::map::editor::state) struct CircleCursorPolygon(DrawMode);
 
@@ -416,9 +472,12 @@ impl Default for CircleCursorPolygon
 
 impl CircleCursorPolygon
 {
+    /// The maximum circle resolution.
     const MAX_CIRCLE_RESOLUTION: u8 = 8;
+    /// The minimum circle resolution.
     const MIN_CIRCLE_RESOLUTION: u8 = 1;
 
+    /// Returns a new [`CircleCursorPolygon`].
     #[inline]
     #[must_use]
     pub fn new(cursor: &Cursor, settings: &ToolsSettings) -> Self
@@ -426,6 +485,7 @@ impl CircleCursorPolygon
         Self(DrawMode::new(cursor, |hull| Self::vertex_gen(hull, settings)))
     }
 
+    /// Returns the range of the possible circle resolutions.
     #[inline]
     #[must_use]
     pub(in crate::map::editor::state) const fn circle_resolution_range() -> RangeInclusive<u8>
@@ -433,6 +493,7 @@ impl CircleCursorPolygon
         Self::MIN_CIRCLE_RESOLUTION..=Self::MAX_CIRCLE_RESOLUTION
     }
 
+    /// Increases the resolution of the circle.
     #[inline]
     pub fn increase_resolution(settings: &mut ToolsSettings)
     {
@@ -442,6 +503,7 @@ impl CircleCursorPolygon
         }
     }
 
+    /// Decreases the resolution of the circle.
     #[inline]
     pub fn decrease_resolution(settings: &mut ToolsSettings)
     {
@@ -451,12 +513,14 @@ impl CircleCursorPolygon
         }
     }
 
+    /// Returns an iterator returning the vertexes of the circle.
     #[inline]
     fn vertex_gen(hull: &Hull, settings: &ToolsSettings) -> CircleIterator
     {
         hull.circle(settings.circle_draw_resolution * 4)
     }
 
+    /// Updates the state of `self`.
     #[allow(clippy::unused_self)]
     #[inline]
     fn state_update(&mut self, inputs: &InputsPresses, _: &Cursor, settings: &mut ToolsSettings)
@@ -474,46 +538,42 @@ impl CircleCursorPolygon
 
 //=======================================================================//
 
+/// The cursor to freely draw a generic polygon.
 #[derive(Clone, Debug, Default)]
-pub(in crate::map::editor::state) struct FreeDrawCursorPolygon(FreeDrawStatus);
+pub(in crate::map::editor::state) struct FreeDrawCursorPolygon(Status);
 
-#[derive(Clone, Default, Debug)]
-enum FreeDrawStatus
+impl DisableSubtool for FreeDrawCursorPolygon
 {
-    #[default]
-    None,
-    Point(Vec2),
-    Line([Vec2; 2]),
-    Polygon(ConvexPolygon)
+    #[inline]
+    fn disable_subtool(&mut self)
+    {
+        if !matches!(self.0, Status::None)
+        {
+            self.0 = Status::None;
+        }
+    }
 }
 
 impl FreeDrawCursorPolygon
 {
+    /// Returns a new [`FreeDrawCursorPolygon`].
     #[inline]
     #[must_use]
     pub fn new() -> Self { Self::default() }
 
+    /// Returns the state of `self`.
     #[inline]
-    #[must_use]
-    pub const fn status(&self) -> Status
+    pub const fn status(&self) -> FreeDrawStatus
     {
         match self.0
         {
-            FreeDrawStatus::None => Status::Inactive,
-            FreeDrawStatus::Point(_) | FreeDrawStatus::Line(_) => Status::Active,
-            FreeDrawStatus::Polygon(_) => Status::Polygon
+            Status::None => FreeDrawStatus::Inactive,
+            Status::Point(_) | Status::Line(_) => FreeDrawStatus::Active,
+            Status::Polygon(_) => FreeDrawStatus::Polygon
         }
     }
 
-    #[inline]
-    pub fn disable_subtool(&mut self)
-    {
-        if !matches!(self.0, FreeDrawStatus::None)
-        {
-            self.0 = FreeDrawStatus::None;
-        }
-    }
-
+    /// Updates the polygon.
     #[inline]
     pub fn update(
         &mut self,
@@ -526,7 +586,7 @@ impl FreeDrawCursorPolygon
     {
         if inputs.enter.just_pressed()
         {
-            self.generate_brush(
+            self.generate_polygon(
                 manager,
                 drawn_brushes,
                 edits_history,
@@ -542,17 +602,17 @@ impl FreeDrawCursorPolygon
         {
             match &mut self.0
             {
-                FreeDrawStatus::None => self.0 = FreeDrawStatus::Point(cursor_pos),
-                FreeDrawStatus::Point(p) =>
+                Status::None => self.0 = Status::Point(cursor_pos),
+                Status::Point(p) =>
                 {
                     if p.is_point_inside_ui_highlight(cursor_pos, bundle.camera.scale())
                     {
                         return;
                     }
 
-                    self.0 = FreeDrawStatus::Line([*p, cursor_pos]);
+                    self.0 = Status::Line([*p, cursor_pos]);
                 },
-                FreeDrawStatus::Line(l) =>
+                Status::Line(l) =>
                 {
                     for p in &*l
                     {
@@ -572,9 +632,9 @@ impl FreeDrawCursorPolygon
                     let center = vxs_center(triangle.iter().copied());
                     triangle.sort_by(|a, b| sort_vxs_ccw(*a, *b, center));
 
-                    self.0 = FreeDrawStatus::Polygon(ConvexPolygon::new(triangle.into_iter()));
+                    self.0 = Status::Polygon(ConvexPolygon::new(triangle.into_iter()));
                 },
-                FreeDrawStatus::Polygon(poly) =>
+                Status::Polygon(poly) =>
                 {
                     if !poly.try_insert_free_draw_vertex(cursor_pos, bundle.camera.scale())
                     {
@@ -589,28 +649,28 @@ impl FreeDrawCursorPolygon
         {
             match &mut self.0
             {
-                FreeDrawStatus::None => (),
-                FreeDrawStatus::Point(p) =>
+                Status::None => (),
+                Status::Point(p) =>
                 {
                     if p.is_point_inside_ui_highlight(cursor_pos, bundle.camera.scale())
                     {
                         edits_history.free_draw_point_deletion(*p, 0);
-                        self.0 = FreeDrawStatus::None;
+                        self.0 = Status::None;
                     }
                 },
-                FreeDrawStatus::Line(l) =>
+                Status::Line(l) =>
                 {
                     for (i, p) in l.iter().enumerate()
                     {
                         if p.is_point_inside_ui_highlight(cursor_pos, bundle.camera.scale())
                         {
                             edits_history.free_draw_point_deletion(*p, 0);
-                            self.0 = FreeDrawStatus::Point(l[next(i, 2)]);
+                            self.0 = Status::Point(l[next(i, 2)]);
                             break;
                         }
                     }
                 },
-                FreeDrawStatus::Polygon(poly) =>
+                Status::Polygon(poly) =>
                 {
                     match poly.try_delete_free_draw_vertex(cursor_pos, bundle.camera.scale())
                     {
@@ -622,7 +682,7 @@ impl FreeDrawCursorPolygon
                         FreeDrawVertexDeletionResult::Line(line, deleted) =>
                         {
                             edits_history.free_draw_point_deletion(deleted, 0);
-                            self.0 = FreeDrawStatus::Line(line);
+                            self.0 = Status::Line(line);
                         }
                     };
                 }
@@ -630,8 +690,9 @@ impl FreeDrawCursorPolygon
         }
     }
 
+    /// Spawns the drawn [`Brush`].
     #[inline]
-    fn generate_brush(
+    fn generate_polygon(
         &mut self,
         manager: &mut EntitiesManager,
         drawn_brushes: &mut Ids,
@@ -639,7 +700,7 @@ impl FreeDrawCursorPolygon
         default_properties: &DefaultProperties
     ) -> bool
     {
-        if !matches!(self.0, FreeDrawStatus::Polygon(_))
+        if !matches!(self.0, Status::Polygon(_))
         {
             return false;
         }
@@ -647,7 +708,7 @@ impl FreeDrawCursorPolygon
         let status = std::mem::take(&mut self.0);
 
         manager.spawn_drawn_brush(
-            match_or_panic!(status, FreeDrawStatus::Polygon(poly), poly),
+            match_or_panic!(status, Status::Polygon(poly), poly),
             drawn_brushes,
             edits_history,
             default_properties
@@ -656,20 +717,21 @@ impl FreeDrawCursorPolygon
         true
     }
 
+    /// Inserts the free draw vertex with position `p`.
     #[inline]
     pub fn delete_free_draw_vertex(&mut self, p: Vec2)
     {
         match &mut self.0
         {
-            FreeDrawStatus::None => panic!("No vertexes to be removed."),
-            FreeDrawStatus::Point(q) =>
+            Status::None => panic!("No vertexes to be removed."),
+            Status::Point(q) =>
             {
                 assert!(p == *q, "Vertex asked to be removed is not the only one left.");
-                self.0 = FreeDrawStatus::None;
+                self.0 = Status::None;
             },
-            FreeDrawStatus::Line([a, b]) =>
+            Status::Line([a, b]) =>
             {
-                self.0 = FreeDrawStatus::Point(
+                self.0 = Status::Point(
                     if p == *a
                     {
                         *b
@@ -684,41 +746,43 @@ impl FreeDrawCursorPolygon
                     }
                 );
             },
-            FreeDrawStatus::Polygon(poly) =>
+            Status::Polygon(poly) =>
             {
-                self.0 = FreeDrawStatus::Line(return_if_none!(poly.delete_free_draw_vertex(p)));
+                self.0 = Status::Line(return_if_none!(poly.delete_free_draw_vertex(p)));
             }
         }
     }
 
+    /// Inserts a free draw vertex with position `p`.
     #[inline]
     pub fn insert_free_draw_vertex(&mut self, p: Vec2)
     {
         match &mut self.0
         {
-            FreeDrawStatus::None => self.0 = FreeDrawStatus::Point(p),
-            FreeDrawStatus::Point(q) =>
+            Status::None => self.0 = Status::Point(p),
+            Status::Point(q) =>
             {
                 assert!(
                     !q.around_equal(&p),
                     "New vertex has same coordinates as the only one in the shape."
                 );
-                self.0 = FreeDrawStatus::Line([*q, p]);
+                self.0 = Status::Line([*q, p]);
             },
-            FreeDrawStatus::Line(l) =>
+            Status::Line(l) =>
             {
-                self.0 = FreeDrawStatus::Polygon(ConvexPolygon::new_sorted(
+                self.0 = Status::Polygon(ConvexPolygon::new_sorted(
                     (*l).into_iter().chain(Some(p)),
                     None
                 ));
             },
-            FreeDrawStatus::Polygon(poly) =>
+            Status::Polygon(poly) =>
             {
                 poly.insert_free_draw_vertex(p);
             }
         }
     }
 
+    /// Draws the polygon being drawn.
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, show_tooltips: bool)
     {
@@ -732,8 +796,8 @@ impl FreeDrawCursorPolygon
 
         match &self.0
         {
-            FreeDrawStatus::None => (),
-            FreeDrawStatus::Point(p) =>
+            Status::None => (),
+            Status::Point(p) =>
             {
                 drawer.square_highlight(*p, Color::CursorPolygon);
 
@@ -754,7 +818,7 @@ impl FreeDrawCursorPolygon
                     &mut String::with_capacity(6)
                 );
             },
-            FreeDrawStatus::Line([start, end]) =>
+            Status::Line([start, end]) =>
             {
                 drawer.line(*start, *end, Color::CursorPolygon);
                 drawer.square_highlight(*start, Color::CursorPolygon);
@@ -782,7 +846,7 @@ impl FreeDrawCursorPolygon
                     );
                 }
             },
-            FreeDrawStatus::Polygon(poly) =>
+            Status::Polygon(poly) =>
             {
                 poly.draw_free_draw(window, camera, drawer, egui_context, show_tooltips);
             }

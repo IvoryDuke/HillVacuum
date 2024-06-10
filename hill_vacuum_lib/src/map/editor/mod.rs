@@ -46,27 +46,25 @@ use crate::{
 };
 
 //=======================================================================//
-// MACROS
+// TRAITS
 //
 //=======================================================================//
 
-macro_rules! draw_camera {
-    ($bundle:ident, $camera_id:ident) => {
-        match $camera_id
-        {
-            Some(id) => $bundle.prop_cameras.get(id).unwrap().1,
-            None => $bundle.paint_tool_camera
-        }
-    };
+/// A trait for structs to create placeholder instances to be replaced after startup.
+pub(in crate::map) trait Placeholder
+{
+    /// Returns a placeholder instance of [`Self`] to be replaced after startup.
+    #[must_use]
+    unsafe fn placeholder() -> Self;
 }
-
-use draw_camera;
 
 //=======================================================================//
 // TYPES
 //
 //=======================================================================//
 
+/// A collection of references to the loaded [`DefaultProperties`].
+#[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
 struct AllDefaultProperties<'a>
 {
@@ -79,6 +77,7 @@ struct AllDefaultProperties<'a>
 //=======================================================================//
 
 /// A bundle of variables required to update the state of the [`Editor`].
+#[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
 struct StateUpdateBundle<'world, 'state, 'a, 'b, 'c>
 {
@@ -115,6 +114,7 @@ impl<'world, 'state, 'a, 'b, 'c> StateUpdateBundle<'world, 'state, 'a, 'b, 'c>
 //=======================================================================//
 
 /// A bundle of variables required to update the currently active tool of the [`Editor`].
+#[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
 struct ToolUpdateBundle<'world, 'state, 'a, 'b, 'c>
 {
@@ -135,6 +135,7 @@ struct ToolUpdateBundle<'world, 'state, 'a, 'b, 'c>
 //=======================================================================//
 
 /// A bundle of variables required to draw the visible portion of the map.
+#[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
 struct DrawBundle<
     'world,
@@ -163,6 +164,7 @@ struct DrawBundle<
 //=======================================================================//
 
 /// A bundle of variables required to draw the visible portion of the map in map preview mode.
+#[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
 struct DrawBundleMapPreview<'w, 's, 'a, 'b>
 {
@@ -187,10 +189,34 @@ pub(in crate::map) struct Editor
     things_catalog: ThingsCatalog,
     /// The resources to draw the map on screen.
     drawing_resources: DrawingResources,
+    /// The engine defined default [`Brush`] properties.
     brushes_default_properties: DefaultProperties,
+    /// The engine defined default [`ThingInstance`] properties.
     things_default_properties: DefaultProperties,
+    /// The defined default [`Brush`] properties to be used for the currently opened map.
     map_brushes_default_properties: DefaultProperties,
+    /// The defined default [`ThingInstance`] properties to be used for the currently opened map.
     map_things_default_properties: DefaultProperties
+}
+
+impl Placeholder for Editor
+{
+    #[inline]
+    unsafe fn placeholder() -> Self
+    {
+        unsafe {
+            Self {
+                state: State::placeholder(),
+                cursor_pos: Cursor::default(),
+                things_catalog: ThingsCatalog::default(),
+                drawing_resources: DrawingResources::placeholder(),
+                brushes_default_properties: DefaultProperties::default(),
+                things_default_properties: DefaultProperties::default(),
+                map_brushes_default_properties: DefaultProperties::default(),
+                map_things_default_properties: DefaultProperties::default()
+            }
+        }
+    }
 }
 
 impl Editor
@@ -280,23 +306,7 @@ impl Editor
         }
     }
 
-    #[inline]
-    pub unsafe fn placeholder() -> Self
-    {
-        unsafe {
-            Self {
-                state: State::placeholder(),
-                cursor_pos: Cursor::default(),
-                things_catalog: ThingsCatalog::default(),
-                drawing_resources: DrawingResources::placeholder(),
-                brushes_default_properties: DefaultProperties::default(),
-                things_default_properties: DefaultProperties::default(),
-                map_brushes_default_properties: DefaultProperties::default(),
-                map_things_default_properties: DefaultProperties::default()
-            }
-        }
-    }
-
+    /// Quits the application.
     #[allow(clippy::too_many_arguments)]
     #[inline]
     pub fn quit(
@@ -613,7 +623,9 @@ impl Editor
     #[inline]
     fn cap_map_size(window: &Window, camera: &mut Transform)
     {
-        const CAP: f32 = MAP_HALF_SIZE - 64f32; // To avoid QuadTree crashes caused by an out of bounds cursor position.
+        /// A more constrained map size cap to avoid [`QuadTree`] crashes caused by an out of bounds
+        /// cursor position.
+        const CAP: f32 = MAP_HALF_SIZE - 64f32;
 
         let (half_width, half_height) = camera.scaled_window_half_sizes(window);
         let mut camera_pos = camera.pos();

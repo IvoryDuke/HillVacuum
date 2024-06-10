@@ -30,7 +30,6 @@ use crate::utils::{
 //=======================================================================//
 
 /// A trait for entity which are characterized by a bidimensional size.
-#[allow(clippy::module_name_repetitions)]
 pub trait EntityHull
 {
     /// Returns the [`Hull`] representing the dimensions of the entity.
@@ -49,10 +48,14 @@ pub trait EntityHull
 #[derive(Clone, Copy, Default, Debug, PartialEq)]
 pub enum TriangleOrientation
 {
+    /// Rectangle angle up left.
     #[default]
     TopLeft,
+    /// Rectangle angle down left.
     BottomLeft,
+    /// Rectangle angle up right.
     TopRight,
+    /// Rectangle angle down right.
     BottomRight
 }
 
@@ -107,9 +110,13 @@ impl TriangleOrientation
 #[derive(Clone, Copy, Debug, EnumSize, EnumIter, EnumFromUsize)]
 pub enum Corner
 {
+    /// The top right corner.
     TopRight,
+    /// The top left corner.
     TopLeft,
+    /// The bottom left corner.
     BottomLeft,
+    /// The bottom right corner.
     BottomRight
 }
 
@@ -131,7 +138,7 @@ impl Corner
     /// Returns the horizontal specular corner.
     #[inline]
     #[must_use]
-    pub fn horizontal_specular(self) -> Self
+    pub const fn horizontal_specular(self) -> Self
     {
         match self
         {
@@ -145,7 +152,7 @@ impl Corner
     /// Returns the vertical specular corner.
     #[inline]
     #[must_use]
-    pub fn vertical_specular(self) -> Self
+    pub const fn vertical_specular(self) -> Self
     {
         match self
         {
@@ -163,9 +170,13 @@ impl Corner
 #[derive(Clone, Copy, Debug, EnumIter)]
 pub enum Side
 {
+    /// The top side.
     Top,
+    /// The left side.
     Left,
+    /// The bottom side.
     Bottom,
+    /// The right side.
     Right
 }
 
@@ -175,17 +186,22 @@ pub enum Side
 #[derive(Clone, Copy, Debug)]
 pub enum Flip
 {
+    /// Above.
     Above(f32),
+    /// Below,
     Below(f32),
+    /// Left.
     Left(f32),
+    /// Right.
     Right(f32)
 }
 
 impl Flip
 {
+    /// Returns the value wrapped by all enum arms.
     #[inline]
     #[must_use]
-    pub fn mirror(self) -> f32
+    pub const fn mirror(self) -> f32
     {
         let (Self::Above(m) | Self::Below(m) | Self::Left(m) | Self::Right(m)) = self;
         m
@@ -197,8 +213,11 @@ impl Flip
 /// How the [`Hull`] was scaled.
 pub enum ScaleResult
 {
+    /// No scaling.
     None,
+    /// Scaled.
     Scale(Hull),
+    /// Flipped and maybe scaled.
     Flip(ArrayVec<Flip, 2>, Hull)
 }
 
@@ -555,7 +574,7 @@ impl Hull
     /// Breaks the [`Hull`] into its components: top, bottom, left, right.
     #[inline]
     #[must_use]
-    pub fn decompose(self) -> (f32, f32, f32, f32)
+    pub const fn decompose(self) -> (f32, f32, f32, f32)
     {
         (self.top, self.bottom, self.left, self.right)
     }
@@ -591,6 +610,7 @@ impl Hull
         let (b_1, t_1) = (self.bottom, self.top);
         let mut overlap_vector = None;
 
+        /// Checkes the overlap between the hulls at the coordinates.
         macro_rules! overlap {
             ($vx:expr, $x:ident, $y:expr) => {
                 let vx = $vx;
@@ -840,7 +860,8 @@ impl Hull
     #[must_use]
     pub fn scaled(&self, selected_corner: &mut Corner, new_corner_position: Vec2) -> ScaleResult
     {
-        macro_rules! check_flip_less {
+        /// Checks a flip above the pivot.
+        macro_rules! check_flip_higher {
             ($(($name:ident, $xy:ident, $mirror:ident, $flip:ident, $hor_ver:ident)),+) => { paste::paste! { $(
                 #[inline]
                 fn [< check_flip_ $name >] (
@@ -861,7 +882,8 @@ impl Hull
             )+ }};
         }
 
-        macro_rules! check_flip_greater {
+        /// Checks a flip below the pivot.
+        macro_rules! check_flip_lower {
             ($(($name:ident, $xy:ident, $mirror:ident, $flip:ident, $hor_ver:ident)),+) => { paste::paste! { $(
                 #[inline]
                 fn [< check_flip_ $name >] (
@@ -882,8 +904,8 @@ impl Hull
             )+ }};
         }
 
-        check_flip_less!((above, y, top, Above, vertical), (right, x, right, Right, horizontal));
-        check_flip_greater!((below, y, bottom, Below, vertical), (left, x, left, Left, horizontal));
+        check_flip_higher!((above, y, top, Above, vertical), (right, x, right, Right, horizontal));
+        check_flip_lower!((below, y, bottom, Below, vertical), (left, x, left, Left, horizontal));
 
         if new_corner_position.around_equal_narrow(&self.corner_vertex(*selected_corner))
         {
@@ -894,6 +916,7 @@ impl Hull
         let opposite_vertex = self.corner_vertex(selected_corner.opposite_corner());
         let mut new_selected_corner = *selected_corner;
 
+        /// Checks whever the scaling process leads to a flip.
         macro_rules! check_flips {
             ($funcs:expr) => {
                 for func in $funcs
@@ -1027,26 +1050,26 @@ impl CircleIterator
         vx
     }
 
-    /// Function that modifies `vx` to generate a circular shape.
-    #[inline]
+    /// Function that modifies `pos` to generate a circular shape.
+    #[inline(always)]
     #[must_use]
-    fn actual_circle_vx_generator(vx: Vec2, _: f32) -> Vec2 { vx }
+    const fn actual_circle_vx_generator(pos: Vec2, _: f32) -> Vec2 { pos }
 
-    /// Function that modifies `vx` to generate an oval shape with width greater than height.
+    /// Function that modifies `pos` to generate an oval shape with width greater than height.
     #[inline]
     #[must_use]
-    fn oval_vx_greater_width_generator(mut vx: Vec2, multi: f32) -> Vec2
+    fn oval_vx_greater_width_generator(mut pos: Vec2, multi: f32) -> Vec2
     {
-        vx.x *= multi;
-        vx
+        pos.x *= multi;
+        pos
     }
 
-    /// Function that modifies `vx` to generate an oval shape with height greater than width.
+    /// Function that modifies `pos` to generate an oval shape with height greater than width.
     #[inline]
     #[must_use]
-    fn oval_vx_greater_height_generator(mut vx: Vec2, multi: f32) -> Vec2
+    fn oval_vx_greater_height_generator(mut pos: Vec2, multi: f32) -> Vec2
     {
-        vx.y *= multi;
-        vx
+        pos.y *= multi;
+        pos
     }
 }

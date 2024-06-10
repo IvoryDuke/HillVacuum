@@ -162,7 +162,8 @@ pub fn segments_intersection(s_1: &[Vec2; 2], s_2: &[Vec2; 2]) -> Option<(Vec2, 
 #[must_use]
 pub fn is_point_on_segment(s: &[Vec2; 2], p: Vec2) -> bool
 {
-    const POINT_ON_LINE_EPSILON: f32 = 0.0625;
+    /// The epsilon used to determine whever the point can reasonably considered on the segment.
+    const POINT_ON_LINE_EPSILON: f32 = 1f32 / 16f32;
 
     // This is the only method that has proven itself to be reliable.
     point_to_segment_distance_squared(s[0], s[1], p) < POINT_ON_LINE_EPSILON

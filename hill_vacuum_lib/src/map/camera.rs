@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 use bevy::prelude::{Transform, Vec2, Vec3, Window};
 
 use super::editor::state::ui::{
-    half_ui_vector,
+    ui_camera_displacement,
     ui_left_space,
     ui_right_space,
     ui_size,
@@ -73,7 +73,7 @@ impl Camera for Transform
     fn zoom(&mut self, units: f32)
     {
         let prev_scale = self.change_scale(units);
-        self.translate(-half_ui_vector() * (self.scale() - prev_scale));
+        self.translate(-ui_camera_displacement() * (self.scale() - prev_scale));
     }
 
     #[inline]
@@ -87,7 +87,7 @@ impl Camera for Transform
             padding
         );
 
-        self.set_pos(hull.center() - half_ui_vector() * self.scale());
+        self.set_pos(hull.center() - ui_camera_displacement() * self.scale());
     }
 }
 
@@ -135,5 +135,5 @@ pub fn scale_viewport(camera: &mut Transform, window_sizes: (f32, f32), hull: &H
 #[must_use]
 pub(in crate::map) fn init_camera_transform() -> Transform
 {
-    Transform::from_translation((-half_ui_vector()).extend(0f32))
+    Transform::from_translation((-ui_camera_displacement()).extend(0f32))
 }
