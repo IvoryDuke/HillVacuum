@@ -1127,7 +1127,7 @@ impl EntityTool
     #[inline]
     pub fn ui(&self, ui: &mut egui::Ui, settings: &mut ToolsSettings)
     {
-        ui.label(egui::RichText::new("BRUSH TOOL"));
+        ui.label(egui::RichText::new("ENTITY TOOL"));
         settings.ui(ui, !self.ongoing_multi_frame_change());
     }
 
