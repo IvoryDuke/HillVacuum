@@ -119,7 +119,7 @@ impl Bind
         }
     }
 
-    /// Whever the `KeyCode` associated with this has just been pressed.
+    /// Whether the `KeyCode` associated with this has just been pressed.
     #[inline]
     #[must_use]
     pub fn just_pressed(self, key_inputs: &ButtonInput<KeyCode>, binds: &BindsKeyCodes) -> bool
@@ -148,7 +148,7 @@ impl Bind
         self.just_pressed(key_inputs, binds)
     }
 
-    /// Returns true whever `value` can be assigned to a `Bind`.
+    /// Returns true whether `value` can be assigned to a `Bind`.
     #[inline]
     #[must_use]
     fn is_keycode_legal(value: KeyCode) -> bool

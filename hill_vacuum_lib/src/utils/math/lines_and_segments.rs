@@ -157,12 +157,12 @@ pub fn segments_intersection(s_1: &[Vec2; 2], s_2: &[Vec2; 2]) -> Option<(Vec2, 
 
 //=======================================================================//
 
-/// Whever `p` is on the segment `s`.
+/// Whether `p` is on the segment `s`.
 #[inline]
 #[must_use]
 pub fn is_point_on_segment(s: &[Vec2; 2], p: Vec2) -> bool
 {
-    /// The epsilon used to determine whever the point can reasonably considered on the segment.
+    /// The epsilon used to determine whether the point can reasonably considered on the segment.
     const POINT_ON_LINE_EPSILON: f32 = 1f32 / 16f32;
 
     // This is the only method that has proven itself to be reliable.
@@ -181,7 +181,7 @@ pub fn line_point_product(l: &[Vec2; 2], p: Vec2) -> f32
 
 //=======================================================================//
 
-/// Whever `p` is inside the clip edge of `l`.
+/// Whether `p` is inside the clip edge of `l`.
 #[inline]
 #[must_use]
 pub fn is_point_inside_clip_edge(l: &[Vec2; 2], p: Vec2) -> bool { line_point_product(l, p) > 0f32 }

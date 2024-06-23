@@ -211,7 +211,7 @@ impl<T, const N: usize> Filters<T, N>
 where
     T: PartialEq + Eq
 {
-    /// Returns a value which represents whever `value` should be filtered.
+    /// Returns a value which represents whether `value` should be filtered.
     #[inline]
     #[must_use]
     fn filter(&mut self, value: &T) -> FilterResult

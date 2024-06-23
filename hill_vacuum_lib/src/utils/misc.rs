@@ -341,10 +341,10 @@ impl Toggle for f32
 
 //=======================================================================//
 
-/// A trait to determine whever a point is inside the UI rectangle highlight of a point.
+/// A trait to determine whether a point is inside the UI rectangle highlight of a point.
 pub trait PointInsideUiHighlight
 {
-    /// Whever `p` is inside the area of `self` while accounting for `camera_scale`.
+    /// Whether `p` is inside the area of `self` while accounting for `camera_scale`.
     #[must_use]
     fn is_point_inside_ui_highlight(&self, p: Vec2, camera_scale: f32) -> bool;
 }
@@ -371,7 +371,7 @@ pub struct Blinker
 {
     /// The leftover amount of time it must pulse.
     time:     f32,
-    /// Whever the pulse is on or off.
+    /// Whether the pulse is on or off.
     onoff:    bool,
     /// The duration of the pulsation.
     interval: f32
@@ -390,7 +390,7 @@ impl Blinker
         }
     }
 
-    /// Whever the [`Blinker`] is in the on state.
+    /// Whether the [`Blinker`] is in the on state.
     #[inline]
     #[must_use]
     pub const fn on(&self) -> bool { self.onoff }

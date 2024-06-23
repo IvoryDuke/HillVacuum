@@ -22,7 +22,7 @@ pub(in crate::map::editor::state::ui) struct Tooltip
     spawn_time: Option<f32>,
     /// The last recorded cursor position.
     cursor_pos: egui::Pos2,
-    /// Whever the tooltip is open.
+    /// Whether the tooltip is open.
     open:       bool
 }
 

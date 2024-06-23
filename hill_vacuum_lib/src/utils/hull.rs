@@ -520,7 +520,7 @@ impl Hull
         (self.left..=self.right, self.bottom..=self.top)
     }
 
-    /// Whever the [`Hull`] contains `p`.
+    /// Whether the [`Hull`] contains `p`.
     #[inline]
     #[must_use]
     pub fn contains_point(&self, p: Vec2) -> bool
@@ -529,7 +529,7 @@ impl Hull
         range.0.contains(&p.x) && range.1.contains(&p.y)
     }
 
-    /// Whever the [`Hull`] contains `other`.
+    /// Whether the [`Hull`] contains `other`.
     #[inline]
     #[must_use]
     pub fn contains_hull(&self, other: &Self) -> bool
@@ -542,7 +542,7 @@ impl Hull
             range.1.contains(&other.top)
     }
 
-    /// Whever the [`Hull`] overlaps `other`.
+    /// Whether the [`Hull`] overlaps `other`.
     #[inline]
     #[must_use]
     pub fn overlaps(&self, other: &Self) -> bool
@@ -553,7 +553,7 @@ impl Hull
             self.bottom < other.top
     }
 
-    /// Whever the [`Hull`] intersects another one.
+    /// Whether the [`Hull`] intersects another one.
     #[inline]
     #[must_use]
     pub fn intersects(&self, other: &Self) -> bool
@@ -916,7 +916,7 @@ impl Hull
         let opposite_vertex = self.corner_vertex(selected_corner.opposite_corner());
         let mut new_selected_corner = *selected_corner;
 
-        /// Checks whever the scaling process leads to a flip.
+        /// Checks whether the scaling process leads to a flip.
         macro_rules! check_flips {
             ($funcs:expr) => {
                 for func in $funcs

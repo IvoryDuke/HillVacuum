@@ -97,9 +97,9 @@ pub(in crate::map) struct EditDrawer<'w, 's, 'a>
     camera_scale:           f32,
     /// The time that has passed since startup.
     elapsed_time:           f32,
-    /// Whever the collision overlay of the [`Brush`]es should be shown.
+    /// Whether the collision overlay of the [`Brush`]es should be shown.
     show_collision_overlay: bool,
-    /// Whever parallax is enabled.
+    /// Whether parallax is enabled.
     parallax_enabled:       bool
 }
 

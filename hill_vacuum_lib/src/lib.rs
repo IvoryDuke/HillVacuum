@@ -186,7 +186,7 @@ impl HardcodedActions
         }
     }
 
-    /// Whever the action's keys were pressed.
+    /// Whether the action's keys were pressed.
     #[inline]
     #[must_use]
     pub fn pressed(self, key_inputs: &ButtonInput<KeyCode>) -> bool

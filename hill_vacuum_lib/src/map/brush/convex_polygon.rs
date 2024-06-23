@@ -2747,7 +2747,7 @@ impl ConvexPolygon
     }
 
     /// Adds a vertex to the polygon if it's possible to do so without losing convexity and returns
-    /// whever it was possible to do so.
+    /// whether it was possible to do so.
     #[inline]
     pub(in crate::map::brush) fn try_vertex_insertion_at_index(
         &mut self,

@@ -125,7 +125,7 @@ impl MapPreviewTool
 //
 //=======================================================================//
 
-/// Whever the entity with [`Id`] `identifier` moves.
+/// Whether the entity with [`Id`] `identifier` moves.
 #[inline]
 #[must_use]
 fn is_moving(manager: &EntitiesManager, identifier: Id) -> bool

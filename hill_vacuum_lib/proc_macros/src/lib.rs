@@ -25,7 +25,7 @@ use shared::{
 //
 //=======================================================================//
 
-/// Checks whever `value` is a comma.
+/// Checks whether `value` is a comma.
 /// # Panics
 /// Function panics if `value` is not a comma.
 #[inline]

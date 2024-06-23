@@ -345,7 +345,7 @@ impl QuadTreeIds
     #[inline]
     fn hulls(&self) -> impl Iterator<Item = &Hull> { self.0.values() }
 
-    /// Whever it contains a value for the specified key.
+    /// Whether it contains a value for the specified key.
     #[inline]
     #[must_use]
     pub fn contains(&self, identifier: Id) -> bool { self.0.contains_key(&identifier) }

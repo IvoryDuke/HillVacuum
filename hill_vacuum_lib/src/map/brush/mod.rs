@@ -1710,7 +1710,7 @@ impl Brush
     }
 
     /// Adds a vertex to the polygon if it's possible to do so without losing convexity and returns
-    /// whever it was possible to do so.
+    /// whether it was possible to do so.
     #[inline]
     #[must_use]
     pub fn try_vertex_insertion_at_index(
@@ -1847,7 +1847,7 @@ impl Brush
         self.path_mut().translate(old_center - center);
     }
 
-    /// Returns a [`SplitResult`] describing whever the polygon can be split.
+    /// Returns a [`SplitResult`] describing whether the polygon can be split.
     #[inline]
     pub fn check_split(&self) -> SplitResult { (self.data.polygon.check_split(), self.id).into() }
 
@@ -1915,7 +1915,7 @@ impl Brush
             .map(|(side, normal, info)| (side, normal, XtrusionPayload(self.id, info)))
     }
 
-    /// Returns a [`XtrusionResult`] describing whever the xtrusion attempt can occur.
+    /// Returns a [`XtrusionResult`] describing whether the xtrusion attempt can occur.
     #[inline]
     pub fn matching_xtrusion_info(&self, normal: Vec2) -> XtrusionResult
     {
@@ -2456,7 +2456,7 @@ pub struct BrushViewer
     pub texture:    Option<TextureSettings>,
     /// The [`Mover`].
     pub mover:      Mover,
-    /// Whever collision against the polygonal shape is enabled.
+    /// Whether collision against the polygonal shape is enabled.
     pub collision:  bool,
     /// The properties.
     pub properties: HvHashMap<String, Value>

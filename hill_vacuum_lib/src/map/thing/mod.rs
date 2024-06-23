@@ -512,7 +512,7 @@ impl ThingInstance
     #[inline]
     pub const fn properties(&self) -> &Properties { &self.data.properties }
 
-    /// Whever the bounding box contains the point `p`.
+    /// Whether the bounding box contains the point `p`.
     #[inline]
     #[must_use]
     pub fn contains_point(&self, p: Vec2) -> bool { self.data.hull.contains_point(p) }
@@ -523,7 +523,7 @@ impl ThingInstance
     #[inline]
     fn path_mut(&mut self) -> &mut Path { self.data.path.as_mut().unwrap() }
 
-    /// Check whever changing the [`ThingId`] would cause `self` to have an out of bounds bounding
+    /// Check whether changing the [`ThingId`] would cause `self` to have an out of bounds bounding
     /// box.
     #[inline]
     #[must_use]
@@ -538,7 +538,7 @@ impl ThingInstance
     #[must_use]
     pub fn set_thing(&mut self, thing: &Thing) -> Option<ThingId> { self.data.set_thing(thing) }
 
-    /// Check whever `self` can be moved without being out of bounds.
+    /// Check whether `self` can be moved without being out of bounds.
     #[inline]
     #[must_use]
     pub fn check_move(&self, delta: Vec2) -> bool

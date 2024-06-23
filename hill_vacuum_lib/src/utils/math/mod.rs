@@ -17,14 +17,14 @@ use bevy::prelude::Vec2;
 //
 //=======================================================================//
 
-/// A trait to determine whever two objects are equal within a certain error margin.
+/// A trait to determine whether two objects are equal within a certain error margin.
 pub trait AroundEqual
 {
-    /// Whever `self` and `other` are equal within a somewhat loose margin.
+    /// Whether `self` and `other` are equal within a somewhat loose margin.
     #[must_use]
     fn around_equal(&self, other: &Self) -> bool;
 
-    /// Whever `self` and `other` are equal within a very tight margin.
+    /// Whether `self` and `other` are equal within a very tight margin.
     #[must_use]
     fn around_equal_narrow(&self, other: &Self) -> bool;
 }

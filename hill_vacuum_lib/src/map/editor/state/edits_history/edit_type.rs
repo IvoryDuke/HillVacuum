@@ -83,12 +83,12 @@ impl BrushType
         }
     }
 
-    /// Whever `self` is `BrushType::Selected`.
+    /// Whether `self` is `BrushType::Selected`.
     #[inline]
     #[must_use]
     pub const fn selected(self) -> bool { !matches!(self, Self::NotSelected) }
 
-    /// Whever `self` is `BrushType::Drawn`.
+    /// Whether `self` is `BrushType::Drawn`.
     #[inline]
     #[must_use]
     pub const fn drawn(self) -> bool { matches!(self, Self::Drawn) }
@@ -278,7 +278,7 @@ pub(in crate::map::editor::state::edits_history) enum EditType
 
 impl EditType
 {
-    /// Whever `self` is an edit that is only useful as long as the current tool remains unchanged.
+    /// Whether `self` is an edit that is only useful as long as the current tool remains unchanged.
     #[inline]
     #[must_use]
     pub const fn tool_edit(&self) -> bool
@@ -298,7 +298,7 @@ impl EditType
         )
     }
 
-    /// Whever `self` is a texture edit.
+    /// Whether `self` is a texture edit.
     #[inline]
     #[must_use]
     pub const fn texture_edit(&self) -> bool
@@ -339,7 +339,7 @@ impl EditType
         )
     }
 
-    /// Whever `self` represents a [`ThingInstance`] edit.
+    /// Whether `self` represents a [`ThingInstance`] edit.
     #[inline]
     #[must_use]
     pub const fn thing_edit(&self) -> bool
@@ -387,7 +387,7 @@ impl EditType
     }
 
     /// Actions common to both the undo and redo procedures that apply to multiple [`Brush`]es.
-    /// Returns whever the edit was undone/redone.
+    /// Returns whether the edit was undone/redone.
     #[inline]
     #[must_use]
     fn brushes_common(
@@ -490,7 +490,7 @@ impl EditType
     }
 
     /// Actions common to both the undo and redo procedures that apply to a single [`Brush`].
-    /// Returns whever the edit was undone/redone.
+    /// Returns whether the edit was undone/redone.
     #[inline]
     #[must_use]
     fn brush_common(
@@ -580,7 +580,7 @@ impl EditType
     }
 
     /// Actions common to both the undo and redo procedures that apply to a single [`Thing`].
-    /// Returns whever the edit was undone/redone.
+    /// Returns whether the edit was undone/redone.
     #[inline]
     #[must_use]
     fn thing_common(&mut self, interface: &mut UndoRedoInterface, identifier: Id) -> bool
@@ -605,7 +605,7 @@ impl EditType
     }
 
     /// Actions common to both the undo and redo procedures that apply to a default animation.
-    /// Returns whever the edit was undone/redone.
+    /// Returns whether the edit was undone/redone.
     #[inline]
     #[must_use]
     fn default_animation_common(&mut self, animation: &mut Animation) -> bool
@@ -690,7 +690,7 @@ impl EditType
     }
 
     /// Action common to both the undo and redo procedures concerning a property edit.
-    /// Returns whever the edit was undone/redone.
+    /// Returns whether the edit was undone/redone.
     #[inline]
     #[must_use]
     fn property(

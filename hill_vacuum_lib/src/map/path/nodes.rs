@@ -412,7 +412,7 @@ pub(in crate::map) struct NodesInsertionIter<'a>
     new_node:          NodeWorld,
     /// The index where the new [`Node`] will be inserted.
     new_node_index:    usize,
-    /// Whever the iterator has already returned the position of the new [`Node`] being inserted.
+    /// Whether the iterator has already returned the position of the new [`Node`] being inserted.
     new_node_returned: usize,
     /// The index of the next [`Node`] of `slice` to iterate.
     i:                 usize,

@@ -43,7 +43,7 @@ impl BindEdit
     /// The blink on string.
     const BLINK_ON: &'static str = "_";
 
-    /// Whever a bind is being edited.
+    /// Whether a bind is being edited.
     #[inline]
     #[must_use]
     const fn being_edited(&self) -> bool { matches!(self, Self::Some(..)) }

@@ -348,7 +348,7 @@ impl PathTool
     //==============================================================
     // Info
 
-    /// Whever copy/paste is available.
+    /// Whether copy/paste is available.
     #[inline]
     #[must_use]
     pub const fn copy_paste_available(&self) -> bool
@@ -356,7 +356,7 @@ impl PathTool
         matches!(self.status, Status::Inactive(..) | Status::AddNodeUi(_) | Status::FreeDrawUi(_))
     }
 
-    /// Whever free draw is active.
+    /// Whether free draw is active.
     #[inline]
     #[must_use]
     pub const fn is_free_draw_active(&self) -> bool
@@ -364,7 +364,7 @@ impl PathTool
         matches!(self.status, Status::SingleEditing(_, PathEditing::FreeDraw(..)))
     }
 
-    /// Whever the movement simulation is active.
+    /// Whether the movement simulation is active.
     #[inline]
     #[must_use]
     pub const fn simulation_active(&self) -> bool { matches!(self.status, Status::Simulation(..)) }
@@ -819,7 +819,7 @@ impl PathTool
         }
     }
 
-    /// Moves the selected [`Node`]s. Returns whever it was possible.
+    /// Moves the selected [`Node`]s. Returns whether it was possible.
     #[inline]
     fn move_nodes(
         manager: &mut EntitiesManager,
@@ -868,7 +868,7 @@ impl PathTool
         true
     }
 
-    /// Updates the editing of a single entity. Returns whever the editing was concluded.
+    /// Updates the editing of a single entity. Returns whether the editing was concluded.
     #[inline]
     #[must_use]
     fn single_editing(
@@ -929,7 +929,7 @@ impl PathTool
         false
     }
 
-    /// Deletes the selected [`Node`]s or [`Path`]s depending on whever alt is pressed.
+    /// Deletes the selected [`Node`]s or [`Path`]s depending on whether alt is pressed.
     #[inline]
     #[must_use]
     fn delete(
@@ -1393,7 +1393,7 @@ impl PathTool
 //
 //=======================================================================//
 
-/// Whever the [`Brush`] with [`Id`] `identifier` is anchored to a selected moving [`Brush`].
+/// Whether the [`Brush`] with [`Id`] `identifier` is anchored to a selected moving [`Brush`].
 #[inline]
 #[must_use]
 fn is_anchored_to_selected_moving(manager: &EntitiesManager, identifier: Id) -> bool
@@ -1407,7 +1407,7 @@ fn is_anchored_to_selected_moving(manager: &EntitiesManager, identifier: Id) -> 
 
 //=======================================================================//
 
-/// Whever the entity with [`Id`] `identifier` moves.
+/// Whether the entity with [`Id`] `identifier` moves.
 #[inline]
 #[must_use]
 fn is_moving(manager: &EntitiesManager, identifier: Id) -> bool

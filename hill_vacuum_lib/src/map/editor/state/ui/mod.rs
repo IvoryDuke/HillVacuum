@@ -145,10 +145,10 @@ pub(in crate::map::editor::state) use textures_gallery;
 //
 //=======================================================================//
 
-/// A trait to know whever an UI element has lost focus by the standards required by the editor.
+/// A trait to know whether an UI element has lost focus by the standards required by the editor.
 pub(in crate::map::editor::state) trait ActuallyLostFocus
 {
-    /// Whever an UI element has lost focus by the standards required by the editor.
+    /// Whether an UI element has lost focus by the standards required by the editor.
     #[must_use]
     fn actually_lost_focus(&self) -> bool;
 }
@@ -175,7 +175,7 @@ impl ActuallyLostFocus for egui::Response
 /// A trait to know if an UI element is being interacted with.
 pub(in crate::map::editor::state) trait Interacting
 {
-    /// Whever the UI element is being interacted with.
+    /// Whether the UI element is being interacted with.
     #[must_use]
     fn interacting(&self) -> bool;
 }
@@ -274,7 +274,7 @@ pub(in crate::map::editor::state) enum Command
 
 impl Command
 {
-    /// Returns whever `self` represents a command that changes the entities in the map.
+    /// Returns whether `self` represents a command that changes the entities in the map.
     #[inline]
     #[must_use]
     pub const fn world_edit(self) -> bool
@@ -324,7 +324,7 @@ impl WindowCloser
         id
     }
 
-    /// Checks whever a UI window should be closed.
+    /// Checks whether a UI window should be closed.
     #[inline]
     fn check_window_close(
         layer_ids: impl ExactSizeIterator<Item = egui::LayerId>,
@@ -482,7 +482,7 @@ impl ToolsButtons
 #[must_use]
 pub(in crate::map::editor::state) struct Interaction
 {
-    /// Whever the UI is currently being hovered
+    /// Whether the UI is currently being hovered
     pub hovered: bool,
     /// A command to be executed.
     pub command: Command

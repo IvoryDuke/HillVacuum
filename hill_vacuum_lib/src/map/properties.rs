@@ -205,7 +205,7 @@ impl Value
     pub(in crate::map) const BOOL_DISCRIMINANT: Discriminant<Self> =
         std::mem::discriminant(&Self::Bool(true));
 
-    /// Whever `self` and `other` have the same [`Discriminant`].
+    /// Whether `self` and `other` have the same [`Discriminant`].
     #[inline]
     #[must_use]
     pub(in crate::map) fn eq_discriminant(&self, other: &Self) -> bool

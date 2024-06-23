@@ -495,7 +495,7 @@ impl ScaleTool
         new_hull.into()
     }
 
-    /// Checks whever there is an outline vertex near the cursor.
+    /// Checks whether there is an outline vertex near the cursor.
     #[inline]
     fn check_scale_vertex_proximity(
         &mut self,

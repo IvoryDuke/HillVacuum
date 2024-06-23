@@ -44,28 +44,28 @@ impl Edit
     #[must_use]
     pub fn len(&self) -> usize { self.0.len() }
 
-    /// Whever `self` contains no sub-edits.
+    /// Whether `self` contains no sub-edits.
     #[inline]
     #[must_use]
     pub fn is_empty(&self) -> bool { self.len() == 0 }
 
-    /// Whever `self` contains a sub-edits that is only useful as long as the current tool remains
+    /// Whether `self` contains a sub-edits that is only useful as long as the current tool remains
     /// unchanged.
     #[inline]
     #[must_use]
     pub fn contains_tool_edit(&self) -> bool { self.0.iter().any(|(_, et)| et.tool_edit()) }
 
-    /// Whever `self` contains a texture sub-edit.
+    /// Whether `self` contains a texture sub-edit.
     #[inline]
     #[must_use]
     pub fn contains_texture_edit(&self) -> bool { self.0.iter().any(|(_, et)| et.texture_edit()) }
 
-    /// Whever `self` contains a thing edit.
+    /// Whether `self` contains a thing edit.
     #[inline]
     #[must_use]
     pub fn contains_thing_edit(&self) -> bool { self.0.iter().any(|(_, et)| et.thing_edit()) }
 
-    /// Whever `self` contains a free draw sub-edit.
+    /// Whether `self` contains a free draw sub-edit.
     #[inline]
     #[must_use]
     pub fn contains_free_draw_edit(&self) -> bool
@@ -75,7 +75,7 @@ impl Edit
         })
     }
 
-    /// Whever `self` only contains entity selection sub-edits.
+    /// Whether `self` only contains entity selection sub-edits.
     #[inline]
     #[must_use]
     pub fn only_contains_entity_selection_edits(&self) -> bool
@@ -90,7 +90,7 @@ impl Edit
             .all(|(_, et)| matches!(et, EditType::EntitySelection | EditType::EntityDeselection))
     }
 
-    /// Whever `self` only contains selection sub-edits.
+    /// Whether `self` only contains selection sub-edits.
     #[inline]
     #[must_use]
     pub fn only_contains_selection_edits(&self) -> bool

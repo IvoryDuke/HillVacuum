@@ -536,7 +536,7 @@ impl RotateTool
         }
     }
 
-    /// Rotates the selected [`Brush`]es. Returns whever it was possible.
+    /// Rotates the selected [`Brush`]es. Returns whether it was possible.
     #[inline]
     fn rotate_brushes(
         bundle: &ToolUpdateBundle,
@@ -584,7 +584,7 @@ impl RotateTool
         true
     }
 
-    /// Rotates the textures of the selected [`Brush`]es. Returns whever it could be done.
+    /// Rotates the textures of the selected [`Brush`]es. Returns whether it could be done.
     #[inline]
     fn rotate_textures(bundle: &ToolUpdateBundle, manager: &mut EntitiesManager, angle: f32)
         -> bool

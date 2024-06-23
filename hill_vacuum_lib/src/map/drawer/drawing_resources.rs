@@ -250,7 +250,7 @@ pub(in crate::map) struct DrawingResources
     thing_angle_texture: Handle<ColorMaterial>,
     /// The names of the textures with [`Animations`].
     animated_textures: HvHashSet<String>,
-    /// Whever any default texture animation was changed.
+    /// Whether any default texture animation was changed.
     default_animation_changed: bool
 }
 
@@ -476,7 +476,7 @@ impl DrawingResources
         }
     }
 
-    /// Whever a default animation was changed.
+    /// Whether a default animation was changed.
     #[inline]
     #[must_use]
     pub const fn default_animations_changed(&self) -> bool { self.default_animation_changed }
@@ -1673,7 +1673,7 @@ pub(in crate::map) struct TextureMut<'a>
     resources:     &'a mut DrawingResources,
     /// The name of the texture.
     name:          String,
-    /// Whever the [`Texture`] had no animation when the struct was created.
+    /// Whether the [`Texture`] had no animation when the struct was created.
     was_anim_none: bool
 }
 

@@ -181,7 +181,7 @@ pub(in crate::map::editor::state) struct EditsHistory
     /// The edit of the current frame, to be pushed onto the stack at the end of the current frame
     /// if it's not empty.
     current_edit: Edit,
-    /// Whever an edit lasting more than a frame is happening.
+    /// Whether an edit lasting more than a frame is happening.
     multiframe_edit: bool,
     /// The amount of states we can undo.
     prev_states_amount: usize,
@@ -191,7 +191,7 @@ pub(in crate::map::editor::state) struct EditsHistory
     earliest_texture_edit: Option<usize>,
     /// The index of the earliest [`ThingInstance`] edit.
     earliest_thing_edit: Option<usize>,
-    /// Whever the push of the new [`Edit`] was halted to avoid the truncation of the history
+    /// Whether the push of the new [`Edit`] was halted to avoid the truncation of the history
     /// because it only contains selection edits
     selections_only_edit_halted: bool,
     /// The index of the edit where the file was saved the last time, if any.
@@ -721,7 +721,7 @@ impl EditsHistory
         }
     }
 
-    /// Whever there is an ongoing multiframe edit.
+    /// Whether there is an ongoing multiframe edit.
     #[inline]
     #[must_use]
     pub const fn multiframe_edit(&self) -> bool { self.multiframe_edit }
@@ -742,7 +742,7 @@ impl EditsHistory
         self.multiframe_edit = false;
     }
 
-    /// Whever there are no unsaved edits.
+    /// Whether there are no unsaved edits.
     #[inline]
     #[must_use]
     pub const fn no_unsaved_edits(&self) -> bool
@@ -761,7 +761,7 @@ impl EditsHistory
     //=======================================================================//
     // Info
 
-    /// Whever there is no ongoing edit.
+    /// Whether there is no ongoing edit.
     #[inline]
     #[must_use]
     const fn concluded_edit(&self) -> bool { !self.multiframe_edit }

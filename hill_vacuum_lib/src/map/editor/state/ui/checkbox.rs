@@ -14,12 +14,12 @@ use crate::utils::overall_value::OverallValue;
 //
 //=======================================================================//
 
-/// A checkbox that returns whever the value was changed.
+/// A checkbox that returns whether the value was changed.
 pub(in crate::map::editor) struct CheckBox;
 
 impl CheckBox
 {
-    /// Shows a checkbox and returns whever it was toggled after being clicked.
+    /// Shows a checkbox and returns whether it was toggled after being clicked.
     /// `f` determines how the boolean on/off is generated from `value`.
     #[inline]
     #[must_use]

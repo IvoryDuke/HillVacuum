@@ -366,11 +366,11 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
     #[must_use]
     fn path(&self) -> Option<&Path>;
 
-    /// Whever the entity has a [`Path`].
+    /// Whether the entity has a [`Path`].
     #[must_use]
     fn has_path(&self) -> bool;
 
-    /// Whever the entity could have a [`Path`].
+    /// Whether the entity could have a [`Path`].
     #[must_use]
     fn possible_moving(&self) -> bool;
 
@@ -386,7 +386,7 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
         calc_path_hull(self.path().unwrap(), self.center()).into()
     }
 
-    /// Whever the [`Hull`] encompassing the nodes of the [`Path`] are out of bounds if the entity
+    /// Whether the [`Hull`] encompassing the nodes of the [`Path`] are out of bounds if the entity
     /// has center at `center`.
     #[inline]
     fn path_hull_out_of_bounds(&self, center: Vec2) -> bool
@@ -408,7 +408,7 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
         self.path().unwrap().overall_selected_nodes_movement()
     }
 
-    /// Whever the selected nodes of the [`Path`] can be legally moved by `delta`.
+    /// Whether the selected nodes of the [`Path`] can be legally moved by `delta`.
     /// # Panics
     /// Panics if the entity has no [`Path`].
     #[inline]
@@ -428,7 +428,7 @@ pub(in crate::map) trait Moving: EntityId + EntityCenter
             .nearby_nodes(cursor_pos, self.center(), camera_scale)
     }
 
-    /// Whever the selected nodes of the [`Path`] can be legally deleted.
+    /// Whether the selected nodes of the [`Path`] can be legally deleted.
     /// # Panics
     /// Panics if the entity has no [`Path`].
     #[inline]
@@ -601,7 +601,7 @@ pub(in crate::map) trait EditPath: EntityId + Moving
     #[must_use]
     fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>;
 
-    /// Tries to insert a [`Node`] with position `cursor_pos` at `index`, returns whever the
+    /// Tries to insert a [`Node`] with position `cursor_pos` at `index`, returns whether the
     /// operation was successfull.
     /// # Panics
     /// Panics if the entity has no [`Path`].
@@ -848,7 +848,7 @@ pub(in crate::map) struct NodesMove
 
 impl NodesMove
 {
-    /// Whever any vertexes were merged.
+    /// Whether any vertexes were merged.
     #[inline]
     #[must_use]
     pub fn has_merged_vertexes(&self) -> bool { !self.merged.is_empty() }
@@ -1748,7 +1748,7 @@ impl Path
         NodesWorldMut::new(&mut self.nodes, center)
     }
 
-    /// Whever the [`Node`]s of the [`Path`] are valid.
+    /// Whether the [`Node`]s of the [`Path`] are valid.
     #[inline]
     #[must_use]
     fn nodes_valid(&self) -> bool
@@ -1759,7 +1759,7 @@ impl Path
             .all(|[a, b]| !a.pos().around_equal_narrow(&b.pos()))
     }
 
-    /// Whever the path is valid.
+    /// Whether the path is valid.
     #[inline]
     #[must_use]
     fn valid(&self) -> bool
@@ -2004,7 +2004,7 @@ impl Path
     //==============================================================
     // Insert / Remove
 
-    /// Whever inserting a new [`Node`] with position `pos` at `index` creates a valid [`Path`].
+    /// Whether inserting a new [`Node`] with position `pos` at `index` creates a valid [`Path`].
     #[inline]
     #[must_use]
     fn is_node_at_index_valid(&self, pos: Vec2, index: usize, center: Vec2) -> bool
@@ -2079,7 +2079,7 @@ impl Path
         assert!(self.valid(), "remove_nodes_at_indexes generated an invalid Path.");
     }
 
-    /// Checks whever deleting the selected [`Node`]s would create a valid path.
+    /// Checks whether deleting the selected [`Node`]s would create a valid path.
     #[inline]
     pub(in crate::map) fn check_selected_nodes_deletion(&self) -> NodesDeletionResult
     {
@@ -2198,7 +2198,7 @@ impl Path
         }
     }
 
-    /// Toggles the selection status of the [`Node`] at index `index` and returns whever it was
+    /// Toggles the selection status of the [`Node`] at index `index` and returns whether it was
     /// selected.
     #[inline]
     pub(in crate::map) fn toggle_node_at_index(&mut self, index: usize) -> bool
@@ -2209,7 +2209,7 @@ impl Path
         selected
     }
 
-    /// Checks whever there is a [`Node`] nearby `cursor_pos` and selects it if not already
+    /// Checks whether there is a [`Node`] nearby `cursor_pos` and selects it if not already
     /// selected. Returns a [`NodeSelectionResult`] describing the outcome.
     #[inline]
     pub(in crate::map) fn exclusively_select_path_node_at_index(
@@ -2346,7 +2346,7 @@ impl Path
         assert!(self.valid(), "move_nodes_at_indexes generated an invalid Path.");
     }
 
-    /// Checks whever moving the selected [`Node`]s by `delta` generates a valid path.
+    /// Checks whether moving the selected [`Node`]s by `delta` generates a valid path.
     /// Returns a [`NodesMoveResult`] describing the outcome.
     #[inline]
     pub(in crate::map) fn check_selected_nodes_move(&self, delta: Vec2) -> NodesMoveResult
