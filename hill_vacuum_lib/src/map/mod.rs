@@ -252,7 +252,7 @@ impl Plugin for MapEditorPlugin
             .insert_non_send_resource(unsafe { Editor::placeholder() })
             .insert_state(TextureLoadingProgress::default())
             .insert_resource(ClearColor(Color::Clear.default_bevy_color()))
-            .insert_resource(WinitSettings::default())
+            .insert_resource(WinitSettings::desktop_app())
             .init_resource::<TextureLoader>()
             // Setup
             .add_systems(PostStartup, initialize)
