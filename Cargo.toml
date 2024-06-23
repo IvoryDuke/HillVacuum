@@ -2,13 +2,19 @@
 name = "hill_vacuum"
 version = "0.2.5"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "A bevy-based 2D map editor"
+homepage = "https://github.com/IvoryDuke/HillVacuum"
+repository = "https://github.com/IvoryDuke/HillVacuum"
+readme = "README.md"
+keywords = ["gamedev", "mapeditor", "bevy"]
 
 [features]
 debug = ["hill_vacuum_lib/debug"]
 arena_alloc = ["hill_vacuum_lib/arena_alloc"]
 
 [dependencies.hill_vacuum_lib]
-path = "hill_vacuum_lib/"
+version = "0.2.5"
 
 [dependencies.bevy]
 version = "0.13"
