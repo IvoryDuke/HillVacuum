@@ -112,7 +112,7 @@ Otherwise it can be integrated in your own project as such:
 fn main()
 {
     bevy::prelude::App::new()
-        .add_plugins(hill_vacuum::HillVacuumPlugin)
+        .add_plugins(hill_vacuum::hill_vacuum_lib::HillVacuumPlugin)
         .run();
 }
 ```
@@ -122,7 +122,7 @@ Assuming the path of the map file was passed as an argument to the exporting exe
 ```rust
 fn main()
 {
-    let exporter = hill_vacuum::Exporter::new(&std::env::args().collect::<Vec<_>>()[0]);
+    let exporter = hill_vacuum::hill_vacuum_lib::Exporter::new(&std::env::args().collect::<Vec<_>>()[0]);
     // Your code.
 }
 ```
