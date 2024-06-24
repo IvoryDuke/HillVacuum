@@ -46,7 +46,7 @@ pub trait EntityHull
 /// enum represent on which vertex the 90 degrees angle of the triangle is
 /// located.
 #[derive(Clone, Copy, Default, Debug, PartialEq)]
-pub enum TriangleOrientation
+pub(crate) enum TriangleOrientation
 {
     /// Rectangle angle up left.
     #[default]
@@ -108,7 +108,7 @@ impl TriangleOrientation
 
 /// The four corners of a rectangle.
 #[derive(Clone, Copy, Debug, EnumSize, EnumIter, EnumFromUsize)]
-pub enum Corner
+pub(crate) enum Corner
 {
     /// The top right corner.
     TopRight,
@@ -168,7 +168,7 @@ impl Corner
 
 /// The four sides of a rectangle.
 #[derive(Clone, Copy, Debug, EnumIter)]
-pub enum Side
+pub(crate) enum Side
 {
     /// The top side.
     Top,
@@ -184,7 +184,7 @@ pub enum Side
 
 /// The way a [`Hull`] should be flipped.
 #[derive(Clone, Copy, Debug)]
-pub enum Flip
+pub(crate) enum Flip
 {
     /// Above.
     Above(f32),
@@ -211,7 +211,7 @@ impl Flip
 //=======================================================================//
 
 /// How the [`Hull`] was scaled.
-pub enum ScaleResult
+pub(crate) enum ScaleResult
 {
     /// No scaling.
     None,
@@ -601,6 +601,13 @@ impl Hull
         Hull::new(self.top + bump, self.bottom - bump, self.left - bump, self.right + bump)
     }
 
+    #[inline]
+    #[must_use]
+    pub(crate) fn transformed<F: Fn(Vec2) -> Vec2>(&self, f: F) -> Self
+    {
+        Self::from_points(self.vertexes().map(f)).unwrap()
+    }
+
     /// Returns the vector representing the overlap of the [`Hull`] and `other`.
     #[inline]
     #[must_use]
@@ -717,7 +724,10 @@ impl Hull
     /// `resolution` sides.
     #[inline]
     #[must_use]
-    pub(crate) fn circle(&self, resolution: u8) -> CircleIterator { CircleIterator::new(resolution, self) }
+    pub(crate) fn circle(&self, resolution: u8) -> CircleIterator
+    {
+        CircleIterator::new(resolution, self)
+    }
 
     //==============================================================
     // Corner & Side
@@ -851,7 +861,11 @@ impl Hull
     /// Returns a [`Hull`] scaled according to the new position of the moved [`Corner`].
     #[inline]
     #[must_use]
-    pub(crate) fn scaled(&self, selected_corner: &mut Corner, new_corner_position: Vec2) -> ScaleResult
+    pub(crate) fn scaled(
+        &self,
+        selected_corner: &mut Corner,
+        new_corner_position: Vec2
+    ) -> ScaleResult
     {
         /// Checks a flip above the pivot.
         macro_rules! check_flip_higher {
@@ -951,7 +965,7 @@ impl Hull
 //=======================================================================//
 
 /// An iterator that generates the coordinates of an oval/circular shape.
-pub struct CircleIterator
+pub(crate) struct CircleIterator
 {
     /// The first coordinate.
     starting_point: Vec2,
@@ -1044,7 +1058,7 @@ impl CircleIterator
     }
 
     /// Function that modifies `pos` to generate a circular shape.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     const fn actual_circle_vx_generator(pos: Vec2, _: f32) -> Vec2 { pos }
 

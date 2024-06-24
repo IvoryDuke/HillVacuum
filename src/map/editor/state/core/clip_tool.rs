@@ -25,7 +25,7 @@ use crate::{
         brush::convex_polygon::ConvexPolygon,
         drawer::{color::Color, drawing_resources::DrawingResources, EditDrawer},
         editor::{
-            cursor_pos::Cursor,
+            cursor::Cursor,
             state::{
                 editor_state::InputsPresses,
                 edits_history::EditsHistory,
@@ -37,14 +37,14 @@ use crate::{
             ToolUpdateBundle
         },
         hv_vec,
-        properties::Properties,
-        HvVec
+        properties::Properties
     },
     utils::{
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         misc::{next, prev, Camera, TakeValue}
-    }
+    },
+    HvVec
 };
 
 //=======================================================================//

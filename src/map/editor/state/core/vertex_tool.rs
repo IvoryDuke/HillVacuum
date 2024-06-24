@@ -40,10 +40,9 @@ use crate::{
             SplitResult,
             VertexesMoveResult
         },
-        containers::{hv_hash_map, hv_hash_set, hv_vec, HvHashMap, HvVec, Ids},
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
-            cursor_pos::Cursor,
+            cursor::Cursor,
             state::{
                 core::{rect, VertexesToggle},
                 editor_state::InputsPresses,
@@ -56,16 +55,18 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
-        selectable_vector::VectorSelectionResult,
-        AssertedInsertRemove
+        selectable_vector::VectorSelectionResult
     },
     utils::{
+        containers::{hv_hash_map, hv_hash_set, hv_vec, Ids},
         hull::{EntityHull, Hull},
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::HashVec2,
-        misc::{Camera, TakeValue}
+        misc::{AssertedInsertRemove, Camera, TakeValue}
     },
+    HvHashMap,
+    HvVec,
     Path
 };
 
@@ -90,7 +91,7 @@ enum Status
         /// The [`Id`] of the brush where the vertex is being inserted.
         identifier: Id,
         /// The index where the vertex is being inserted.
-        idx:        usize,
+        index:      usize,
         /// The position of the vertex.
         vx:         Vec2
     },
@@ -517,7 +518,7 @@ impl VertexTool
                 }
 
                 self.0 = Status::Drag(
-                    return_if_none!(CursorDelta::try_new(*pos, bundle.cursor, grid), None),
+                    return_if_none!(CursorDelta::try_new(bundle.cursor, grid, *pos), None),
                     hv_vec![]
                 );
                 edits_history.start_multiframe_edit();
@@ -557,7 +558,7 @@ impl VertexTool
             },
             Status::NewVertex {
                 identifier,
-                idx,
+                index,
                 vx
             } =>
             {
@@ -565,7 +566,7 @@ impl VertexTool
 
                 if !inputs.left_mouse.pressed()
                 {
-                    let idx = u8::try_from(*idx).unwrap();
+                    let idx = u8::try_from(*index).unwrap();
 
                     if brush.try_vertex_insertion_at_index(
                         bundle.drawing_resources,
@@ -583,7 +584,7 @@ impl VertexTool
 
                 let pos = bundle.cursor.world_snapped();
 
-                if bundle.cursor.moved() && brush.is_new_vertex_at_index_valid(pos, *idx)
+                if bundle.cursor.moved() && brush.is_new_vertex_at_index_valid(pos, *index)
                 {
                     *vx = pos;
                 }
@@ -630,7 +631,7 @@ impl VertexTool
         camera_scale: f32
     ) -> Option<Status>
     {
-        let (id, idx) = manager
+        let (id, index) = manager
             .selected_brushes_at_pos(cursor_pos, camera_scale)
             .iter()
             .find_map(|brush| {
@@ -641,7 +642,7 @@ impl VertexTool
 
         Some(Status::NewVertex {
             identifier: id,
-            idx,
+            index,
             vx: cursor_pos
         })
     }
@@ -968,7 +969,7 @@ impl VertexTool
             },
             Status::NewVertex {
                 identifier,
-                idx: vx_idx,
+                index,
                 vx
             } =>
             {
@@ -988,7 +989,7 @@ impl VertexTool
                     camera,
                     drawer,
                     egui_context,
-                    &VertexHighlightMode::NewVertex(*vx, *vx_idx),
+                    &VertexHighlightMode::NewVertex(*vx, *index),
                     show_tooltips
                 );
 

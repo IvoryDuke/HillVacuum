@@ -57,48 +57,50 @@ Default textures animation can be exported and imported between map files. The f
 
 ### Props
 A prop is a collection of entities which can be painted around the map like the brushes of an image editing tool.  
-Each prop has a pivot, the point relative to which the it is painted onto the map.  
+Each prop has a pivot, the point relative to which it is painted onto the map.  
 Props can be imported and exported between map files. The file extension of the props files is .prps.
 
 ## Files
 HV creates three types of files, all of which are relatively simple:
 - .hv is the regular map file;
 ```
-------------------------------
-| Header (4 usize)           |
-| brushes amount             |
-| things amount              |
-| animations amount          |
-| props amount               |
-------------------------------
-| Brushes default properties |
-------------------------------
-| Things default properties  |
-------------------------------
-| Animations                 |
-------------------------------
-| Brushes                    |
-------------------------------
-| Things                     |
-------------------------------
-| Props                      |
-------------------------------
+-------------------------------
+| Header (4 usize)            |
+| brushes amount              |
+| things amount               |
+| animations amount           |
+| props amount                |
+-------------------------------
+| Brushes default properties  |
+-------------------------------
+| Things default properties   |
+-------------------------------
+| Animations                  |
+-------------------------------
+| Brushes                     |
+-------------------------------
+| Things                      |
+-------------------------------
+| Props                       |
+-------------------------------
+| Grid settings (skew, angle) |
+-------------------------------
 ```
 - .anms is the "animations only" file, which can be used to exchange animations between maps;
 ```
-------------------------------
-| animations amount (usize)  |
-------------------------------
-| Animations                 |
-------------------------------
+-------------------------------
+| animations amount (usize)   |
+-------------------------------
+| Animations                  |
+-------------------------------
 ```
 - .prps is the "props only" file, which can be used to exchange props between maps.
 ```
-------------------------------
-| props amount (usize)       |
-------------------------------
-| Props                      |
-------------------------------
+-------------------------------
+| props amount (usize)        |
+-------------------------------
+| Props                       |
+-------------------------------
 ```
 
 ## Getting started
@@ -112,7 +114,7 @@ Otherwise it can be integrated in your own project as such:
 fn main()
 {
     bevy::prelude::App::new()
-        .add_plugins(hill_vacuum::hill_vacuum::HillVacuumPlugin)
+        .add_plugins(hill_vacuum::HillVacuumPlugin)
         .run();
 }
 ```
@@ -122,7 +124,7 @@ Assuming the path of the map file was passed as an argument to the exporting exe
 ```rust
 fn main()
 {
-    let exporter = hill_vacuum::hill_vacuum::Exporter::new(&std::env::args().collect::<Vec<_>>()[0]);
+    let exporter = hill_vacuum::Exporter::new(&std::env::args().collect::<Vec<_>>()[0]);
     // Your code.
 }
 ```

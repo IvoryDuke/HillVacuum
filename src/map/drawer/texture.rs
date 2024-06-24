@@ -6,7 +6,6 @@
 use arrayvec::ArrayVec;
 use bevy::prelude::{Assets, Handle, Image, UVec2, Vec2};
 use hill_vacuum_shared::{
-    draw_height_to_world,
     match_or_panic,
     return_if_no_match,
     return_if_none,
@@ -311,11 +310,12 @@ pub enum Sprite
         /// The [`Hull`] describing the bounds of the sprite.
         hull: Hull
     },
+    /// No.
     False
     {
-        /// The horizontal parallax.
+        /// The horizontal parallax of the texture.
         parallax_x: f32,
-        /// The vertical parallax.
+        /// The vertical parallax of the texture.
         parallax_y: f32
     }
 }
@@ -861,40 +861,40 @@ impl Texture
     }
 
     /// The name of the texture.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub fn name(&self) -> &str { &self.name }
 
     /// The UI label of the texture.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub fn label(&self) -> &str { &self.label }
 
     /// The size of the texture.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn size(&self) -> UVec2 { self.size }
 
     /// A stringal representation of the size of the texture.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub fn size_str(&self) -> &str { &self.size_str }
 
     /// The [`Handle<Image>`] of the texture.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub fn handle(&self) -> Handle<Image> { self.handle.clone_weak() }
 
     /// Returns a reference to the texture's [`Animation`].
-    #[inline(always)]
+    #[inline]
     pub const fn animation(&self) -> &Animation { &self.animation }
 
     /// Returns a mutable reference to the texture [`Animation`].
-    #[inline(always)]
+    #[inline]
     pub fn animation_mut(&mut self) -> &mut Animation { &mut self.animation }
 
     /// Returns a mutable reference to the texture [`Animation`] and marks it as changed.
-    #[inline(always)]
+    #[inline]
     pub fn animation_mut_set_dirty(&mut self) -> &mut Animation
     {
         self.dirty = true;
@@ -902,12 +902,12 @@ impl Texture
     }
 
     /// Whever the texture was edited.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn dirty(&self) -> bool { self.dirty }
 
     /// Clears the texture dirty flag.
-    #[inline(always)]
+    #[inline]
     pub fn clear_dirty_flag(&mut self) { self.dirty = false; }
 }
 
@@ -997,7 +997,7 @@ impl TextureInterface for TextureSettings
     fn height(&self) -> i8 { self.height }
 
     #[inline]
-    fn height_f32(&self) -> f32 { draw_height_to_world(self.height()) }
+    fn height_f32(&self) -> f32 { f32::from(self.height) }
 
     #[inline]
     fn angle(&self) -> f32 { self.angle }

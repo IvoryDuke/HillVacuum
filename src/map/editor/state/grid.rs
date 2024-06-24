@@ -3,13 +3,170 @@
 //
 //=======================================================================//
 
+use std::ops::RangeInclusive;
+
 use bevy::prelude::{Transform, Vec2, Window};
+use serde::{Deserialize, Serialize};
 
 use super::manager::EntitiesManager;
 use crate::{
-    map::drawer::{color::Color, EditDrawer},
-    utils::{hull::Hull, math::AroundEqual, misc::Camera}
+    map::drawer::color::Color,
+    utils::{
+        hull::Hull,
+        math::{angles::FastSinCosTan, points::fast_rotate_point_around_origin, AroundEqual},
+        misc::Camera
+    }
 };
+
+//=======================================================================//
+// ENUMS
+//
+//=======================================================================//
+
+/// The settings of the map grid saved into the map files.
+#[must_use]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
+pub(crate) enum GridSettings
+{
+    #[default]
+    None,
+    Skew(i8),
+    Rotate(i16),
+    Isometric
+    {
+        /// How much the vertical lines are skewed.
+        skew:  i8,
+        /// The angle of rotation of the grid.
+        angle: i16
+    }
+}
+
+impl GridSettings
+{
+    #[inline]
+    #[must_use]
+    const fn skew(self) -> i8
+    {
+        match self
+        {
+            Self::Skew(skew) | Self::Isometric { skew, .. } => skew,
+            _ => 0
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    const fn angle(self) -> i16
+    {
+        match self
+        {
+            Self::Rotate(angle) | Self::Isometric { angle, .. } => angle,
+            _ => 0
+        }
+    }
+
+    #[inline]
+    fn set_skew(&mut self, value: i8)
+    {
+        let value = value.clamp(*Grid::SKEW_RANGE.start(), *Grid::SKEW_RANGE.end());
+
+        match self
+        {
+            Self::None =>
+            {
+                if value != 0
+                {
+                    *self = Self::Skew(value);
+                }
+            },
+            Self::Skew(skew) =>
+            {
+                if value == 0
+                {
+                    *self = Self::None;
+                }
+                else
+                {
+                    *skew = value;
+                }
+            },
+            Self::Rotate(angle) =>
+            {
+                if value == 0
+                {
+                    return;
+                }
+
+                *self = Self::Isometric {
+                    skew:  value,
+                    angle: *angle
+                }
+            },
+            Self::Isometric { skew, angle } =>
+            {
+                if value == 0
+                {
+                    *self = Self::Rotate(*angle);
+                }
+                else
+                {
+                    *skew = value;
+                }
+            }
+        };
+    }
+
+    #[inline]
+    fn set_angle(&mut self, value: i16)
+    {
+        let value = value.clamp(*Grid::ANGLE_RANGE.start(), *Grid::ANGLE_RANGE.end());
+
+        match self
+        {
+            Self::None =>
+            {
+                if value != 0
+                {
+                    *self = Self::Rotate(value);
+                }
+            },
+            Self::Skew(skew) =>
+            {
+                if value == 0
+                {
+                    return;
+                }
+
+                *self = Self::Isometric {
+                    skew:  *skew,
+                    angle: value
+                }
+            },
+            Self::Rotate(angle) =>
+            {
+                if value == 0
+                {
+                    *self = Self::None;
+                }
+                else
+                {
+                    *angle = value;
+                }
+            },
+            Self::Isometric { skew, angle } =>
+            {
+                if value == 0
+                {
+                    *self = Self::Skew(*skew);
+                }
+                else
+                {
+                    *angle = value;
+                }
+            }
+        };
+    }
+}
 
 //=======================================================================//
 // TYPES
@@ -17,12 +174,14 @@ use crate::{
 //=======================================================================//
 
 /// The grid of the map.
+#[must_use]
 #[derive(Clone, Copy, Debug)]
-pub(in crate::map) struct Grid
+pub(crate) struct Grid
 {
     /// The size of the grid's squares.
     size:        i16,
-    /// Whever the grid should be drawn on screen..
+    settings:    GridSettings,
+    /// Whever the grid should be drawn on screen.
     pub visible: bool,
     /// When true, the position of the grid squares is shifted by half of its size, both
     /// horizontally and vertically.
@@ -32,30 +191,47 @@ pub(in crate::map) struct Grid
 impl Default for Grid
 {
     #[inline]
-    #[must_use]
     fn default() -> Self
     {
         Self {
-            size:    64,
-            visible: true,
-            shifted: false
+            size:     64,
+            settings: GridSettings::default(),
+            visible:  true,
+            shifted:  false
         }
     }
 }
 
 impl Grid
 {
+    /// The range of the possible angle values.
+    pub const ANGLE_RANGE: RangeInclusive<i16> = RangeInclusive::new(-180, 180);
+    /// The range of the possible skew values.
+    pub const SKEW_RANGE: RangeInclusive<i8> = RangeInclusive::new(-45, 45);
+
     //==============================================================
     // New
 
     /// Returns a new [`Grid`].
     #[inline]
-    pub(in crate::map::editor::state) const fn new(size: i16, visible: bool, shifted: bool)
-        -> Self
+    pub(in crate::map::editor::state) const fn new(settings: GridSettings) -> Self
     {
         Self {
-            size,
-            visible,
+            size: 64,
+            settings,
+            visible: true,
+            shifted: false
+        }
+    }
+
+    /// Returns a [`Grid`] used for a quick snap.
+    #[inline]
+    pub(in crate::map::editor::state) fn quick_snap(shifted: bool) -> Self
+    {
+        Self {
+            size: 2,
+            settings: GridSettings::default(),
+            visible: true,
             shifted
         }
     }
@@ -73,6 +249,21 @@ impl Grid
     #[must_use]
     pub(in crate::map::editor::state) fn size_f32(self) -> f32 { f32::from(self.size) }
 
+    #[inline]
+    #[must_use]
+    pub const fn skew(self) -> i8 { self.settings.skew() }
+
+    #[inline]
+    #[must_use]
+    pub const fn angle(self) -> i16 { self.settings.angle() }
+
+    #[inline]
+    pub const fn settings(self) -> GridSettings { self.settings }
+
+    #[inline]
+    #[must_use]
+    pub const fn isometric(self) -> bool { matches!(self.settings, GridSettings::Isometric { .. }) }
+
     //==============================================================
     // Square
 
@@ -86,7 +277,7 @@ impl Grid
         let (mut top, mut bottom, mut left, mut right);
 
         // Y coordinates.
-        let mut y = (pos.y as i16 / self.size) * self.size;
+        let mut y = floor_multiple(pos.y, self.size);
 
         if pos.y.is_sign_positive()
         {
@@ -97,7 +288,7 @@ impl Grid
         bottom = top - size_f;
 
         // X coordinates.
-        let mut x = (pos.x as i16 / self.size) * self.size;
+        let mut x = floor_multiple(pos.x, self.size);
 
         if pos.x.is_sign_negative()
         {
@@ -139,7 +330,7 @@ impl Grid
     }
 
     //==============================================================
-    // Snap
+    // Size
 
     /// Increases the grid size to the next power of two.
     /// Capped at 256 units.
@@ -165,6 +356,18 @@ impl Grid
         }
     }
 
+    #[inline]
+    pub(in crate::map::editor::state) fn set_skew(&mut self, value: i8)
+    {
+        self.settings.set_skew(value);
+    }
+
+    #[inline]
+    pub(in crate::map::editor::state) fn set_angle(&mut self, value: i16)
+    {
+        self.settings.set_angle(value);
+    }
+
     /// Toggles whever the grid is shifted or not.
     #[inline]
     pub(in crate::map::editor::state) fn toggle_shift(&mut self, manager: &mut EntitiesManager)
@@ -177,7 +380,63 @@ impl Grid
     }
 
     //==============================================================
-    // Snap
+    // Transform
+
+    #[inline]
+    #[must_use]
+    pub fn transform_point(self, mut point: Vec2) -> Vec2
+    {
+        #[inline(always)]
+        fn skew(point: &mut Vec2, skew: i8) { point.x += skew.fast_tan() * point.y; }
+
+        #[inline(always)]
+        fn rotate(point: &mut Vec2, angle: i16)
+        {
+            *point = fast_rotate_point_around_origin(*point, angle);
+        }
+
+        match self.settings
+        {
+            GridSettings::None => (),
+            GridSettings::Skew(s) => skew(&mut point, s),
+            GridSettings::Rotate(a) => rotate(&mut point, a),
+            GridSettings::Isometric { skew: s, angle: a } =>
+            {
+                skew(&mut point, s);
+                rotate(&mut point, a);
+            }
+        };
+
+        point
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn point_projection(self, mut point: Vec2) -> Vec2
+    {
+        #[inline(always)]
+        fn skew(point: &mut Vec2, skew: i8) { point.x -= skew.fast_tan() * point.y; }
+
+        #[inline(always)]
+        fn rotate(point: &mut Vec2, angle: i16)
+        {
+            *point = fast_rotate_point_around_origin(*point, -angle);
+        }
+
+        match self.settings
+        {
+            GridSettings::None => (),
+            GridSettings::Skew(s) => skew(&mut point, s),
+            GridSettings::Rotate(a) => rotate(&mut point, a),
+            GridSettings::Isometric { skew: s, angle: a } =>
+            {
+                rotate(&mut point, a);
+                skew(&mut point, s);
+            }
+        };
+
+        point
+    }
 
     /// Snaps `point` to the closest grid vertex.
     #[inline]
@@ -240,7 +499,7 @@ impl Grid
             return rounded;
         }
 
-        let mut result = f32::from(value as i16 / self.size * self.size);
+        let mut result = f32::from(floor_multiple(value, self.size));
 
         if value < center
         {
@@ -296,43 +555,36 @@ impl Grid
     //==============================================================
     // Draw
 
-    /// Draws the grid.
-    pub(in crate::map::editor::state) fn draw(
-        self,
-        window: &Window,
-        drawer: &mut EditDrawer,
-        camera: &Transform
-    )
-    {
-        if !self.visible
-        {
-            return;
-        }
-
-        drawer.grid(self, window, camera);
-    }
-
     /// Returns an iterator that returns the grid lines, and the lines representing the x and y axis
     /// if they are visible.
     #[allow(clippy::cast_possible_truncation)]
     #[inline]
-    pub(in crate::map) fn lines(
-        self,
-        window: &Window,
-        camera: &Transform
-    ) -> (impl ExactSizeIterator<Item = (Vec2, Vec2, Color)>, Axis)
+    pub(in crate::map) fn lines(self, window: &Window, camera: &Transform) -> GridLines
     {
-        let (top, bottom, left, right) = camera.viewport_ui_constricted(window).decompose();
+        let viewport = camera.viewport(window, self);
+        let (top, bottom, left, right) = viewport.decompose();
+        let (x_range, y_range) = viewport.range();
 
-        (GridLines::new(top, bottom, left, right, self), Axis {
-            x: (bottom..top)
-                .contains(&0f32)
-                .then(|| (Vec2::new(left, 0f32), Vec2::new(right, 0f32))),
-            y: (left..right)
-                .contains(&0f32)
-                .then(|| (Vec2::new(0f32, top), Vec2::new(0f32, bottom)))
-        })
+        GridLines {
+            axis:           Axis {
+                x: y_range
+                    .contains(&0f32)
+                    .then(|| (Vec2::new(left, 0f32), Vec2::new(right, 0f32))),
+                y: x_range
+                    .contains(&0f32)
+                    .then(|| (Vec2::new(0f32, top), Vec2::new(0f32, bottom)))
+            },
+            parallel_lines: ParallelLines::new(self, &viewport)
+        }
     }
+}
+
+//=======================================================================//
+
+pub(in crate::map) struct GridLines
+{
+    pub axis:           Axis,
+    pub parallel_lines: ParallelLines
 }
 
 //=======================================================================//
@@ -349,7 +601,7 @@ pub(in crate::map) struct Axis
 //=======================================================================//
 
 /// An iterator that returns the visible grid lines to be drawn.
-struct GridLines
+pub(in crate::map) struct ParallelLines
 {
     /// The y coordinate of the next horizontal line.
     y_left:         f32,
@@ -375,7 +627,7 @@ struct GridLines
     color:          fn(f32, f32) -> Color
 }
 
-impl ExactSizeIterator for GridLines
+impl ExactSizeIterator for ParallelLines
 {
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
@@ -384,7 +636,7 @@ impl ExactSizeIterator for GridLines
     fn len(&self) -> usize { (self.y_right - self.y_left + self.x_right - self.x_left) as usize }
 }
 
-impl Iterator for GridLines
+impl Iterator for ParallelLines
 {
     type Item = (Vec2, Vec2, Color);
 
@@ -419,13 +671,13 @@ impl Iterator for GridLines
     }
 }
 
-impl GridLines
+impl ParallelLines
 {
-    /// Returns a new [`GridLines`] based on the parameters.
+    /// Returns a new [`ParallelLines`] based on the parameters.
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
     #[inline]
-    fn new(top: f32, bottom: f32, left: f32, right: f32, grid: Grid) -> Self
+    fn new(grid: Grid, viewport: &Hull) -> Self
     {
         /// Returns the result of the division of `value`/`rhs` rounded to the higher integer.
         #[inline]
@@ -445,18 +697,13 @@ impl GridLines
             }
         }
 
-        assert!(top > bottom, "Top {top} is equal or lower than bottom {bottom}.");
-        assert!(left < right, "Left {left} is equal or higher than right {right}.");
+        let (top, bottom, left, right) = viewport.decompose();
+        let y_right = div_ceil(top as i16, grid.size);
+        let y_left = div_ceil(bottom as i16, grid.size);
+        let x_left = div_ceil(left as i16, grid.size);
+        let x_right = div_ceil(right as i16, grid.size);
 
         let grid_size = grid.size_f32();
-        let grid_shifted = grid.shifted;
-
-        let i_grid_size = grid_size as i16;
-        let y_right = div_ceil(top as i16, i_grid_size);
-        let y_left = div_ceil(bottom as i16, i_grid_size);
-        let x_left = div_ceil(left as i16, i_grid_size);
-        let x_right = div_ceil(right as i16, i_grid_size);
-
         let mut y_right = f32::from(y_right) * grid_size;
         let mut y_left = f32::from(y_left) * grid_size;
         let mut x_left = f32::from(x_left) * grid_size;
@@ -487,7 +734,7 @@ impl GridLines
             {
                 Self::grid_64_line_color
             }
-            else if grid_shifted
+            else if grid.shifted
             {
                 Self::grid_less_than_64_shifted_line_color
             }
@@ -534,4 +781,17 @@ impl GridLines
             Color::SoftGridLines
         }
     }
+}
+
+//=======================================================================//
+// FUNCTIONS
+//
+//=======================================================================//
+
+#[allow(clippy::cast_possible_truncation)]
+#[inline]
+#[must_use]
+const fn floor_multiple(value: f32, grid_size: i16) -> i16
+{
+    (value as i16 / grid_size) * grid_size
 }

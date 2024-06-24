@@ -62,7 +62,6 @@ use crate::{
         editor::{DrawBundle, StateUpdateBundle, ToolUpdateBundle},
         hv_vec,
         thing::{catalog::ThingsCatalog, ThingInstanceData},
-        HvVec,
         MapHeader,
         OutOfBounds,
         PROP_CAMERAS_AMOUNT
@@ -71,6 +70,7 @@ use crate::{
         hull::{EntityHull, Hull},
         identifiers::{EntityCenter, EntityId, Id}
     },
+    HvVec,
     Path
 };
 
@@ -957,7 +957,7 @@ impl Clipboard
 
     /// Delays the update of the [`Clipboard`]. During the first few frames it is not possible to
     /// take a [`Prop`] screenshot.
-    #[inline(always)]
+    #[inline]
     fn delay_update(
         &mut self,
         _: &mut Assets<Image>,
@@ -975,7 +975,7 @@ impl Clipboard
     }
 
     /// An update to take the screenshots of the queued [`Prop`]s.
-    #[inline(always)]
+    #[inline]
     fn regular_update(
         &mut self,
         images: &mut Assets<Image>,

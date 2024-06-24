@@ -10,7 +10,6 @@ use hill_vacuum_shared::{match_or_panic, NextValue};
 
 use crate::{
     map::{
-        containers::hv_vec,
         editor::{
             state::{
                 clipboard::Clipboard,
@@ -22,7 +21,10 @@ use crate::{
         indexed_map::IndexedMap,
         properties::{DefaultProperties, Properties, SetProperty, Value}
     },
-    utils::overall_value::{OverallValue, OverallValueInterface, OverallValueToUi, UiOverallValue}
+    utils::{
+        containers::hv_vec,
+        overall_value::{OverallValue, OverallValueInterface, OverallValueToUi, UiOverallValue}
+    }
 };
 
 //=======================================================================//

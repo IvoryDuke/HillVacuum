@@ -15,7 +15,7 @@ use super::AroundEqual;
 /// The equation of a bidimensional line.
 #[must_use]
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum LineEquation
+pub(crate) enum LineEquation
 {
     /// Parallel to the x axis.
     Horizontal(f32),

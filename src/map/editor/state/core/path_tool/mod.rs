@@ -29,7 +29,7 @@ use crate::{
     map::{
         drawer::color::Color,
         editor::{
-            cursor_pos::Cursor,
+            cursor::Cursor,
             state::{
                 clipboard::Clipboard,
                 core::{rect, tool::subtools_buttons},
@@ -52,8 +52,7 @@ use crate::{
             Moving,
             NodeSelectionResult,
             NodesMove
-        },
-        HvVec
+        }
     },
     utils::{
         hull::Hull,
@@ -61,6 +60,7 @@ use crate::{
         iterators::FilterSet,
         misc::{Camera, TakeValue, Toggle}
     },
+    HvVec,
     Path
 };
 
@@ -127,9 +127,9 @@ enum PathEditing
     AddNode
     {
         /// The position of the [`Node`].
-        pos: Vec2,
+        pos:   Vec2,
         /// The index where the [`Node`] is inserted in the [`Path`].
-        idx: u8
+        index: u8
     }
 }
 
@@ -591,7 +591,7 @@ impl PathTool
                 }
 
                 self.status = Status::Drag(
-                    return_if_none!(CursorDelta::try_new(*pos, bundle.cursor, grid)),
+                    return_if_none!(CursorDelta::try_new(bundle.cursor, grid, *pos)),
                     hv_vec![]
                 );
                 edits_history.start_multiframe_edit();
@@ -726,8 +726,8 @@ impl PathTool
     const fn add_node_status(cursor: &Cursor, identifier: Id, index: u8) -> Status
     {
         Status::SingleEditing(identifier, PathEditing::AddNode {
-            idx: index + 1,
-            pos: cursor.world_snapped()
+            index: index + 1,
+            pos:   cursor.world_snapped()
         })
     }
 
@@ -907,7 +907,7 @@ impl PathTool
                     path.push(edits_history, cursor_pos, manager.moving(id).center());
                 }
             },
-            PathEditing::AddNode { idx, pos } =>
+            PathEditing::AddNode { index, pos } =>
             {
                 *pos = cursor_pos;
                 let mut moving = manager.moving_mut(id);
@@ -917,9 +917,9 @@ impl PathTool
                     return false;
                 }
 
-                if moving.try_insert_path_node_at_index(*pos, *idx as usize)
+                if moving.try_insert_path_node_at_index(*pos, *index as usize)
                 {
-                    edits_history.path_node_insertion(id, *pos, *idx);
+                    edits_history.path_node_insertion(id, *pos, *index);
                 }
 
                 return true;
@@ -1037,7 +1037,7 @@ impl PathTool
         /// Draws the entities except `filters`.
         macro_rules! draw_entities {
             ($($filters:expr)?) => {{
-                for entity in manager.visible_paths(window, camera).iter()
+                for entity in manager.visible_paths(window, camera, drawer.grid()).iter()
                     $(.filter_set_with_predicate($filters, |entity| entity.id()))?
                 {
                     let id = entity.id();
@@ -1058,7 +1058,7 @@ impl PathTool
                     }
                 }
 
-                for brush in manager.visible_brushes(window, camera).iter()
+                for brush in manager.visible_brushes(window, camera, drawer.grid()).iter()
                     $(.filter_set_with_predicate($filters, |brush| brush.id()))?
                 {
                     let id = brush.id();
@@ -1077,7 +1077,7 @@ impl PathTool
                     }
                 }
 
-                for thing in manager.visible_things(window, camera).iter()
+                for thing in manager.visible_things(window, camera, drawer.grid()).iter()
                     $(.filter_set_with_predicate($filters, |thing| thing.id()))?
                 {
                     let id = thing.id();
@@ -1204,7 +1204,7 @@ impl PathTool
                             center
                         );
                     },
-                    PathEditing::AddNode { pos, idx } =>
+                    PathEditing::AddNode { pos, index } =>
                     {
                         manager.moving(*id).draw_with_path_node_addition(
                             window,
@@ -1214,7 +1214,7 @@ impl PathTool
                             things_catalog,
                             drawer,
                             *pos,
-                            *idx as usize,
+                            *index as usize,
                             show_tooltips
                         );
                     }
@@ -1239,7 +1239,7 @@ impl PathTool
                 }
 
                 for moving in manager
-                    .visible_paths(window, camera)
+                    .visible_paths(window, camera, drawer.grid())
                     .iter()
                     .filter(|moving| !is_moving(manager, moving.id()))
                 {
@@ -1247,7 +1247,7 @@ impl PathTool
                 }
 
                 for brush in manager
-                    .visible_brushes(window, camera)
+                    .visible_brushes(window, camera, drawer.grid())
                     .iter()
                     .filter(|brush| !is_moving(manager, brush.id()))
                 {
@@ -1255,7 +1255,7 @@ impl PathTool
                 }
 
                 for brush in manager
-                    .visible_sprites(window, camera)
+                    .visible_sprites(window, camera, drawer.grid())
                     .iter()
                     .filter(|brush| !is_moving(manager, brush.id()))
                 {
@@ -1263,7 +1263,7 @@ impl PathTool
                 }
 
                 for brush in manager
-                    .visible_anchors(window, camera)
+                    .visible_anchors(window, camera, drawer.grid())
                     .iter()
                     .filter(|brush| !is_moving(manager, brush.id()))
                 {
@@ -1271,7 +1271,7 @@ impl PathTool
                 }
 
                 for thing in manager
-                    .visible_things(window, camera)
+                    .visible_things(window, camera, drawer.grid())
                     .iter()
                     .filter(|thing| !is_moving(manager, thing.id()))
                 {

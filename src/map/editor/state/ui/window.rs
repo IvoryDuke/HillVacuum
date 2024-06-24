@@ -65,12 +65,12 @@ impl Window
     }
 
     /// Whever the window is open.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_open(&self) -> bool { self.open }
 
     /// Opens the window.
-    #[inline(always)]
+    #[inline]
     pub fn open(&mut self) { self.open = true; }
 
     /// Checks whever the window should be opened.

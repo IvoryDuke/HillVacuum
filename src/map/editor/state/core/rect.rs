@@ -64,17 +64,11 @@ pub(in crate::map::editor::state::core) use update;
 //=======================================================================//
 
 /// A trait for structs that are built around a [`Rect`].
-pub trait RectTrait
+pub(crate) trait RectTrait
 {
     /// Returns a new `Self` created from just an origin point.
     #[must_use]
     fn from_origin(origin: Vec2) -> Self
-    where
-        Self: Sized;
-
-    /// Returns a new `Self` created from two points, if valid.
-    #[must_use]
-    fn from_extremes(origin: Vec2, extreme: Vec2, camera_scale: f32) -> Option<Self>
     where
         Self: Sized;
 
@@ -144,13 +138,6 @@ impl RectTrait for Rect
 
     #[inline]
     fn from_origin(origin: Vec2) -> Self { Self(RectCore::Initiated(origin)) }
-
-    #[inline]
-    fn from_extremes(origin: Vec2, extreme: Vec2, camera_scale: f32) -> Option<Self>
-    {
-        valid_points(origin, extreme, camera_scale)
-            .then_some(Self(RectCore::Formed(origin, extreme)))
-    }
 
     //==============================================================
     // Info
@@ -265,12 +252,6 @@ where
 {
     #[inline]
     fn from_origin(origin: Vec2) -> Self { Self(Rect::from_origin(origin), None) }
-
-    #[inline]
-    fn from_extremes(origin: Vec2, extreme: Vec2, camera_scale: f32) -> Option<Self>
-    {
-        Rect::from_extremes(origin, extreme, camera_scale).map(|da| Self(da, None))
-    }
 
     #[inline]
     fn origin(&self) -> Option<Vec2> { self.0.origin() }

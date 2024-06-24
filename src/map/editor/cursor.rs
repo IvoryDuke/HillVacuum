@@ -8,7 +8,7 @@ use bevy::prelude::{Transform, Vec2, Window};
 use super::{state::editor_state::State, MAP_HALF_SIZE};
 use crate::{
     map::editor::state::grid::Grid,
-    utils::{hull::Hull, misc::to_world_coordinates, tooltips::to_egui_coordinates}
+    utils::{hull::Hull, misc::Camera}
 };
 
 //=======================================================================//
@@ -146,12 +146,14 @@ impl Cursor
             return;
         }
 
+        let grid = state.grid();
+
         self.previous_world = self.world;
         self.previous_world_snapped = self.world_grid_snapped;
-        self.world = to_world_coordinates(ui, window, camera);
-        self.grid_square = state.grid_square_coordinates(self.world);
+        self.world = camera.to_world_coordinates(window, grid, ui);
+        self.grid_square = grid.square(self.world);
         self.world_grid_snapped = self.grid_square.nearest_corner_to_point(self.world);
-        let p = to_egui_coordinates(self.world_grid_snapped, window, camera);
+        let p = camera.to_egui_coordinates(window, grid, self.world_grid_snapped);
         self.ui_grid_snapped = Vec2::new(p.x, p.y);
         self.snap = state.cursor_snap();
     }

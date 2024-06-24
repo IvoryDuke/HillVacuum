@@ -30,13 +30,13 @@ use crate::{
         hv_vec,
         path::{MovementValueEdit, NodesMove, StandbyValueEdit},
         properties::Value,
-        thing::{ThingId, ThingInstanceData},
-        HvVec
+        thing::{ThingId, ThingInstanceData}
     },
     utils::{
         hull::Flip,
         identifiers::{EntityId, Id}
     },
+    HvVec,
     Path
 };
 

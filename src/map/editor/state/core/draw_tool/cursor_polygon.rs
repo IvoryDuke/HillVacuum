@@ -11,10 +11,9 @@ use hill_vacuum_shared::{match_or_panic, return_if_none};
 use crate::{
     map::{
         brush::convex_polygon::{free_draw_tooltip, ConvexPolygon, FreeDrawVertexDeletionResult},
-        containers::{hv_vec, HvVec, Ids},
         drawer::{color::Color, EditDrawer},
         editor::{
-            cursor_pos::Cursor,
+            cursor::Cursor,
             state::{
                 core::{
                     rect::{Rect, RectTrait},
@@ -31,13 +30,15 @@ use crate::{
         properties::DefaultProperties
     },
     utils::{
+        containers::{hv_vec, Ids},
         hull::{CircleIterator, Hull, TriangleOrientation},
         math::{
             points::{sort_vxs_ccw, vertexes_orientation, vxs_center, VertexesOrientation},
             AroundEqual
         },
         misc::{next, Camera, PointInsideUiHighlight, ReplaceValues, TakeValue}
-    }
+    },
+    HvVec
 };
 
 //=======================================================================//
@@ -358,7 +359,7 @@ impl SquareCursorPolygon
 
     /// Updates the state of `self`.
     #[allow(clippy::unused_self)]
-    #[inline(always)]
+    #[inline]
     fn state_update(&mut self, _: &InputsPresses, _: &Cursor) {}
 }
 
@@ -813,6 +814,7 @@ impl FreeDrawCursorPolygon
                     camera,
                     egui_context,
                     drawer.color_resources(),
+                    drawer.grid(),
                     *p,
                     label,
                     &mut String::with_capacity(6)
@@ -840,6 +842,7 @@ impl FreeDrawCursorPolygon
                         camera,
                         egui_context,
                         drawer.color_resources(),
+                        drawer.grid(),
                         *vx,
                         label,
                         &mut text

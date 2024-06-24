@@ -19,9 +19,7 @@ use crate::{
             convex_polygon::{ConvexPolygon, ShearInfo},
             ShearResult
         },
-        containers::HvVec,
         editor::{
-            hv_vec,
             state::{
                 editor_state::InputsPresses,
                 edits_history::EditsHistory,
@@ -33,10 +31,12 @@ use crate::{
         }
     },
     utils::{
+        containers::hv_vec,
         hull::{Hull, Side},
         identifiers::{EntityId, Id},
         misc::Camera
-    }
+    },
+    HvVec
 };
 
 //=======================================================================//

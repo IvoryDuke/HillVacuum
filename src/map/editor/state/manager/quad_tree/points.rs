@@ -9,13 +9,16 @@ use hill_vacuum_shared::{continue_if_none, NextValue};
 
 use super::{node::SplitSegments, RemoveResult};
 use crate::{
-    map::{containers::hv_hash_map, hv_vec, AssertedInsertRemove, HvHashMap, HvVec},
     utils::{
+        containers::{hv_hash_map, hv_vec},
         hull::Hull,
         identifiers::Id,
         iterators::SkipIndexIterator,
-        math::{lines_and_segments::segments_intersection, AroundEqual}
-    }
+        math::{lines_and_segments::segments_intersection, AroundEqual},
+        misc::AssertedInsertRemove
+    },
+    HvHashMap,
+    HvVec
 };
 
 //=======================================================================//

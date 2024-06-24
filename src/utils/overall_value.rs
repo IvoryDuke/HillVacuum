@@ -15,7 +15,7 @@ use super::misc::ReplaceValues;
 //=======================================================================//
 
 /// A trait for types representing the overall value of a list of elements.
-pub trait OverallValueInterface<T>
+pub(crate) trait OverallValueInterface<T>
 {
     /// Whever `self` now represents a non uniform value.
     #[must_use]
@@ -35,7 +35,7 @@ pub trait OverallValueInterface<T>
 //=======================================================================//
 
 /// A trait to create a textual representation of an overall value.
-pub trait OverallValueToUi<T, V>
+pub(crate) trait OverallValueToUi<T, V>
 where
     Self: OverallValueInterface<T> + Sized,
     V: From<Self>
@@ -55,7 +55,7 @@ impl<T, U: OverallValueInterface<T>, V: From<U>> OverallValueToUi<T, V> for U {}
 /// The overall value of elements in a list.
 #[must_use]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub enum OverallValue<T>
+pub(crate) enum OverallValue<T>
 where
     T: PartialEq + Clone
 {
@@ -173,7 +173,7 @@ impl<T: ToString + FromStr> Default for UiValueEnum<T>
 /// elements.
 #[must_use]
 #[derive(Clone, Debug, Default)]
-pub struct UiOverallValue<T: ToString + FromStr + PartialEq>(UiValueEnum<T>);
+pub(crate) struct UiOverallValue<T: ToString + FromStr + PartialEq>(UiValueEnum<T>);
 
 impl<T: ToString + FromStr + PartialEq + Clone> From<OverallValue<T>> for UiOverallValue<T>
 {

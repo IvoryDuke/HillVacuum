@@ -9,15 +9,13 @@ use std::{cmp::Ordering, fmt::Debug, ops::Index};
 use bevy::prelude::Vec2;
 
 use crate::{
-    map::{
-        editor::{
-            cursor_pos::Cursor,
-            hv_vec,
-            state::{editor_state::InputsPresses, manager::EntitiesManager}
-        },
-        HvVec
+    map::editor::{
+        cursor::Cursor,
+        hv_vec,
+        state::{editor_state::InputsPresses, manager::EntitiesManager}
     },
-    utils::{identifiers::EntityId, misc::next}
+    utils::{identifiers::EntityId, misc::next},
+    HvVec
 };
 
 //=======================================================================//
@@ -225,7 +223,12 @@ where
             {
                 self.depth = self.items.position(prev);
 
-                if inputs.tab.just_pressed()
+                if matches!(self.depth, Position::None)
+                {
+                    self.previous = None;
+                    self.update_previous_value();
+                }
+                else if inputs.tab.just_pressed()
                 {
                     match &mut self.depth
                     {
@@ -241,22 +244,24 @@ where
                     };
                 }
             },
-            None =>
-            {
-                self.depth = if self.items.selected.is_empty()
-                {
-                    assert!(!self.items.non_selected.is_empty(), "No non selected items.");
-                    Position::NonSelected(0)
-                }
-                else
-                {
-                    Position::Selected(0)
-                };
-            }
-        };
+            None => self.update_previous_value()
+        }
 
-        let value = Some(self.items[self.depth]);
-        self.previous = value;
-        value
+        self.previous = Some(self.items[self.depth]);
+        self.previous
+    }
+
+    #[inline]
+    fn update_previous_value(&mut self)
+    {
+        self.depth = if self.items.selected.is_empty()
+        {
+            assert!(!self.items.non_selected.is_empty(), "No non selected items.");
+            Position::NonSelected(0)
+        }
+        else
+        {
+            Position::Selected(0)
+        };
     }
 }

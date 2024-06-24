@@ -42,10 +42,9 @@ use crate::{
             XtrusionPayload,
             XtrusionResult
         },
-        containers::{hv_hash_set, hv_vec, HvVec, Ids},
         drawer::color::Color,
         editor::{
-            cursor_pos::Cursor,
+            cursor::Cursor,
             state::{
                 core::rect::{self, RectTrait},
                 editor_state::InputsPresses,
@@ -60,12 +59,14 @@ use crate::{
         }
     },
     utils::{
+        containers::{hv_hash_set, hv_vec, Ids},
         hull::{EntityHull, Hull},
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::{lines_and_segments::closest_point_on_line, AroundEqual, HashVec2},
         misc::{Camera, TakeValue}
-    }
+    },
+    HvVec
 };
 
 //=======================================================================//
@@ -577,7 +578,7 @@ impl SideTool
                 }
 
                 self.0 = Status::Drag(
-                    return_if_none!(CursorDelta::try_new(*pos, bundle.cursor, grid)),
+                    return_if_none!(CursorDelta::try_new(bundle.cursor, grid, *pos)),
                     hv_vec![]
                 );
                 edits_history.start_multiframe_edit();
@@ -615,7 +616,7 @@ impl SideTool
                         if inputs.left_mouse.pressed()
                         {
                             Self::attempt_xtrusion(
-                                bundle, manager, mode, line, *normal, drag, grid
+                                bundle, manager, grid, mode, line, *normal, drag
                             );
                             return;
                         }
@@ -624,7 +625,7 @@ impl SideTool
                     },
                     XtrusionMode::Intrusion { payloads, polygons } =>
                     {
-                        Self::intrude_sides(bundle, manager, payloads, polygons, line, drag, grid);
+                        Self::intrude_sides(bundle, manager, grid, payloads, polygons, line, drag);
 
                         if !inputs.left_mouse.pressed()
                         {
@@ -633,7 +634,7 @@ impl SideTool
                     },
                     XtrusionMode::Extrusion(polygons) =>
                     {
-                        Self::extrude_sides(bundle, manager, polygons, line, drag, grid);
+                        Self::extrude_sides(bundle, manager, grid, polygons, line, drag);
 
                         if !inputs.left_mouse.pressed()
                         {
@@ -955,11 +956,11 @@ impl SideTool
     fn attempt_xtrusion(
         bundle: &ToolUpdateBundle,
         manager: &mut EntitiesManager,
+        grid: Grid,
         mode: &mut XtrusionMode,
         line: &[Vec2; 2],
         normal: Vec2,
-        drag: &mut XTrusionDrag,
-        grid: Grid
+        drag: &mut XTrusionDrag
     )
     {
         drag.conditional_update(bundle.cursor, grid, line, |delta| {
@@ -1031,11 +1032,11 @@ impl SideTool
     fn intrude_sides(
         bundle: &ToolUpdateBundle,
         manager: &mut EntitiesManager,
+        grid: Grid,
         payloads: &HvVec<XtrusionPayload>,
         polygons: &mut HvVec<(ConvexPolygon, Id)>,
         line: &[Vec2; 2],
-        drag: &mut XTrusionDrag,
-        grid: Grid
+        drag: &mut XTrusionDrag
     )
     {
         drag.conditional_update(bundle.cursor, grid, line, |delta| {
@@ -1050,10 +1051,10 @@ impl SideTool
     fn extrude_sides(
         bundle: &ToolUpdateBundle,
         manager: &mut EntitiesManager,
+        grid: Grid,
         polygons: &mut HvVec<(Id, XtrusionInfo, ConvexPolygon)>,
         line: &[Vec2; 2],
-        drag: &mut XTrusionDrag,
-        grid: Grid
+        drag: &mut XTrusionDrag
     )
     {
         drag.conditional_update(bundle.cursor, grid, line, |delta| {

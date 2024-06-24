@@ -19,7 +19,7 @@ use crate::{
         brush::{convex_polygon::ConvexPolygon, RotateResult},
         drawer::texture::TextureInterface,
         editor::{
-            cursor_pos::Cursor,
+            cursor::Cursor,
             state::{
                 core::tool::subtools_buttons,
                 editor_state::{edit_target, InputsPresses, ToolsSettings},
@@ -30,11 +30,10 @@ use crate::{
             DrawBundle,
             StateUpdateBundle,
             ToolUpdateBundle
-        },
-        hv_vec,
-        HvVec
+        }
     },
     utils::{
+        containers::hv_vec,
         identifiers::{EntityId, Id},
         math::{
             angles::vectors_angle_cosine,
@@ -43,7 +42,8 @@ use crate::{
             FastNormalize
         },
         misc::{Camera, PointInsideUiHighlight, TakeValue, Toggle}
-    }
+    },
+    HvVec
 };
 
 //=======================================================================//

@@ -8,7 +8,7 @@ use std::{hash::Hash, ops::Index, slice::Chunks};
 use hashbrown::Equivalent;
 use serde::{Deserialize, Serialize};
 
-use super::{containers::hv_hash_map, HvHashMap, HvVec};
+use crate::{utils::containers::hv_hash_map, HvHashMap, HvVec};
 
 //=======================================================================//
 // TYPES

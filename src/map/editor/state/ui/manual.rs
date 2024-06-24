@@ -735,9 +735,8 @@ impl Manual
                     "PROPS",
                     "A prop is a collection of entities which can be painted around the map like \
                      the brushes of a image editing tool.\nEach prop has a pivot, the point \
-                     relative to which the it is painted onto the map.\n\nProps can be imported \
-                     and exported between map files. The file extension of the props files is \
-                     .prps."
+                     relative to which it is painted onto the map.\n\nProps can be imported and \
+                     exported between map files. The file extension of the props files is .prps."
                 ),
                 (
                     "Enter",

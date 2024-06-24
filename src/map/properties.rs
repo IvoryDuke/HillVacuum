@@ -9,15 +9,14 @@ use bevy::ecs::system::Resource;
 use hill_vacuum_shared::{match_or_panic, return_if_none, NextValue};
 use serde::{Deserialize, Serialize};
 
-use super::{containers::HvVec, AssertedInsertRemove};
 #[allow(unused_imports)]
+use crate::{map::indexed_map::IndexedMap, Brush, ThingInstance};
 use crate::{
-    map::{
-        containers::{hv_hash_map, hv_vec, HvHashMap},
-        indexed_map::IndexedMap
+    utils::{
+        containers::{hv_hash_map, hv_vec, HvVec},
+        misc::AssertedInsertRemove
     },
-    Brush,
-    ThingInstance
+    HvHashMap
 };
 
 //=======================================================================//

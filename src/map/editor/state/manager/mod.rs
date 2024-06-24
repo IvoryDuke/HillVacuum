@@ -48,7 +48,6 @@ use crate::{
             Brush,
             BrushData
         },
-        containers::{hv_hash_map, hv_hash_set, Ids},
         drawer::{
             animation::Animator,
             color::Color,
@@ -67,16 +66,17 @@ use crate::{
         thing::{catalog::ThingsCatalog, ThingInstance, ThingInstanceData, ThingInterface},
         AssertedInsertRemove,
         HvHashMap,
-        HvVec,
         MapHeader,
         OutOfBounds
     },
     utils::{
+        containers::{hv_hash_map, hv_hash_set, Ids},
         hull::{EntityHull, Hull},
         identifiers::{EntityCenter, EntityId, Id, IdGenerator},
         math::AroundEqual,
         misc::{Blinker, ReplaceValues}
     },
+    HvVec,
     Path
 };
 
@@ -1505,7 +1505,6 @@ impl Innards
         if thing.has_path()
         {
             self.moving.asserted_insert(id);
-
             quad_trees.insert_path_hull(&thing);
         }
         else
@@ -1515,12 +1514,16 @@ impl Innards
 
         if selected
         {
-            self.selected_moving.asserted_insert(id);
+            if thing.has_path()
+            {
+                self.selected_moving.asserted_insert(id);
+            }
+            else
+            {
+                self.selected_possible_moving.asserted_insert(id);
+            }
+
             self.selected_things.asserted_insert(id);
-        }
-        else
-        {
-            self.selected_possible_moving.asserted_insert(id);
         }
 
         self.things.asserted_insert((id, thing));
@@ -1679,7 +1682,7 @@ impl EntitiesManager
     // General
 
     /// Whever the entities properties have been refactored on file load.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn refactored_properties(&self) -> bool { self.innards.refactored_properties }
 
@@ -2032,9 +2035,14 @@ impl EntitiesManager
 
     /// Returns an iterator to the visible brushes.
     #[inline]
-    pub fn visible_brushes(&self, window: &Window, camera: &Transform) -> BrushesIter<'_>
+    pub fn visible_brushes(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        grid: Grid
+    ) -> BrushesIter<'_>
     {
-        self.brushes_iter(self.quad_trees.visible_brushes(camera, window))
+        self.brushes_iter(self.quad_trees.visible_brushes(camera, window, grid))
     }
 
     /// Returns a [`SelectedBrushesIter`] that returns the selected brushes near `cursor_pos`.
@@ -2656,9 +2664,14 @@ impl EntitiesManager
 
     /// Returns a [`BrushesIter`] returning the visible anchors.
     #[inline]
-    pub fn visible_anchors(&self, window: &Window, camera: &Transform) -> BrushesIter<'_>
+    pub fn visible_anchors(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        grid: Grid
+    ) -> BrushesIter<'_>
     {
-        self.brushes_iter(self.quad_trees.visible_anchors(camera, window))
+        self.brushes_iter(self.quad_trees.visible_anchors(camera, window, grid))
     }
 
     /// Returns the amount of selected textured brushes.
@@ -2705,9 +2718,14 @@ impl EntitiesManager
 
     /// Returns the visible brushes with sprites.
     #[inline]
-    pub fn visible_sprites(&self, window: &Window, camera: &Transform) -> BrushesIter<'_>
+    pub fn visible_sprites(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        grid: Grid
+    ) -> BrushesIter<'_>
     {
-        self.brushes_iter(self.quad_trees.visible_sprites(camera, window))
+        self.brushes_iter(self.quad_trees.visible_sprites(camera, window, grid))
     }
 
     /// Anchors the brush with [`Id`] `anchor_id` to the one with [`Id`] `owner_id`.
@@ -3099,9 +3117,10 @@ impl EntitiesManager
 
     /// Returns a [`ThingsIter`] to the visible [`ThingInstance`]s.
     #[inline]
-    pub fn visible_things(&self, window: &Window, camera: &Transform) -> ThingsIter<'_>
+    pub fn visible_things(&self, window: &Window, camera: &Transform, grid: Grid)
+        -> ThingsIter<'_>
     {
-        ThingsIter::new(self, self.quad_trees.visible_things(camera, window))
+        ThingsIter::new(self, self.quad_trees.visible_things(camera, window, grid))
     }
 
     /// Remove the [`ThingInstance`] with [`Id`] `identifier` from the map.
@@ -3227,9 +3246,10 @@ impl EntitiesManager
 
     /// Returns a [`MovingsIter`] returning an iterator to the entities with visible [`Path`]s.
     #[inline]
-    pub fn visible_paths(&self, window: &Window, camera: &Transform) -> MovingsIter<'_>
+    pub fn visible_paths(&self, window: &Window, camera: &Transform, grid: Grid)
+        -> MovingsIter<'_>
     {
-        MovingsIter::new(self, self.quad_trees.visible_paths(camera, window))
+        MovingsIter::new(self, self.quad_trees.visible_paths(camera, window, grid))
     }
 
     //==============================================================

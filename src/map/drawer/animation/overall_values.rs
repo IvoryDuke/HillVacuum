@@ -5,8 +5,11 @@
 
 use super::{Animation, Atlas, Timing};
 use crate::{
-    map::{hv_vec, HvVec},
-    utils::overall_value::{OverallValue, OverallValueInterface, UiOverallValue}
+    utils::{
+        containers::hv_vec,
+        overall_value::{OverallValue, OverallValueInterface, UiOverallValue}
+    },
+    HvVec
 };
 
 //=======================================================================//

@@ -2,7 +2,7 @@ pub(in crate::map) mod clipboard;
 pub(in crate::map) mod core;
 pub(in crate::map) mod editor_state;
 mod edits_history;
-pub(in crate::map) mod grid;
+pub mod grid;
 mod input_press;
 pub(in crate::map) mod manager;
 pub(in crate::map) mod ui;

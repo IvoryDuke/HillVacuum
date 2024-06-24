@@ -22,7 +22,11 @@ use self::{
     texture::{TextureInterface, TextureInterfaceExtra}
 };
 use super::{
-    editor::state::{clipboard::PropCameras, editor_state::ToolsSettings, grid::Grid},
+    editor::state::{
+        clipboard::PropCameras,
+        editor_state::ToolsSettings,
+        grid::{Grid, GridLines}
+    },
     thing::{catalog::ThingsCatalog, ThingInterface}
 };
 use crate::utils::{
@@ -33,7 +37,7 @@ use crate::utils::{
         points::rotate_point
     },
     misc::{Camera, VX_HGL_SIDE},
-    tooltips::{draw_tooltip_x_centered_above_pos, draw_tooltip_y_centered, to_egui_coordinates}
+    tooltips::{draw_tooltip_x_centered_above_pos, draw_tooltip_y_centered}
 };
 
 //=======================================================================//
@@ -93,6 +97,7 @@ pub(in crate::map) struct EditDrawer<'w, 's, 'a>
     resources:              &'a mut DrawingResources,
     /// The color resources.
     color_resources:        &'a ColorResources,
+    grid:                   Grid,
     /// The scale of the current frame's camera.
     camera_scale:           f32,
     /// The time that has passed since startup.
@@ -118,6 +123,9 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     #[inline]
     #[must_use]
     pub const fn camera_scale(&self) -> f32 { self.camera_scale }
+
+    #[inline]
+    pub const fn grid(&self) -> Grid { self.grid }
 
     //==============================================================
     // Draw
@@ -175,7 +183,10 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         let mut mesh = self.resources.mesh_generator();
 
         let vx_0 = vertexes.next_value();
-        mesh.push_positions(Some(vx_0).into_iter().chain(vertexes).chain(Some(vx_0)));
+        mesh.push_positions_skewed(
+            self.grid,
+            Some(vx_0).into_iter().chain(vertexes).chain(Some(vx_0))
+        );
 
         let mesh = mesh.mesh(PrimitiveTopology::LineStrip);
 
@@ -184,16 +195,24 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
     /// Draws `grid`.
     #[inline]
-    pub fn grid(&mut self, grid: Grid, window: &Window, camera: &Transform)
+    pub fn grid_lines(&mut self, window: &Window, camera: &Transform)
     {
-        let (grid, axis) = grid.lines(window, camera);
+        if !self.grid.visible
+        {
+            return;
+        }
+
+        let GridLines {
+            axis,
+            parallel_lines
+        } = self.grid.lines(window, camera);
 
         // The grid lines.
         let mut mesh = self.resources.mesh_generator();
 
-        for (start, end, color) in grid
+        for (start, end, color) in parallel_lines
         {
-            mesh.push_positions([start, end]);
+            mesh.push_positions_skewed(self.grid, [start, end]);
             mesh.push_colors([self.color_resources.bevy_color(color).as_rgba_f32(); 2]);
         }
 
@@ -201,20 +220,32 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_grid_mesh(mesh);
 
         // The x and y axis.
-        let side = camera.scale() / 3f32;
+        let side = camera.scale() / 2f32;
 
-        if let Some((a, b)) = axis.x
+        if let Some((left, right)) = axis.x
         {
             self.polygon(
-                Hull::new(a.y + side, a.y - side, a.x, b.x).vertexes(),
+                [
+                    Vec2::new(right.x, right.y + side),
+                    Vec2::new(left.x, left.y + side),
+                    Vec2::new(left.x, left.y - side),
+                    Vec2::new(right.x, right.y - side)
+                ]
+                .into_iter(),
                 Color::OriginGridLines
             );
         }
 
-        let (a, b) = return_if_none!(axis.y);
+        let (top, bottom) = return_if_none!(axis.y);
 
         self.polygon(
-            Hull::new(a.y, b.y, a.x - side, a.x + side).vertexes(),
+            [
+                Vec2::new(top.x + side, top.y),
+                Vec2::new(top.x - side, top.y),
+                Vec2::new(bottom.x - side, bottom.y),
+                Vec2::new(bottom.x + side, bottom.y)
+            ]
+            .into_iter(),
             Color::OriginGridLines
         );
     }
@@ -229,7 +260,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         for (start, end, color) in lines
         {
             let (color, height) = self.color_resources.line_color_height(color);
-            mesh.push_positions([start, end]);
+            mesh.push_positions_skewed(self.grid, [start, end]);
             mesh.push_colors([color.as_rgba_f32(); 2]);
             max_height = f32::max(max_height, height);
         }
@@ -333,6 +364,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     pub fn hull_with_corner_highlights(
         &mut self,
         hull: &Hull,
+
         corner: Corner,
         color: Color,
         hgl_color: Color
@@ -375,7 +407,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         /// The color of the text of the tooltip showing the size of the hull.
         const TOOLTIP_TEXT_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 165, 0);
 
-        let window_hull = camera.viewport_ui_constricted(window);
+        let window_hull = camera.viewport(window, self.grid);
 
         for x in [hull.left(), hull.right()]
         {
@@ -403,10 +435,10 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             egui::Order::Background,
             value.as_str(),
             egui::TextStyle::Monospace,
-            to_egui_coordinates(
-                Vec2::new(hull.right(), (hull.bottom() + hull.top()) / 2f32),
+            camera.to_egui_coordinates(
                 window,
-                camera
+                self.grid,
+                Vec2::new(hull.right(), (hull.bottom() + hull.top()) / 2f32)
             ),
             egui::Vec2::new(4f32, 0f32),
             TOOLTIP_TEXT_COLOR,
@@ -423,10 +455,10 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             egui::Order::Background,
             value.as_str(),
             egui::TextStyle::Monospace,
-            to_egui_coordinates(
-                Vec2::new((hull.left() + hull.right()) / 2f32, hull.top()),
+            camera.to_egui_coordinates(
                 window,
-                camera
+                self.grid,
+                Vec2::new((hull.left() + hull.right()) / 2f32, hull.top())
             ),
             egui::Vec2::new(0f32, -4f32),
             TOOLTIP_TEXT_COLOR,
@@ -453,7 +485,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     {
         self.resources.push_prop_pivot_mesh(
             self.color_resources.line_material(color),
-            center,
+            self.grid.transform_point(center),
             color.square_hgl_height(),
             camera_id
         );
@@ -476,7 +508,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     {
         self.resources.push_anchor_highlight_mesh(
             self.color_resources.line_material(color),
-            center,
+            self.grid.transform_point(center),
             color.square_hgl_height()
         );
     }
@@ -487,7 +519,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     {
         self.resources.push_sprite_highlight_mesh(
             self.color_resources.line_material(color),
-            center,
+            self.grid.transform_point(center),
             color.square_hgl_height()
         );
     }
@@ -498,7 +530,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     {
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(vertexes.len());
-        mesh_generator.push_positions(vertexes);
+        mesh_generator.push_positions_skewed(self.grid, vertexes);
         mesh_generator.clip_uv();
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
@@ -524,11 +556,11 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(vertexes.len());
-        mesh_generator.push_positions(vertexes);
+        mesh_generator.push_positions_skewed(self.grid, vertexes);
         mesh_generator.set_texture_uv(
             camera,
             settings,
-            center,
+            self.grid.transform_point(center),
             self.elapsed_time,
             self.parallax_enabled
         );
@@ -554,7 +586,14 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         {
             if !texture.sprite()
             {
-                self.polygon_texture(camera, vertexes, center, color, texture, collision);
+                self.polygon_texture(
+                    camera,
+                    vertexes,
+                    self.grid.transform_point(center),
+                    color,
+                    texture,
+                    collision
+                );
                 return;
             }
         }
@@ -639,7 +678,14 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(4);
 
-        mesh_generator.push_positions(settings.sprite_vertexes(brush_center));
+        let mut hull = settings.sprite_hull(self.grid.transform_point(brush_center));
+
+        if self.grid.isometric()
+        {
+            hull += Vec2::new(0f32, hull.half_height());
+        }
+
+        mesh_generator.push_positions(hull.vertexes());
         mesh_generator.set_sprite_uv(settings.name(), settings, self.elapsed_time);
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
@@ -807,18 +853,23 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.sides(ThingOutline::new(thing), color);
 
         // Angle indicator
-        let mut mesh_generator = self.resources.mesh_generator();
-        mesh_generator.set_indexes(4);
-
         let hull = thing.hull();
         let half_side = (hull.width().min(hull.height()) / 2f32).min(64f32);
-        let center = hull.center();
-        let hull = Hull::new(
+        let center = self.grid.transform_point(hull.center());
+        let mut hull = Hull::new(
             center.y + half_side,
             center.y - half_side,
             center.x - half_side,
             center.x + half_side
         );
+
+        if self.grid.isometric()
+        {
+            hull += Vec2::new(0f32, thing.hull().half_height());
+        }
+
+        let mut mesh_generator = self.resources.mesh_generator();
+        mesh_generator.set_indexes(4);
         mesh_generator.push_positions(hull.rectangle());
 
         mesh_generator.set_thing_angle_indicator_uv(thing.angle());
@@ -830,14 +881,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         );
 
         // Texture
-        let vxs = self
-            .resources
-            .texture_materials(
-                self.resources.texture_or_error(catalog.texture(thing.thing())).name()
-            )
-            .texture()
-            .hull() +
-            thing.pos();
+        let vxs = thing_texture_hull(self.resources, catalog, self.grid, thing);
 
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(4);
@@ -878,6 +922,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         resources: &'a mut DrawingResources,
         color_resources: &'a ColorResources,
         settings: &ToolsSettings,
+        grid: Grid,
         mut elapsed_time: f32,
         camera_scale: f32,
         paint_tool_camera_scale: f32,
@@ -903,6 +948,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             meshes,
             resources,
             color_resources,
+            grid,
             camera_scale,
             elapsed_time,
             parallax_enabled: settings.parallax_enabled,
@@ -942,8 +988,11 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         color: Color
     )
     {
-        self.resources
-            .push_square_highlight_mesh(material, center, color.square_hgl_height());
+        self.resources.push_square_highlight_mesh(
+            material,
+            self.grid.transform_point(center),
+            color.square_hgl_height()
+        );
     }
 
     /// Queues a new grid [`Mesh`] to spawn.
@@ -958,7 +1007,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     fn line_mesh(&mut self, start: Vec2, end: Vec2) -> Mesh
     {
         let mut mesh = self.resources.mesh_generator();
-        mesh.push_positions([start, end]);
+        mesh.push_positions_skewed(self.grid, [start, end]);
         mesh.mesh(PrimitiveTopology::LineStrip)
     }
 
@@ -968,7 +1017,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     {
         // Basic line.
         let mut mesh = self.resources.mesh_generator();
-        mesh.push_positions([start, end]);
+        mesh.push_positions_skewed(self.grid, [start, end]);
 
         // Arrow.
         let half_height = VX_HGL_SIDE * self.camera_scale;
@@ -984,7 +1033,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             *vx = rotate_point(*vx, mid, angle);
         }
 
-        mesh.push_positions([top_left, tip, tip, bottom_left]);
+        mesh.push_positions_skewed(self.grid, [top_left, tip, tip, bottom_left]);
         mesh.mesh(PrimitiveTopology::LineList)
     }
 
@@ -996,7 +1045,11 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         assert!(resolution != 0, "Cannot create a circle with 0 sides.");
 
         let mut mesh = self.resources.mesh_generator();
-        mesh.push_positions(DrawingResources::circle_vxs(resolution, radius).map(|vx| vx + center));
+        let center = self.grid.transform_point(center);
+        mesh.push_positions_skewed(
+            self.grid,
+            DrawingResources::circle_vxs(resolution, radius).map(|vx| vx + center)
+        );
         mesh.mesh(PrimitiveTopology::LineStrip)
     }
 
@@ -1008,7 +1061,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         let len = vertexes.len();
 
         let mut mesh = self.resources.mesh_generator();
-        mesh.push_positions(vertexes);
+        mesh.push_positions_skewed(self.grid, vertexes);
         mesh.set_indexes(len);
         mesh.mesh(PrimitiveTopology::TriangleList)
     }
@@ -1025,6 +1078,7 @@ pub(in crate::map) struct MapPreviewDrawer<'w, 's, 'a>
     meshes:       &'a mut Assets<Mesh>,
     /// The resources required to draw things.
     resources:    &'a mut DrawingResources,
+    grid:         Grid,
     /// The time that has passed.
     elapsed_time: f32
 }
@@ -1046,6 +1100,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
         meshes: &'a mut Assets<Mesh>,
         meshes_query: &Query<Entity, With<Mesh2dHandle>>,
         resources: &'a mut DrawingResources,
+        grid: Grid,
         elapsed_time: f32
     ) -> Self
     {
@@ -1055,9 +1110,13 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
             commands,
             meshes,
             resources,
+            grid,
             elapsed_time
         }
     }
+
+    #[inline]
+    pub const fn grid(&self) -> Grid { self.grid }
 
     /// Spawns the meshes.
     #[inline]
@@ -1075,10 +1134,11 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
     )
     {
         let resources = unsafe { std::ptr::from_mut(self.resources).as_mut().unwrap() };
+        let center = self.grid.transform_point(center);
 
         let mut mesh_generator = resources.mesh_generator();
         mesh_generator.set_indexes(vertexes.len());
-        mesh_generator.push_positions(vertexes);
+        mesh_generator.push_positions_skewed(self.grid, vertexes);
 
         let texture = match animator
         {
@@ -1138,36 +1198,73 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
         settings: &T
     )
     {
-        let mut mesh_generator = self.resources.mesh_generator();
+        let resources = unsafe { std::ptr::from_mut(self.resources).as_mut().unwrap() };
+
+        let mut mesh_generator = resources.mesh_generator();
         mesh_generator.set_indexes(4);
 
-        mesh_generator.push_positions(settings.sprite_vertexes(brush_center));
-
-        match animator
+        let texture = match animator
         {
             Some(animator) =>
             {
-                mesh_generator.set_animated_sprite_uv(settings, animator, self.elapsed_time);
+                match animator
+                {
+                    Animator::List(animator) =>
+                    {
+                        let materials = animator.texture(
+                            self.resources,
+                            settings.overall_animation(self.resources).get_list_animation()
+                        );
+                        mesh_generator.set_sprite_uv(
+                            materials.texture().name(),
+                            settings,
+                            self.elapsed_time
+                        );
+
+                        materials
+                    },
+                    Animator::Atlas(animator) =>
+                    {
+                        mesh_generator.set_animated_sprite_uv(
+                            settings,
+                            animator,
+                            self.elapsed_time
+                        );
+
+                        self.resources.texture_materials(settings.name())
+                    }
+                }
             },
             None =>
             {
-                mesh_generator.set_sprite_uv(settings.name(), settings, self.elapsed_time);
+                let texture = self.resources.texture_or_error(settings.name());
+                mesh_generator.set_sprite_uv(texture.name(), settings, self.elapsed_time);
+                self.resources.texture_materials(texture.name())
             }
+        };
+
+        let mut hull = texture.texture().hull() + self.grid.transform_point(brush_center);
+
+        if self.grid.isometric()
+        {
+            hull += Vec2::new(0f32, hull.half_height());
         }
 
-        let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
+        mesh_generator.push_positions(hull.vertexes());
 
-        self.resources
-            .push_map_preview_sprite(self.meshes.add(mesh).into(), settings);
+        let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
+        resources.push_map_preview_sprite(self.meshes.add(mesh).into(), texture, settings);
     }
 
     /// Draws `thing`.
     #[inline]
     pub fn thing<T: ThingInterface + EntityHull>(&mut self, catalog: &ThingsCatalog, thing: &T)
     {
+        let vxs = thing_texture_hull(self.resources, catalog, self.grid, thing);
+
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(4);
-        mesh_generator.push_positions(thing.hull().rectangle());
+        mesh_generator.push_positions(vxs.vertexes());
         mesh_generator.set_thing_uv(catalog, thing);
 
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
@@ -1175,4 +1272,32 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
         self.resources
             .push_map_preview_thing(self.meshes.add(mesh).into(), catalog, thing);
     }
+}
+
+//=======================================================================//
+// FUNCTIONS
+//
+//=======================================================================//
+
+#[inline]
+#[must_use]
+fn thing_texture_hull<T: ThingInterface + EntityHull>(
+    resources: &DrawingResources,
+    catalog: &ThingsCatalog,
+    grid: Grid,
+    thing: &T
+) -> Hull
+{
+    let mut vxs = resources
+        .texture_materials(resources.texture_or_error(catalog.texture(thing.thing())).name())
+        .texture()
+        .hull() +
+        grid.transform_point(thing.pos());
+
+    if grid.isometric()
+    {
+        vxs += Vec2::new(0f32, thing.hull().half_height());
+    }
+
+    vxs
 }

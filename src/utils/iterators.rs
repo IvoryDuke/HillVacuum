@@ -30,7 +30,7 @@ enum FilterResult
 
 /// A trait for iterators of sets to not have them return specific elements
 /// which may or may not be part of them.
-pub trait FilterSet
+pub(crate) trait FilterSet
 {
     /// Returns a set iterator where the elements of `filters` are filtered out.
     #[inline]
@@ -71,7 +71,7 @@ impl<T> FilterSet for T where T: Iterator {}
 //=======================================================================//
 
 /// A trait to create an iterator that returns the elements in pairs.
-pub trait PairIterator<'a, T, I: Iterator<Item = [T; 2]>>
+pub(crate) trait PairIterator<'a, T, I: Iterator<Item = [T; 2]>>
 {
     /// Returns an iterator that returns the elements in pairs.
     fn pair_iter(&'a self) -> Option<I>;
@@ -98,7 +98,7 @@ impl<'a, T: 'a> PairIterator<'a, &'a T, SlicePairIter<'a, T>> for [T]
 //=======================================================================//
 
 /// A trait to create an iterator that returns the elements in pairs.
-pub trait PairIteratorMut<'a, T: 'a, I: Iterator<Item = [&'a mut T; 2]>>
+pub(crate) trait PairIteratorMut<'a, T: 'a, I: Iterator<Item = [&'a mut T; 2]>>
 {
     /// Returns an iterator that returns the elements in pairs.
     fn pair_iter_mut(&'a mut self) -> Option<I>;
@@ -128,7 +128,7 @@ impl<'a, T: 'a> PairIteratorMut<'a, T, SlicePairIterMut<'a, T>> for [T]
 //=======================================================================//
 
 /// A trait to create an iterator that returns the elements in triplets.
-pub trait TripletIterator<'a, T, I: Iterator<Item = [T; 3]>>
+pub(crate) trait TripletIterator<'a, T, I: Iterator<Item = [T; 3]>>
 {
     /// Returns an iterator that returns the elements in tripets.
     fn triplet_iter(&'a self) -> Option<I>;
@@ -155,7 +155,7 @@ impl<'a, T: 'a> TripletIterator<'a, &'a T, SliceTripletIter<'a, T>> for [T]
 //=======================================================================//
 
 /// A trait for iterators to have them return the indexes of the elements.
-pub trait Enumeration<const N: usize>
+pub(crate) trait Enumeration<const N: usize>
 {
     /// Returns the indexes of the iterated elements.
     #[must_use]
@@ -165,7 +165,7 @@ pub trait Enumeration<const N: usize>
 //=======================================================================//
 
 /// A trait for iterators to not have them iterate a certain index.
-pub trait SkipIndexIterator
+pub(crate) trait SkipIndexIterator
 {
     /// Returns an iterator that skips a certain index.
     /// Returns None if the index is not within bounds.
@@ -187,7 +187,7 @@ impl<T> SkipIndexIterator for T where T: Iterator + ExactSizeIterator {}
 
 /// The elements to be skipped by [`FilteredSet`].
 #[must_use]
-pub struct Filters<T, const N: usize>(ArrayVec<T, N>);
+pub(crate) struct Filters<T, const N: usize>(ArrayVec<T, N>);
 
 impl<T> From<T> for Filters<T, 1>
 {
@@ -237,7 +237,7 @@ where
 //=======================================================================//
 
 /// An iterator that returns all elements except a subset that should be filtered.
-pub struct FilteredSet<'a, I, T, P, const N: usize>
+pub(crate) struct FilteredSet<'a, I, T, P, const N: usize>
 where
     I: Sized + Iterator
 {
@@ -331,7 +331,7 @@ where
 /// assert!(iter.next() == None);
 /// ```
 #[derive(Clone)]
-pub struct SlicePairIter<'a, T>
+pub(crate) struct SlicePairIter<'a, T>
 {
     /// The slice containing the elements.
     slice: &'a [T],
@@ -388,7 +388,7 @@ impl<'a, T> Iterator for SlicePairIter<'a, T>
 /// 0 is paired with the last element of the [`Range`].
 #[must_use]
 #[derive(Clone)]
-pub struct RangePairIter
+pub(crate) struct RangePairIter
 {
     /// The lower index.
     i:   usize,
@@ -461,7 +461,7 @@ impl RangePairIter
 /// assert!(iter.next() == [&mut 1, &mut 2]).into();
 /// assert!(iter.next() == None);
 /// ```
-pub struct SlicePairIterMut<'a, T>
+pub(crate) struct SlicePairIterMut<'a, T>
 {
     /// The slice containing the elements.
     slice: &'a mut [T],
@@ -526,7 +526,7 @@ impl<'a, T> Iterator for SlicePairIterMut<'a, T>
 /// assert!(iter.next() == [0, 1, 2]).into();
 /// assert!(iter.next() == None);
 /// ```
-pub struct SliceTripletIter<'a, T>
+pub(crate) struct SliceTripletIter<'a, T>
 {
     /// The slice containing the elements.
     slice: &'a [T],
@@ -585,7 +585,7 @@ impl<'a, T> Iterator for SliceTripletIter<'a, T>
 /// 0 is grouped with the highest and second to highest elements, and 1 is grouped with 0 and the
 /// highest element.
 #[must_use]
-pub struct RangeTripleIter
+pub(crate) struct RangeTripleIter
 {
     /// Low.
     i:   usize,
@@ -657,7 +657,7 @@ impl RangeTripleIter
 //=======================================================================//
 
 /// A slice iterator that returns the indexes of the elements along with the elements themselves.
-pub struct Enumerate<I, T, const N: usize>(I)
+pub(crate) struct Enumerate<I, T, const N: usize>(I)
 where
     I: Iterator<Item = [T; N]> + ExactSizeIterator + Enumeration<N>;
 
@@ -688,7 +688,7 @@ where
 //=======================================================================//
 
 /// An iterator that skips a certain index.
-pub struct SkipIndex<I>
+pub(crate) struct SkipIndex<I>
 where
     I: Sized + Iterator
 {

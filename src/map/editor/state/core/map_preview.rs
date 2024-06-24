@@ -6,7 +6,6 @@
 use super::{tool::ActiveTool, PreviousActiveTool};
 use crate::{
     map::{
-        containers::{hv_box, HvVec},
         drawer::drawing_resources::DrawingResources,
         editor::{
             state::manager::{Animators, EntitiesManager},
@@ -15,7 +14,11 @@ use crate::{
         },
         path::MovementSimulator
     },
-    utils::identifiers::{EntityId, Id}
+    utils::{
+        containers::hv_box,
+        identifiers::{EntityId, Id}
+    },
+    HvVec
 };
 
 //=======================================================================//
@@ -95,7 +98,7 @@ impl MapPreviewTool
         }
 
         for brush in manager
-            .visible_brushes(window, camera)
+            .visible_brushes(window, camera, drawer.grid())
             .iter()
             .filter(|brush| !is_moving(manager, brush.id()) && !brush.has_sprite())
         {
@@ -103,7 +106,7 @@ impl MapPreviewTool
         }
 
         for brush in manager
-            .visible_sprites(window, camera)
+            .visible_sprites(window, camera, drawer.grid())
             .iter()
             .filter(|brush| !is_moving(manager, brush.id()))
         {
@@ -111,7 +114,7 @@ impl MapPreviewTool
         }
 
         for thing in manager
-            .visible_things(window, camera)
+            .visible_things(window, camera, drawer.grid())
             .iter()
             .filter(|brush| !is_moving(manager, brush.id()))
         {

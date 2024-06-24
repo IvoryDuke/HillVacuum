@@ -22,7 +22,7 @@ use super::{
         tool::{ChangeConditions, Tool}
     },
     edits_history::EditsHistory,
-    grid::Grid,
+    grid::{Grid, GridSettings},
     input_press::InputStateHardCoded,
     manager::EntitiesManager,
     ui::Interaction
@@ -762,7 +762,7 @@ impl State
             )
         );
 
-        match Self::manager_clipboard(
+        match Self::manager_clipboard_grid(
             images,
             prop_cameras,
             user_textures,
@@ -772,7 +772,7 @@ impl State
             default_properties
         )
         {
-            Ok((manager, clipboard)) =>
+            Ok((manager, clipboard, settings)) =>
             {
                 let mut state = Self {
                     core: Core::default(),
@@ -780,7 +780,7 @@ impl State
                     clipboard,
                     edits_history: EditsHistory::default(),
                     inputs: InputsPresses::default(),
-                    grid: Grid::default(),
+                    grid: Grid::new(settings),
                     ui: Ui::new(
                         asset_server,
                         user_textures,
@@ -831,14 +831,13 @@ impl State
     #[must_use]
     pub fn grid_size_f32(&self) -> f32 { f32::from(self.grid.size()) }
 
+    #[inline]
+    pub const fn grid(&self) -> Grid { self.grid }
+
     /// Whever the cursor shuld be snapped to the grid.
     #[inline]
     #[must_use]
     pub const fn cursor_snap(&self) -> bool { self.cursor_snap }
-
-    /// Returns the square that contains `pos`.
-    #[inline]
-    pub fn grid_square_coordinates(&self, pos: Vec2) -> Hull { self.grid.square(pos) }
 
     /// Returns a reference to the tools' stored settings.
     #[inline]
@@ -971,8 +970,12 @@ impl State
         true
     }
 
+    #[inline]
+    #[must_use]
+    pub const fn is_window_focused(&self) -> bool { self.ui.is_window_focused() }
+
     //==============================================================
-    // New
+    // File
 
     /// Executes the file save file routine if there are unsaved changes and the user decides to
     /// save.
@@ -1031,6 +1034,7 @@ impl State
         self.clipboard = Clipboard::new();
         self.edits_history = EditsHistory::default();
         self.inputs = InputsPresses::default();
+        self.grid = Grid::default();
         bundle.config.open_file.clear();
         bundle.update_window_title();
 
@@ -1208,6 +1212,12 @@ impl State
         // Props.
         self.clipboard.export_props(&mut writer)?;
 
+        // Grid settings.
+        test!(
+            ciborium::ser::into_writer(&self.grid.settings(), &mut writer),
+            "Error saving grid settings"
+        );
+
         drop(writer);
 
         let mut file = OpenOptions::new();
@@ -1259,7 +1269,7 @@ impl State
     /// Returns new [`EntitiesManager`] and [`Clipboard`] loading the content of `file`.
     /// Returns `Err` if the file could not be properly read.
     #[inline]
-    fn manager_clipboard(
+    fn manager_clipboard_grid(
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
@@ -1267,7 +1277,7 @@ impl State
         drawing_resources: &mut DrawingResources,
         things_catalog: &ThingsCatalog,
         default_properties: &mut AllDefaultProperties
-    ) -> Result<(EntitiesManager, Clipboard), &'static str>
+    ) -> Result<(EntitiesManager, Clipboard, GridSettings), &'static str>
     {
         let mut file = BufReader::new(file);
 
@@ -1306,7 +1316,11 @@ impl State
         };
         clipboard.reset_props_changed();
 
-        Ok((manager, clipboard))
+        Ok((
+            manager,
+            clipboard,
+            ciborium::from_reader::<GridSettings, _>(&mut file).unwrap_or_default()
+        ))
     }
 
     /// Opens a map file, unless the file cannot be properly read. If there are unsaved changes in
@@ -1336,7 +1350,7 @@ impl State
             .unwrap()
         );
 
-        match Self::manager_clipboard(
+        match Self::manager_clipboard_grid(
             bundle.images,
             bundle.prop_cameras,
             bundle.user_textures,
@@ -1346,10 +1360,11 @@ impl State
             bundle.default_properties
         )
         {
-            Ok((manager, clipboard)) =>
+            Ok((manager, clipboard, settings)) =>
             {
                 self.manager = manager;
                 self.clipboard = clipboard;
+                self.grid = Grid::new(settings);
             },
             Err(err) =>
             {
@@ -1411,8 +1426,8 @@ impl State
         self.core.select_all(
             &mut self.manager,
             &mut self.edits_history,
-            &self.tools_settings,
-            self.grid
+            self.grid,
+            &self.tools_settings
         );
     }
 
@@ -1521,7 +1536,7 @@ impl State
             &mut self.inputs,
             &mut self.edits_history,
             &mut self.clipboard,
-            self.grid,
+            &mut self.grid,
             &mut self.tools_settings,
             &tool_change_conditions
         );
@@ -1750,8 +1765,9 @@ impl State
             {
                 if let Some(hull) = self.manager.selected_brushes_hull()
                 {
-                    bundle.camera.scale_viewport_ui_constricted_to_hull(
+                    bundle.camera.scale_viewport_to_hull(
                         bundle.window,
+                        self.grid,
                         &hull,
                         self.grid_size_f32()
                     );
@@ -1935,8 +1951,8 @@ impl State
             bundle,
             &mut self.manager,
             &mut self.edits_history,
-            &self.tools_settings,
             self.grid,
+            &self.tools_settings,
             tool_change_conditions
         );
     }
@@ -2104,7 +2120,7 @@ impl State
     pub fn draw(&mut self, bundle: &mut DrawBundle)
     {
         self.clipboard.draw_props_to_photograph(bundle);
-        self.grid.draw(bundle.window, &mut bundle.drawer, bundle.camera);
+        bundle.drawer.grid_lines(bundle.window, bundle.camera);
         self.core
             .draw_active_tool(bundle, &self.manager, &self.tools_settings, self.show_tooltips);
         self.manager.draw_error_highlight(bundle);

@@ -23,10 +23,9 @@ use super::{
 };
 use crate::{
     map::{
-        containers::{hv_hash_set, Ids},
         drawer::color::Color,
         editor::{
-            cursor_pos::Cursor,
+            cursor::Cursor,
             state::{
                 editor_state::{InputsPresses, ToolsSettings},
                 edits_history::EditsHistory,
@@ -38,6 +37,7 @@ use crate::{
         AssertedInsertRemove
     },
     utils::{
+        containers::{hv_hash_set, Ids},
         identifiers::{EntityId, Id},
         misc::TakeValue
     }
@@ -300,7 +300,7 @@ impl DrawTool
 
         let mut drawn_iterated = 0;
         let drawn_len = self.drawn_brushes.len();
-        let brushes = manager.visible_brushes(window, camera);
+        let brushes = manager.visible_brushes(window, camera, drawer.grid());
         let mut brushes = brushes.iter();
 
         for brush in brushes.by_ref()

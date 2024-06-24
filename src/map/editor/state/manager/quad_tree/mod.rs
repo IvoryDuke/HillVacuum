@@ -15,13 +15,15 @@ use self::{
     points::{Corner, Intersections, Sides, Vertex, Vertexes}
 };
 use crate::{
-    map::{containers::hv_hash_map, hv_vec, HvHashMap, HvVec},
     utils::{
+        containers::{hv_hash_map, hv_vec},
         hull::{EntityHull, Hull},
         identifiers::{EntityId, Id},
         math::AroundEqual,
         misc::bumped_vertex_highlight_square
-    }
+    },
+    HvHashMap,
+    HvVec
 };
 
 //=======================================================================//

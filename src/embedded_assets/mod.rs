@@ -12,7 +12,7 @@ use hill_vacuum_proc_macros::embedded_assets;
 //=======================================================================//
 
 /// Plugin that loads the embedded assets.
-pub struct EmbeddedPlugin;
+pub(crate) struct EmbeddedPlugin;
 
 impl Plugin for EmbeddedPlugin
 {
