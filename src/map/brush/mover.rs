@@ -6,12 +6,14 @@
 use hill_vacuum_shared::{match_or_panic, return_if_no_match};
 use serde::{Deserialize, Serialize};
 
+#[allow(unused_imports)]
 use crate::{
     map::{
         containers::{hv_hash_set, Ids},
         AssertedInsertRemove
     },
     utils::{identifiers::Id, misc::TakeValue},
+    Brush,
     Path
 };
 
@@ -20,7 +22,8 @@ use crate::{
 //
 //=======================================================================//
 
-///
+/// Information concerning the movement in 2D space of a [`Brush`] and its connection to other
+/// [`Brush`]es.
 #[must_use]
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub enum Mover
@@ -28,11 +31,11 @@ pub enum Mover
     /// None.
     #[default]
     None,
-    /// Attached brushes.
+    /// Attached [`Brush`]es.
     Anchors(Ids),
     /// Motor.
     Motor(Motor),
-    /// Attached to a brush.
+    /// Attached to a [`Brush`].
     Anchored(Id)
 }
 

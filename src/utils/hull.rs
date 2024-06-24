@@ -717,7 +717,10 @@ impl Hull
     /// `resolution` sides.
     #[inline]
     #[must_use]
-    pub(crate) fn circle(&self, resolution: u8) -> CircleIterator { CircleIterator::new(resolution, self) }
+    pub(crate) fn circle(&self, resolution: u8) -> CircleIterator
+    {
+        CircleIterator::new(resolution, self)
+    }
 
     //==============================================================
     // Corner & Side
@@ -851,7 +854,11 @@ impl Hull
     /// Returns a [`Hull`] scaled according to the new position of the moved [`Corner`].
     #[inline]
     #[must_use]
-    pub(crate) fn scaled(&self, selected_corner: &mut Corner, new_corner_position: Vec2) -> ScaleResult
+    pub(crate) fn scaled(
+        &self,
+        selected_corner: &mut Corner,
+        new_corner_position: Vec2
+    ) -> ScaleResult
     {
         /// Checks a flip above the pivot.
         macro_rules! check_flip_higher {

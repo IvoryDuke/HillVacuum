@@ -349,7 +349,7 @@ impl<T> HvVec<T>
 
     /// Constructs an empty vector.
     #[inline]
-    pub fn new() -> Self
+    pub(crate) fn new() -> Self
     {
         #[cfg(feature = "arena_alloc")]
         let vec = Vec::new_in(blink_alloc());
@@ -363,7 +363,7 @@ impl<T> HvVec<T>
     /// Constructs an empty vector with enough capacity pre-allocated to store at least `n`
     /// elements.
     #[inline]
-    pub fn with_capacity(capacity: usize) -> Self
+    pub(in crate::map) fn with_capacity(capacity: usize) -> Self
     {
         #[cfg(feature = "arena_alloc")]
         let vec = Vec::with_capacity_in(capacity, blink_alloc());
@@ -390,7 +390,7 @@ impl<T> HvVec<T>
     /// Returns the last element of the slice, or `None` if it is empty.
     #[inline]
     #[must_use]
-    pub fn last(&self) -> Option<&T> { self.0.last() }
+    pub(in crate::map) fn last(&self) -> Option<&T> { self.0.last() }
 
     //==============================================================
     // Edit
@@ -398,28 +398,28 @@ impl<T> HvVec<T>
     /// Returns a mutable reference to the last item in the slice, or `None` if it is empty.
     #[inline]
     #[must_use]
-    pub fn last_mut(&mut self) -> Option<&mut T> { self.0.last_mut() }
+    pub(in crate::map) fn last_mut(&mut self) -> Option<&mut T> { self.0.last_mut() }
 
     /// Append an item to the vector.
     #[inline]
-    pub fn push(&mut self, value: T) { self.0.push(value); }
+    pub(crate) fn push(&mut self, value: T) { self.0.push(value); }
 
     /// Insert an element at position `index`, shifting all elements after it to the right.
     ///
     /// Panics if `index > len`.
     #[inline]
-    pub fn insert(&mut self, index: usize, element: T) { self.0.insert(index, element); }
+    pub(in crate::map) fn insert(&mut self, index: usize, element: T) { self.0.insert(index, element); }
 
     /// Remove an item from the end of the vector and return it, or None if empty.
     #[inline]
-    pub fn pop(&mut self) -> Option<T> { self.0.pop() }
+    pub(in crate::map) fn pop(&mut self) -> Option<T> { self.0.pop() }
 
     /// Remove and return the element at position `index`, shifting all elements after it to the
     /// left.
     ///
     /// Panics if `index` is out of bounds.
     #[inline]
-    pub fn remove(&mut self, index: usize) -> T { self.0.remove(index) }
+    pub(in crate::map) fn remove(&mut self, index: usize) -> T { self.0.remove(index) }
 
     /// Remove the element at position `index`, replacing it with the last element.
     ///
@@ -427,11 +427,11 @@ impl<T> HvVec<T>
     ///
     /// Panics if `index` is out of bounds.
     #[inline]
-    pub fn swap_remove(&mut self, index: usize) -> T { self.0.swap_remove(index) }
+    pub(in crate::map) fn swap_remove(&mut self, index: usize) -> T { self.0.swap_remove(index) }
 
     /// Remove all elements from the vector.
     #[inline]
-    pub fn clear(&mut self) { self.0.clear(); }
+    pub(in crate::map) fn clear(&mut self) { self.0.clear(); }
 
     /// Shorten the vector, keeping the first `len` elements and dropping the rest.
     ///
@@ -441,14 +441,14 @@ impl<T> HvVec<T>
     /// This does not re-allocate.  If you want the vector's capacity to shrink, call
     /// `shrink_to_fit` after truncating.
     #[inline]
-    pub fn truncate(&mut self, len: usize) { self.0.truncate(len); }
+    pub(in crate::map) fn truncate(&mut self, len: usize) { self.0.truncate(len); }
 
     /// Sorts the slice, but might not preserve the order of equal elements.
     ///
     /// This sort is unstable (i.e., may reorder equal elements), in-place
     /// (i.e., does not allocate), and *O*(*n* \* log(*n*)) worst-case.
     #[inline]
-    pub fn sort_unstable(&mut self)
+    pub(in crate::map) fn sort_unstable(&mut self)
     where
         T: Ord
     {
@@ -460,7 +460,7 @@ impl<T> HvVec<T>
     /// This sort is stable (i.e., does not reorder equal elements) and *O*(*n* \* log(*n*))
     /// worst-case.
     #[inline]
-    pub fn sort_by<F>(&mut self, compare: F)
+    pub(in crate::map) fn sort_by<F>(&mut self, compare: F)
     where
         F: FnMut(&T, &T) -> std::cmp::Ordering
     {
@@ -469,11 +469,11 @@ impl<T> HvVec<T>
 
     /// Reverses the order of elements in the slice, in place.
     #[inline]
-    pub fn reverse(&mut self) { self.0.reverse(); }
+    pub(in crate::map) fn reverse(&mut self) { self.0.reverse(); }
 
     /// Retains only the elements specified by the predicate.
     #[inline]
-    pub fn retain_mut<F>(&mut self, f: F)
+    pub(in crate::map) fn retain_mut<F>(&mut self, f: F)
     where
         F: FnMut(&mut T) -> bool
     {
@@ -490,7 +490,7 @@ impl<T> HvVec<T>
     /// Note 2: It is unspecified how many elements are removed from the vector
     /// if the `Drain` value is leaked.
     #[inline]
-    pub fn drain<R>(&mut self, range: R) -> std::vec::Drain<T, &'static BlinkAlloc>
+    pub(in crate::map) fn drain<R>(&mut self, range: R) -> std::vec::Drain<T, &'static BlinkAlloc>
     where
         R: std::ops::RangeBounds<usize>
     {
@@ -507,7 +507,7 @@ impl<T> HvVec<T>
     /// Note 2: It is unspecified how many elements are removed from the vector
     /// if the `Drain` value is leaked.
     #[inline]
-    pub fn drain<R>(&mut self, range: R) -> smallvec::Drain<[T; 1]>
+    pub(in crate::map) fn drain<R>(&mut self, range: R) -> smallvec::Drain<[T; 1]>
     where
         R: std::ops::RangeBounds<usize>
     {
@@ -520,7 +520,7 @@ impl<T> HvVec<T>
     /// the index `mid` itself) and the second will contain all
     /// indices from `[mid, len)` (excluding the index `len` itself).
     #[inline]
-    pub fn split_at_mut(&mut self, mid: usize) -> (&mut [T], &mut [T]) { self.0.split_at_mut(mid) }
+    pub(in crate::map) fn split_at_mut(&mut self, mid: usize) -> (&mut [T], &mut [T]) { self.0.split_at_mut(mid) }
 
     //==============================================================
     // Iterators
@@ -535,7 +535,7 @@ impl<T> HvVec<T>
     ///
     /// The iterator yields all items from start to end.
     #[inline]
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<T> { self.0.iter_mut() }
+    pub(in crate::map) fn iter_mut(&mut self) -> std::slice::IterMut<T> { self.0.iter_mut() }
 
     /// Returns an iterator over `chunk_size` elements of the slice at a time, starting at the
     /// beginning of the slice.
@@ -650,7 +650,7 @@ impl<K, V> HvHashMap<K, V>
     /// The hash map is initially created with a capacity of 0, so it will not allocate until it
     /// is first inserted into.
     #[inline]
-    pub fn new() -> Self
+    pub(in crate::map) fn new() -> Self
     {
         #[cfg(feature = "arena_alloc")]
         let map = hashbrown::HashMap::new_in(blink_alloc());
@@ -666,7 +666,7 @@ impl<K, V> HvHashMap<K, V>
     /// The hash map will be able to hold at least `capacity` elements without
     /// reallocating. If `capacity` is 0, the hash map will not allocate.
     #[inline]
-    pub fn with_capacity(capacity: usize) -> Self
+    pub(in crate::map) fn with_capacity(capacity: usize) -> Self
     {
         #[cfg(feature = "arena_alloc")]
         let map = hashbrown::HashMap::with_capacity_in(capacity, blink_alloc());
@@ -690,7 +690,7 @@ impl<K, V> HvHashMap<K, V>
     /// Clears the map, removing all key-value pairs. Keeps the allocated memory
     /// for reuse.
     #[inline]
-    pub fn clear(&mut self) { self.0.clear() }
+    pub(in crate::map) fn clear(&mut self) { self.0.clear() }
 
     /// An iterator visiting all key-value pairs in arbitrary order.
     /// The iterator element type is `(&'a K, &'a V)`.
@@ -701,7 +701,7 @@ impl<K, V> HvHashMap<K, V>
     /// with mutable references to the values.
     /// The iterator element type is `(&'a K, &'a mut V)`.
     #[inline]
-    pub fn iter_mut(&mut self) -> hashbrown::hash_map::IterMut<'_, K, V> { self.0.iter_mut() }
+    pub(in crate::map) fn iter_mut(&mut self) -> hashbrown::hash_map::IterMut<'_, K, V> { self.0.iter_mut() }
 
     /// An iterator visiting all keys in arbitrary order.
     /// The iterator element type is `&'a K`.
@@ -716,7 +716,7 @@ impl<K, V> HvHashMap<K, V>
     /// An iterator visiting all values mutably in arbitrary order.
     /// The iterator element type is `&'a mut V`.
     #[inline]
-    pub fn values_mut(&mut self) -> hashbrown::hash_map::ValuesMut<'_, K, V> { self.0.values_mut() }
+    pub(in crate::map) fn values_mut(&mut self) -> hashbrown::hash_map::ValuesMut<'_, K, V> { self.0.values_mut() }
 }
 
 impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
@@ -743,7 +743,7 @@ impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
     /// types that can be `==` without being identical. See the [`std::collections`]
     /// [module-level documentation] for more.
     #[inline]
-    pub fn insert(&mut self, k: K, v: V) -> Option<V> { self.0.insert(k, v) }
+    pub(in crate::map) fn insert(&mut self, k: K, v: V) -> Option<V> { self.0.insert(k, v) }
 
     /// Removes a key from the map, returning the value at the key if the key
     /// was previously in the map. Keeps the allocated memory for reuse.
@@ -752,7 +752,7 @@ impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
     /// [`Hash`] and [`Eq`] on the borrowed form *must* match those for
     /// the key type.
     #[inline]
-    pub fn remove<Q>(&mut self, k: &Q) -> Option<V>
+    pub(in crate::map) fn remove<Q>(&mut self, k: &Q) -> Option<V>
     where
         Q: ?Sized + Hash + Equivalent<K>
     {
@@ -773,7 +773,7 @@ impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
     /// [`Hash`] and [`Eq`] on the borrowed form *must* match those for
     /// the key type.
     #[inline]
-    pub fn get_mut<Q>(&mut self, k: &Q) -> Option<&mut V>
+    pub(in crate::map) fn get_mut<Q>(&mut self, k: &Q) -> Option<&mut V>
     where
         Q: ?Sized + Hash + Equivalent<K>
     {
@@ -786,7 +786,7 @@ impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
     /// mutable reference will be returned to any value. `None` will be returned if any of the
     /// keys are duplicates or missing.
     #[inline]
-    pub fn get_many_mut<Q, const N: usize>(&mut self, ks: [&Q; N]) -> Option<[&'_ mut V; N]>
+    pub(in crate::map) fn get_many_mut<Q, const N: usize>(&mut self, ks: [&Q; N]) -> Option<[&'_ mut V; N]>
     where
         Q: ?Sized + Hash + Equivalent<K>
     {
@@ -795,7 +795,7 @@ impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
 
     /// Retains only the elements specified by the predicate.
     #[inline]
-    pub fn retain<F>(&mut self, f: F)
+    pub(in crate::map) fn retain<F>(&mut self, f: F)
     where
         F: FnMut(&K, &mut V) -> bool
     {
@@ -947,7 +947,7 @@ impl<T: Hash + Eq> HvHashSet<T>
     /// is first inserted into.
     #[inline]
     #[must_use]
-    pub fn new() -> Self
+    pub(in crate::map) fn new() -> Self
     {
         #[cfg(feature = "arena_alloc")]
         let set = HashSet::new_in(blink_alloc());
@@ -964,7 +964,7 @@ impl<T: Hash + Eq> HvHashSet<T>
     /// reallocating. If `capacity` is 0, the hash set will not allocate.
     #[inline]
     #[must_use]
-    pub fn with_capacity(capacity: usize) -> Self
+    pub(in crate::map) fn with_capacity(capacity: usize) -> Self
     {
         #[cfg(feature = "arena_alloc")]
         let set = HashSet::with_capacity_in(capacity, blink_alloc());
@@ -984,7 +984,7 @@ impl<T: Hash + Eq> HvHashSet<T>
     ///
     /// If the set did have this value present, `false` is returned.
     #[inline]
-    pub fn insert(&mut self, value: T) -> bool { self.0.insert(value) }
+    pub(in crate::map) fn insert(&mut self, value: T) -> bool { self.0.insert(value) }
 
     /// Removes a value from the set. Returns whether the value was
     /// present in the set.
@@ -993,7 +993,7 @@ impl<T: Hash + Eq> HvHashSet<T>
     /// [`Hash`] and [`Eq`] on the borrowed form *must* match those for
     /// the value type.
     #[inline]
-    pub fn remove(&mut self, value: &T) -> bool { self.0.remove(value) }
+    pub(in crate::map) fn remove(&mut self, value: &T) -> bool { self.0.remove(value) }
 }
 
 impl<T> HvHashSet<T>
@@ -1016,13 +1016,13 @@ impl<T> HvHashSet<T>
 
     /// Clears the set, removing all values.
     #[inline]
-    pub fn clear(&mut self) { self.0.clear(); }
+    pub(in crate::map) fn clear(&mut self) { self.0.clear(); }
 
     /// Retains only the elements specified by the predicate.
     ///
     /// In other words, remove all elements `e` such that `f(&e)` returns `false`.
     #[inline]
-    pub fn retain<F>(&mut self, f: F)
+    pub(in crate::map) fn retain<F>(&mut self, f: F)
     where
         F: FnMut(&T) -> bool
     {

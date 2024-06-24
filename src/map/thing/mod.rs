@@ -84,7 +84,7 @@ impl ThingId
     /// Returns the [`u16`] associated with `self`.
     #[inline]
     #[must_use]
-    pub const fn values(self) -> u16 { self.0 }
+    pub const fn value(self) -> u16 { self.0 }
 }
 
 //=======================================================================//
