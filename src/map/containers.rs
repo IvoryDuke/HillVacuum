@@ -408,7 +408,10 @@ impl<T> HvVec<T>
     ///
     /// Panics if `index > len`.
     #[inline]
-    pub(in crate::map) fn insert(&mut self, index: usize, element: T) { self.0.insert(index, element); }
+    pub(in crate::map) fn insert(&mut self, index: usize, element: T)
+    {
+        self.0.insert(index, element);
+    }
 
     /// Remove an item from the end of the vector and return it, or None if empty.
     #[inline]
@@ -520,7 +523,10 @@ impl<T> HvVec<T>
     /// the index `mid` itself) and the second will contain all
     /// indices from `[mid, len)` (excluding the index `len` itself).
     #[inline]
-    pub(in crate::map) fn split_at_mut(&mut self, mid: usize) -> (&mut [T], &mut [T]) { self.0.split_at_mut(mid) }
+    pub(in crate::map) fn split_at_mut(&mut self, mid: usize) -> (&mut [T], &mut [T])
+    {
+        self.0.split_at_mut(mid)
+    }
 
     //==============================================================
     // Iterators
@@ -701,7 +707,10 @@ impl<K, V> HvHashMap<K, V>
     /// with mutable references to the values.
     /// The iterator element type is `(&'a K, &'a mut V)`.
     #[inline]
-    pub(in crate::map) fn iter_mut(&mut self) -> hashbrown::hash_map::IterMut<'_, K, V> { self.0.iter_mut() }
+    pub(in crate::map) fn iter_mut(&mut self) -> hashbrown::hash_map::IterMut<'_, K, V>
+    {
+        self.0.iter_mut()
+    }
 
     /// An iterator visiting all keys in arbitrary order.
     /// The iterator element type is `&'a K`.
@@ -716,7 +725,10 @@ impl<K, V> HvHashMap<K, V>
     /// An iterator visiting all values mutably in arbitrary order.
     /// The iterator element type is `&'a mut V`.
     #[inline]
-    pub(in crate::map) fn values_mut(&mut self) -> hashbrown::hash_map::ValuesMut<'_, K, V> { self.0.values_mut() }
+    pub(in crate::map) fn values_mut(&mut self) -> hashbrown::hash_map::ValuesMut<'_, K, V>
+    {
+        self.0.values_mut()
+    }
 }
 
 impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
@@ -786,7 +798,10 @@ impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
     /// mutable reference will be returned to any value. `None` will be returned if any of the
     /// keys are duplicates or missing.
     #[inline]
-    pub(in crate::map) fn get_many_mut<Q, const N: usize>(&mut self, ks: [&Q; N]) -> Option<[&'_ mut V; N]>
+    pub(in crate::map) fn get_many_mut<Q, const N: usize>(
+        &mut self,
+        ks: [&Q; N]
+    ) -> Option<[&'_ mut V; N]>
     where
         Q: ?Sized + Hash + Equivalent<K>
     {

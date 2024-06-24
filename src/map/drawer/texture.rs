@@ -311,11 +311,12 @@ pub enum Sprite
         /// The [`Hull`] describing the bounds of the sprite.
         hull: Hull
     },
+    /// No.
     False
     {
-        /// The horizontal parallax.
+        /// The horizontal parallax of the texture.
         parallax_x: f32,
-        /// The vertical parallax.
+        /// The vertical parallax of the texture.
         parallax_y: f32
     }
 }

@@ -1142,7 +1142,7 @@ pub(in crate::map) struct MovementSimulator
     /// The direction the entity must move to reach the next move.
     dir:             Vec2,
     /// The index of the Node to reach.
-    target_idx:      usize,
+    target_index:    usize,
     /// The Node the entity is currently traveling from.
     current_node:    Node,
     /// The Node the entity is currently traveling to.
@@ -1251,7 +1251,7 @@ impl MovementSimulator
             start: current_node.pos(),
             pos: current_node.pos(),
             dir,
-            target_idx: 1,
+            target_index: 1,
             current_node,
             target_node,
             travel_distance,
@@ -1466,8 +1466,8 @@ impl MovementSimulator
 
         // Set travel properties toward the next node.
         let nodes = moving.path().unwrap().nodes();
-        self.target_idx = next(self.target_idx, nodes.len());
-        self.current_node = std::mem::replace(&mut self.target_node, nodes[self.target_idx]);
+        self.target_index = next(self.target_index, nodes.len());
+        self.current_node = std::mem::replace(&mut self.target_node, nodes[self.target_index]);
         self.current_speed = self.current_node.movement.start_speed();
 
         (self.dir, self.travel_distance, self.acceleration, self.deceleration) =

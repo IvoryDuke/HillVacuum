@@ -175,15 +175,15 @@ impl Mover
 //
 //=======================================================================//
 
-/// The object describing how a brush should move in space over time.
-/// It also describes the brushes attached to it and that should move along with it.
+/// The object describing how a [`Brush`] should move in space over time.
+/// It also describes the [`Brush`]es attached to it and that should move along with it.
 #[must_use]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Motor
 {
     /// The [`Path`].
     path:             Path,
-    /// The [`Id`]s of the attached brushes.
+    /// The [`Id`]s of the attached [`Brush`]es.
     anchored_brushes: Ids
 }
 

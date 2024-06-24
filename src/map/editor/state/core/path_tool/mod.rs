@@ -127,9 +127,9 @@ enum PathEditing
     AddNode
     {
         /// The position of the [`Node`].
-        pos: Vec2,
+        pos:   Vec2,
         /// The index where the [`Node`] is inserted in the [`Path`].
-        idx: u8
+        index: u8
     }
 }
 
@@ -726,8 +726,8 @@ impl PathTool
     const fn add_node_status(cursor: &Cursor, identifier: Id, index: u8) -> Status
     {
         Status::SingleEditing(identifier, PathEditing::AddNode {
-            idx: index + 1,
-            pos: cursor.world_snapped()
+            index: index + 1,
+            pos:   cursor.world_snapped()
         })
     }
 
@@ -907,7 +907,7 @@ impl PathTool
                     path.push(edits_history, cursor_pos, manager.moving(id).center());
                 }
             },
-            PathEditing::AddNode { idx, pos } =>
+            PathEditing::AddNode { index, pos } =>
             {
                 *pos = cursor_pos;
                 let mut moving = manager.moving_mut(id);
@@ -917,9 +917,9 @@ impl PathTool
                     return false;
                 }
 
-                if moving.try_insert_path_node_at_index(*pos, *idx as usize)
+                if moving.try_insert_path_node_at_index(*pos, *index as usize)
                 {
-                    edits_history.path_node_insertion(id, *pos, *idx);
+                    edits_history.path_node_insertion(id, *pos, *index);
                 }
 
                 return true;
@@ -1204,7 +1204,7 @@ impl PathTool
                             center
                         );
                     },
-                    PathEditing::AddNode { pos, idx } =>
+                    PathEditing::AddNode { pos, index } =>
                     {
                         manager.moving(*id).draw_with_path_node_addition(
                             window,
@@ -1214,7 +1214,7 @@ impl PathTool
                             things_catalog,
                             drawer,
                             *pos,
-                            *idx as usize,
+                            *index as usize,
                             show_tooltips
                         );
                     }

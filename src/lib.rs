@@ -84,7 +84,7 @@ const PROP_CAMERAS_AMOUNT: usize = 8 * (PROP_CAMERAS_ROWS * (PROP_CAMERAS_ROWS +
 //
 //====================================================================
 
-/// Loads the desided [`Thing`]s as an available resource coded into the executable.
+/// Loads the desired [`Thing`]s as an available resource coded into the executable.
 /// # Example
 /// ```
 /// use hill_vacuum::{hardcoded_things, MapThing, Thing};
