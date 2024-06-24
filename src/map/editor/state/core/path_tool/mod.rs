@@ -1393,7 +1393,7 @@ impl PathTool
 //
 //=======================================================================//
 
-/// Whever the [`Brush`] with [`Id`] `identifier` is anchored to a selected moving [`Brush`].
+/// Whever the brush with [`Id`] `identifier` is anchored to a selected moving brush.
 #[inline]
 #[must_use]
 fn is_anchored_to_selected_moving(manager: &EntitiesManager, identifier: Id) -> bool

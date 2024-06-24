@@ -87,17 +87,17 @@ enum Status
     /// Inserting a new vertex.
     NewVertex
     {
-        /// The [`Id`] of the [`Brush`] where the vertex is being inserted.
+        /// The [`Id`] of the brush where the vertex is being inserted.
         identifier: Id,
         /// The index where the vertex is being inserted.
         idx:        usize,
         /// The position of the vertex.
         vx:         Vec2
     },
-    /// Selecting the [`Brush`] where to insert a new vertex after having enabled it from the UI
+    /// Selecting the brush where to insert a new vertex after having enabled it from the UI
     /// button.
     NewVertexUi,
-    /// Creating a [`Path`] by clicking of the vertexes of the selected [`Brush`]es.
+    /// Creating a [`Path`] by clicking of the vertexes of the selected brushes.
     PolygonToPath(PathCreation)
 }
 
@@ -133,18 +133,18 @@ selected_vertexes!(selected_vertexes_amount);
 
 //=======================================================================//
 
-/// An extended record of the selected [`Brush`]es' selected vertexes.
+/// An extended record of the selected brushes' selected vertexes.
 #[must_use]
 #[derive(Debug)]
 struct BrushesWithSelectedVertexes
 {
-    /// The [`Id`]s of the [`Brush`]es with selected vertexes.
+    /// The [`Id`]s of the brushes with selected vertexes.
     ids:            Ids,
     /// The seleted vertexes.
     selected_vxs:   SelectedVertexes,
-    /// The [`Id`]s of the [`Brush`]es that can be split.
+    /// The [`Id`]s of the brushes that can be split.
     splittable_ids: HvHashMap<Id, SplitPayload>,
-    /// The [`Id`] of the [`Brush`] that does not allow the split to occur.
+    /// The [`Id`] of the brush that does not allow the split to occur.
     error_id:       Option<Id>
 }
 
@@ -234,7 +234,7 @@ impl BrushesWithSelectedVertexes
         }
     }
 
-    /// Removes the selected vertexes associated with the [`Brush`] with [`Id`] `identifier`.
+    /// Removes the selected vertexes associated with the brush with [`Id`] `identifier`.
     #[inline]
     fn remove_id(&mut self, manager: &EntitiesManager, identifier: Id)
     {

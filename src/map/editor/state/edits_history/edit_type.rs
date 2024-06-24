@@ -53,15 +53,15 @@ macro_rules! match_and_return {
 //
 //=======================================================================//
 
-/// An enum used to categorize [`Brush`]es in three categories: not selected, selected, and drawn.
+/// An enum used to categorize brushes in three categories: not selected, selected, and drawn.
 #[derive(Clone, Copy)]
 pub(in crate::map::editor::state) enum BrushType
 {
-    /// Non selected [`Brush`].
+    /// Non selected brush.
     NotSelected,
-    /// Selected [`Brush`].
+    /// Selected brush.
     Selected,
-    /// Drawn [`Brush`].
+    /// Drawn brush.
     Drawn
 }
 
@@ -100,9 +100,9 @@ impl BrushType
 #[derive(Debug)]
 pub(in crate::map::editor::state::edits_history) enum EditType
 {
-    /// Drawn [`Brush`].
+    /// Drawn brush.
     BrushDraw(Option<BrushData>),
-    /// Drawn [`Brush`] despawned.
+    /// Drawn brush despawned.
     DrawnBrushDespawn(Option<BrushData>),
     /// Brush spawned.
     BrushSpawn(Option<BrushData>, bool),
@@ -386,7 +386,7 @@ impl EditType
         }
     }
 
-    /// Actions common to both the undo and redo procedures that apply to multiple [`Brush`]es.
+    /// Actions common to both the undo and redo procedures that apply to multiple brushes.
     /// Returns whever the edit was undone/redone.
     #[inline]
     #[must_use]
@@ -489,7 +489,7 @@ impl EditType
         true
     }
 
-    /// Actions common to both the undo and redo procedures that apply to a single [`Brush`].
+    /// Actions common to both the undo and redo procedures that apply to a single brush.
     /// Returns whever the edit was undone/redone.
     #[inline]
     #[must_use]

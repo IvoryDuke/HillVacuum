@@ -122,7 +122,7 @@ pub(in crate::map) trait CopyToClipboard
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(in crate::map) enum ClipboardData
 {
-    /// A [`Brush`].
+    /// A brush.
     Brush(BrushData, Id),
     /// A [`ThingInstance`].
     Thing(ThingInstanceData, Id)
@@ -516,7 +516,7 @@ impl Prop
         false
     }
 
-    /// Updates the textures of the contained [`Brush`]es after a texture reload. Returns whever any
+    /// Updates the textures of the contained brushes after a texture reload. Returns whever any
     /// textures were changed.
     #[inline]
     #[must_use]
@@ -1425,7 +1425,7 @@ impl Clipboard
         self.platform_path = path.into();
     }
 
-    /// Pastes the copied [`Path`] in the [`Brush`] with [`Id`] `identifier`.
+    /// Pastes the copied [`Path`] in the brush with [`Id`] `identifier`.
     #[inline]
     pub fn paste_platform_path(
         &mut self,

@@ -8,8 +8,9 @@ use std::ops::{AddAssign, SubAssign};
 use bevy::prelude::Vec2;
 use serde::{Deserialize, Serialize};
 
+#[allow(unused_imports)]
 use crate::{
-    map::{selectable_vector::SelectableVector, HvVec},
+    map::{path::Path, selectable_vector::SelectableVector, HvVec},
     utils::math::AroundEqual
 };
 
@@ -247,14 +248,14 @@ impl Movement
 //=======================================================================//
 
 /// A node of the travel [`Path`] of a moving entity.
-/// The position of the Node is relative to the center of the entity.
+/// The position of the node is relative to the center of the entity.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Node
 {
     /// The position in 2D space with respect to the center of the entity.
-    pub selectable_vector: SelectableVector,
+    pub(in crate::map::path) selectable_vector: SelectableVector,
     /// The data concerning how the moving entity should travel to the next [`Node`].
-    pub movement:          Movement
+    pub(in crate::map::path) movement:          Movement
 }
 
 impl AddAssign<Vec2> for Node
@@ -298,6 +299,9 @@ impl Node
     #[inline]
     #[must_use]
     pub fn world_pos(&self, center: Vec2) -> Vec2 { self.selectable_vector.vec + center }
+
+    /// Returns a reference to the node's [`Movement`].
+    pub fn movement(&self) -> &Movement { &self.movement }
 }
 
 //=======================================================================//

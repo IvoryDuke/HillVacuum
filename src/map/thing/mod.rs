@@ -80,11 +80,16 @@ impl ThingId
     #[inline]
     #[must_use]
     pub const fn new(id: u16) -> Self { Self(id) }
+
+    /// Returns the [`u16`] associated with `self`.
+    #[inline]
+    #[must_use]
+    pub const fn values(self) -> u16 { self.0 }
 }
 
 //=======================================================================//
 
-/// A [`Thing`] which can be used to create map placeable items.
+/// An object which can be used to create map placeable items.
 #[must_use]
 #[derive(Clone)]
 pub struct Thing

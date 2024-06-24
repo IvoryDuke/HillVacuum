@@ -310,7 +310,7 @@ impl ScaleTool
         );
     }
 
-    /// Scales the selected [`Brush`]es.
+    /// Scales the selected brushes.
     #[inline]
     fn scale_brushes(
         bundle: &mut ToolUpdateBundle,
@@ -406,7 +406,7 @@ impl ScaleTool
         }
     }
 
-    /// Scales the textures of the selected [`Brush`]es and returns the new outline [`Hull`].
+    /// Scales the textures of the selected brushes and returns the new outline [`Hull`].
     #[inline]
     fn scale_textures(
         bundle: &mut ToolUpdateBundle,

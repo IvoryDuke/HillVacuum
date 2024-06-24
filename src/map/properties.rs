@@ -10,9 +10,14 @@ use hill_vacuum_shared::{match_or_panic, return_if_none, NextValue};
 use serde::{Deserialize, Serialize};
 
 use super::{containers::HvVec, AssertedInsertRemove};
-use crate::map::{
-    containers::{hv_hash_map, hv_vec, HvHashMap},
-    indexed_map::IndexedMap
+#[allow(unused_imports)]
+use crate::{
+    map::{
+        containers::{hv_hash_map, hv_vec, HvHashMap},
+        indexed_map::IndexedMap
+    },
+    Brush,
+    ThingInstance
 };
 
 //=======================================================================//
@@ -62,7 +67,7 @@ pub(in crate::map) trait SetProperty
 
 #[must_use]
 #[derive(Clone, Serialize, Deserialize)]
-/// A primitive value (+ [`String`]).
+/// A primitive value or a [`String`].
 pub enum Value
 {
     /// Bool.
@@ -300,7 +305,7 @@ impl BrushProperties
 
 //=======================================================================//
 
-/// The default properties associated with all [`Thing`]s.
+/// The default properties associated with all [`ThingInstance`]s.
 #[must_use]
 #[derive(Resource)]
 pub struct ThingProperties(pub Vec<(&'static str, Value)>);

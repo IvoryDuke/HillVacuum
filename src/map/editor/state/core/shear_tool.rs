@@ -65,7 +65,7 @@ pub(in crate::map::editor::state::core) struct ShearTool
 {
     /// The state.
     status:        Status,
-    /// The outline of the [`Brush`]es.
+    /// The outline of the brushes.
     outline:       Hull,
     /// The selected side of the outline.
     selected_side: Side
@@ -198,7 +198,7 @@ impl ShearTool
         }
     }
 
-    /// Shears the [`Brush`]es if possible.
+    /// Shears the brushes if possible.
     #[inline]
     fn shear_brushes(
         manager: &mut EntitiesManager,

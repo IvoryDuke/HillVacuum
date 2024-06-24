@@ -263,7 +263,7 @@ impl RotateTool
     //==============================================================
     // Info
 
-    /// Returns the center of the selected [`Brush`]es' polygons if the entities are being edited,
+    /// Returns the center of the selected brushes' polygons if the entities are being edited,
     /// otherwise the center of the textures.
     #[inline]
     #[must_use]
@@ -410,7 +410,7 @@ impl RotateTool
         };
     }
 
-    /// Rotates the selected [`Brush`]es.
+    /// Rotates the selected brushes.
     #[inline]
     fn rotate_brushes_with_keyboard(
         &self,
@@ -457,7 +457,7 @@ impl RotateTool
         );
     }
 
-    /// Rotates the selected [`Brush`]es clockwise.
+    /// Rotates the selected brushes clockwise.
     #[inline]
     fn rotate_brushes_cw(
         &self,
@@ -470,7 +470,7 @@ impl RotateTool
         self.rotate_brushes_with_keyboard(bundle, manager, edits_history, settings, -1f32);
     }
 
-    /// Rotates the selected [`Brush`]es counter-clockwise.
+    /// Rotates the selected brushes counter-clockwise.
     #[inline]
     fn rotate_brushes_ccw(
         &self,
@@ -483,7 +483,7 @@ impl RotateTool
         self.rotate_brushes_with_keyboard(bundle, manager, edits_history, settings, 1f32);
     }
 
-    /// Rotates the selected [`Brush`]es through the mouse drag.
+    /// Rotates the selected brushes through the mouse drag.
     #[inline]
     fn rotate_brushes_with_mouse(
         bundle: &ToolUpdateBundle,
@@ -536,7 +536,7 @@ impl RotateTool
         }
     }
 
-    /// Rotates the selected [`Brush`]es. Returns whever it was possible.
+    /// Rotates the selected brushes. Returns whever it was possible.
     #[inline]
     fn rotate_brushes(
         bundle: &ToolUpdateBundle,
@@ -584,7 +584,7 @@ impl RotateTool
         true
     }
 
-    /// Rotates the textures of the selected [`Brush`]es. Returns whever it could be done.
+    /// Rotates the textures of the selected brushes. Returns whever it could be done.
     #[inline]
     fn rotate_textures(bundle: &ToolUpdateBundle, manager: &mut EntitiesManager, angle: f32)
         -> bool

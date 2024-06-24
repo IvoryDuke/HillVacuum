@@ -189,11 +189,11 @@ pub(in crate::map) struct Editor
     things_catalog: ThingsCatalog,
     /// The resources to draw the map on screen.
     drawing_resources: DrawingResources,
-    /// The engine defined default [`Brush`] properties.
+    /// The engine defined default brush properties.
     brushes_default_properties: DefaultProperties,
     /// The engine defined default [`ThingInstance`] properties.
     things_default_properties: DefaultProperties,
-    /// The defined default [`Brush`] properties to be used for the currently opened map.
+    /// The defined default brush properties to be used for the currently opened map.
     map_brushes_default_properties: DefaultProperties,
     /// The defined default [`ThingInstance`] properties to be used for the currently opened map.
     map_things_default_properties: DefaultProperties

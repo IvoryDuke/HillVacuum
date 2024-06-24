@@ -52,7 +52,7 @@ use crate::{
 //
 //=======================================================================//
 
-/// A macro to clip the selected [`Brush`]es.
+/// A macro to clip the selected brushes.
 macro_rules! clip_brushes {
     (
         $self:ident,
@@ -101,7 +101,7 @@ macro_rules! clip_brushes {
 //
 //=======================================================================//
 
-/// The polygons to use to spawn the new [`Brush`]es.
+/// The polygons to use to spawn the new brushes.
 #[derive(Clone, Copy, Debug, Default, EnumSize, EnumFromUsize)]
 enum PickedPolygons
 {
@@ -135,17 +135,17 @@ enum Status
     Inactive(Option<ClipSide>),
     /// Creating the clip line.
     Active(Vec2, Option<Vec2>),
-    /// Choosing the [`Brush`]es to spawn.
+    /// Choosing the brushes to spawn.
     PostClip
     {
-        /// The polygons picked to spawn the [`Brush`]es.
+        /// The polygons picked to spawn the brushes.
         pick:           PickedPolygons,
         /// The polygons to the left of the clip line.
         left_polygons:  HvVec<(ConvexPolygon, Properties)>,
         /// The polygons to the right of the clip line.
         right_polygons: HvVec<(ConvexPolygon, Properties)>
     },
-    /// Choosing the side to clip the [`Brush`]es.
+    /// Choosing the side to clip the brushes.
     PickSideUi(Option<ClipSide>)
 }
 
@@ -176,11 +176,11 @@ impl EnabledTool for Status
 //
 //=======================================================================//
 
-/// The side used to clip the [`Brush`]es.
+/// The side used to clip the brushes.
 #[derive(Copy, Clone, Debug)]
 struct ClipSide
 {
-    /// The [`Id`] of the [`Brush`] with the chosen side.
+    /// The [`Id`] of the brush with the chosen side.
     id:    Id,
     /// The side.
     side:  [Vec2; 2],
@@ -340,7 +340,7 @@ impl ClipTool
         });
     }
 
-    /// Clips the selected [`Brush`]es with the chosen side.
+    /// Clips the selected brushes with the chosen side.
     #[inline]
     fn clip_brushes_with_side(
         &mut self,
@@ -368,7 +368,7 @@ impl ClipTool
         );
     }
 
-    /// Clips the selected [`Brush`]es with the clip line.
+    /// Clips the selected brushes with the clip line.
     #[inline]
     fn clip_brushes_with_line(
         &mut self,
@@ -389,7 +389,7 @@ impl ClipTool
         );
     }
 
-    /// Spawns the generated [`Brush`]es.
+    /// Spawns the generated brushes.
     #[inline]
     fn spawn_clipped_brushes(
         &mut self,

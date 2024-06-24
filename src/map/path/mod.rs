@@ -1588,7 +1588,7 @@ impl Buckets
 
 //=======================================================================//
 
-/// A path describing how a entity moves in space over time.
+/// A path describing how an entity moves in space over time.
 #[must_use]
 #[derive(Debug, Clone)]
 pub struct Path

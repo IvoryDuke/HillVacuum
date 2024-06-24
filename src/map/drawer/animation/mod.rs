@@ -164,9 +164,12 @@ impl Animator
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Animation
 {
+    /// None.
     #[default]
     None,
+    /// A list of frames.
     List(List),
+    /// A texture partitioning.
     Atlas(Atlas)
 }
 
@@ -174,11 +177,11 @@ impl Animation
 {
     /// Returns a [`List`] animation with a single texture.
     #[inline]
-    pub fn list_animation(texture: &str) -> Self { Self::List(List::new(texture)) }
+    pub(in crate::map) fn list_animation(texture: &str) -> Self { Self::List(List::new(texture)) }
 
     /// Returns a default [`Atlas`] animation.
     #[inline]
-    pub const fn atlas_animation() -> Self { Self::Atlas(Atlas::new()) }
+    pub(in crate::map) const fn atlas_animation() -> Self { Self::Atlas(Atlas::new()) }
 
     /// Whever there is no animation.
     #[inline]
@@ -201,28 +204,28 @@ impl Animation
 
     /// Returns a reference to the [`List`] animation.
     #[inline]
-    pub const fn get_list_animation(&self) -> &List
+    pub(in crate::map) const fn get_list_animation(&self) -> &List
     {
         match_or_panic!(self, Self::List(anim), anim)
     }
 
     /// Returns a mutable reference to the [`List`] animation.
     #[inline]
-    pub fn get_list_animation_mut(&mut self) -> &mut List
+    pub(in crate::map) fn get_list_animation_mut(&mut self) -> &mut List
     {
         match_or_panic!(self, Self::List(anim), anim)
     }
 
     /// Returns a reference to the [`Atlas`] animation.
     #[inline]
-    pub const fn get_atlas_animation(&self) -> &Atlas
+    pub(in crate::map) const fn get_atlas_animation(&self) -> &Atlas
     {
         match_or_panic!(self, Self::Atlas(anim), anim)
     }
 
     /// Returns a mutable reference to the [`Atlas`] animation.
     #[inline]
-    pub fn get_atlas_animation_mut(&mut self) -> &mut Atlas
+    pub(in crate::map) fn get_atlas_animation_mut(&mut self) -> &mut Atlas
     {
         match_or_panic!(self, Self::Atlas(anim), anim)
     }
@@ -489,6 +492,11 @@ impl List
     #[inline]
     #[must_use]
     pub fn frame(&self, index: usize) -> &(String, f32) { &self.0[index] }
+
+    /// Returns a reference to the frames of the animation.
+    #[inline]
+    #[must_use]
+    pub fn frames(&self) -> &Vec<(String, f32)> { &self.0 }
 
     /// Pushes a new frame.
     #[inline]

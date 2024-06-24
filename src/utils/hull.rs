@@ -343,7 +343,7 @@ impl Hull
     /// Panics if `bottom` is greater than `top` or `left` is greater than `right`.
     #[inline]
     #[must_use]
-    pub fn new(top: f32, bottom: f32, left: f32, right: f32) -> Self
+    pub(crate) fn new(top: f32, bottom: f32, left: f32, right: f32) -> Self
     {
         assert!(
             top >= bottom && right >= left,
@@ -361,7 +361,7 @@ impl Hull
     /// Returns a new [`Hull`] from two points used as opposite vertexes of a rectangular shape.
     #[inline]
     #[must_use]
-    pub fn from_opposite_vertexes(a: Vec2, b: Vec2) -> Option<Self>
+    pub(crate) fn from_opposite_vertexes(a: Vec2, b: Vec2) -> Option<Self>
     {
         if a.around_equal_narrow(&b)
         {
@@ -375,7 +375,7 @@ impl Hull
     /// Returns None if `iter` contains no elements.
     #[inline]
     #[must_use]
-    pub fn from_hulls_iter<I: Iterator<Item = Hull>>(iter: I) -> Option<Self>
+    pub(crate) fn from_hulls_iter<I: Iterator<Item = Hull>>(iter: I) -> Option<Self>
     {
         let mut result = None;
 
@@ -401,7 +401,7 @@ impl Hull
     /// Returns None if `points` contained no elements.
     #[inline]
     #[must_use]
-    pub fn from_points(points: impl ExactSizeIterator<Item = Vec2>) -> Option<Self>
+    pub(crate) fn from_points(points: impl ExactSizeIterator<Item = Vec2>) -> Option<Self>
     {
         if points.len() == 0
         {
@@ -523,7 +523,7 @@ impl Hull
     /// Whever the [`Hull`] contains `p`.
     #[inline]
     #[must_use]
-    pub fn contains_point(&self, p: Vec2) -> bool
+    pub(crate) fn contains_point(&self, p: Vec2) -> bool
     {
         let range = self.range();
         range.0.contains(&p.x) && range.1.contains(&p.y)
@@ -532,7 +532,7 @@ impl Hull
     /// Whever the [`Hull`] contains `other`.
     #[inline]
     #[must_use]
-    pub fn contains_hull(&self, other: &Self) -> bool
+    pub(crate) fn contains_hull(&self, other: &Self) -> bool
     {
         let range = self.range();
 
@@ -545,7 +545,7 @@ impl Hull
     /// Whever the [`Hull`] overlaps `other`.
     #[inline]
     #[must_use]
-    pub fn overlaps(&self, other: &Self) -> bool
+    pub(crate) fn overlaps(&self, other: &Self) -> bool
     {
         self.left < other.right &&
             self.right > other.left &&
@@ -556,7 +556,7 @@ impl Hull
     /// Whever the [`Hull`] intersects another one.
     #[inline]
     #[must_use]
-    pub fn intersects(&self, other: &Self) -> bool
+    pub(crate) fn intersects(&self, other: &Self) -> bool
     {
         let (x_range, y_range) = other.range();
 
@@ -574,7 +574,7 @@ impl Hull
     /// Breaks the [`Hull`] into its components: top, bottom, left, right.
     #[inline]
     #[must_use]
-    pub const fn decompose(self) -> (f32, f32, f32, f32)
+    pub(crate) const fn decompose(self) -> (f32, f32, f32, f32)
     {
         (self.top, self.bottom, self.left, self.right)
     }
@@ -582,7 +582,7 @@ impl Hull
     /// Returns the [`Hull`] encompassing this and `other`.
     #[inline]
     #[must_use]
-    pub fn merged(&self, other: &Hull) -> Self
+    pub(crate) fn merged(&self, other: &Hull) -> Self
     {
         Hull::new(
             f32::max(self.top, other.top),
@@ -596,7 +596,7 @@ impl Hull
     /// center.
     #[inline]
     #[must_use]
-    pub fn bumped(&self, bump: f32) -> Self
+    pub(crate) fn bumped(&self, bump: f32) -> Self
     {
         Hull::new(self.top + bump, self.bottom - bump, self.left - bump, self.right + bump)
     }
@@ -604,7 +604,7 @@ impl Hull
     /// Returns the vector representing the overlap of the [`Hull`] and `other`.
     #[inline]
     #[must_use]
-    pub fn overlap_vector(&self, other: &Hull) -> Option<Vec2>
+    pub(crate) fn overlap_vector(&self, other: &Hull) -> Option<Vec2>
     {
         let (l_1, r_1) = (self.left, self.right);
         let (b_1, t_1) = (self.bottom, self.top);
@@ -655,7 +655,7 @@ impl Hull
     /// Returns the corner coordinates closets to `p`.
     #[inline]
     #[must_use]
-    pub fn nearest_corner_to_point(&self, p: Vec2) -> Vec2
+    pub(crate) fn nearest_corner_to_point(&self, p: Vec2) -> Vec2
     {
         let mut vx = Vec2::new(self.left, self.top);
 
@@ -679,7 +679,7 @@ impl Hull
     /// `orientation`.
     #[inline]
     #[must_use]
-    pub const fn triangle(&self, orientation: TriangleOrientation) -> [Vec2; 3]
+    pub(crate) const fn triangle(&self, orientation: TriangleOrientation) -> [Vec2; 3]
     {
         match orientation
         {
@@ -703,7 +703,7 @@ impl Hull
     /// [`Hull`]'s.
     #[inline]
     #[must_use]
-    pub const fn rectangle(&self) -> [Vec2; 4]
+    pub(crate) const fn rectangle(&self) -> [Vec2; 4]
     {
         [
             self.top_right(),
@@ -717,7 +717,7 @@ impl Hull
     /// `resolution` sides.
     #[inline]
     #[must_use]
-    pub fn circle(&self, resolution: u8) -> CircleIterator { CircleIterator::new(resolution, self) }
+    pub(crate) fn circle(&self, resolution: u8) -> CircleIterator { CircleIterator::new(resolution, self) }
 
     //==============================================================
     // Corner & Side
@@ -725,7 +725,7 @@ impl Hull
     /// The coordinates of `corner`.
     #[inline]
     #[must_use]
-    pub const fn corner_vertex(&self, corner: Corner) -> Vec2
+    pub(crate) const fn corner_vertex(&self, corner: Corner) -> Vec2
     {
         match corner
         {
@@ -738,14 +738,14 @@ impl Hull
 
     /// Returns an iterator to all four [`Corner`]s and relative coordinates of the [`Hull`].
     #[inline]
-    pub fn corners(&self) -> impl ExactSizeIterator<Item = (Corner, Vec2)> + '_
+    pub(crate) fn corners(&self) -> impl ExactSizeIterator<Item = (Corner, Vec2)> + '_
     {
         Corner::iter().map(|corner| (corner, self.corner_vertex(corner)))
     }
 
     /// Returns an iterator to the coordinates of the four [`Corner`]s.
     #[inline]
-    pub fn vertexes(&self) -> impl ExactSizeIterator<Item = Vec2> + '_
+    pub(crate) fn vertexes(&self) -> impl ExactSizeIterator<Item = Vec2> + '_
     {
         Corner::iter().map(|corner| self.corner_vertex(corner))
     }
@@ -753,7 +753,7 @@ impl Hull
     /// Returns the coordinates of the [`Corner`] nearby `cursor_pos`, if any.
     #[inline]
     #[must_use]
-    pub fn nearby_corner(&self, cursor_pos: Vec2, camera_scale: f32) -> Option<Corner>
+    pub(crate) fn nearby_corner(&self, cursor_pos: Vec2, camera_scale: f32) -> Option<Corner>
     {
         self.corners().find_map(|(corner, vx)| {
             vx.is_point_inside_ui_highlight(cursor_pos, camera_scale)
@@ -764,7 +764,7 @@ impl Hull
     /// The coordinates of the vertexes representing `side`.
     #[inline]
     #[must_use]
-    pub const fn side_segment(&self, side: Side) -> [Vec2; 2]
+    pub(crate) const fn side_segment(&self, side: Side) -> [Vec2; 2]
     {
         match side
         {
@@ -777,23 +777,16 @@ impl Hull
 
     /// Returns an Iterator to all four [`Side`]s and relative coordinates of the [`Hull`].
     #[inline]
-    pub fn sides(&self) -> impl Iterator<Item = (Side, [Vec2; 2])> + '_
+    pub(crate) fn sides(&self) -> impl Iterator<Item = (Side, [Vec2; 2])> + '_
     {
         Side::iter().map(|side| (side, self.side_segment(side)))
-    }
-
-    /// Returns an Iterator to the segments of the [`Hull`]'s sides.
-    #[inline]
-    pub fn sides_segments(&self) -> impl Iterator<Item = [Vec2; 2]> + '_
-    {
-        Side::iter().map(|side| self.side_segment(side))
     }
 
     /// Returns the [`Side`] closet to `cursor_pos`, if any.
     #[allow(clippy::missing_panics_doc)]
     #[inline]
     #[must_use]
-    pub fn nearby_side(&self, cursor_pos: Vec2, camera_scale: f32) -> Option<Side>
+    pub(crate) fn nearby_side(&self, cursor_pos: Vec2, camera_scale: f32) -> Option<Side>
     {
         let mut distance = f32::MAX;
         let mut result = None;
@@ -819,7 +812,7 @@ impl Hull
     /// Flips the [`Hull`] with respect to the `flip_queue` elements.
     #[inline]
     #[must_use]
-    pub fn flipped(&self, flip_queue: impl Iterator<Item = Flip>) -> Self
+    pub(crate) fn flipped(&self, flip_queue: impl Iterator<Item = Flip>) -> Self
     {
         let mut hull = *self;
         let width = hull.width();
@@ -858,7 +851,7 @@ impl Hull
     /// Returns a [`Hull`] scaled according to the new position of the moved [`Corner`].
     #[inline]
     #[must_use]
-    pub fn scaled(&self, selected_corner: &mut Corner, new_corner_position: Vec2) -> ScaleResult
+    pub(crate) fn scaled(&self, selected_corner: &mut Corner, new_corner_position: Vec2) -> ScaleResult
     {
         /// Checks a flip above the pivot.
         macro_rules! check_flip_higher {

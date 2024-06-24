@@ -199,7 +199,7 @@ impl AuxiliaryIds
     #[inline]
     pub fn iter(&self) -> hashbrown::hash_set::Iter<Id> { self.0.iter() }
 
-    /// Pushes the [`Id`]s of the anchored [`Brush`]es of `brushes`.
+    /// Pushes the [`Id`]s of the anchored brushes of `brushes`.
     #[inline]
     fn store_anchored_ids<'a>(&mut self, brushes: impl Iterator<Item = &'a Brush>)
     {
@@ -384,29 +384,29 @@ impl Animators
 #[must_use]
 struct Innards
 {
-    /// All the [`Brush`]es on the map.
+    /// All the brushes on the map.
     brushes: HvHashMap<Id, Brush>,
     /// All the [`Thing`]s on the map.
     things: HvHashMap<Id, ThingInstance>,
-    /// The currently selected [`Brush`]es.
+    /// The currently selected brushes.
     selected_brushes: Ids,
     /// The currently selected [`Thing`]s.
     selected_things: Ids,
-    /// The [`Id`]s of all the moving [`Brush`]es.
+    /// The [`Id`]s of all the moving brushes.
     moving: Ids,
-    /// The [`Id`]s of the selected moving [`Brush`]es.
+    /// The [`Id`]s of the selected moving brushes.
     selected_moving: Ids,
     /// The [`Id`]s of the entities that do not have a [`Path`] but could have one.
     possible_moving: Ids,
     /// The [`Id`]s of the selected entities that do not have a [`Path`] but could have one.
     selected_possible_moving: Ids,
-    /// The [`Id`]s of the textured moving [`Brush`]es.
+    /// The [`Id`]s of the textured moving brushes.
     textured: Ids,
-    /// The [`Id`]s of the selected textured [`Brush`]es.
+    /// The [`Id`]s of the selected textured brushes.
     selected_textured: Ids,
-    /// The [`Id`]s of the selected [`Brush`]es with associated sprites.
+    /// The [`Id`]s of the selected brushes with associated sprites.
     selected_sprites: HvHashMap<String, Ids>,
-    /// The [`Id`]s of the  moving [`Brush`]es with anchors.
+    /// The [`Id`]s of the  moving brushes with anchors.
     brushes_with_anchors: HvHashMap<Id, Hull>,
     /// The generator of the [`Id`]s of the new entities.
     id_generator: IdGenerator,
@@ -414,16 +414,16 @@ struct Innards
     error_highlight: ErrorHighlight,
     /// Whever the tool outline should be updated.
     outline_update: bool,
-    /// The [`Id`]s of the [`Brush`]es whose amount of selected vertexes changed, necessary for the
+    /// The [`Id`]s of the brushes whose amount of selected vertexes changed, necessary for the
     /// update of the vertex and side tools.
     selected_vertexes_update: Ids,
     /// Whever the texture displayed in the texture editor should be updated.
     overall_texture_update: bool,
     /// Whever the info displayed in the platform tool's node editor should be updated.
     overall_node_update: bool,
-    /// Whever the overall value of the selected [`Brush`]es' collision should be updated.
+    /// Whever the overall value of the selected brushes' collision should be updated.
     overall_collision_update: bool,
-    /// Whever the overall properties of the [`Brush`]es should be updated.
+    /// Whever the overall properties of the brushes should be updated.
     overall_brushes_properties_update: PropertyUpdate,
     /// Whever the overall value of the draw height of the selected [`Thing`]s should be updated.
     overall_things_info_update: bool,
@@ -466,7 +466,7 @@ impl Innards
         }
     }
 
-    /// Reads the [`Brush`]es and [`Thing`]s from `file`.
+    /// Reads the brushes and [`Thing`]s from `file`.
     /// Returns an error if it occurred.
     #[inline]
     pub fn load(
@@ -731,19 +731,19 @@ impl Innards
     //==============================================================
     // Selected entities
 
-    /// Returns the amount of selected [`Brush`]es.
+    /// Returns the amount of selected brushes.
     #[inline]
     #[must_use]
     pub fn selected_brushes_amount(&self) -> usize { self.selected_brushes.len() }
 
-    /// Returns the [`Id`]s of the selected [`Brush`]es.
+    /// Returns the [`Id`]s of the selected brushes.
     #[inline]
     pub fn selected_brushes_ids(&self) -> impl ExactSizeIterator<Item = &Id> + Clone
     {
         self.selected_brushes.iter()
     }
 
-    /// Returns the [`Id`]s of the selected [`Brush`]es and [`Thing`]s.
+    /// Returns the [`Id`]s of the selected brushes and [`Thing`]s.
     #[inline]
     pub fn selected_entities_ids(&self) -> impl Iterator<Item = &Id>
     {
@@ -753,8 +753,8 @@ impl Innards
     /// Updates the value related to entity selection for the entity `identifier`.
     /// Returns true if entity is a [`ThingInstance`].
     /// # Panics
-    /// Panics if the entity does not exist, or it belongs to a textured [`Brush`] and it is not
-    /// part of the set of textured [`Brush`]es [`Id`]s.
+    /// Panics if the entity does not exist, or it belongs to a textured brush and it is not
+    /// part of the set of textured brushes [`Id`]s.
     #[inline]
     fn insert_entity_selection(&mut self, identifier: Id) -> bool
     {
@@ -872,9 +872,9 @@ impl Innards
         false
     }
 
-    /// Inserts the [`Id`] of a [`Brush`] with sprite in the selected sprites set.
+    /// Inserts the [`Id`] of a brush with sprite in the selected sprites set.
     /// # Panics
-    /// Panics if the [`Brush`] has no sprite.
+    /// Panics if the brush has no sprite.
     #[inline]
     fn insert_selected_sprite(&mut self, identifier: Id)
     {
@@ -896,9 +896,9 @@ impl Innards
         };
     }
 
-    /// Removes the [`Id`] of a [`Brush`] with sprite from the selected sprites set.
+    /// Removes the [`Id`] of a brush with sprite from the selected sprites set.
     /// # Panics
-    /// Panics if the [`Brush`] has a sprite.
+    /// Panics if the brush has a sprite.
     #[inline]
     fn remove_selected_sprite(&mut self, identifier: Id)
     {
@@ -911,7 +911,7 @@ impl Innards
             .asserted_remove(&identifier);
     }
 
-    /// Removes the texture from the [`Brush`] with [`Id`] `identifier`, and returns its
+    /// Removes the texture from the brush with [`Id`] `identifier`, and returns its
     /// [`TextureSettings`].
     #[inline]
     pub fn remove_texture(&mut self, quad_trees: &mut Trees, identifier: Id) -> TextureSettings
@@ -1012,9 +1012,9 @@ impl Innards
     //==============================================================
     // Brushes
 
-    /// Returns a reference to the [`Brush`] with [`Id`] `identifier`.
+    /// Returns a reference to the brush with [`Id`] `identifier`.
     /// # Panics
-    /// Panics if the [`Brush`] does not exist.
+    /// Panics if the brush does not exist.
     #[inline]
     pub fn brush(&self, identifier: Id) -> &Brush
     {
@@ -1023,20 +1023,20 @@ impl Innards
             .unwrap_or_else(|| panic!("Failed brush() call for id {identifier:?}"))
     }
 
-    /// Returns a [`BrushMut`] wrapping the [`Brush`] with [`Id`] `identifier`.
+    /// Returns a [`BrushMut`] wrapping the brush with [`Id`] `identifier`.
     /// # Panics
-    /// Panics if the [`Brush`] does not exist.
+    /// Panics if the brush does not exist.
     #[inline]
     pub fn brush_mut<'a>(&'a mut self, quad_trees: &'a mut Trees, identifier: Id) -> BrushMut<'a>
     {
         BrushMut::new(self, quad_trees, identifier)
     }
 
-    /// Returns a [`Brushes`] wrapping the existing [`Brush`]es.
+    /// Returns a [`Brushes`] wrapping the existing brushes.
     #[inline]
     const fn brushes(&self) -> Brushes { Brushes(&self.brushes) }
 
-    /// Disanchors the [`Brush`] with [`Id`] `anchor_id` to the one with [`Id`] `owner_id`.
+    /// Disanchors the brush with [`Id`] `anchor_id` to the one with [`Id`] `owner_id`.
     #[inline]
     fn anchor(&mut self, quad_trees: &mut Trees, owner_id: Id, anchor_id: Id)
     {
@@ -1050,7 +1050,7 @@ impl Innards
         assert!(self.insert_anchors_hull(quad_trees, owner_id), "Could not insert anchor.");
     }
 
-    /// Disanchors the [`Brush`] with [`Id`] `anchor_id` from the one with [`Id`] `owner_id`.
+    /// Disanchors the brush with [`Id`] `anchor_id` from the one with [`Id`] `owner_id`.
     #[inline]
     pub fn disanchor(&mut self, quad_trees: &mut Trees, owner_id: Id, anchor_id: Id)
     {
@@ -1067,7 +1067,7 @@ impl Innards
         _ = self.insert_anchors_hull(quad_trees, owner_id);
     }
 
-    /// Selects the [`Id`]s of the [`Brush`]es anchored to the ones with [`Id`]s contained in
+    /// Selects the [`Id`]s of the brushes anchored to the ones with [`Id`]s contained in
     /// `identifiers`.
     #[inline]
     fn select_anchored_brushes(
@@ -1082,7 +1082,7 @@ impl Innards
         self.select_cluster(edits_history, auxiliary.iter());
     }
 
-    /// Selects the [`Brush`]es anchored to the selected ones.
+    /// Selects the brushes anchored to the selected ones.
     #[inline]
     fn select_anchored_brushes_of_selected_brushes(
         &mut self,
@@ -1095,9 +1095,9 @@ impl Innards
         self.select_cluster(edits_history, auxiliary.iter());
     }
 
-    /// Adds a [`Brush`] to the map.
+    /// Adds a brush to the map.
     /// # Panics
-    /// Panics if the [`Brush`] has anchored [`Brush`]es but the [`Hull`] describing the anchors
+    /// Panics if the brush has anchored brushes but the [`Hull`] describing the anchors
     /// area could not be retrieved.
     #[inline]
     fn insert_brush(&mut self, quad_trees: &mut Trees, brush: Brush, selected: bool)
@@ -1169,9 +1169,9 @@ impl Innards
         }
     }
 
-    /// Removes the [`Brush`] with [`Id`] `identifier` from the map and returns it.
+    /// Removes the brush with [`Id`] `identifier` from the map and returns it.
     /// # Panics
-    /// Panics if there are discrepancies between the [`Brush`] properties and the stored
+    /// Panics if there are discrepancies between the brush properties and the stored
     /// informations.
     #[inline]
     fn remove_brush(&mut self, quad_trees: &mut Trees, identifier: Id, selected: bool) -> Brush
@@ -1264,7 +1264,7 @@ impl Innards
     #[must_use]
     fn new_id(&mut self) -> Id { self.id_generator.new_id() }
 
-    /// Spawns a [`Brush`] in the map and returns its [`Id`].
+    /// Spawns a brush in the map and returns its [`Id`].
     #[inline]
     pub fn spawn_brush<'a>(
         &mut self,
@@ -1284,7 +1284,7 @@ impl Innards
         id
     }
 
-    /// Despawns the [`Brush`] with [`Id`] `identifier` from the map.
+    /// Despawns the brush with [`Id`] `identifier` from the map.
     #[inline]
     fn despawn_brush(
         &mut self,
@@ -1298,7 +1298,7 @@ impl Innards
         edits_history.brush_despawn(brush, selected);
     }
 
-    /// Despawns all selected [`Brush`]es.
+    /// Despawns all selected brushes.
     #[inline]
     fn despawn_selected_brush(
         &mut self,
@@ -1310,10 +1310,10 @@ impl Innards
         self.despawn_brush(quad_trees, identifier, edits_history, true);
     }
 
-    /// Sets the texture of the [`Brush`] with [`Id`] `identifier`.
+    /// Sets the texture of the brush with [`Id`] `identifier`.
     /// Returns the [`TextureMetadata`] of the replaced texture, if any.
     /// # Panics
-    /// Panics if the [`Brush`] is not selected.
+    /// Panics if the brush is not selected.
     #[inline]
     #[must_use]
     pub fn set_texture(
@@ -1426,7 +1426,7 @@ impl Innards
         self.create_path(quad_trees, identifier, path, edits_history);
     }
 
-    /// Replaces in the quad trees the [`Hull`] of the anchors of the [`Brush`] with [`Id`]
+    /// Replaces in the quad trees the [`Hull`] of the anchors of the brush with [`Id`]
     /// `identifier`.
     /// # Panics
     /// Panics if the anchors [`Hull`] was not already inserted.
@@ -1440,7 +1440,7 @@ impl Innards
         _ = self.insert_anchors_hull(quad_trees, owner_id);
     }
 
-    /// Inserts in the quad trees the [`Hull`] of the anchors of the [`Brush`] with [`Id`], and
+    /// Inserts in the quad trees the [`Hull`] of the anchors of the brush with [`Id`], and
     /// returns whever the procedure was successful. `identifier`.
     #[inline]
     #[must_use]
@@ -1452,7 +1452,7 @@ impl Innards
         true
     }
 
-    /// Removes from the quad trees the [`Hull`] of the anchors of the [`Brush`] with [`Id`]
+    /// Removes from the quad trees the [`Hull`] of the anchors of the brush with [`Id`]
     /// `identifier`, and returns whever the procedure was successful.
     #[inline]
     #[must_use]
@@ -1629,7 +1629,7 @@ pub(in crate::map::editor::state) struct EntitiesManager
     quad_trees:      Trees,
     /// The auxiliary container used to avoid using unsafe code in certain procedures.
     auxiliary:       AuxiliaryIds,
-    /// Vector to help in the despawn of the selected [`Brush`]es.
+    /// Vector to help in the despawn of the selected brushes.
     brushes_despawn: HvVec<Id>
 }
 
@@ -1779,14 +1779,14 @@ impl EntitiesManager
         false
     }
 
-    /// Schedules the update of the overall collision of the [`Brush`]es.
+    /// Schedules the update of the overall collision of the brushes.
     #[inline]
     pub fn schedule_overall_collision_update(&mut self)
     {
         self.innards.overall_collision_update = true;
     }
 
-    /// Schedules the update of the overall [`Brush`]s property with key `k` value.
+    /// Schedules the update of the overall brushs property with key `k` value.
     #[inline]
     pub fn schedule_overall_brushes_property_update(&mut self, k: &str)
     {
@@ -1936,26 +1936,26 @@ impl EntitiesManager
     //==============================================================
     // Brushes
 
-    /// Returns the amount of [`Brush`]es.
+    /// Returns the amount of brushes.
     #[inline]
     #[must_use]
     pub fn brushes_amount(&self) -> usize { self.innards.brushes.len() }
 
-    /// Returns the amount of selected [`Brush`]es.
+    /// Returns the amount of selected brushes.
     #[inline]
     #[must_use]
     pub fn selected_brushes_amount(&self) -> usize { self.innards.selected_brushes_amount() }
 
-    /// Whever there are any currently selected [`Brush`]es.
+    /// Whever there are any currently selected brushes.
     #[inline]
     #[must_use]
     pub fn any_selected_brushes(&self) -> bool { self.selected_brushes_amount() != 0 }
 
-    /// Returns a reference to the [`Brush`] with [`Id`] identifier.
+    /// Returns a reference to the brush with [`Id`] identifier.
     #[inline]
     pub fn brush(&self, identifier: Id) -> &Brush { self.innards.brush(identifier) }
 
-    /// Returns an iterator to the [`Id`]s of the selected [`Brush`]es.
+    /// Returns an iterator to the [`Id`]s of the selected brushes.
     #[inline]
     pub fn selected_brushes_ids(&self) -> impl ExactSizeIterator<Item = &Id> + Clone
     {
@@ -1983,21 +1983,21 @@ impl EntitiesManager
     #[inline]
     pub const fn brushes(&self) -> Brushes { self.innards.brushes() }
 
-    /// Returns an array of references to `N` [`Brush`]es.
+    /// Returns an array of references to `N` brushes.
     #[inline]
     pub fn many_brushes<const N: usize>(&self, identifiers: [Id; N]) -> [&Brush; N]
     {
         std::array::from_fn(|i| self.brush(identifiers[i]))
     }
 
-    /// Returns a [`BrushMut`] wrapping the [`Brush`] with [`Id`] `identifier`.
+    /// Returns a [`BrushMut`] wrapping the brush with [`Id`] `identifier`.
     #[inline]
     pub fn brush_mut(&mut self, identifier: Id) -> BrushMut<'_>
     {
         BrushMut::new(&mut self.innards, &mut self.quad_trees, identifier)
     }
 
-    /// Returns an iterator to the non selected [`Brush`]es.
+    /// Returns an iterator to the non selected brushes.
     #[inline]
     pub fn non_selected_brushes(&mut self) -> impl Iterator<Item = &Brush>
     {
@@ -2007,14 +2007,14 @@ impl EntitiesManager
             .filter(|brush| !self.is_selected(brush.id()))
     }
 
-    /// Returns an iterator to the selected [`Brush`]es.
+    /// Returns an iterator to the selected brushes.
     #[inline]
     pub fn selected_brushes(&self) -> impl Iterator<Item = &Brush>
     {
         self.selected_brushes_ids().map(|id| self.brush(*id))
     }
 
-    /// Returns an iterator to [`BrushMut`] wrapping the selected [`Brush`]es.
+    /// Returns an iterator to [`BrushMut`] wrapping the selected brushes.
     #[inline]
     pub fn selected_brushes_mut(&mut self) -> impl Iterator<Item = BrushMut<'_>>
     {
@@ -2022,23 +2022,23 @@ impl EntitiesManager
         SelectedBrushesMut::new(&mut self.innards, &mut self.quad_trees, &self.auxiliary)
     }
 
-    /// Returns a [`BrushesIter`] that returns the [`Brush`]es near `cursor_pos`.
-    /// If `camera_scale` contains a value it wraps [`Brush`]es within the cursor highlight.
+    /// Returns a [`BrushesIter`] that returns the brushes near `cursor_pos`.
+    /// If `camera_scale` contains a value it wraps brushes within the cursor highlight.
     #[inline]
     pub fn brushes_at_pos(&self, cursor_pos: Vec2, camera_scale: Option<f32>) -> BrushesIter<'_>
     {
         self.brushes_iter(self.quad_trees.brushes_at_pos(cursor_pos, camera_scale))
     }
 
-    /// Returns an iterator to the visible [`Brush`]es.
+    /// Returns an iterator to the visible brushes.
     #[inline]
     pub fn visible_brushes(&self, window: &Window, camera: &Transform) -> BrushesIter<'_>
     {
         self.brushes_iter(self.quad_trees.visible_brushes(camera, window))
     }
 
-    /// Returns a [`SelectedBrushesIter`] that returns the selected [`Brush`]es near `cursor_pos`.
-    /// If `camera_scale` contains a value it wraps the selected [`Brush`]es within the cursor
+    /// Returns a [`SelectedBrushesIter`] that returns the selected brushes near `cursor_pos`.
+    /// If `camera_scale` contains a value it wraps the selected brushes within the cursor
     /// highlight.
     #[inline]
     pub fn selected_brushes_at_pos(
@@ -2050,8 +2050,8 @@ impl EntitiesManager
         self.selected_brushes_iter(self.quad_trees.brushes_at_pos(cursor_pos, camera_scale.into()))
     }
 
-    /// Returns an iterator to [`BrushMut`]s wrapping the selected [`Brush`]es near `cursor_pos`.
-    /// If `camera_scale` contains a value it wraps the selected [`Brush`]es within the cursor
+    /// Returns an iterator to [`BrushMut`]s wrapping the selected brushes near `cursor_pos`.
+    /// If `camera_scale` contains a value it wraps the selected brushes within the cursor
     /// highlight.
     #[inline]
     pub fn selected_brushes_mut_at_pos(
@@ -2070,7 +2070,7 @@ impl EntitiesManager
         SelectedBrushesMut::new(&mut self.innards, &mut self.quad_trees, &self.auxiliary)
     }
 
-    /// Returns an [`IdsInRange`] returning the [`Id`]s of [`Brush`]es intersecting `range`.
+    /// Returns an [`IdsInRange`] returning the [`Id`]s of brushes intersecting `range`.
     #[inline]
     pub fn brushes_in_range(&self, range: &Hull) -> IdsInRange<'_>
     {
@@ -2218,7 +2218,7 @@ impl EntitiesManager
             .select_anchored_brushes_of_selected_brushes(edits_history, &mut self.auxiliary);
     }
 
-    /// Stores the [`Id`]s of the [`Brush`]es anchored to the ones with [`Id`]s returned by
+    /// Stores the [`Id`]s of the brushes anchored to the ones with [`Id`]s returned by
     /// `identifiers`.
     #[inline]
     fn store_anchored_ids(&mut self, identifiers: impl IntoIterator<Item = Id>)
@@ -2227,7 +2227,7 @@ impl EntitiesManager
             .store_anchored_ids(identifiers.into_iter().map(|id| self.innards.brush(id)));
     }
 
-    /// Deselects the [`Id`]s of the [`Brush`]es anchored to the ones with [`Id`]s returned by
+    /// Deselects the [`Id`]s of the brushes anchored to the ones with [`Id`]s returned by
     /// `identifiers`.
     #[inline]
     fn deselect_anchored_brushes(
@@ -2241,7 +2241,7 @@ impl EntitiesManager
         self.innards.deselect_cluster(edits_history, self.auxiliary.iter());
     }
 
-    /// Returns the center of the rectangle encompassing the [`Brush`]es with [`Id`]s returned by
+    /// Returns the center of the rectangle encompassing the brushes with [`Id`]s returned by
     /// `ids`, if any.
     #[inline]
     #[must_use]
@@ -2263,7 +2263,7 @@ impl EntitiesManager
         Some(center / vx_count)
     }
 
-    /// Returns the center of the rectangle encompassing the selected [`Brush`]es, if any.
+    /// Returns the center of the rectangle encompassing the selected brushes, if any.
     #[inline]
     #[must_use]
     pub fn selected_brushes_center(&self) -> Option<Vec2>
@@ -2271,7 +2271,7 @@ impl EntitiesManager
         self.brushes_center(self.selected_brushes_ids().copied())
     }
 
-    /// Returns the center of the rectangle encompassing the selected textured [`Brush`]es, if any.
+    /// Returns the center of the rectangle encompassing the selected textured brushes, if any.
     #[inline]
     #[must_use]
     pub fn selected_textured_brushes_center(&self) -> Option<Vec2>
@@ -2279,7 +2279,7 @@ impl EntitiesManager
         self.brushes_center(self.selected_textured_ids().copied())
     }
 
-    /// Returns the [`Hull`] describing the rectangle encompassing all selected [`Brush`]es, if any.
+    /// Returns the [`Hull`] describing the rectangle encompassing all selected brushes, if any.
     #[inline]
     #[must_use]
     pub fn selected_brushes_hull(&self) -> Option<Hull>
@@ -2288,7 +2288,7 @@ impl EntitiesManager
     }
 
     /// Returns the [`Hull`] describing the rectangle encompassing all selected textured
-    /// [`Brush`]es, if any.
+    /// brushes, if any.
     #[inline]
     #[must_use]
     pub fn selected_textured_brushes_hull(&self) -> Option<Hull>
@@ -2311,7 +2311,7 @@ impl EntitiesManager
         )
     }
 
-    /// Returns an iterator to all the selected [`Brush`]es with sprites.
+    /// Returns an iterator to all the selected brushes with sprites.
     #[inline]
     pub fn selected_brushes_with_sprites(&mut self) -> impl Iterator<Item = &Brush>
     {
@@ -2320,7 +2320,7 @@ impl EntitiesManager
         {
             /// All the identifiers.
             iter:     hashbrown::hash_map::Values<'a, String, Ids>,
-            /// Identifiers of the [`Brush`]es with same sprite.
+            /// Identifiers of the brushes with same sprite.
             sub_iter: hashbrown::hash_set::Iter<'a, Id>
         }
 
@@ -2350,7 +2350,7 @@ impl EntitiesManager
         Iter { iter, sub_iter }.map(|id| self.brush(*id))
     }
 
-    /// Returns an iterator to the [`BrushMut`]s wrapping the selected [`Brush`]es with sprites.
+    /// Returns an iterator to the [`BrushMut`]s wrapping the selected brushes with sprites.
     #[inline]
     pub fn selected_brushes_with_sprite_mut(&mut self) -> impl Iterator<Item = BrushMut>
     {
@@ -2364,7 +2364,7 @@ impl EntitiesManager
         SelectedBrushesMut::new(&mut self.innards, &mut self.quad_trees, &self.auxiliary)
     }
 
-    /// Returns an iterator to the [`BrushMut`]s wrapping the selected [`Brush`]es with sprite
+    /// Returns an iterator to the [`BrushMut`]s wrapping the selected brushes with sprite
     /// `texture`.
     #[inline]
     pub fn selected_brushes_with_texture_sprite_mut(
@@ -2377,7 +2377,7 @@ impl EntitiesManager
         SelectedBrushesMut::new(&mut self.innards, &mut self.quad_trees, &self.auxiliary).into()
     }
 
-    /// Spawns a [`Brush`] generated from `polygon` and returns its [`Id`].
+    /// Spawns a brush generated from `polygon` and returns its [`Id`].
     #[inline]
     pub fn spawn_brush<'d>(
         &mut self,
@@ -2390,7 +2390,7 @@ impl EntitiesManager
             .spawn_brush(&mut self.quad_trees, polygon, edits_history, properties)
     }
 
-    /// Spawns a [`Brush`] generated from the arguments.
+    /// Spawns a brush generated from the arguments.
     #[inline]
     pub fn spawn_brush_from_parts(&mut self, identifier: Id, data: BrushData, selected: bool)
     {
@@ -2418,7 +2418,7 @@ impl EntitiesManager
         )
     }
 
-    /// Spawns the [`Brush`]es created from `polygons`.
+    /// Spawns the brushes created from `polygons`.
     #[inline]
     pub fn spawn_brushes(
         &mut self,
@@ -2435,7 +2435,7 @@ impl EntitiesManager
         self.spawn_brush(polygons.next_value(), edits_history, properties);
     }
 
-    /// Spawns a [`Brush`] created with a draw tool.
+    /// Spawns a brush created with a draw tool.
     #[inline]
     pub fn spawn_drawn_brush(
         &mut self,
@@ -2455,14 +2455,14 @@ impl EntitiesManager
         self.innards.insert_brush(&mut self.quad_trees, brush, true);
     }
 
-    /// Removes the [`Brush`] with [`Id`] `identifier` from the internal data structures.
+    /// Removes the brush with [`Id`] `identifier` from the internal data structures.
     #[inline]
     fn remove_brush(&mut self, identifier: Id, selected: bool) -> Brush
     {
         self.innards.remove_brush(&mut self.quad_trees, identifier, selected)
     }
 
-    /// Despawns the [`Brush`]es created with a draw tool whose [`Id`]s are contained in
+    /// Despawns the brushes created with a draw tool whose [`Id`]s are contained in
     /// `drawn_brushes`.
     #[inline]
     pub fn despawn_drawn_brushes(
@@ -2479,7 +2479,7 @@ impl EntitiesManager
         drawn_brushes.clear();
     }
 
-    /// Despawns the [`Brush`] with [`Id`] `identifier`.
+    /// Despawns the brush with [`Id`] `identifier`.
     #[inline]
     pub fn despawn_brush(
         &mut self,
@@ -2492,21 +2492,21 @@ impl EntitiesManager
             .despawn_brush(&mut self.quad_trees, identifier, edits_history, selected);
     }
 
-    /// Despawns the [`Brush`] with [`Id`] `identifier` and returns its parts.
+    /// Despawns the brush with [`Id`] `identifier` and returns its parts.
     #[inline]
     pub fn despawn_brush_into_parts(&mut self, identifier: Id, selected: bool) -> BrushData
     {
         self.remove_brush(identifier, selected).into_parts().0
     }
 
-    /// Despawns the [`Brush`] with [`Id`] `identifier`.
+    /// Despawns the brush with [`Id`] `identifier`.
     #[inline]
     pub fn despawn_selected_brush(&mut self, identifier: Id, edits_history: &mut EditsHistory)
     {
         self.despawn_brush(identifier, edits_history, true);
     }
 
-    /// Despawns the selected [`Brush`]es.
+    /// Despawns the selected brushes.
     #[inline]
     pub fn despawn_selected_brushes(&mut self, edits_history: &mut EditsHistory)
     {
@@ -2528,7 +2528,7 @@ impl EntitiesManager
         }
     }
 
-    /// Replaces the selected [`Brush`]es with the ones generated by `polygons`.
+    /// Replaces the selected brushes with the ones generated by `polygons`.
     #[inline]
     pub fn replace_selected_brushes(
         &mut self,
@@ -2594,14 +2594,14 @@ impl EntitiesManager
             .create_path(&mut self.quad_trees, identifier, path, edits_history);
     }
 
-    /// Gives the [`Brush`] with [`Id`] `identifier` a [`Motor`].
+    /// Gives the brush with [`Id`] `identifier` a [`Motor`].
     #[inline]
     pub fn set_path(&mut self, identifier: Id, path: Path)
     {
         self.innards.set_path(&mut self.quad_trees, identifier, path);
     }
 
-    /// Removes the [`Path`] from the [`Brush`] with [`Id`] `identifier`.
+    /// Removes the [`Path`] from the brush with [`Id`] `identifier`.
     #[inline]
     pub fn remove_path(&mut self, identifier: Id) -> Path
     {
@@ -2619,7 +2619,7 @@ impl EntitiesManager
         self.moving_mut(identifier).take_path()
     }
 
-    /// Removes the [`Motor`] from the selected [`Brush`] with [`Id`] `identifier`.
+    /// Removes the [`Motor`] from the selected brush with [`Id`] `identifier`.
     #[inline]
     pub fn remove_selected_path(&mut self, identifier: Id, edits_history: &mut EditsHistory)
     {
@@ -2627,7 +2627,7 @@ impl EntitiesManager
             .remove_selected_path(&mut self.quad_trees, identifier, edits_history);
     }
 
-    /// Replaces the [`Motor`] of the selected [`Brush`] with [`Id`] `identifier` with the one
+    /// Replaces the [`Motor`] of the selected brush with [`Id`] `identifier` with the one
     /// generated from `path`.
     #[inline]
     pub fn replace_selected_path(
@@ -2641,7 +2641,7 @@ impl EntitiesManager
             .replace_selected_path(&mut self.quad_trees, identifier, edits_history, path);
     }
 
-    /// Removes the [`Motor`]s from the selected [`Brush`]es.
+    /// Removes the [`Motor`]s from the selected brushes.
     #[inline]
     pub fn remove_selected_paths(&mut self, edits_history: &mut EditsHistory)
     {
@@ -2661,33 +2661,33 @@ impl EntitiesManager
         self.brushes_iter(self.quad_trees.visible_anchors(camera, window))
     }
 
-    /// Returns the amount of selected textured [`Brush`]es.
+    /// Returns the amount of selected textured brushes.
     #[inline]
     pub fn selected_textured_amount(&self) -> usize { self.innards.selected_textured.len() }
 
-    /// Returns the amount of textured [`Brush`]es.
+    /// Returns the amount of textured brushes.
     #[inline]
     pub fn textured_amount(&self) -> usize { self.innards.textured.len() }
 
-    /// Returns the amount of selected [`Brush`]es with sprites.
+    /// Returns the amount of selected brushes with sprites.
     #[inline]
     pub fn selected_sprites_amount(&self) -> usize { self.innards.selected_sprites.len() }
 
-    /// Returns an iterator to the [`Id`]s of the selected textured [`Brush`]es.
+    /// Returns an iterator to the [`Id`]s of the selected textured brushes.
     #[inline]
     pub fn selected_textured_ids(&self) -> impl ExactSizeIterator<Item = &Id>
     {
         self.innards.selected_textured.iter()
     }
 
-    /// Returns an iterator to the selected textured [`Brush`]es.
+    /// Returns an iterator to the selected textured brushes.
     #[inline]
     pub fn selected_textured_brushes(&self) -> impl Iterator<Item = &Brush>
     {
         self.selected_textured_ids().map(|id| self.brush(*id))
     }
 
-    /// Returns an iterator to the [`BrushMut`] wrapping the selected textured [`Brush`]es.
+    /// Returns an iterator to the [`BrushMut`] wrapping the selected textured brushes.
     #[inline]
     pub fn selected_textured_brushes_mut(&mut self) -> impl Iterator<Item = BrushMut>
     {
@@ -2695,7 +2695,7 @@ impl EntitiesManager
         SelectedBrushesMut::new(&mut self.innards, &mut self.quad_trees, &self.auxiliary)
     }
 
-    /// Returns a [`BrushesIter`] returning the [`Brush`]es with sprites at the position
+    /// Returns a [`BrushesIter`] returning the brushes with sprites at the position
     /// `cursor_pos`.
     #[inline]
     pub fn sprites_at_pos(&self, cursor_pos: Vec2) -> BrushesIter<'_>
@@ -2703,28 +2703,28 @@ impl EntitiesManager
         self.brushes_iter(self.quad_trees.sprites_at_pos(cursor_pos))
     }
 
-    /// Returns the visible [`Brush`]es with sprites.
+    /// Returns the visible brushes with sprites.
     #[inline]
     pub fn visible_sprites(&self, window: &Window, camera: &Transform) -> BrushesIter<'_>
     {
         self.brushes_iter(self.quad_trees.visible_sprites(camera, window))
     }
 
-    /// Anchors the [`Brush`] with [`Id`] `anchor_id` to the one with [`Id`] `owner_id`.
+    /// Anchors the brush with [`Id`] `anchor_id` to the one with [`Id`] `owner_id`.
     #[inline]
     pub fn anchor(&mut self, owner_id: Id, anchor_id: Id)
     {
         self.innards.anchor(&mut self.quad_trees, owner_id, anchor_id);
     }
 
-    /// Disanchors the [`Brush`] with [`Id`] `anchor_id` from the one with [`Id`] `owner_id`.
+    /// Disanchors the brush with [`Id`] `anchor_id` from the one with [`Id`] `owner_id`.
     #[inline]
     pub fn disanchor(&mut self, owner_id: Id, anchor_id: Id)
     {
         self.innards.disanchor(&mut self.quad_trees, owner_id, anchor_id);
     }
 
-    /// Sets the texture of the [`Brush`] with [`Id`] identifier.
+    /// Sets the texture of the brush with [`Id`] identifier.
     /// Returns the name of the replaced texture, if any.
     #[inline]
     #[must_use]
@@ -2739,7 +2739,7 @@ impl EntitiesManager
             .set_texture(drawing_resources, &mut self.quad_trees, identifier, texture)
     }
 
-    /// Removes the texture from the [`Brush`] with [`Id`] identifier, and returns its
+    /// Removes the texture from the brush with [`Id`] identifier, and returns its
     /// [`TextureSettings`].
     #[inline]
     pub fn remove_texture(&mut self, identifier: Id) -> TextureSettings
@@ -2747,7 +2747,7 @@ impl EntitiesManager
         self.innards.remove_texture(&mut self.quad_trees, identifier)
     }
 
-    /// Set the [`TextureSettings`] of the [`Brush`] with [`Id`] `identifier`.
+    /// Set the [`TextureSettings`] of the brush with [`Id`] `identifier`.
     #[inline]
     pub fn set_texture_settings(&mut self, identifier: Id, texture: TextureSettings)
     {
@@ -2765,7 +2765,7 @@ impl EntitiesManager
         }
     }
 
-    /// Sets the texture of the selected [`Brush`]es and returns a [`TextureResult`] describing the
+    /// Sets the texture of the selected brushes and returns a [`TextureResult`] describing the
     /// result of the procedure.
     #[inline]
     pub fn set_selected_brushes_texture(
@@ -2839,7 +2839,7 @@ impl EntitiesManager
         TextureResult::Valid
     }
 
-    /// Removes the textures from the selected [`Brush`]es.
+    /// Removes the textures from the selected brushes.
     #[inline]
     pub fn remove_selected_textures(&mut self, edits_history: &mut EditsHistory)
     {
@@ -2854,7 +2854,7 @@ impl EntitiesManager
         self.innards.selected_textured.clear();
     }
 
-    /// Sets whever the texture of the selected [`Brush`]es should be rendered as a sprite or not.
+    /// Sets whever the texture of the selected brushes should be rendered as a sprite or not.
     #[inline]
     pub fn set_sprite(
         &mut self,
@@ -2905,7 +2905,7 @@ impl EntitiesManager
         set!(remove_selected_sprite);
     }
 
-    /// Sets whever the texture of the selected [`Brush`] with [`Id`] `identifier` should be
+    /// Sets whever the texture of the selected brush with [`Id`] `identifier` should be
     /// rendered as a sprite or not. Returns the previous sprite rendering parameters.
     #[inline]
     pub fn set_single_sprite(
@@ -3133,12 +3133,12 @@ impl EntitiesManager
     //==============================================================
     // Moving
 
-    /// Whever the [`Brush`] with [`Id`] `identifier` is moving.
+    /// Whever the brush with [`Id`] `identifier` is moving.
     #[inline]
     #[must_use]
     pub fn is_moving(&self, identifier: Id) -> bool { self.innards.moving.contains(&identifier) }
 
-    /// Whever the [`Brush`] with [`Id`] `identifier` is moving and selected.
+    /// Whever the brush with [`Id`] `identifier` is moving and selected.
     #[inline]
     #[must_use]
     pub fn is_selected_moving(&self, identifier: Id) -> bool
@@ -3154,26 +3154,26 @@ impl EntitiesManager
         !self.innards.selected_possible_moving.is_empty()
     }
 
-    /// Returns an iterator to the [`Id`]s of the selected moving [`Brush`]es.
+    /// Returns an iterator to the [`Id`]s of the selected moving brushes.
     #[inline]
     pub fn selected_moving_ids(&self) -> impl Iterator<Item = &Id>
     {
         self.innards.selected_moving.iter()
     }
 
-    /// Returns the amount of selected moving [`Brush`]es.
+    /// Returns the amount of selected moving brushes.
     #[inline]
     #[must_use]
     pub fn selected_moving_amount(&self) -> usize { self.innards.selected_moving.len() }
 
-    /// Returns an iterator to the moving selected [`Brush`]es.
+    /// Returns an iterator to the moving selected brushes.
     #[inline]
     pub fn selected_moving(&self) -> impl Iterator<Item = &dyn Moving>
     {
         self.innards.selected_moving.iter().map(|id| self.moving(*id))
     }
 
-    /// Returns an iterator to the moving selected [`Brush`]es wrapped in [`BrushMut`]s.
+    /// Returns an iterator to the moving selected brushes wrapped in [`BrushMut`]s.
     #[inline]
     pub fn selected_movings_mut(&mut self) -> impl Iterator<Item = MovingMut<'_>>
     {
@@ -3190,7 +3190,7 @@ impl EntitiesManager
         ]
     }
 
-    /// Returns a vector containing the [`MovingSimulator`]s of the moving [`Brush`]es for the map
+    /// Returns a vector containing the [`MovingSimulator`]s of the moving brushes for the map
     /// preview.
     #[inline]
     pub fn selected_movement_simulators(&self) -> HvVec<MovementSimulator>
@@ -3277,26 +3277,26 @@ impl EntitiesManager
 
 //=======================================================================//
 
-/// A wrapper for all the [`Brush`]es in the map.
+/// A wrapper for all the brushes in the map.
 #[derive(Clone, Copy)]
 pub(in crate::map) struct Brushes<'a>(&'a HvHashMap<Id, Brush>);
 
 impl<'a> Brushes<'a>
 {
-    /// Returns the [`Brush`] with [`Id`] `identifier`.
+    /// Returns the brush with [`Id`] `identifier`.
     /// # Panics
-    /// Panics if the [`Brush`] does not exist.
+    /// Panics if the brush does not exist.
     #[inline]
     pub fn get(&self, identifier: Id) -> &Brush { self.0.get(&identifier).unwrap() }
 
-    /// Returns an iterator to the [`Brush`]es.
+    /// Returns an iterator to the brushes.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &Brush> { self.0.values() }
 }
 
 //=======================================================================//
 
-/// A wrapper for a [`Brush`] that automatically updates certain [`EntitiesManager`] values when
+/// A wrapper for a brush that automatically updates certain [`EntitiesManager`] values when
 /// it's dropped.
 #[must_use]
 pub(in crate::map) struct BrushMut<'a>
@@ -3305,19 +3305,19 @@ pub(in crate::map) struct BrushMut<'a>
     manager:           &'a mut Innards,
     /// A mutable reference to the [`QuadTree`]s.
     quad_trees:        &'a mut Trees,
-    /// The [`Id`] of the [`Brush`].
+    /// The [`Id`] of the brush.
     id:                Id,
-    /// The [`Hull`] of the [`Brush`] at the moment the struct was created.
+    /// The [`Hull`] of the brush at the moment the struct was created.
     hull:              Hull,
-    /// The center of the [`Brush`] at the moment the struct was created.
+    /// The center of the brush at the moment the struct was created.
     center:            Vec2,
-    /// The [`Hull`] of the [`Path`] of the [`Brush`], if any, at the moment the struct was
+    /// The [`Hull`] of the [`Path`] of the brush, if any, at the moment the struct was
     /// created.
     path_hull:         Option<Hull>,
-    /// The [`Hull`] of the sprite and sprite highlight of the [`Brush`], if any, at the moment the
+    /// The [`Hull`] of the sprite and sprite highlight of the brush, if any, at the moment the
     /// struct was created.
     sprite_hull:       Option<Hull>,
-    /// The amount of selected vertexes of the [`Brush`] at the moment the struct was created.
+    /// The amount of selected vertexes of the brush at the moment the struct was created.
     selected_vertexes: bool
 }
 
@@ -3544,7 +3544,7 @@ impl<'a> ThingMut<'a>
 #[must_use]
 pub(in crate::map) enum MovingMut<'a>
 {
-    /// A [`Brush`].
+    /// A brush.
     Brush(BrushMut<'a>),
     /// A [`ThingInstance`].
     Thing(ThingMut<'a>)

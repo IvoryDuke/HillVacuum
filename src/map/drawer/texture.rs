@@ -236,11 +236,11 @@ pub trait TextureInterface
     #[must_use]
     fn scroll_y(&self) -> f32;
 
-    /// The horizontal scroll value based on the elepsed time.
+    /// The horizontal scroll value based on the elapsed time.
     #[must_use]
     fn draw_scroll_x(&self, elapsed_time: f32) -> f32;
 
-    /// The vertical scroll value based on the elepsed time.
+    /// The vertical scroll value based on the elapsed time.
     #[must_use]
     fn draw_scroll_y(&self, elapsed_time: f32) -> f32;
 
@@ -400,7 +400,7 @@ impl Sprite
 
 //=======================================================================//
 
-/// The overall sprite value of the selected [`Brush`]es' textures.
+/// The overall sprite value of the selected brushes' textures.
 #[derive(Debug, Default)]
 pub(in crate::map) enum OverallSprite
 {
@@ -545,7 +545,7 @@ pub(in crate::map) struct TextureScale
 
 //=======================================================================//
 
-/// The overall settings of the textures of the selected [`Brush`]es.
+/// The overall settings of the textures of the selected brushes.
 #[allow(clippy::missing_docs_in_private_items)]
 #[derive(Debug, Default)]
 pub(in crate::map) struct OverallTextureSettings
@@ -675,7 +675,7 @@ impl OverallTextureSettings
 
 //=======================================================================//
 
-/// A UI representation of the overall settings of the textures of the selected [`Brush`]es.
+/// A UI representation of the overall settings of the textures of the selected brushes.
 #[allow(clippy::missing_docs_in_private_items)]
 #[derive(Default)]
 pub(in crate::map) struct UiOverallTextureSettings
@@ -920,17 +920,17 @@ impl Texture
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TextureSettings
 {
-    texture:      String,
-    scale_x:      f32,
-    scale_y:      f32,
-    offset_x:     f32,
-    offset_y:     f32,
-    pub scroll_x: f32,
-    pub scroll_y: f32,
-    angle:        f32,
-    height:       i8,
-    sprite:       Sprite,
-    animation:    Animation
+    texture: String,
+    scale_x: f32,
+    scale_y: f32,
+    offset_x: f32,
+    offset_y: f32,
+    pub(in crate::map) scroll_x: f32,
+    pub(in crate::map) scroll_y: f32,
+    angle: f32,
+    height: i8,
+    sprite: Sprite,
+    animation: Animation
 }
 
 impl From<&Texture> for TextureSettings

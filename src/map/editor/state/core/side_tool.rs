@@ -129,7 +129,7 @@ enum XtrusionMode
     /// Intrusion.
     Intrusion
     {
-        /// The intrusion info of the [`Brush`]es.
+        /// The intrusion info of the brushes.
         payloads: HvVec<XtrusionPayload>,
         /// The generated polygons.
         polygons: HvVec<(ConvexPolygon, Id)>
@@ -197,18 +197,18 @@ selected_vertexes!(selected_sides_amount);
 
 //=======================================================================//
 
-/// An extended record of the selected [`Brush`]es' selected sides.
+/// An extended record of the selected brushes' selected sides.
 #[must_use]
 #[derive(Debug)]
 struct BrushesWithSelectedSides
 {
-    /// The [`Id`]s of the [`Brush`]es with selected sides.
+    /// The [`Id`]s of the brushes with selected sides.
     ids:               Ids,
     /// The selected sides.
     selected_sides:    SelectedVertexes,
-    /// The [`Id`]s of the [`Brush`]es with one selected side.
+    /// The [`Id`]s of the brushes with one selected side.
     one_selected_side: Ids,
-    /// The [`Id`] of the [`Brush`] that generates an error.
+    /// The [`Id`] of the brush that generates an error.
     error_id:          Option<Id>
 }
 
@@ -277,7 +277,7 @@ impl BrushesWithSelectedSides
         }
     }
 
-    /// Removes the selected vertexes associated with the [`Brush`] with [`Id`] `identifier`.
+    /// Removes the selected vertexes associated with the brush with [`Id`] `identifier`.
     #[inline]
     fn remove_id(&mut self, manager: &EntitiesManager, identifier: Id)
     {
@@ -1026,7 +1026,7 @@ impl SideTool
     #[inline]
     fn xtrusion_delta_against_normal(normal: Vec2, delta: Vec2) -> bool { delta.dot(normal) < 0f32 }
 
-    /// Intrudes the selected sides splitting the selected [`Brush`]es.
+    /// Intrudes the selected sides splitting the selected brushes.
     #[inline]
     fn intrude_sides(
         bundle: &ToolUpdateBundle,
@@ -1176,7 +1176,7 @@ impl SideTool
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager, show_tooltips: bool)
     {
-        /// Draws the selected [`Brush`]es.
+        /// Draws the selected brushes.
         #[inline]
         fn draw_selected_brushes(
             bundle: &mut DrawBundle,

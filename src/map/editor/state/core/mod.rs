@@ -74,7 +74,7 @@ use crate::{
 //
 //=======================================================================//
 
-/// Draws the selected and non selected [`Brush`]es.
+/// Draws the selected and non selected brushes.
 macro_rules! draw_selected_and_non_selected_brushes {
     ($bundle:ident, $manager:ident $(, $filters:expr)?) => {
         crate::map::editor::state::core::draw_selected_and_non_selected!(
@@ -249,7 +249,7 @@ use bottom_area;
 /// Generates the definition of a [`SelectedVertexes`] struct.
 macro_rules! selected_vertexes {
     ($count:ident) => {
-        /// A record of the selected [`Brush`]es selected vertexes.
+        /// A record of the selected brushes selected vertexes.
         #[must_use]
         #[derive(Debug)]
         struct SelectedVertexes(crate::map::containers::HvHashMap<Id, u8>, usize);
@@ -295,7 +295,7 @@ macro_rules! selected_vertexes {
                 self.1 -= self.0.asserted_remove(brush.id_as_ref()) as usize;
             }
 
-            /// Removes the selected vertexes associated with the [`Brush`] with [`Id`]
+            /// Removes the selected vertexes associated with the brush with [`Id`]
             /// `identifier`.
             #[inline]
             pub fn remove_id(&mut self, manager: &EntitiesManager, identifier: Id)
@@ -416,7 +416,7 @@ impl<'a> UndoRedoInterface<'a>
         self.manager.remove_entity_selection(identifier);
     }
 
-    /// Spawns a new [`Brush`].
+    /// Spawns a new brush.
     #[inline]
     pub fn spawn_brush(&mut self, identifier: Id, data: BrushData, b_type: BrushType)
     {
@@ -430,7 +430,7 @@ impl<'a> UndoRedoInterface<'a>
         }
     }
 
-    /// Despawns the [`Brush`] with [`Id`] `identifier`.
+    /// Despawns the brush with [`Id`] `identifier`.
     #[inline]
     pub fn despawn_brush(&mut self, identifier: Id, b_type: BrushType) -> BrushData
     {
@@ -459,7 +459,7 @@ impl<'a> UndoRedoInterface<'a>
         data
     }
 
-    /// Returns a [`BrushMut`] wrapping the [`Brush`] with [`Id`] `identifier`.
+    /// Returns a [`BrushMut`] wrapping the brush with [`Id`] `identifier`.
     #[inline]
     pub fn brush_mut(&mut self, identifier: Id) -> BrushMut { self.manager.brush_mut(identifier) }
 
@@ -470,7 +470,7 @@ impl<'a> UndoRedoInterface<'a>
         self.manager.moving_mut(identifier)
     }
 
-    /// Gives the [`Brush`] with [`Id`] `identifier` a [`Motor`].
+    /// Gives the brush with [`Id`] `identifier` a [`Motor`].
     #[inline]
     pub fn set_path(&mut self, identifier: Id, path: Path)
     {
@@ -494,7 +494,7 @@ impl<'a> UndoRedoInterface<'a>
         motor
     }
 
-    /// Inserts the [`Brush`] with [`Id`] `identifier` in the subtractees.
+    /// Inserts the brush with [`Id`] `identifier` in the subtractees.
     /// # Panics
     /// Panics if the subtract tool is not currently active.
     #[inline]
@@ -504,7 +504,7 @@ impl<'a> UndoRedoInterface<'a>
             .insert_subtractee(self.manager, identifier);
     }
 
-    /// Removes the [`Brush`] with [`Id`] `identifier` from the subtractees.
+    /// Removes the brush with [`Id`] `identifier` from the subtractees.
     /// # Panics
     /// Panics if the subtract tool is not currently active.
     #[inline]
@@ -514,21 +514,21 @@ impl<'a> UndoRedoInterface<'a>
             .remove_subtractee(self.manager, identifier);
     }
 
-    /// Anchors the [`Brush`] with [`Id`] `anchor_id` to the one with [`Id`] `owner_id`.
+    /// Anchors the brush with [`Id`] `anchor_id` to the one with [`Id`] `owner_id`.
     #[inline]
     pub fn insert_anchor(&mut self, platform: Id, anchor: Id)
     {
         self.manager.anchor(platform, anchor);
     }
 
-    /// Disanchors the [`Brush`] with [`Id`] `anchor_id` from the one with [`Id`] `owner_id`.
+    /// Disanchors the brush with [`Id`] `anchor_id` from the one with [`Id`] `owner_id`.
     #[inline]
     pub fn remove_anchor(&mut self, platform: Id, anchor: Id)
     {
         self.manager.disanchor(platform, anchor);
     }
 
-    /// Sets the texture of the [`Brush`] with [`Id`] identifier.
+    /// Sets the texture of the brush with [`Id`] identifier.
     /// Returns the name of the replaced texture, if any.
     #[inline]
     pub fn set_texture(
@@ -541,14 +541,14 @@ impl<'a> UndoRedoInterface<'a>
         self.manager.set_texture(drawing_resources, identifier, texture)
     }
 
-    /// Set the [`TextureSettings`] of the [`Brush`] with [`Id`] `identifier`.
+    /// Set the [`TextureSettings`] of the brush with [`Id`] `identifier`.
     #[inline]
     pub fn set_texture_settings(&mut self, identifier: Id, texture: TextureSettings)
     {
         self.manager.set_texture_settings(identifier, texture);
     }
 
-    /// Removes the texture from the [`Brush`] with [`Id`] identifier, and returns its
+    /// Removes the texture from the brush with [`Id`] identifier, and returns its
     /// [`TextureSettings`].
     #[inline]
     pub fn remove_texture(&mut self, identifier: Id) -> TextureSettings
@@ -556,7 +556,7 @@ impl<'a> UndoRedoInterface<'a>
         self.manager.remove_texture(identifier)
     }
 
-    /// Sets whever the texture of the selected [`Brush`] with [`Id`] `identifier` should be
+    /// Sets whever the texture of the selected brush with [`Id`] `identifier` should be
     /// rendered as a sprite or not. Returns the previous sprite rendering parameters.
     #[inline]
     pub fn set_single_sprite(
@@ -639,7 +639,7 @@ impl<'a> UndoRedoInterface<'a>
         thing.take_data()
     }
 
-    /// Schedules the overall [`Brush`]es collision update.
+    /// Schedules the overall brushes collision update.
     #[inline]
     pub fn schedule_overall_collision_update(&mut self)
     {
@@ -1097,7 +1097,7 @@ fn deselect_vertexes(manager: &mut EntitiesManager, edits_history: &mut EditsHis
 
 //=======================================================================//
 
-/// Draws the non selected [`Brush`]es.
+/// Draws the non selected brushes.
 #[inline]
 fn draw_non_selected_brushes(bundle: &mut DrawBundle, manager: &EntitiesManager)
 {

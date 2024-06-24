@@ -656,7 +656,7 @@ pub(in crate::map::editor) struct State
     cursor_snap:        bool,
     /// Whever a grey semitransparent rectangle should be drawn on the map beneath the cursor.
     show_cursor:        bool,
-    /// Whever the "clip" texture should be drawn on top of the [`Brush`]es with collision enabled.
+    /// Whever the "clip" texture should be drawn on top of the brushes with collision enabled.
     show_collision:     bool,
     /// Whever textures are currently being reloaded.
     reloading_textures: bool,
@@ -850,7 +850,7 @@ impl State
     #[must_use]
     pub const fn map_preview(&self) -> bool { self.core.map_preview() }
 
-    /// Whever the [`Brush`]es collision overlay should be drawn.
+    /// Whever the brushes collision overlay should be drawn.
     #[inline]
     #[must_use]
     pub const fn show_collision_overlay(&self) -> bool { self.show_collision }

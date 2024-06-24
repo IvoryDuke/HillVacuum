@@ -43,7 +43,7 @@ use crate::{
 //
 //=======================================================================//
 
-/// The editor of the selected [`Brush`]es texture [`Animation`].
+/// The editor of the selected brushes texture [`Animation`].
 pub(in crate::map::editor::state::ui::texture_editor::animation_editor) struct InstancesEditor;
 
 impl InstancesEditor

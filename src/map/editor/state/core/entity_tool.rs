@@ -65,11 +65,11 @@ enum Status
     Drag(CursorDelta, bool),
     /// Preparing for drag.
     PreDrag(Vec2, ItemBeneathCursor, bool),
-    /// Anchoring a [`Brush`] to another.
+    /// Anchoring a brush to another.
     Anchor(Id, Option<Id>),
     /// Attempting a drag spawn from the UI.
     DragSpawnUi(Option<ItemBeneathCursor>),
-    /// Attempting a [`Brush`] anchoring from the UI.
+    /// Attempting a brush anchoring from the UI.
     AnchorUi(Option<Id>)
 }
 
@@ -135,11 +135,11 @@ impl EntityId for ItemBeneathCursor
 #[derive(Debug)]
 struct Selector
 {
-    /// Selector of [`Brush`]es and [`ThingInstance`]s.
+    /// Selector of brushes and [`ThingInstance`]s.
     brushes_and_things: ItemSelector<ItemBeneathCursor>,
-    /// Selector of [`Brush`]es.
+    /// Selector of brushes.
     brushes:            ItemSelector<ItemBeneathCursor>,
-    /// Selector of textured [`Brush`]es.
+    /// Selector of textured brushes.
     textured_brushes:   ItemSelector<ItemBeneathCursor>,
     /// Selector of any item.
     everything:         ItemSelector<ItemBeneathCursor>
@@ -151,7 +151,7 @@ impl Selector
     #[inline]
     fn new() -> Self
     {
-        /// [`Brush`] and [`ThingInstance`] selection update.
+        /// brush and [`ThingInstance`] selection update.
         #[inline]
         fn entity_selector(
             manager: &EntitiesManager,
@@ -198,7 +198,7 @@ impl Selector
             }
         }
 
-        /// Textured [`Brush`] selection update.
+        /// Textured brush selection update.
         #[inline]
         fn textured_brush_selector(
             manager: &EntitiesManager,
@@ -284,7 +284,7 @@ impl Selector
             .item_beneath_cursor(manager, cursor, 0f32, inputs)
     }
 
-    /// Returns the [`Brush`] beneath the cursor.
+    /// Returns the brush beneath the cursor.
     #[inline]
     #[must_use]
     fn brush_beneath_cursor(
@@ -297,7 +297,7 @@ impl Selector
         self.brushes.item_beneath_cursor(manager, cursor, 0f32, inputs)
     }
 
-    /// Returns the textured [`Brush`] or sprite beneath the cursor.
+    /// Returns the textured brush or sprite beneath the cursor.
     #[inline]
     #[must_use]
     fn textured_brush_beneath_cursor(

@@ -20,14 +20,19 @@ use crate::{
 //
 //=======================================================================//
 
+///
 #[must_use]
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub enum Mover
 {
+    /// None.
     #[default]
     None,
+    /// Attached brushes.
     Anchors(Ids),
+    /// Motor.
     Motor(Motor),
+    /// Attached to a brush.
     Anchored(Id)
 }
 
@@ -167,11 +172,15 @@ impl Mover
 //
 //=======================================================================//
 
+/// The object describing how a brush should move in space over time.
+/// It also describes the brushes attached to it and that should move along with it.
 #[must_use]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Motor
 {
+    /// The [`Path`].
     path:             Path,
+    /// The [`Id`]s of the attached brushes.
     anchored_brushes: Ids
 }
 
@@ -198,13 +207,16 @@ impl Motor
         }
     }
 
+    /// Returns a reference to the [`Path`].
     #[inline]
     pub const fn path(&self) -> &Path { &self.path }
 
+    /// Whever there are any attached brushes.
     #[inline]
     #[must_use]
     pub fn has_anchors(&self) -> bool { !self.anchored_brushes.is_empty() }
 
+    /// Returns a reference to the [`Id`]s of the attached brushes.
     #[inline]
     #[must_use]
     pub const fn anchored_brushes(&self) -> &Ids { &self.anchored_brushes }

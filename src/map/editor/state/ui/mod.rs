@@ -686,21 +686,21 @@ impl Ui
         self.texture_editor.update_overall_texture(drawing_resources, manager);
     }
 
-    /// Updates the overall [`Brush`] collision.
+    /// Updates the overall brush collision.
     #[inline]
     pub fn update_overall_brushes_collision(&mut self, manager: &EntitiesManager)
     {
         self.properties_window.update_overall_brushes_collision(manager);
     }
 
-    /// Updates all overall [`Brush`] properties.
+    /// Updates all overall brush properties.
     #[inline]
     pub fn update_overall_total_brush_properties(&mut self, manager: &EntitiesManager)
     {
         self.properties_window.update_overall_total_brush_properties(manager);
     }
 
-    /// Updates the overall [`Brush`] property with key `k`.
+    /// Updates the overall brush property with key `k`.
     #[inline]
     pub fn update_overall_brushes_property(&mut self, manager: &EntitiesManager, k: &str)
     {

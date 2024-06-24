@@ -276,7 +276,7 @@ impl DrawMode
         };
     }
 
-    /// Returns an iterator describing the vertexes of the [`Brush`] to draw, if any.
+    /// Returns an iterator describing the vertexes of the brush to draw, if any.
     #[inline]
     #[must_use]
     fn generate_polygon<I: IntoIterator<Item = Vec2>, V: Fn(&Hull) -> I>(
@@ -690,7 +690,7 @@ impl FreeDrawCursorPolygon
         }
     }
 
-    /// Spawns the drawn [`Brush`].
+    /// Spawns the drawn brush.
     #[inline]
     fn generate_polygon(
         &mut self,

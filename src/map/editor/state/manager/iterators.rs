@@ -29,13 +29,13 @@ use crate::{
 //
 //=======================================================================//
 
-/// A wrapper that returns an iterator to certain [`Brush`]es of the map defined on creation.
+/// A wrapper that returns an iterator to certain brushes of the map defined on creation.
 #[must_use]
 pub(in crate::map::editor::state) struct BrushesIter<'a>(&'a EntitiesManager, Ref<'a, QuadTreeIds>);
 
 impl<'a> BrushesIter<'a>
 {
-    /// Returns a new [`BrushesIter`] that returns an iterator to the [`Brush`]es with [`Id`]s in
+    /// Returns a new [`BrushesIter`] that returns an iterator to the brushes with [`Id`]s in
     /// `ids`.
     #[inline]
     pub(in crate::map::editor::state::manager) const fn new(
@@ -46,7 +46,7 @@ impl<'a> BrushesIter<'a>
         Self(manager, ids)
     }
 
-    /// Returns an iterator to the [`Brush`]es whose [`Id`] are contained in `self`.
+    /// Returns an iterator to the brushes whose [`Id`] are contained in `self`.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &Brush> { self.1.ids().map(|id| self.0.brush(*id)) }
 }
@@ -80,7 +80,7 @@ impl<'a> ThingsIter<'a>
 
 //=======================================================================//
 
-/// A wrapper that returns an iterator to certain selected [`Brush`]es of the map defined on
+/// A wrapper that returns an iterator to certain selected brushes of the map defined on
 /// creation.
 #[must_use]
 pub(in crate::map::editor::state) struct SelectedBrushesIter<'a>(
@@ -90,7 +90,7 @@ pub(in crate::map::editor::state) struct SelectedBrushesIter<'a>(
 
 impl<'a> SelectedBrushesIter<'a>
 {
-    /// Returns a new [`SelectedBrushesIter`] that returns an iterator to the selected [`Brush`]es
+    /// Returns a new [`SelectedBrushesIter`] that returns an iterator to the selected brushes
     /// among the ones with [`Id`]s in `ids`.
     #[inline]
     pub(in crate::map::editor::state::manager) const fn new(
@@ -101,7 +101,7 @@ impl<'a> SelectedBrushesIter<'a>
         Self(manager, ids)
     }
 
-    /// Returns an iterator to the selected [`Brush`]es among those whose [`Id`] are contained in
+    /// Returns an iterator to the selected brushes among those whose [`Id`] are contained in
     /// `self`.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &Brush>
@@ -143,7 +143,7 @@ impl<'a> IdsInRange<'a>
 
 //=======================================================================//
 
-/// An iterator to all selected [`Brush`]es wrapped in [`BrushMut`].
+/// An iterator to all selected brushes wrapped in [`BrushMut`].
 #[must_use]
 pub(in crate::map::editor::state::manager) struct SelectedBrushesMut<'a>
 {

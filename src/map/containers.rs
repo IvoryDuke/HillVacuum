@@ -472,10 +472,6 @@ impl<T> HvVec<T>
     pub fn reverse(&mut self) { self.0.reverse(); }
 
     /// Retains only the elements specified by the predicate.
-    ///
-    /// This method is identical in behaviour to [`retain`]; it is included only
-    /// to maintain api-compatability with `std::Vec`, where the methods are
-    /// separate for historical reasons.
     #[inline]
     pub fn retain_mut<F>(&mut self, f: F)
     where
@@ -553,12 +549,12 @@ impl<T> HvVec<T>
 //=======================================================================//
 
 #[cfg(feature = "arena_alloc")]
-/// hashbrown [`HashMap`] alias.
+/// [`hashbrown::HashMap`] wrapper.
 #[derive(Debug, Clone)]
 pub struct HvHashMap<K, V>(hashbrown::HashMap<K, V, DefaultHashBuilder, &'static BlinkAlloc>);
 
 #[cfg(not(feature = "arena_alloc"))]
-/// hashbrown [`HashMap`] alias.
+/// [`hashbrown::HashMap`] wrapper.
 #[derive(Debug, Clone)]
 pub struct HvHashMap<K, V>(hashbrown::HashMap<K, V, DefaultHashBuilder>);
 

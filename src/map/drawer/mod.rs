@@ -97,7 +97,7 @@ pub(in crate::map) struct EditDrawer<'w, 's, 'a>
     camera_scale:           f32,
     /// The time that has passed since startup.
     elapsed_time:           f32,
-    /// Whever the collision overlay of the [`Brush`]es should be shown.
+    /// Whever the collision overlay of the brushes should be shown.
     show_collision_overlay: bool,
     /// Whever parallax is enabled.
     parallax_enabled:       bool
@@ -470,7 +470,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         );
     }
 
-    /// Draws a [`Brush`] anchor highlight.
+    /// Draws a brush anchor highlight.
     #[inline]
     pub fn anchor_highlight(&mut self, center: Vec2, color: Color)
     {
@@ -538,7 +538,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             .push_textured_mesh(self.meshes.add(mesh).into(), settings, color);
     }
 
-    /// Draws `settings` as a [`Brush`].
+    /// Draws `settings` as a brush.
     #[inline]
     pub fn sideless_brush<T: TextureInterface>(
         &mut self,
@@ -568,7 +568,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(mesh, self.color_resources.brush_material(color), color.height());
     }
 
-    /// Draws `settings` as a [`Brush`] also drawing the sides.
+    /// Draws `settings` as a brush also drawing the sides.
     #[inline]
     pub fn brush<T: TextureInterface>(
         &mut self,

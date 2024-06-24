@@ -42,7 +42,7 @@ use crate::{
 //
 //=======================================================================//
 
-/// The [`Brush`] selector.
+/// The brush selector.
 #[derive(Debug)]
 struct Selector(ItemSelector<Id>);
 
@@ -77,7 +77,7 @@ impl Selector
         Self(ItemSelector::new(selector))
     }
 
-    /// Returns the selectable [`Brush`] beneath the cursor.
+    /// Returns the selectable brush beneath the cursor.
     #[inline]
     #[must_use]
     fn brush_beneath_cursor(
@@ -99,7 +99,7 @@ pub(in crate::map::editor::state::core) struct SubtractTool
 {
     /// The drag selection.
     drag_selection:       RectHighlightedEntity<Id>,
-    /// The [`Brush`] selector.
+    /// The brush selector.
     selector:             Selector,
     /// The [`Id`]s of the subtractee.
     subtractees:          Ids,
@@ -130,7 +130,7 @@ impl SubtractTool
     //==============================================================
     // Select all
 
-    /// Selects the non selected [`Brush`]es.
+    /// Selects the non selected brushes.
     #[inline]
     pub fn select_non_selected_brushes(
         &mut self,
@@ -247,7 +247,7 @@ impl SubtractTool
         false
     }
 
-    /// Subtracts the selected [`Brush`] from the subtractees.
+    /// Subtracts the selected brush from the subtractees.
     #[inline]
     fn subtract(
         drawing_resources: &DrawingResources,

@@ -132,7 +132,7 @@ impl FlipTool
         );
     }
 
-    /// Updates the [`Brush`]es outline.
+    /// Updates the brushes outline.
     #[inline]
     pub fn update_outline(&mut self, manager: &EntitiesManager, grid: Grid)
     {

@@ -2085,7 +2085,7 @@ impl Brush
     //==============================================================
     // Hollow
 
-    /// Returns the four wall [`Brush`]es generated from the shape of `self`, if any.
+    /// Returns the four wall brushes generated from the shape of `self`, if any.
     #[inline]
     pub fn hollow(
         &self,
@@ -2387,7 +2387,7 @@ impl Brush
     }
 
     /// Draws the anchors connecting the center of `self` to the centers of the anchored
-    /// [`Brush`]es.
+    /// brushes.
     #[inline]
     pub fn draw_anchors(&self, brushes: Brushes, drawer: &mut EditDrawer)
     {
@@ -2404,7 +2404,7 @@ impl Brush
         }
     }
 
-    /// Draws the anchored [`Brush`]es based on `f`.
+    /// Draws the anchored brushes based on `f`.
     #[inline]
     fn draw_anchored_brushes<F>(
         &self,

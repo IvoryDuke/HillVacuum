@@ -54,12 +54,12 @@ impl EntityId for Id
 impl Id
 {
     /// [`Id`] with wrapped value equal to zero.
-    pub const ZERO: Self = Self(0);
+    pub(crate) const ZERO: Self = Self(0);
 
     /// Returns the [`Id`] with the highest value.
     #[inline]
     #[must_use]
-    pub const fn max(self, other: Self) -> Id
+    pub(crate) const fn max(self, other: Self) -> Id
     {
         if self.0 > other.0
         {
@@ -70,6 +70,11 @@ impl Id
             other
         }
     }
+
+    /// Returns the [`usize`] associated with `self`.
+    #[inline]
+    #[must_use]
+    pub const fn value(self) -> usize { self.0 }
 }
 
 //=======================================================================//

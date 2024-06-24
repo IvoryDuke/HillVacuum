@@ -44,13 +44,12 @@ use map::MapEditorPlugin;
 // EXPORTS
 //
 //=======================================================================//
-pub use bevy;
-
 pub use crate::map::{
     brush::{
         mover::{Motor, Mover},
         BrushViewer as Brush
     },
+    containers::{HvHashMap, HvHashSet, HvVec},
     drawer::{
         animation::{Animation, Atlas, List},
         texture::{Sprite, TextureInterface, TextureSettings}
@@ -60,9 +59,10 @@ pub use crate::map::{
         Path
     },
     properties::{BrushProperties, ThingProperties, ToValue, Value},
-    thing::{catalog::HardcodedThings, MapThing, Thing, ThingViewer as ThingInstance},
+    thing::{catalog::HardcodedThings, MapThing, Thing, ThingId, ThingViewer as ThingInstance},
     Exporter
 };
+pub use crate::utils::{hull::Hull, identifiers::Id};
 
 //=======================================================================//
 // CONSTANTS
@@ -112,11 +112,13 @@ macro_rules! hardcoded_things {
 
 //====================================================================
 
-/// Inserts the default [`Properties`] that will be associated to all [`Brush`]es.
+/// Inserts the default properties that will be associated to all [`Brush`]es.
 /// # Example
 /// ```
+/// use hill_vacuum::{brush_properties, BrushProperties, Value};
+///
 /// let mut app = bevy::prelude::App::new();
-/// hill_vacuum::brush_properties!(app, [("Tag", 0u8), ("Destructible", false)]);
+/// brush_properties!(app, [("Tag", 0u8), ("Destructible", false)]);
 /// ```
 #[macro_export]
 macro_rules! brush_properties {
@@ -129,11 +131,13 @@ macro_rules! brush_properties {
 
 //====================================================================
 
-/// Inserts the default [`Properties`] that will be associated to all [`Thing`]s.
+/// Inserts the default properties that will be associated to all [`ThingInstance`]s.
 /// # Example
 /// ```
+/// use hill_vacuum::{thing_properties, BrushProperties, Value};
+///
 /// let mut app = bevy::prelude::App::new();
-/// hill_vacuum::thing_properties!(app, [("Fire resistance", 1f32), ("Invisible", false)]);
+/// thing_properties!(app, [("Fire resistance", 1f32), ("Invisible", false)]);
 /// ```
 #[macro_export]
 macro_rules! thing_properties {

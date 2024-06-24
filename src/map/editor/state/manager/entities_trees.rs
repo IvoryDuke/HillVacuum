@@ -55,21 +55,21 @@ macro_rules! visible_iters {
 /// The [`QuadTrees`] used by the [`EntitiesManager`].
 pub(in crate::map::editor::state::manager) struct Trees
 {
-    /// All [`Brush`]es.
+    /// All brushes.
     brushes_tree:     QuadTree,
     /// All [`Path`]s.
     paths_tree:       QuadTree,
-    /// All [`Brush`] anchors.
+    /// All brush anchors.
     anchors_tree:     QuadTree,
     /// All sprites.
     sprites_tree:     QuadTree,
     /// All [`ThingInstance`]s.
     things_tree:      QuadTree,
-    /// The [`Brush`]es at a certain position.
+    /// The brushes at a certain position.
     brushes_at_pos:   RefCell<QuadTreeIdsNearPos>,
-    /// The visible [`Brush`]es.
+    /// The visible brushes.
     visible_brushes:  RefCell<VisibleQuadTreeIds>,
-    /// The [`Brush`]es in a certain range.
+    /// The brushes in a certain range.
     brushes_in_range: RefCell<QuadTreeIds>,
     /// The visible [`Path`]s.
     visible_paths:    RefCell<VisibleQuadTreeIds>,
@@ -121,7 +121,7 @@ impl Trees
         }
     }
 
-    /// Inserts the anchor [`Hull`] of the [`Brush`] with [`Id`] `owner_id`.
+    /// Inserts the anchor [`Hull`] of the brush with [`Id`] `owner_id`.
     #[inline]
     pub fn insert_anchor_hull(&mut self, owner_id: Id, hull: &Hull)
     {
@@ -129,7 +129,7 @@ impl Trees
         self.set_anchors_dirty();
     }
 
-    /// Removes the anchor [`Hull`] of the [`Brush`] with [`Id`] `owner_id`.
+    /// Removes the anchor [`Hull`] of the brush with [`Id`] `owner_id`.
     #[inline]
     pub fn remove_anchor_hull(&mut self, owner_id: Id, hull: &Hull)
     {
@@ -153,7 +153,7 @@ impl Trees
         self.set_brushes_dirty();
     }
 
-    /// Replaces the [`Hull`] of the [`Brush`] with [`Id`] `identifier`.
+    /// Replaces the [`Hull`] of the brush with [`Id`] `identifier`.
     #[inline]
     pub fn replace_brush_hull(&mut self, identifier: Id, current_hull: &Hull, previous_hull: &Hull)
     {
@@ -278,7 +278,7 @@ impl Trees
     #[inline]
     pub fn set_anchors_dirty(&mut self) { self.visible_anchors.borrow_mut().set_dirty(); }
 
-    /// Stores the [`Id`]s of the [`Brush`]es at `cursor_pos` (or near it if `camera_scale` contains
+    /// Stores the [`Id`]s of the brushes at `cursor_pos` (or near it if `camera_scale` contains
     /// a value) and returns their container.
     #[inline]
     pub fn brushes_at_pos(
@@ -304,7 +304,7 @@ impl Trees
         Ref::map(self.brushes_at_pos.borrow(), |v| &v.ids)
     }
 
-    /// Stores the [`Id`]s of the [`Brush`]es in `range` and returns their container.
+    /// Stores the [`Id`]s of the brushes in `range` and returns their container.
     #[inline]
     pub fn brushes_in_range(&self, range: &Hull) -> Ref<'_, QuadTreeIds>
     {
@@ -343,7 +343,7 @@ impl Trees
         Ref::map(self.sprites_at_pos.borrow(), |v| &v.ids)
     }
 
-    /// Stores the [`Id`]s of the [`Brush`]es that own the sprites in `range` and returns their
+    /// Stores the [`Id`]s of the brushes that own the sprites in `range` and returns their
     /// container.
     #[inline]
     pub fn sprites_in_range(&self, range: &Hull) -> Ref<'_, QuadTreeIds>
@@ -389,7 +389,7 @@ impl Trees
     // Draw
 
     #[cfg(feature = "debug")]
-    /// Draws the [`QuadTree`]s of the [`Brush`]es and sprites.
+    /// Draws the [`QuadTree`]s of the brushes and sprites.
     #[inline]
     pub fn draw(&self, gizmos: &mut bevy::prelude::Gizmos, viewport: &Hull, camera_scale: f32)
     {

@@ -34,11 +34,11 @@ use bevy_egui::{
     EguiSet,
     EguiUserTextures
 };
+use containers::hv_hash_map;
 use hill_vacuum_shared::{continue_if_no_match, return_if_err, return_if_none, NextValue};
 use serde::{Deserialize, Serialize};
 
 use self::{
-    brush::{Brush, BrushViewer},
     camera::init_camera_transform,
     containers::{hv_vec, HvHashMap, HvVec},
     drawer::{
@@ -51,8 +51,7 @@ use self::{
         Editor,
         Placeholder
     },
-    properties::{BrushProperties, ThingProperties},
-    thing::ThingInstance
+    properties::{BrushProperties, ThingProperties}
 };
 use crate::{
     config::Config,
@@ -67,6 +66,7 @@ use crate::{
     Animation,
     EditorState,
     HardcodedThings,
+    Id,
     TextureInterface,
     PROP_CAMERAS_AMOUNT,
     PROP_CAMERAS_ROWS
@@ -314,7 +314,7 @@ struct MapHeader
 /// // Your code.
 /// ```
 #[must_use]
-pub struct Exporter(pub HvVec<BrushViewer>, pub HvVec<ThingViewer>);
+pub struct Exporter(pub HvHashMap<Id, crate::Brush>, pub HvHashMap<Id, crate::ThingInstance>);
 
 impl Exporter
 {
@@ -349,13 +349,13 @@ impl Exporter
 
         for _ in 0..header.brushes
         {
-            let brush = match ciborium::from_reader::<Brush, _>(&mut file)
+            let brush = match ciborium::from_reader::<crate::map::brush::Brush, _>(&mut file)
             {
                 Ok(brush) => brush,
                 Err(_) => return Err("Error reading Brush")
             };
 
-            brushes.push(BrushViewer::new(brush));
+            brushes.push(crate::Brush::new(brush));
         }
 
         if !animations.is_empty()
@@ -390,20 +390,28 @@ impl Exporter
             }
         }
 
-        let mut things = hv_vec![];
+        let mut things = hv_hash_map![];
 
         for _ in 0..header.things
         {
-            let thing = match ciborium::from_reader::<ThingInstance, _>(&mut file)
-            {
-                Ok(thing) => ThingViewer::new(thing),
-                Err(_) => return Err("Error reading ThingInstance")
-            };
+            let thing =
+                match ciborium::from_reader::<crate::map::thing::ThingInstance, _>(&mut file)
+                {
+                    Ok(thing) => ThingViewer::new(thing),
+                    Err(_) => return Err("Error reading ThingInstance")
+                };
 
-            things.push(thing);
+            things.asserted_insert((thing.id, thing));
         }
 
-        Ok(Self(brushes, things))
+        let mut brushes_map = hv_hash_map![];
+
+        for brush in brushes
+        {
+            brushes_map.asserted_insert((brush.id, brush));
+        }
+
+        Ok(Self(brushes_map, things))
     }
 }
 

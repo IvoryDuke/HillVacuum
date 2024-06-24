@@ -901,7 +901,7 @@ impl ActiveTool
         grid: Grid
     )
     {
-        /// Snap the selected [`Brush`]es to the grid.
+        /// Snap the selected brushes to the grid.
         #[inline]
         #[must_use]
         fn snap_brushes(
@@ -988,7 +988,7 @@ impl ActiveTool
         }
     }
 
-    /// Replaces each selected [`Brush`]es with four others.
+    /// Replaces each selected brushes with four others.
     /// These four brushes create a room with wall thickness equal to the grid size as big as the
     /// brush they replaced. If it's not possible to create rooms for all the brushes the
     /// process will be aborted.
@@ -1034,7 +1034,7 @@ impl ActiveTool
         });
     }
 
-    /// Generates the [`Brush`] that represents the intersection between all the selected ones, if
+    /// Generates the brush that represents the intersection between all the selected ones, if
     /// any. All selected brushes are despawned.
     #[inline]
     fn intersection_tool(
@@ -1324,7 +1324,7 @@ impl ActiveTool
             show_tooltips: bool
         )
         {
-            /// Draws the sprites and [`Brush`] anchors.
+            /// Draws the sprites and brush anchors.
             #[inline]
             fn sprites_and_anchors(bundle: &mut DrawBundle, manager: &EntitiesManager)
             {

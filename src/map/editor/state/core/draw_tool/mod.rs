@@ -97,7 +97,7 @@ enum Shape
 #[derive(Debug)]
 pub(in crate::map::editor::state::core) struct DrawTool
 {
-    /// The [`Id`]s of the drawn [`Brush`]es.
+    /// The [`Id`]s of the drawn brushes.
     drawn_brushes: Ids,
     /// The shape being drawn.
     shape:         Shape
@@ -196,7 +196,7 @@ impl DrawTool
     //==============================================================
     // Update
 
-    /// Despawns the drawn [`Brush`]es.
+    /// Despawns the drawn brushes.
     #[inline]
     pub fn despawn_drawn_brushes(
         &mut self,

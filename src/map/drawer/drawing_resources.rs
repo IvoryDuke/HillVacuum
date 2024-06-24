@@ -231,10 +231,10 @@ pub(in crate::map) struct DrawingResources
     paint_tool_vertex_highlight_mesh: Mesh2dHandle,
     /// The [`Mesh2dHandle`]s of the [`Prop`] pivots displayed in front of the prop cameras.
     props_pivots_mesh: HvHashMap<bevy::prelude::Entity, Mesh2dHandle>,
-    /// The [`Mesh2dHandle`] of the circular highlight of the [`Brush`]es other [`Brush`]es are
+    /// The [`Mesh2dHandle`] of the circular highlight of the brushes other brushes are
     /// tied to.
     anchor_highlight_mesh: Mesh2dHandle,
-    /// The [`Mesh2dHandle`] of the circular highlight of the [`Brush`]es that own a sprite.
+    /// The [`Mesh2dHandle`] of the circular highlight of the brushes that own a sprite.
     sprite_highlight_mesh: Mesh2dHandle,
     /// The tooltip labels generator.
     tt_label_gen: TooltipLabelGenerator,

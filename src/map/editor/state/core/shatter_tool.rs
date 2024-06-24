@@ -34,7 +34,7 @@ use crate::{
 //
 //=======================================================================//
 
-/// The [`Brush`] selector.
+/// The brush selector.
 #[derive(Debug)]
 struct Selector(ItemSelector<Id>);
 
@@ -66,7 +66,7 @@ impl Selector
         Self(ItemSelector::new(selector))
     }
 
-    /// Returns the selected [`Brush`] beneath the cursor.
+    /// Returns the selected brush beneath the cursor.
     #[inline]
     #[must_use]
     fn brush_beneath_cursor(
@@ -118,7 +118,7 @@ impl ShatterTool
         }
     }
 
-    /// Shatters the selected [`Brush`].
+    /// Shatters the selected brush.
     #[inline]
     fn shatter(
         &mut self,

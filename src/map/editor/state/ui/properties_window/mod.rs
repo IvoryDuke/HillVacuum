@@ -48,7 +48,7 @@ enum Target
     /// None.
     #[default]
     None,
-    /// The properties of the [`Brush`]es.
+    /// The properties of the brushes.
     Brushes,
     /// The properties of the [`ThingInstance`]s.
     Things
@@ -64,9 +64,9 @@ struct Innards
 {
     /// The properties to edit.
     target:                     Target,
-    /// The overall collision of the [`Brush`]es.
+    /// The overall collision of the brushes.
     overall_brushes_collision:  OverallValue<bool>,
-    /// The overall [`Brush`]es properties.
+    /// The overall brushes properties.
     overall_brushes_properties: UiOverallProperties,
     /// The overall draw height of the [`ThingInstance`]s.
     overall_things_draw_height: UiOverallValue<i8>,
@@ -76,7 +76,7 @@ struct Innards
     overall_things_properties:  UiOverallProperties,
     /// The maximum amount of rows of the grid.
     max_rows:                   usize,
-    /// The filler rows of the [`Brush`]es grid.
+    /// The filler rows of the brushes grid.
     brushes_filler:             usize,
     /// The filler rows of the [`ThingInstance`]s grid.
     things_filler:              usize
@@ -195,7 +195,7 @@ impl Innards
             }
         }
 
-        /// The struct that updates the properties of the [`Brush`]es.
+        /// The struct that updates the properties of the brushes.
         #[allow(clippy::missing_docs_in_private_items)]
         struct BrushesPropertySetter<'a>
         {
@@ -333,7 +333,7 @@ impl Innards
 
 //=======================================================================//
 
-/// The window to edit the properties of the [`Brush`]es and [`ThingInstance`]s.
+/// The window to edit the properties of the brushes and [`ThingInstance`]s.
 #[must_use]
 pub(in crate::map::editor::state::ui) struct PropertiesWindow
 {
@@ -415,7 +415,7 @@ impl PropertiesWindow
         }
     }
 
-    /// Updates the [`Brush`]es collision.
+    /// Updates the brushes collision.
     #[inline]
     pub fn update_overall_brushes_collision(&mut self, manager: &EntitiesManager)
     {
@@ -430,7 +430,7 @@ impl PropertiesWindow
             .any(|brush| self.innards.overall_brushes_collision.stack(&brush.collision()));
     }
 
-    /// Updates all the overall [`Brush`]es properties.
+    /// Updates all the overall brushes properties.
     #[inline]
     pub fn update_overall_total_brush_properties(&mut self, manager: &EntitiesManager)
     {
@@ -444,7 +444,7 @@ impl PropertiesWindow
             .total_overwrite(manager.selected_brushes().map(Brush::properties_as_ref));
     }
 
-    /// Update the overall [`Brush`]es property with key `k`.
+    /// Update the overall brushes property with key `k`.
     #[inline]
     pub fn update_overall_brushes_property(&mut self, manager: &EntitiesManager, k: &str)
     {
