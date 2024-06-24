@@ -1730,7 +1730,7 @@ impl Path
     //==============================================================
     // Info
 
-    /// Returns the vector containing the [`Node`]s of the path.
+    /// Returns a reference to the vector containing the [`Node`]s of the path.
     #[inline]
     pub const fn nodes(&self) -> &HvVec<Node> { &self.nodes }
 

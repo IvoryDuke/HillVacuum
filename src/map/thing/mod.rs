@@ -672,6 +672,7 @@ pub struct ThingViewer
     pub draw_height: f32,
     /// The optional associated [`Path`].
     pub path:        Option<Path>,
+    /// The associated properties.
     pub properties:  HvHashMap<String, Value>
 }
 

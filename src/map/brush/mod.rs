@@ -2458,7 +2458,7 @@ pub struct BrushViewer
     pub mover:      Mover,
     /// Whever collision against the polygonal shape is enabled.
     pub collision:  bool,
-    /// The properties.
+    /// The associated properties.
     pub properties: HvHashMap<String, Value>
 }
 
