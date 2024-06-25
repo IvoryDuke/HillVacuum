@@ -189,7 +189,7 @@ impl ThingsCatalog
     //==============================================================
     // Info
 
-    /// Whever the [`ThingsCatalog`] contains any [`Thing`].
+    /// Whether the [`ThingsCatalog`] contains any [`Thing`].
     #[inline]
     #[must_use]
     pub fn is_empty(&self) -> bool { self.things.is_empty() }

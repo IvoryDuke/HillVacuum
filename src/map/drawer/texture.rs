@@ -264,7 +264,7 @@ pub trait TextureInterface
     #[must_use]
     fn height_f32(&self) -> f32;
 
-    /// Whever the texture should be rendered like a sprite
+    /// Whether the texture should be rendered like a sprite
     #[must_use]
     fn sprite(&self) -> bool;
 
@@ -298,7 +298,7 @@ pub(in crate::map) trait TextureInterfaceExtra
 //
 //=======================================================================//
 
-/// Whever the texture should be rendered as a sprite.
+/// Whether the texture should be rendered as a sprite.
 #[must_use]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Sprite
@@ -343,7 +343,7 @@ impl From<bool> for Sprite
 
 impl Sprite
 {
-    /// Whever `self` has value `Sprite::True`.
+    /// Whether `self` has value `Sprite::True`.
     #[inline]
     #[must_use]
     pub const fn enabled(&self) -> bool { matches!(self, Self::True { .. }) }
@@ -902,7 +902,7 @@ impl Texture
         &mut self.animation
     }
 
-    /// Whever the texture was edited.
+    /// Whether the texture was edited.
     #[inline(always)]
     #[must_use]
     pub const fn dirty(&self) -> bool { self.dirty }
@@ -1079,14 +1079,14 @@ impl TextureSettings
         self.animation.get_list_animation().frame(index)
     }
 
-    /// Checks whever the move is valid.
+    /// Checks whether the move is valid.
     #[inline]
     pub(in crate::map) fn check_move(&self, delta: Vec2, center: Vec2) -> bool
     {
         !self.sprite.enabled() || !(self.sprite_hull(center) + delta).out_of_bounds()
     }
 
-    /// Checks whever the scale is valid. Returns a [`TextureScale`] describing the outcome if it
+    /// Checks whether the scale is valid. Returns a [`TextureScale`] describing the outcome if it
     /// is.
     #[inline]
     pub(in crate::map) fn check_scale(
@@ -1138,7 +1138,7 @@ impl TextureSettings
         }
     }
 
-    /// Checks whever the scale and flipping of the texture is valid. Returns a [`TextureScale`]
+    /// Checks whether the scale and flipping of the texture is valid. Returns a [`TextureScale`]
     /// describing the outcome if it is.
     #[inline]
     pub(in crate::map) fn check_flip_scale(
@@ -1217,7 +1217,7 @@ impl TextureSettings
         }
     }
 
-    /// Whever the texture change is valid.
+    /// Whether the texture change is valid.
     #[inline]
     pub(in crate::map) fn check_texture_change(
         &mut self,
@@ -1289,7 +1289,7 @@ impl TextureSettings
         std::mem::replace(&mut self.height, value).into()
     }
 
-    /// Whever the new angle is valid.
+    /// Whether the new angle is valid.
     #[inline]
     pub(in crate::map) fn check_angle(
         &mut self,
@@ -1312,7 +1312,7 @@ impl TextureSettings
         result.is_ok()
     }
 
-    /// Checks whever the rotation is valid. If valid returns a [`TextureRotation`] describing the
+    /// Checks whether the rotation is valid. If valid returns a [`TextureRotation`] describing the
     /// outcome, if valid.
     #[inline]
     pub(in crate::map) fn check_rotation(
@@ -1457,7 +1457,7 @@ impl TextureSettings
         (prev, offset_x, offset_y).into()
     }
 
-    /// Checks whever the texture is within bounds.
+    /// Checks whether the texture is within bounds.
     #[inline]
     #[must_use]
     pub(in crate::map) fn check_within_bounds(
@@ -1469,7 +1469,7 @@ impl TextureSettings
         self.check_sprite_vxs(drawing_resources, center).is_ok()
     }
 
-    /// Checks whever changing animation makes the sprite, if any, go out of bounds.
+    /// Checks whether changing animation makes the sprite, if any, go out of bounds.
     #[inline]
     #[must_use]
     pub(in crate::map) fn check_animation_change(
@@ -1709,7 +1709,7 @@ impl TextureSettings
         rect.into()
     }
 
-    /// Checks whever the sprite, if any, fits within the map.
+    /// Checks whether the sprite, if any, fits within the map.
     #[inline]
     pub(in crate::map) fn check_sprite_vxs(
         &self,

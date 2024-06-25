@@ -16,7 +16,7 @@ For the rest, there's this [video](https://youtu.be/c5lakP_V1n0).
 ### Brushes
 Brushes are convex polygonal surfaces. They can have an associated texture which can either be drawn filling their area or as a sprite. The sprite can be displaced independently of the brush surface.  
 Brushes can also be assigned a path that describes how it moves in the bidimensional space and that can be edited with the Path tool.  
-Finally, brushes have a built-in property, `collision`, which determines whever they should represent a clipping surface or not. It can be edited in the properties window.
+Finally, brushes have a built-in property, `collision`, which determines whether they should represent a clipping surface or not. It can be edited in the properties window.
 
 ### Things
 Things are objects which can be placed around the map. They area characterized by an ID, a width and height, a name, and a texture which represents them.  
@@ -42,7 +42,7 @@ Such values can be inserted through the `brush_properties` and `thing_properties
 Properties can be edited per-entity using the properties window.   
 Currently supported value types are `bool`, `u8`, `u16`, `u32`, `u64`, `u128`, `i8`, `i16`, `i32`, `i64`, `i128`, `f32`, `f64`, and `String`.   
    
-!!! If a saved map contains properties that differ in type and/or name from the ones defined in the aforementioned resources, a warning window will appear on screen when trying to load the .hv file, asking whever you'd like to use the app or map ones.   
+!!! If a saved map contains properties that differ in type and/or name from the ones defined in the aforementioned resources, a warning window will appear on screen when trying to load the .hv file, asking whether you'd like to use the app or map ones.   
 
 ### Textures
 Textures must be placed in the `assets/textures/` folder to be loaded.  

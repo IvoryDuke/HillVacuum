@@ -214,7 +214,7 @@ impl Motor
     #[inline]
     pub const fn path(&self) -> &Path { &self.path }
 
-    /// Whever there are any attached brushes.
+    /// Whether there are any attached brushes.
     #[inline]
     #[must_use]
     pub fn has_anchors(&self) -> bool { !self.anchored_brushes.is_empty() }

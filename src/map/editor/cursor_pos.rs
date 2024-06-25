@@ -32,7 +32,7 @@ pub(in crate::map::editor) struct Cursor
     delta_ui:               Vec2,
     /// The bounding box describing the map grid square the cursor is currently in.
     grid_square:            Hull,
-    /// Whever the cursor is set to be snapped to the grid.
+    /// Whether the cursor is set to be snapped to the grid.
     snap:                   bool,
     /// The position of the cursor on the map in the previous frame.
     previous_world:         Vec2,
@@ -66,7 +66,7 @@ impl Default for Cursor
 
 impl Cursor
 {
-    /// Whever the cursor was moved.
+    /// Whether the cursor was moved.
     #[inline]
     #[must_use]
     pub fn moved(&self) -> bool { self.delta_ui != Vec2::ZERO }
@@ -120,7 +120,7 @@ impl Cursor
     #[must_use]
     pub const fn delta_ui(&self) -> Vec2 { self.delta_ui }
 
-    /// Whever grid snap is enabled.
+    /// Whether grid snap is enabled.
     #[inline]
     #[must_use]
     pub const fn snap(&self) -> bool { self.snap }

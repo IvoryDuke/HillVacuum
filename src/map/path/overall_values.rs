@@ -88,7 +88,7 @@ impl OverallMovement
         }
     }
 
-    /// Whever `self` was fed any values.
+    /// Whether `self` was fed any values.
     #[inline]
     #[must_use]
     pub const fn is_some(&self) -> bool { self.max_speed.is_some() }

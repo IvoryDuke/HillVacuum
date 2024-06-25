@@ -162,12 +162,12 @@ impl BrushesWithSelectedVertexes
         }
     }
 
-    /// Whever the merge subtool is available.
+    /// Whether the merge subtool is available.
     #[inline]
     #[must_use]
     const fn vx_merge_available(&self) -> bool { self.selected_vxs.vx_merge_available() }
 
-    /// Whever the split is available.
+    /// Whether the split is available.
     #[inline]
     #[must_use]
     fn split_available(&self) -> bool
@@ -356,7 +356,7 @@ impl VertexTool
     //==============================================================
     // Info
 
-    /// Whever free draw is active.
+    /// Whether free draw is active.
     #[inline]
     #[must_use]
     pub const fn is_free_draw_active(&self) -> bool { matches!(self.0, Status::PolygonToPath(_)) }
@@ -366,11 +366,11 @@ impl VertexTool
     #[must_use]
     const fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world() }
 
-    /// Whever the merge subtool is available.
+    /// Whether the merge subtool is available.
     #[inline]
     pub const fn vx_merge_available(&self) -> bool { self.1.vx_merge_available() }
 
-    /// Whever the split subtool is available.
+    /// Whether the split subtool is available.
     #[inline]
     pub fn split_available(&self) -> bool { self.1.split_available() }
 

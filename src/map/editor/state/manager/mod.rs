@@ -190,7 +190,7 @@ impl AuxiliaryIds
     #[inline]
     fn new() -> Self { Self(hv_hash_set![capacity; 10]) }
 
-    /// Whever `self` contains `id`.
+    /// Whether `self` contains `id`.
     #[inline]
     #[must_use]
     fn contains(&self, id: Id) -> bool { self.0.contains(&id) }
@@ -268,7 +268,7 @@ impl ErrorHighlight
         self.blinks = Self::ERROR_BLINKS;
     }
 
-    /// Check whever the stored error concerns the entity `error` and removes it if that is the
+    /// Check whether the stored error concerns the entity `error` and removes it if that is the
     /// case.
     #[inline]
     fn check_entity_error_removal(&mut self, error: Id)
@@ -412,24 +412,24 @@ struct Innards
     id_generator: IdGenerator,
     /// The error drawer.
     error_highlight: ErrorHighlight,
-    /// Whever the tool outline should be updated.
+    /// Whether the tool outline should be updated.
     outline_update: bool,
     /// The [`Id`]s of the brushes whose amount of selected vertexes changed, necessary for the
     /// update of the vertex and side tools.
     selected_vertexes_update: Ids,
-    /// Whever the texture displayed in the texture editor should be updated.
+    /// Whether the texture displayed in the texture editor should be updated.
     overall_texture_update: bool,
-    /// Whever the info displayed in the platform tool's node editor should be updated.
+    /// Whether the info displayed in the platform tool's node editor should be updated.
     overall_node_update: bool,
-    /// Whever the overall value of the selected brushes' collision should be updated.
+    /// Whether the overall value of the selected brushes' collision should be updated.
     overall_collision_update: bool,
-    /// Whever the overall properties of the brushes should be updated.
+    /// Whether the overall properties of the brushes should be updated.
     overall_brushes_properties_update: PropertyUpdate,
-    /// Whever the overall value of the draw height of the selected [`Thing`]s should be updated.
+    /// Whether the overall value of the draw height of the selected [`Thing`]s should be updated.
     overall_things_info_update: bool,
-    /// Whever the overall properties of the [`ThingInstance`]s should be updated.
+    /// Whether the overall properties of the [`ThingInstance`]s should be updated.
     overall_things_properties_update: PropertyUpdate,
-    /// Whever the properties where refactored after loading a map file.
+    /// Whether the properties where refactored after loading a map file.
     refactored_properties: bool
 }
 
@@ -664,7 +664,7 @@ impl Innards
     //==============================================================
     // General
 
-    /// Whever `identifier` is a selected entity.
+    /// Whether `identifier` is a selected entity.
     #[inline]
     #[must_use]
     fn is_selected(&self, identifier: Id) -> bool
@@ -672,7 +672,7 @@ impl Innards
         self.selected_brushes.contains(&identifier) || self.selected_things.contains(&identifier)
     }
 
-    /// Whever `identifier` belongs to an entity that exists.
+    /// Whether `identifier` belongs to an entity that exists.
     #[inline]
     #[must_use]
     fn entity_exists(&self, identifier: Id) -> bool
@@ -1441,7 +1441,7 @@ impl Innards
     }
 
     /// Inserts in the quad trees the [`Hull`] of the anchors of the brush with [`Id`], and
-    /// returns whever the procedure was successful. `identifier`.
+    /// returns whether the procedure was successful. `identifier`.
     #[inline]
     #[must_use]
     fn insert_anchors_hull(&mut self, quad_trees: &mut Trees, owner_id: Id) -> bool
@@ -1453,7 +1453,7 @@ impl Innards
     }
 
     /// Removes from the quad trees the [`Hull`] of the anchors of the brush with [`Id`]
-    /// `identifier`, and returns whever the procedure was successful.
+    /// `identifier`, and returns whether the procedure was successful.
     #[inline]
     #[must_use]
     fn remove_anchors_hull(&mut self, quad_trees: &mut Trees, owner_id: Id) -> bool
@@ -1466,7 +1466,7 @@ impl Innards
     //==============================================================
     // Things
 
-    /// Whever `identifier` belongs to a [`ThingInstance`].
+    /// Whether `identifier` belongs to a [`ThingInstance`].
     #[inline]
     #[must_use]
     pub fn is_thing(&self, identifier: Id) -> bool { self.things.contains_key(&identifier) }
@@ -1678,7 +1678,7 @@ impl EntitiesManager
     //==============================================================
     // General
 
-    /// Whever the entities properties have been refactored on file load.
+    /// Whether the entities properties have been refactored on file load.
     #[inline(always)]
     #[must_use]
     pub const fn refactored_properties(&self) -> bool { self.innards.refactored_properties }
@@ -1687,7 +1687,7 @@ impl EntitiesManager
     #[inline]
     pub fn reset_refactored_properties(&mut self) { self.innards.refactored_properties = false; }
 
-    /// Whever an entity with [`Id`] `identifier` exists.
+    /// Whether an entity with [`Id`] `identifier` exists.
     #[inline]
     #[must_use]
     pub fn entity_exists(&self, identifier: Id) -> bool
@@ -1814,7 +1814,7 @@ impl EntitiesManager
     //==============================================================
     // Selection
 
-    /// Whever there are any currently selected entities.
+    /// Whether there are any currently selected entities.
     #[inline]
     #[must_use]
     pub fn any_selected_entities(&self) -> bool
@@ -1831,7 +1831,7 @@ impl EntitiesManager
             .map(|id| self.entity(*id))
     }
 
-    /// Whever the entity with [`Id`] `identifier` is selected.
+    /// Whether the entity with [`Id`] `identifier` is selected.
     #[inline]
     #[must_use]
     pub fn is_selected(&self, identifier: Id) -> bool { self.innards.is_selected(identifier) }
@@ -1946,7 +1946,7 @@ impl EntitiesManager
     #[must_use]
     pub fn selected_brushes_amount(&self) -> usize { self.innards.selected_brushes_amount() }
 
-    /// Whever there are any currently selected brushes.
+    /// Whether there are any currently selected brushes.
     #[inline]
     #[must_use]
     pub fn any_selected_brushes(&self) -> bool { self.selected_brushes_amount() != 0 }
@@ -2854,7 +2854,7 @@ impl EntitiesManager
         self.innards.selected_textured.clear();
     }
 
-    /// Sets whever the texture of the selected brushes should be rendered as a sprite or not.
+    /// Sets whether the texture of the selected brushes should be rendered as a sprite or not.
     #[inline]
     pub fn set_sprite(
         &mut self,
@@ -2905,7 +2905,7 @@ impl EntitiesManager
         set!(remove_selected_sprite);
     }
 
-    /// Sets whever the texture of the selected brush with [`Id`] `identifier` should be
+    /// Sets whether the texture of the selected brush with [`Id`] `identifier` should be
     /// rendered as a sprite or not. Returns the previous sprite rendering parameters.
     #[inline]
     pub fn set_single_sprite(
@@ -2962,7 +2962,7 @@ impl EntitiesManager
     //==============================================================
     // Things
 
-    /// Whever `identifier` belongs to a [`ThingInstance`].
+    /// Whether `identifier` belongs to a [`ThingInstance`].
     #[inline]
     #[must_use]
     pub fn is_thing(&self, identifier: Id) -> bool { self.innards.is_thing(identifier) }
@@ -2991,7 +2991,7 @@ impl EntitiesManager
     #[inline]
     pub fn selected_things_amount(&self) -> usize { self.innards.selected_things_amount() }
 
-    /// Whever any [`ThingInstance`] is currently selected.
+    /// Whether any [`ThingInstance`] is currently selected.
     #[inline]
     #[must_use]
     pub fn any_selected_things(&self) -> bool { self.selected_things_amount() != 0 }
@@ -3133,12 +3133,12 @@ impl EntitiesManager
     //==============================================================
     // Moving
 
-    /// Whever the brush with [`Id`] `identifier` is moving.
+    /// Whether the brush with [`Id`] `identifier` is moving.
     #[inline]
     #[must_use]
     pub fn is_moving(&self, identifier: Id) -> bool { self.innards.moving.contains(&identifier) }
 
-    /// Whever the brush with [`Id`] `identifier` is moving and selected.
+    /// Whether the brush with [`Id`] `identifier` is moving and selected.
     #[inline]
     #[must_use]
     pub fn is_selected_moving(&self, identifier: Id) -> bool
@@ -3146,7 +3146,7 @@ impl EntitiesManager
         self.innards.selected_moving.contains(&identifier)
     }
 
-    /// Whever there are any entities that don't have a [`Path`] but could have one.
+    /// Whether there are any entities that don't have a [`Path`] but could have one.
     #[inline]
     #[must_use]
     pub fn any_selected_possible_moving(&self) -> bool

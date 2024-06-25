@@ -574,13 +574,13 @@ pub(in crate::map::editor::state::ui) struct AnimationEditor
     animation:                UiOverallAnimation,
     /// The target of the animation editing.
     pub target:               Target,
-    /// Whever a texture animation update was scheduled.
+    /// Whether a texture animation update was scheduled.
     update_texture_animation: bool
 }
 
 impl AnimationEditor
 {
-    /// Whever the animation editor is open.
+    /// Whether the animation editor is open.
     #[inline]
     #[must_use]
     pub const fn is_open(&self) -> bool { !matches!(self.target, Target::None) }
@@ -593,7 +593,7 @@ impl AnimationEditor
     #[inline]
     pub fn open(&mut self, target: Target) { self.target = target; }
 
-    /// Whever a texture can be added to a list animation by clicking on a texture in the preview
+    /// Whether a texture can be added to a list animation by clicking on a texture in the preview
     /// gallery.
     #[inline]
     #[must_use]
@@ -619,7 +619,7 @@ impl AnimationEditor
         }
     }
 
-    /// Whever the texture override is set.
+    /// Whether the texture override is set.
     #[inline]
     #[must_use]
     pub const fn has_override(&self) -> bool { matches!(self.target, Target::Texture(Some(_))) }
@@ -724,7 +724,7 @@ impl AnimationEditor
         };
     }
 
-    /// Checks whever the sprites are within bounds.
+    /// Checks whether the sprites are within bounds.
     #[inline]
     #[must_use]
     fn check_sprites_within_bounds(
@@ -1032,7 +1032,7 @@ impl AnimationEditor
                     ui.set_height(SETTING_HEIGHT);
 
                     animation_pick(ui, |[none, list, atlas]| {
-                        /// Checks whever an animation change is valid.
+                        /// Checks whether an animation change is valid.
                         #[inline]
                         fn check_animation_change(
                             drawing_resources: &DrawingResources,

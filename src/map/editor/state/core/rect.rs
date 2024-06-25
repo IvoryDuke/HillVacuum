@@ -78,15 +78,15 @@ pub trait RectTrait
     where
         Self: Sized;
 
-    /// Whever `self` represents an uninitiated drag area.
+    /// Whether `self` represents an uninitiated drag area.
     #[must_use]
     fn none(&self) -> bool;
 
-    /// Whever `self` represents an initiated drag area.
+    /// Whether `self` represents an initiated drag area.
     #[must_use]
     fn initiated(&self) -> bool;
 
-    /// Whever `self` represents a formed drag area.
+    /// Whether `self` represents a formed drag area.
     #[must_use]
     fn formed(&self) -> bool;
 
@@ -314,7 +314,7 @@ where
     #[must_use]
     pub const fn highlighted_entity(&self) -> Option<T> { self.1 }
 
-    /// Whever there is an highlighted entity.
+    /// Whether there is an highlighted entity.
     #[inline]
     #[must_use]
     pub const fn has_highlighted_entity(&self) -> bool { self.1.is_some() }
@@ -329,7 +329,7 @@ where
 //
 //=======================================================================//
 
-/// Whever `a` and `b` are valid points to generate a [`Rect`].
+/// Whether `a` and `b` are valid points to generate a [`Rect`].
 #[inline]
 #[must_use]
 fn valid_points(a: Vec2, b: Vec2, camera_scale: f32) -> bool

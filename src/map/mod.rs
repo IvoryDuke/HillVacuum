@@ -99,7 +99,7 @@ const TOOLTIP_OFFSET: egui::Vec2 = egui::Vec2::new(0f32, -12.5);
 /// A trait to determine wherever an entity fits within the map's bounds.
 pub trait OutOfBounds
 {
-    /// Whever the entity fits within the map bounds.
+    /// Whether the entity fits within the map bounds.
     #[must_use]
     fn out_of_bounds(&self) -> bool;
 }

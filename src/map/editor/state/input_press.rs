@@ -55,7 +55,7 @@ where
         }
     }
 
-    /// Whever the button is currently pressed.
+    /// Whether the button is currently pressed.
     #[inline]
     #[must_use]
     pub const fn pressed(&self) -> bool
@@ -63,7 +63,7 @@ where
         matches!(self.state, State::JustPressed | State::Pressed)
     }
 
-    /// Whever the button has just been pressed.
+    /// Whether the button has just been pressed.
     #[inline]
     #[must_use]
     pub const fn just_pressed(&self) -> bool { matches!(self.state, State::JustPressed) }
@@ -115,7 +115,7 @@ impl InputState
         }
     }
 
-    /// Whever the button has just been pressed.
+    /// Whether the button has just been pressed.
     #[inline]
     #[must_use]
     pub const fn just_pressed(&self) -> bool { matches!(self.state, State::JustPressed) }

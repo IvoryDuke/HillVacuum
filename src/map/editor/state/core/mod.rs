@@ -262,12 +262,12 @@ macro_rules! selected_vertexes {
 
         impl SelectedVertexes
         {
-            /// Whever there are any selected vertexes.
+            /// Whether there are any selected vertexes.
             #[inline]
             #[must_use]
             pub const fn any_selected_vx(&self) -> bool { self.1 != 0 }
 
-            /// Whever the vertexes merge is available.
+            /// Whether the vertexes merge is available.
             #[inline]
             #[must_use]
             pub const fn vx_merge_available(&self) -> bool
@@ -556,7 +556,7 @@ impl<'a> UndoRedoInterface<'a>
         self.manager.remove_texture(identifier)
     }
 
-    /// Sets whever the texture of the selected brush with [`Id`] `identifier` should be
+    /// Sets whether the texture of the selected brush with [`Id`] `identifier` should be
     /// rendered as a sprite or not. Returns the previous sprite rendering parameters.
     #[inline]
     pub fn set_single_sprite(
@@ -699,7 +699,7 @@ impl Core
     //==============================================================
     // Info
 
-    /// Whever an ongoing multiframe change is happening.
+    /// Whether an ongoing multiframe change is happening.
     #[inline]
     #[must_use]
     pub fn ongoing_multi_frame_change(&self) -> bool
@@ -707,17 +707,17 @@ impl Core
         self.active_tool.ongoing_multi_frame_change()
     }
 
-    /// Whever the entity tool is active.
+    /// Whether the entity tool is active.
     #[inline]
     #[must_use]
     pub const fn entity_tool(&self) -> bool { self.active_tool.entity_tool() }
 
-    /// Whever the active tool has texture editing capabilities.
+    /// Whether the active tool has texture editing capabilities.
     #[inline]
     #[must_use]
     pub const fn texture_tool(&self) -> bool { self.active_tool.texture_tool() }
 
-    /// Whever the map preview is active.
+    /// Whether the map preview is active.
     #[inline]
     #[must_use]
     pub const fn map_preview(&self) -> bool { self.active_tool.map_preview() }
@@ -725,7 +725,7 @@ impl Core
     //==============================================================
     // Save
 
-    /// Whever it is possible to save the file.
+    /// Whether it is possible to save the file.
     #[inline]
     #[must_use]
     pub fn save_available(&self) -> bool { !self.active_tool.ongoing_multi_frame_change() }
@@ -733,7 +733,7 @@ impl Core
     //==============================================================
     // Select all
 
-    /// Whever select all is available.
+    /// Whether select all is available.
     #[inline]
     #[must_use]
     pub fn select_all_available(&self) -> bool { !self.active_tool.ongoing_multi_frame_change() }
@@ -754,7 +754,7 @@ impl Core
     //==============================================================
     // Undo/Redo
 
-    /// Whever undo/redo is available.
+    /// Whether undo/redo is available.
     #[inline]
     #[must_use]
     pub fn undo_redo_available(&self) -> bool { self.active_tool.undo_redo_available() }
@@ -798,7 +798,7 @@ impl Core
     //==============================================================
     // Copy/Paste
 
-    /// Whever it is possible to copy/paste.
+    /// Whether it is possible to copy/paste.
     #[inline]
     #[must_use]
     pub fn copy_paste_available(&self) -> bool { self.active_tool.copy_paste_available() }

@@ -94,7 +94,7 @@ pub struct SelectableVector
 {
     /// The vector.
     pub vec:      Vec2,
-    /// Whever it is selected or not.
+    /// Whether it is selected or not.
     pub selected: bool
 }
 

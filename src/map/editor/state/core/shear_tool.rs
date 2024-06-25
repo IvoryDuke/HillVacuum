@@ -294,7 +294,7 @@ impl ShearTool
         };
     }
 
-    /// Checks whever there is a side of the outline near `cursor_pos`.
+    /// Checks whether there is a side of the outline near `cursor_pos`.
     #[inline]
     fn check_shear_side_proximity(&mut self, cursor_pos: Vec2, camera_scale: f32)
     {
