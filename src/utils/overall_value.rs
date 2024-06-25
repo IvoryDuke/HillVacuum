@@ -80,7 +80,7 @@ impl<T> OverallValueInterface<T> for OverallValue<T>
 where
     T: PartialEq + Clone
 {
-    #[inline]
+    #[inline(always)]
     fn is_not_uniform(&self) -> bool { matches!(self, Self::NonUniform) }
 
     #[inline]
@@ -126,11 +126,11 @@ where
 impl<T: PartialEq + Clone> OverallValue<T>
 {
     /// Returns a uniform [`OverallValue`] with `value`.
-    #[inline]
+    #[inline(always)]
     pub const fn new(value: T) -> Self { Self::Uniform(value) }
 
     /// Whever `self` described at least one value.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_some(&self) -> bool { !matches!(self, Self::None) }
 }
@@ -160,7 +160,7 @@ enum UiValueEnum<T: ToString + FromStr>
 
 impl<T: ToString + FromStr> Default for UiValueEnum<T>
 {
-    #[inline]
+    #[inline(always)]
     fn default() -> Self { Self::None(String::new()) }
 }
 
@@ -207,20 +207,20 @@ impl<T: ToString + FromStr + PartialEq> From<T> for UiOverallValue<T>
 impl<T: ToString + FromStr + PartialEq> UiOverallValue<T>
 {
     /// Returns a [`UiOverallValue`] that represents an empty [`OverallValue`].
-    #[inline]
+    #[inline(always)]
     pub const fn none() -> Self { Self(UiValueEnum::None(String::new())) }
 
     /// Returns a [`UiOverallValue`] that represents a non uniform [`OverallValue`].
-    #[inline]
+    #[inline(always)]
     pub const fn non_uniform() -> Self { Self(UiValueEnum::NonUniform(String::new())) }
 
     /// Returns true if [`UiOverallValue`] represents an empty [`OverallValue`].
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_none(&self) -> bool { matches!(self.0, UiValueEnum::None(_)) }
 
     /// Returns the overall value, if [`UiOverallValue`] represents an uniform value.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn uniform_value(&self) -> Option<&T>
     {

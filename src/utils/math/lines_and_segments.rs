@@ -34,7 +34,7 @@ pub enum LineEquation
 /// described by `a` and `b`.
 /// # Panics
 /// Panics if `a` and `b` represent the same point.
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn point_to_segment_distance_squared(a: Vec2, b: Vec2, p: Vec2) -> f32
 {
@@ -71,7 +71,7 @@ pub fn closest_point_on_segment(a: Vec2, b: Vec2, p: Vec2) -> Vec2
 //=======================================================================//
 
 /// Returns the coordinates of the point of the line passing through `a` and `b` closest to `p`.
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn closest_point_on_line(a: Vec2, b: Vec2, p: Vec2) -> Vec2
 {
@@ -115,7 +115,7 @@ pub fn line_equation(l: &[Vec2; 2]) -> LineEquation
 //=======================================================================//
 
 /// Computes the linear interpolation between `a` and `b`.
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn lerp(a: Vec2, b: Vec2, t: f32) -> Vec2 { a + (b - a) * t }
 
@@ -147,7 +147,7 @@ pub fn lines_intersection(l_1: &[Vec2; 2], l_2: &[Vec2; 2]) -> Option<(Vec2, f32
 //=======================================================================//
 
 /// Computes the intersection of segments `s_1` and `s_2`, if any.
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn segments_intersection(s_1: &[Vec2; 2], s_2: &[Vec2; 2]) -> Option<(Vec2, f32)>
 {
@@ -158,7 +158,7 @@ pub fn segments_intersection(s_1: &[Vec2; 2], s_2: &[Vec2; 2]) -> Option<(Vec2, 
 //=======================================================================//
 
 /// Whever `p` is on the segment `s`.
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn is_point_on_segment(s: &[Vec2; 2], p: Vec2) -> bool
 {
@@ -172,7 +172,7 @@ pub fn is_point_on_segment(s: &[Vec2; 2], p: Vec2) -> bool
 //=======================================================================//
 
 /// Computes the dot product of the line `l` and the point `p`.
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn line_point_product(l: &[Vec2; 2], p: Vec2) -> f32
 {
@@ -182,6 +182,6 @@ pub fn line_point_product(l: &[Vec2; 2], p: Vec2) -> f32
 //=======================================================================//
 
 /// Whever `p` is inside the clip edge of `l`.
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn is_point_inside_clip_edge(l: &[Vec2; 2], p: Vec2) -> bool { line_point_product(l, p) > 0f32 }

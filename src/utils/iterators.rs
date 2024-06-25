@@ -90,7 +90,7 @@ impl<'a, T: 'a> PairIterator<'a, &'a T, SlicePairIter<'a, T>> for [T]
     /// assert!(iter.next() == [1, 2]).into();
     /// assert!(iter.next() == None);
     /// ```
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn pair_iter(&'a self) -> Option<SlicePairIter<'a, T>> { SlicePairIter::new(self) }
 }
@@ -117,7 +117,7 @@ impl<'a, T: 'a> PairIteratorMut<'a, T, SlicePairIterMut<'a, T>> for [T]
     /// assert!(iter.next() == [1, 2]).into();
     /// assert!(iter.next() == None);
     /// ```
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn pair_iter_mut(&'a mut self) -> Option<SlicePairIterMut<'a, T>>
     {
@@ -147,7 +147,7 @@ impl<'a, T: 'a> TripletIterator<'a, &'a T, SliceTripletIter<'a, T>> for [T]
     /// assert!(iter.next() == [0, 1, 2]).into();
     /// assert!(iter.next() == None);
     /// ```
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn triplet_iter(&'a self) -> Option<SliceTripletIter<'a, T>> { SliceTripletIter::new(self) }
 }
@@ -169,7 +169,7 @@ pub trait SkipIndexIterator
 {
     /// Returns an iterator that skips a certain index.
     /// Returns None if the index is not within bounds.
-    #[inline]
+    #[inline(always)]
     fn skip_index(self, index: usize) -> Option<SkipIndex<Self>>
     where
         Self: Sized + Iterator + ExactSizeIterator
@@ -191,19 +191,19 @@ pub struct Filters<T, const N: usize>(ArrayVec<T, N>);
 
 impl<T> From<T> for Filters<T, 1>
 {
-    #[inline]
+    #[inline(always)]
     fn from(value: T) -> Self { Self(ArrayVec::from([value])) }
 }
 
 impl<T, const N: usize> From<[T; N]> for Filters<T, N>
 {
-    #[inline]
+    #[inline(always)]
     fn from(value: [T; N]) -> Self { Self(ArrayVec::from(value)) }
 }
 
 impl<T, const N: usize> From<ArrayVec<T, N>> for Filters<T, N>
 {
-    #[inline]
+    #[inline(always)]
     fn from(value: ArrayVec<T, N>) -> Self { Self(value) }
 }
 
@@ -258,7 +258,7 @@ where
     P: Fn(&I::Item) -> T
 {
     /// Creates a new [`FilteredSet`].
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn new(iter: I, filters: impl Into<Filters<T, N>>, predicate: P) -> Self
     {
@@ -300,7 +300,7 @@ where
     }
 
     /// Returns the elements of the iterator.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn unfiltered_iteration(&mut self) -> Option<I::Item> { self.iter.next() }
 }
@@ -313,7 +313,7 @@ where
 {
     type Item = I::Item;
 
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn next(&mut self) -> Option<Self::Item> { (self.factory)(self) }
 }
@@ -351,7 +351,7 @@ impl<'a, T> SlicePairIter<'a, T>
 
     /// Returns an iterator that returns the slice indexes of the elements along with the pair of
     /// elements themselves.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn enumerate(self) -> Enumerate<Self, &'a T, 2> { Enumerate(self) }
 }
@@ -359,13 +359,13 @@ impl<'a, T> SlicePairIter<'a, T>
 impl<'a, T> Enumeration<2> for SlicePairIter<'a, T>
 {
     /// Returns the indexes of the returned pair of elements.
-    #[inline]
+    #[inline(always)]
     fn enumeration(&self) -> [usize; 2] { [self.iter.j, self.iter.i] }
 }
 
 impl<'a, T> ExactSizeIterator for SlicePairIter<'a, T>
 {
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn len(&self) -> usize { self.iter.len - self.iter.i }
 }
@@ -400,13 +400,13 @@ pub struct RangePairIter
 
 impl<'a> PairIterator<'a, usize, RangePairIter> for Range<usize>
 {
-    #[inline]
+    #[inline(always)]
     fn pair_iter(&'a self) -> Option<RangePairIter> { RangePairIter::new(self) }
 }
 
 impl ExactSizeIterator for RangePairIter
 {
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn len(&self) -> usize { self.len - self.i }
 }
@@ -481,7 +481,7 @@ impl<'a, T> SlicePairIterMut<'a, T>
 
     /// Returns an iterator that returns the slice indexes of the elements along with the pair of
     /// elements themselves.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn enumerate(self) -> Enumerate<Self, &'a mut T, 2> { Enumerate(self) }
 }
@@ -489,7 +489,7 @@ impl<'a, T> SlicePairIterMut<'a, T>
 impl<'a, T> Enumeration<2> for SlicePairIterMut<'a, T>
 {
     /// Returns the indexes of the returned pair of elements.
-    #[inline]
+    #[inline(always)]
     fn enumeration(&self) -> [usize; 2] { [self.iter.j, self.iter.i] }
 }
 
@@ -546,7 +546,7 @@ impl<'a, T> SliceTripletIter<'a, T>
 
     /// Returns an iterator that returns the slice indexes of the elements along with the pair of
     /// elements themselves.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn enumerate(self) -> Enumerate<Self, &'a T, 3> { Enumerate(self) }
 }
@@ -554,13 +554,13 @@ impl<'a, T> SliceTripletIter<'a, T>
 impl<'a, T> Enumeration<3> for SliceTripletIter<'a, T>
 {
     /// Returns the indexes of the returned triplet of elements.
-    #[inline]
+    #[inline(always)]
     fn enumeration(&self) -> [usize; 3] { [self.iter.i, self.iter.j, self.iter.k] }
 }
 
 impl<'a, T> ExactSizeIterator for SliceTripletIter<'a, T>
 {
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn len(&self) -> usize { self.iter.len - self.iter.k }
 }
@@ -599,13 +599,13 @@ pub struct RangeTripleIter
 
 impl<'a> TripletIterator<'a, usize, RangeTripleIter> for Range<usize>
 {
-    #[inline]
+    #[inline(always)]
     fn triplet_iter(&'a self) -> Option<RangeTripleIter> { RangeTripleIter::new(self) }
 }
 
 impl ExactSizeIterator for RangeTripleIter
 {
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn len(&self) -> usize { self.len - self.i }
 }
@@ -665,7 +665,7 @@ impl<I, T, const N: usize> ExactSizeIterator for Enumerate<I, T, N>
 where
     I: Iterator<Item = [T; N]> + ExactSizeIterator + Enumeration<N>
 {
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn len(&self) -> usize { self.0.len() }
 }
@@ -707,7 +707,7 @@ where
     I: Sized + Iterator + ExactSizeIterator
 {
     /// Creates a new [`SkipIndex`].
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn new(iter: I, skip: usize) -> Option<Self>
     {
@@ -737,7 +737,7 @@ where
     }
 
     /// Returns the remaining elements.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn unfiltered_iteration(&mut self) -> Option<I::Item> { self.iter.next() }
 }
@@ -748,7 +748,7 @@ where
 {
     type Item = I::Item;
 
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn next(&mut self) -> Option<Self::Item> { (self.factory)(self) }
 }

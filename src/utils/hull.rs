@@ -136,7 +136,7 @@ impl Corner
     pub fn previous(self) -> Self { Self::from(next(self as usize, Self::SIZE)) }
 
     /// Returns the horizontal specular corner.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn horizontal_specular(self) -> Self
     {
@@ -150,7 +150,7 @@ impl Corner
     }
 
     /// Returns the vertical specular corner.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn vertical_specular(self) -> Self
     {
@@ -199,7 +199,7 @@ pub enum Flip
 impl Flip
 {
     /// Returns the value wrapped by all enum arms.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn mirror(self) -> f32
     {
@@ -341,7 +341,7 @@ impl Hull
     /// Returns a new [`Hull`].
     /// # Panics
     /// Panics if `bottom` is greater than `top` or `left` is greater than `right`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub(crate) fn new(top: f32, bottom: f32, left: f32, right: f32) -> Self
     {
@@ -440,72 +440,72 @@ impl Hull
     // Info
 
     /// The y coordinate of the top side.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn top(&self) -> f32 { self.top }
 
     /// The y coordinate of the bottom side.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn bottom(&self) -> f32 { self.bottom }
 
     /// The x coordinate of the left side.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn left(&self) -> f32 { self.left }
 
     /// The x coordinate of the right side.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn right(&self) -> f32 { self.right }
 
     /// Returns the point representing the top left corner.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn top_left(&self) -> Vec2 { Vec2::new(self.left, self.top) }
 
     /// Returns the point representing the top right corner.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn top_right(&self) -> Vec2 { Vec2::new(self.right, self.top) }
 
     /// Returns the point representing the bottom left corner.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn bottom_left(&self) -> Vec2 { Vec2::new(self.left, self.bottom) }
 
     /// Returns the point representing the bottom right corner.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn bottom_right(&self) -> Vec2 { Vec2::new(self.right, self.bottom) }
 
     /// Returns the width.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn width(&self) -> f32 { self.right - self.left }
 
     /// Returns the height.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn height(&self) -> f32 { self.top - self.bottom }
 
     /// Returns the he half width.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn half_width(&self) -> f32 { self.width() / 2f32 }
 
     /// Returns he half height.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn half_height(&self) -> f32 { self.height() / 2f32 }
 
     /// Returns the width and height.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn dimensions(&self) -> (f32, f32) { (self.width(), self.height()) }
 
     /// Returns the center.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn center(&self) -> Vec2
     {
@@ -513,7 +513,7 @@ impl Hull
     }
 
     /// Returns the horizontal and vertical ranges.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn range(&self) -> (RangeInclusive<f32>, RangeInclusive<f32>)
     {
@@ -521,7 +521,7 @@ impl Hull
     }
 
     /// Whever the [`Hull`] contains `p`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub(crate) fn contains_point(&self, p: Vec2) -> bool
     {
@@ -543,7 +543,7 @@ impl Hull
     }
 
     /// Whever the [`Hull`] overlaps `other`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub(crate) fn overlaps(&self, other: &Self) -> bool
     {
@@ -572,7 +572,7 @@ impl Hull
     // Update
 
     /// Breaks the [`Hull`] into its components: top, bottom, left, right.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub(crate) const fn decompose(self) -> (f32, f32, f32, f32)
     {
@@ -594,7 +594,7 @@ impl Hull
 
     /// Extends the horizonal and vertical dimensions by `2f32 * bump` while maintaining the same
     /// center.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub(crate) fn bumped(&self, bump: f32) -> Self
     {
@@ -715,7 +715,7 @@ impl Hull
 
     /// Returns an iterator to the vertexes of a circle-like polygon inscribed in [`Hull`] with
     /// `resolution` sides.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub(crate) fn circle(&self, resolution: u8) -> CircleIterator
     {
@@ -726,7 +726,7 @@ impl Hull
     // Corner & Side
 
     /// The coordinates of `corner`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub(crate) const fn corner_vertex(&self, corner: Corner) -> Vec2
     {
@@ -1029,12 +1029,12 @@ impl CircleIterator
     }
 
     /// Returns the first point.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn starting_point(&self) -> Vec2 { self.starting_point + self.center }
 
     /// Reverts the iteration to the previous element.
-    #[inline]
+    #[inline(always)]
     pub fn regress(&mut self) { self.left -= 1; }
 
     /// Generates the next vertex of the shape.
@@ -1056,7 +1056,7 @@ impl CircleIterator
     const fn actual_circle_vx_generator(pos: Vec2, _: f32) -> Vec2 { pos }
 
     /// Function that modifies `pos` to generate an oval shape with width greater than height.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn oval_vx_greater_width_generator(mut pos: Vec2, multi: f32) -> Vec2
     {
@@ -1065,7 +1065,7 @@ impl CircleIterator
     }
 
     /// Function that modifies `pos` to generate an oval shape with height greater than width.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn oval_vx_greater_height_generator(mut pos: Vec2, multi: f32) -> Vec2
     {

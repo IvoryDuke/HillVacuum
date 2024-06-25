@@ -72,7 +72,7 @@ impl Id
     }
 
     /// Returns the [`usize`] associated with `self`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn value(self) -> usize { self.0 }
 }
@@ -92,7 +92,7 @@ impl Default for IdGenerator
 impl IdGenerator
 {
     /// Returns a new unique [`Id`].
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn new_id(&mut self) -> Id
     {
@@ -102,6 +102,6 @@ impl IdGenerator
     }
 
     /// Set the next [`Id`] to be generated to `value`.
-    #[inline]
+    #[inline(always)]
     pub fn reset(&mut self, value: Id) { self.0 = value; }
 }

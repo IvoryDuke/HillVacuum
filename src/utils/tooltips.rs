@@ -83,7 +83,7 @@ pub fn draw_tooltip(
 /// Returns the amount a tooltip needs to be horizontally offset to be centered with respect to a
 /// certain coordinate.
 #[allow(clippy::cast_precision_loss)]
-#[inline]
+#[inline(always)]
 #[must_use]
 fn x_center_text_offset(text: &str) -> f32 { text.len() as f32 * TEXT_WIDTH_X_CENTER_COEFFICIENT }
 

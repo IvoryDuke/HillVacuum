@@ -45,7 +45,7 @@ pub fn rotate_point(p: Vec2, o: Vec2, angle: f32) -> Vec2
 //=======================================================================//
 
 /// Rotates a point around the origin.
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn rotate_point_around_origin(p: Vec2, angle: f32) -> Vec2
 {
@@ -57,7 +57,7 @@ pub fn rotate_point_around_origin(p: Vec2, angle: f32) -> Vec2
 
 /// Computes the center of a series of points.
 #[allow(clippy::cast_precision_loss)]
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn vxs_center<T>(vxs: T) -> Vec2
 where
@@ -156,7 +156,8 @@ pub fn vertexes_orientation(vxs: &[Vec2; 3]) -> VertexesOrientation
 //=======================================================================//
 
 /// Returns true if the vertexes contained in vxs are in a counterclockwise order.
-#[inline]
+#[inline(always)]
+#[must_use]
 pub fn are_vxs_ccw(vxs: &[Vec2; 3]) -> bool
 {
     matches!(vertexes_orientation(vxs), VertexesOrientation::CounterClockwise)

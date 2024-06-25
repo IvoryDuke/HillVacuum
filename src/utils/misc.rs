@@ -34,7 +34,7 @@ pub trait NoneIfEmpty
 
 impl<T> NoneIfEmpty for Vec<T>
 {
-    #[inline]
+    #[inline(always)]
     fn none_if_empty(self) -> Option<Self> { (!self.is_empty()).then_some(self) }
 }
 
@@ -50,7 +50,7 @@ pub trait ReplaceValues<T>
 
 impl<T> ReplaceValues<T> for Vec<T>
 {
-    #[inline]
+    #[inline(always)]
     fn replace_values<I: IntoIterator<Item = T>>(&mut self, iter: I)
     {
         self.clear();
@@ -60,7 +60,7 @@ impl<T> ReplaceValues<T> for Vec<T>
 
 impl<'a, T: 'a + Copy> ReplaceValues<&'a T> for Vec<T>
 {
-    #[inline]
+    #[inline(always)]
     fn replace_values<I: IntoIterator<Item = &'a T>>(&mut self, iter: I)
     {
         self.clear();
@@ -70,7 +70,7 @@ impl<'a, T: 'a + Copy> ReplaceValues<&'a T> for Vec<T>
 
 impl ReplaceValues<char> for String
 {
-    #[inline]
+    #[inline(always)]
     fn replace_values<I: IntoIterator<Item = char>>(&mut self, iter: I)
     {
         self.clear();
@@ -124,11 +124,11 @@ pub trait Camera
     fn zoom(&mut self, units: f32);
 
     /// Zooms in.
-    #[inline]
+    #[inline(always)]
     fn zoom_in(&mut self) { self.zoom(1f32); }
 
     /// Zooms out.
-    #[inline]
+    #[inline(always)]
     fn zoom_out(&mut self) { self.zoom(-1f32); }
 
     /// Zooms `self` on a certain position by `units` amount.
@@ -147,7 +147,7 @@ pub trait Camera
 
     /// Returns the UI dimensions of the window divided by half and scaled to represent its world
     /// dimensions.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     fn scaled_window_half_sizes(&self, window: &Window) -> (f32, f32)
     {
@@ -329,13 +329,13 @@ pub trait Toggle
 
 impl Toggle for bool
 {
-    #[inline]
+    #[inline(always)]
     fn toggle(&mut self) { *self = !*self; }
 }
 
 impl Toggle for f32
 {
-    #[inline]
+    #[inline(always)]
     fn toggle(&mut self) { *self = -*self; }
 }
 
@@ -380,7 +380,7 @@ pub struct Blinker
 impl Blinker
 {
     /// Returns a new [`Blinker`].
-    #[inline]
+    #[inline(always)]
     pub const fn new(interval: f32) -> Self
     {
         Self {
@@ -391,7 +391,7 @@ impl Blinker
     }
 
     /// Whever the [`Blinker`] is in the on state.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn on(&self) -> bool { self.onoff }
 
@@ -433,12 +433,12 @@ pub fn to_world_coordinates<T: Camera>(p: Vec2, window: &Window, camera: &T) -> 
 //=======================================================================//
 
 /// Returns the scaled length of the vertex highlight side.
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn vertex_highlight_side_length(camera_scale: f32) -> f32 { camera_scale * VX_HGL_SIDE }
 
 /// Returns a slightly increased length of the vertex highlight side.
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn bumped_vertex_highlight_side_length(camera_scale: f32) -> f32
 {
@@ -446,7 +446,7 @@ pub fn bumped_vertex_highlight_side_length(camera_scale: f32) -> f32
 }
 
 /// Returns a [`Hull`] describing a square with side `side_length` with center at the origin.
-#[inline]
+#[inline(always)]
 #[must_use]
 fn square(side_length: f32) -> Hull
 {
@@ -454,7 +454,7 @@ fn square(side_length: f32) -> Hull
 }
 
 /// Returns a [`Hull`] representing a vertex highlight with center at the origin.
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn vertex_highlight_square(camera_scale: f32) -> Hull
 {
@@ -462,7 +462,7 @@ pub fn vertex_highlight_square(camera_scale: f32) -> Hull
 }
 
 /// Returns a [`Hull`] representing a slightly buffed vertex highlight with center at the origin.
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn bumped_vertex_highlight_square(camera_scale: f32) -> Hull
 {

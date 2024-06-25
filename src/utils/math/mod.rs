@@ -185,7 +185,7 @@ impl std::fmt::Display for NecessaryPrecisionF32
 
 /// The Quake fast inverse sqrt algorithm.
 /// <https://stackoverflow.com/questions/59081890/is-it-possible-to-write-quakes-fast-invsqrt-function-in-rust>
-#[inline]
+#[inline(always)]
 #[must_use]
 pub fn inverse_sqrt(x: f32) -> f32
 {
