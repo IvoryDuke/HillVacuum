@@ -254,9 +254,12 @@ where
                 };
             }
         };
-
-        let value = Some(self.items[self.depth]);
-        self.previous = value;
-        value
+        if let Position::None = self.depth {
+            None
+        } else {
+            let value = Some(self.items[self.depth]);
+            self.previous = value;
+            value
+        }
     }
 }
