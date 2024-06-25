@@ -424,7 +424,7 @@ impl Exporter
 #[allow(clippy::needless_pass_by_value)]
 #[allow(clippy::cast_precision_loss)]
 #[inline]
-pub(in crate::map) fn initialize(
+fn initialize(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     mut egui_contexts: Query<EguiContextQuery>
@@ -535,7 +535,7 @@ pub(in crate::map) fn initialize(
 
 //=======================================================================//
 
-/// Removes tab for the inputs fed to `egui`.
+/// Removes tab from the egui inputs.
 #[inline]
 fn clean_egui_inputs(mut input: Query<&mut EguiInput>)
 {
