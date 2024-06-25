@@ -254,9 +254,12 @@ where
                 };
             }
         };
-        if let Position::None = self.depth {
+        if let Position::None = self.depth
+        {
             None
-        } else {
+        }
+        else
+        {
             let value = Some(self.items[self.depth]);
             self.previous = value;
             value
