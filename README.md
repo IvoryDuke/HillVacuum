@@ -152,4 +152,5 @@ Finally, [if popular culture has taught us anything is that 'c's are not extreme
 There's a lot of talk around the internet about respecting each other's differences, and rightfully so. So I would appreciate it if people could respect this difference of mine.
 
 ## To do
-Complete code documentation.
+- Isometric grid (shear and rotation parameters);
+- Complete code documentation.
