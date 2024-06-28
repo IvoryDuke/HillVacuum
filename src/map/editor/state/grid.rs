@@ -17,11 +17,13 @@ use crate::{
 //=======================================================================//
 
 /// The grid of the map.
+#[must_use]
 #[derive(Clone, Copy, Debug)]
 pub(in crate::map) struct Grid
 {
     /// The size of the grid's squares.
     size:        i16,
+    skew:        i8,
     /// Whever the grid should be drawn on screen..
     pub visible: bool,
     /// When true, the position of the grid squares is shifted by half of its size, both
@@ -32,11 +34,11 @@ pub(in crate::map) struct Grid
 impl Default for Grid
 {
     #[inline]
-    #[must_use]
     fn default() -> Self
     {
         Self {
             size:    64,
+            skew:    64,
             visible: true,
             shifted: false
         }
@@ -50,11 +52,16 @@ impl Grid
 
     /// Returns a new [`Grid`].
     #[inline]
-    pub(in crate::map::editor::state) const fn new(size: i16, visible: bool, shifted: bool)
-        -> Self
+    pub(in crate::map::editor::state) const fn new(
+        size: i16,
+        skew: i8,
+        visible: bool,
+        shifted: bool
+    ) -> Self
     {
         Self {
             size,
+            skew,
             visible,
             shifted
         }
@@ -324,13 +331,29 @@ impl Grid
     {
         let (top, bottom, left, right) = camera.viewport_ui_constricted(window).decompose();
 
+        if self.skew == 0
+        {
+            return (GridLines::new(top, bottom, left, right, self), Axis {
+                x: (bottom..top)
+                    .contains(&0f32)
+                    .then(|| (Vec2::new(left, 0f32), Vec2::new(right, 0f32))),
+                y: (left..right)
+                    .contains(&0f32)
+                    .then(|| (Vec2::new(0f32, top), Vec2::new(0f32, bottom)))
+            });
+        }
+
+        let skew_f32 = f32::from(self.skew);
+        let y_left = skewed_y(bottom, skew_f32);
+        let y_right = skewed_y(top, skew_f32);
+        let x_range = left..right;
+        let draw_y = x_range.contains(&y_left) || x_range.contains(&y_right);
+
         (GridLines::new(top, bottom, left, right, self), Axis {
             x: (bottom..top)
                 .contains(&0f32)
                 .then(|| (Vec2::new(left, 0f32), Vec2::new(right, 0f32))),
-            y: (left..right)
-                .contains(&0f32)
-                .then(|| (Vec2::new(0f32, top), Vec2::new(0f32, bottom)))
+            y: draw_y.then(|| (Vec2::new(y_right, top), Vec2::new(y_left, bottom)))
         })
     }
 }
@@ -534,4 +557,16 @@ impl GridLines
             Color::SoftGridLines
         }
     }
+}
+
+//=======================================================================//
+// FUNCTIONS
+//
+//=======================================================================//
+
+#[must_use]
+#[inline(always)]
+fn skewed_y(y: f32, skew: f32) -> f32
+{
+    (y / 64f32) * skew
 }

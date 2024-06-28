@@ -201,20 +201,25 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_grid_mesh(mesh);
 
         // The x and y axis.
-        let side = camera.scale() / 3f32;
+        let side = camera.scale() / 2f32;
 
-        if let Some((a, b)) = axis.x
+        if let Some((left, right)) = axis.x
         {
             self.polygon(
-                Hull::new(a.y + side, a.y - side, a.x, b.x).vertexes(),
+                Hull::new(left.y + side, left.y - side, left.x, right.x).vertexes(),
                 Color::OriginGridLines
             );
         }
 
-        let (a, b) = return_if_none!(axis.y);
+        let (top, bottom) = return_if_none!(axis.y);
 
         self.polygon(
-            Hull::new(a.y, b.y, a.x - side, a.x + side).vertexes(),
+            [
+                Vec2::new(top.x + side, top.y),
+                Vec2::new(top.x - side, top.y),
+                Vec2::new(bottom.x - side, bottom.y),
+                Vec2::new(bottom.x + side, bottom.y)
+            ].into_iter(),
             Color::OriginGridLines
         );
     }

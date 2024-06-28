@@ -994,7 +994,7 @@ impl Core
             manager,
             edits_history,
             settings,
-            Grid::new(2, true, grid_shifted)
+            Grid::new(2, 0, true, grid_shifted)
         );
     }
 
