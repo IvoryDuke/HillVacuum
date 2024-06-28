@@ -219,50 +219,45 @@ where
 
         self.items.sort(manager);
 
-        match self.previous
+        if let Some(prev) = self.previous
         {
-            Some(prev) =>
-            {
-                self.depth = self.items.position(prev);
+            self.depth = self.items.position(prev);
 
-                if inputs.tab.just_pressed()
-                {
-                    match &mut self.depth
-                    {
-                        Position::None => panic!(),
-                        Position::Selected(idx) =>
-                        {
-                            *idx = next(*idx, self.items.selected.len());
-                        },
-                        Position::NonSelected(idx) =>
-                        {
-                            *idx = next(*idx, self.items.non_selected.len());
-                        }
-                    };
-                }
-            },
-            None =>
+            if matches!(self.depth, Position::None)
             {
-                self.depth = if self.items.selected.is_empty()
+                self.previous = None;
+            }
+            else if inputs.tab.just_pressed()
+            {
+                match &mut self.depth
                 {
-                    assert!(!self.items.non_selected.is_empty(), "No non selected items.");
-                    Position::NonSelected(0)
-                }
-                else
-                {
-                    Position::Selected(0)
+                    Position::None => panic!(),
+                    Position::Selected(idx) =>
+                    {
+                        *idx = next(*idx, self.items.selected.len());
+                    },
+                    Position::NonSelected(idx) =>
+                    {
+                        *idx = next(*idx, self.items.non_selected.len());
+                    }
                 };
             }
-        };
-        if let Position::None = self.depth
-        {
-            None
         }
-        else
+
+        if self.previous.is_none()
         {
-            let value = Some(self.items[self.depth]);
-            self.previous = value;
-            value
+            self.depth = if self.items.selected.is_empty()
+            {
+                assert!(!self.items.non_selected.is_empty(), "No non selected items.");
+                Position::NonSelected(0)
+            }
+            else
+            {
+                Position::Selected(0)
+            };
         }
+
+        self.previous = Some(self.items[self.depth]);
+        self.previous
     }
 }
