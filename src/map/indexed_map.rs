@@ -71,12 +71,12 @@ where
     //==============================================================
     // Info
 
-    /// Whever there are no elements.
+    /// Whether there are no elements.
     #[inline]
     #[must_use]
     pub fn is_empty(&self) -> bool { self.vec.is_empty() }
 
-    /// Whever there are no elements.
+    /// Whether there are no elements.
     #[inline]
     #[must_use]
     pub fn len(&self) -> usize { self.vec.len() }

@@ -129,11 +129,11 @@ where
     #[must_use]
     fn tooltip_label(self, binds: &BindsKeyCodes) -> String;
 
-    /// Whever the tool can be enabled.
+    /// Whether the tool can be enabled.
     #[must_use]
     fn change_conditions_met(self, change_conditions: &ChangeConditions) -> bool;
 
-    /// Whever the tool is a subtool.
+    /// Whether the tool is a subtool.
     #[must_use]
     fn subtool(self) -> bool;
 
@@ -144,13 +144,13 @@ where
 
 //=======================================================================//
 
-/// A trait to return whever the tool is enabled.
+/// A trait to return whether the tool is enabled.
 pub(in crate::map::editor::state) trait EnabledTool
 {
     /// The tool to check if it's enabled.
     type Item: ToolInterface;
 
-    /// Whever the tool associated with `tool` is enabled.
+    /// Whether the tool associated with `tool` is enabled.
     #[must_use]
     fn is_tool_enabled(&self, tool: Self::Item) -> bool;
 }
@@ -166,10 +166,10 @@ pub(in crate::map::editor::state) trait DisableSubtool
 
 //=======================================================================//
 
-/// A trait to return whever a tool has any ongoing multiframe changes.
+/// A trait to return whether a tool has any ongoing multiframe changes.
 pub(in crate::map::editor::state) trait OngoingMultiframeChange
 {
-    /// Whever there are any ongoing multiframe changes.
+    /// Whether there are any ongoing multiframe changes.
     #[must_use]
     fn ongoing_multi_frame_change(&self) -> bool;
 }
@@ -289,7 +289,7 @@ impl EditingTarget
         }
     }
 
-    /// Whever the change of [`EditingTarget`] requires certain edits to be purged from the
+    /// Whether the change of [`EditingTarget`] requires certain edits to be purged from the
     /// [`EditsHistory`].
     #[inline]
     #[must_use]
@@ -439,7 +439,7 @@ impl ActiveTool
         .unwrap_or_default()
     }
 
-    /// Whever the simulation of the moving entities is active.
+    /// Whether the simulation of the moving entities is active.
     #[inline]
     #[must_use]
     pub const fn path_simulation_active(&self) -> bool
@@ -447,12 +447,12 @@ impl ActiveTool
         return_if_no_match!(self, Self::Path(t), t, false).simulation_active()
     }
 
-    /// Whever the entity tool is active.
+    /// Whether the entity tool is active.
     #[inline]
     #[must_use]
     pub const fn entity_tool(&self) -> bool { matches!(self, Self::Entity(_)) }
 
-    /// Whever a tool with texture editing capabilities is available.
+    /// Whether a tool with texture editing capabilities is available.
     #[inline]
     #[must_use]
     pub const fn texture_tool(&self) -> bool
@@ -460,7 +460,7 @@ impl ActiveTool
         matches!(self, Self::Entity(_) | Self::Scale(_) | Self::Rotate(_) | Self::Flip(_))
     }
 
-    /// Whever the vertexes merge is available.
+    /// Whether the vertexes merge is available.
     #[inline]
     #[must_use]
     pub const fn vx_merge_available(&self) -> bool
@@ -473,7 +473,7 @@ impl ActiveTool
         }
     }
 
-    /// Whever the split subtoon is available.
+    /// Whether the split subtoon is available.
     #[inline]
     #[must_use]
     pub fn split_available(&self) -> bool
@@ -481,7 +481,7 @@ impl ActiveTool
         return_if_no_match!(self, Self::Vertex(t), t, false).split_available()
     }
 
-    /// Whever the x-trusion subtool is available.
+    /// Whether the x-trusion subtool is available.
     #[inline]
     #[must_use]
     fn xtrusion_available(&self) -> bool
@@ -489,7 +489,7 @@ impl ActiveTool
         return_if_no_match!(self, Self::Side(t), t, false).xtrusion_available()
     }
 
-    /// Whever map preview is active.
+    /// Whether map preview is active.
     #[inline]
     #[must_use]
     pub const fn map_preview(&self) -> bool { matches!(self, Self::MapPreview { .. }) }
@@ -497,7 +497,7 @@ impl ActiveTool
     //==============================================================
     // Copy/Paste
 
-    /// Whever copy/paste is available.
+    /// Whether copy/paste is available.
     #[inline]
     #[must_use]
     pub fn copy_paste_available(&self) -> bool
@@ -677,7 +677,7 @@ impl ActiveTool
     //==============================================================
     // Undo/Redo
 
-    /// Whever it is possible to select all the entities.
+    /// Whether it is possible to select all the entities.
     #[inline]
     #[must_use]
     pub fn select_all_available(&self) -> bool { !self.ongoing_multi_frame_change() }
@@ -725,7 +725,7 @@ impl ActiveTool
     //==============================================================
     // Undo/Redo
 
-    /// Whever undo/redo is avauilable.
+    /// Whether undo/redo is avauilable.
     #[inline]
     #[must_use]
     pub fn undo_redo_available(&self) -> bool { !self.ongoing_multi_frame_change() }
@@ -1608,7 +1608,7 @@ pub(in crate::map::editor::state) enum Tool
 
 impl Tool
 {
-    /// Whever the bind associated with the tool was pressed.
+    /// Whether the bind associated with the tool was pressed.
     #[inline]
     #[must_use]
     pub fn just_pressed(self, key_inputs: &ButtonInput<KeyCode>, binds: &BindsKeyCodes) -> bool

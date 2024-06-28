@@ -167,7 +167,7 @@ impl Manual
                      be displaced independently of the brush surface.\nBrushes can also be \
                      assigned a path that describes how it moves in the bidimensional space and \
                      that can be edited with the Path tool.\nFinally, brushes have a built-in \
-                     property, collision, which determines whever they should represent a \
+                     property, collision, which determines whether they should represent a \
                      clipping surface or not. It can be edited in the properties window."
                 ),
                 (
@@ -203,7 +203,7 @@ impl Manual
                      i8, i16, i32, i64, i128, f32, f64, and String.\n\n!!! If a saved map \
                      contains properties that differ in type and/or name from the ones defined in \
                      the aforementioned resources, a warning window will appear on screen when \
-                     trying to load the .hv file, asking whever you'd like to use the app or map \
+                     trying to load the .hv file, asking whether you'd like to use the app or map \
                      ones."
                 ),
                 (

@@ -17,7 +17,7 @@ use crate::utils::misc::Toggle;
 #[derive(Default)]
 pub(in crate::map::editor::state::ui) struct Window
 {
-    /// Whever the window is open.
+    /// Whether the window is open.
     open: bool,
     /// The [`LayerId`] of the window, if it is open.
     id:   Option<egui::LayerId>
@@ -64,7 +64,7 @@ impl Window
         }
     }
 
-    /// Whever the window is open.
+    /// Whether the window is open.
     #[inline(always)]
     #[must_use]
     pub const fn is_open(&self) -> bool { self.open }
@@ -73,8 +73,8 @@ impl Window
     #[inline(always)]
     pub fn open(&mut self) { self.open = true; }
 
-    /// Checks whever the window should be opened.
-    /// Returns whever it is currently open.
+    /// Checks whether the window should be opened.
+    /// Returns whether it is currently open.
     #[inline]
     #[must_use]
     pub fn check_open(&mut self, keys_pressed: bool) -> bool

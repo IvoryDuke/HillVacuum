@@ -86,10 +86,10 @@ const PROPS_EXTENSION: &str = "prps";
 //
 //=======================================================================//
 
-/// A macro to create functions that return whever a key was pressed.
+/// A macro to create functions that return whether a key was pressed.
 macro_rules! pressed {
     ($($key:ident),+) => ( paste::paste! {$(
-        /// Whever the key was pressed.
+        /// Whether the key was pressed.
         #[inline]
         pub const fn [< $key _pressed >](&self) -> bool
         {
@@ -174,7 +174,7 @@ pub(in crate::map::editor::state) use edit_target;
 //
 //=======================================================================//
 
-/// Determines whever the editor should edit entities, or the associaed textures, or both.
+/// Determines whether the editor should edit entities, or the associaed textures, or both.
 #[derive(Clone, Copy, Default, EnumIter, EnumSize, EnumFromUsize, PartialEq, Eq)]
 pub(in crate::map::editor::state) enum TargetSwitch
 {
@@ -211,7 +211,7 @@ impl TargetSwitch
         }
     }
 
-    /// Whever the value of `self` can be changed based on the number of entities and
+    /// Whether the value of `self` can be changed based on the number of entities and
     /// textures in the map.
     #[inline]
     #[must_use]
@@ -258,11 +258,11 @@ impl TargetSwitch
         true
     }
 
-    /// Whever `self` allows editing of entities.
+    /// Whether `self` allows editing of entities.
     #[inline]
     pub const fn entity_editing(self) -> bool { matches!(self, Self::Entity | Self::Both) }
 
-    /// Whever `self` allows editing of textures.
+    /// Whether `self` allows editing of textures.
     #[inline]
     pub const fn texture_editing(self) -> bool { matches!(self, Self::Texture | Self::Both) }
 
@@ -441,22 +441,22 @@ input_presses!(
 
 impl InputsPresses
 {
-    /// Whever shift is pressed.
+    /// Whether shift is pressed.
     #[inline]
     #[must_use]
     pub const fn shift_pressed(&self) -> bool { self.l_shift.pressed() || self.r_shift.pressed() }
 
-    /// Whever alt is pressed.
+    /// Whether alt is pressed.
     #[inline]
     #[must_use]
     pub const fn alt_pressed(&self) -> bool { self.l_alt.pressed() || self.r_alt.pressed() }
 
-    /// Whever ctrl is pressed.
+    /// Whether ctrl is pressed.
     #[inline]
     #[must_use]
     pub const fn ctrl_pressed(&self) -> bool { self.l_ctrl.pressed() || self.r_ctrl.pressed() }
 
-    /// Whever the copy key combo was just pressed.
+    /// Whether the copy key combo was just pressed.
     #[inline]
     #[must_use]
     pub const fn copy_just_pressed(&self) -> bool
@@ -464,7 +464,7 @@ impl InputsPresses
         self.ctrl_pressed() && self.copy.just_pressed()
     }
 
-    /// Whever the paste key combo was just pressed.
+    /// Whether the paste key combo was just pressed.
     #[inline]
     #[must_use]
     pub const fn paste_just_pressed(&self) -> bool
@@ -472,7 +472,7 @@ impl InputsPresses
         self.ctrl_pressed() && self.paste.just_pressed()
     }
 
-    /// Whever the cut key combo was just pressed.
+    /// Whether the cut key combo was just pressed.
     #[inline]
     #[must_use]
     pub const fn cut_just_pressed(&self) -> bool { self.ctrl_pressed() && self.cut.just_pressed() }
@@ -517,7 +517,7 @@ pub(in crate::map) struct ToolsSettings
 {
     /// The current editing target (entities, textures, or both).
     target_switch: TargetSwitch,
-    /// Whever the [`TargetSwitch`] can be changed in value.
+    /// Whether the [`TargetSwitch`] can be changed in value.
     can_switch: bool,
     /// The resolution of the circle drawing tool (how many sides the circle has).
     pub(in crate::map::editor::state) circle_draw_resolution: u8,
@@ -526,9 +526,9 @@ pub(in crate::map) struct ToolsSettings
     pub(in crate::map::editor::state) texture_scale_interval: f32,
     /// The minimum angle the entities can be rotated when using the rotate tool.
     pub(in crate::map::editor::state) rotate_angle: RotateAngle,
-    /// Whever texture scrolling is enabled while editing the map.
+    /// Whether texture scrolling is enabled while editing the map.
     pub scroll_enabled: bool,
-    /// Whever texture parallax is enabled while editing the map.
+    /// Whether texture parallax is enabled while editing the map.
     pub parallax_enabled: bool,
     /// The spawn pivot of the [`ThingInstance`] used by the thing tool.
     pub(in crate::map::editor::state) thing_pivot: ThingPivot
@@ -595,7 +595,7 @@ impl ToolsSettings
         self.target_switch
     }
 
-    /// Whever entities editing is enabled.
+    /// Whether entities editing is enabled.
     #[inline]
     #[must_use]
     pub(in crate::map::editor::state) const fn entity_editing(&self) -> bool
@@ -603,7 +603,7 @@ impl ToolsSettings
         self.target_switch.entity_editing()
     }
 
-    /// Whever texture editing is enabled.
+    /// Whether texture editing is enabled.
     #[inline]
     #[must_use]
     pub(in crate::map::editor::state) const fn texture_editing(&self) -> bool
@@ -650,18 +650,18 @@ pub(in crate::map::editor) struct State
     tools_settings:     ToolsSettings,
     /// The UI of the editor.
     ui:                 Ui,
-    /// Whever tooltips should be shown (ex. coordinates of the vertexes).
+    /// Whether tooltips should be shown (ex. coordinates of the vertexes).
     show_tooltips:      bool,
-    /// Whever the cursor shuld be snapped to the grid.
+    /// Whether the cursor shuld be snapped to the grid.
     cursor_snap:        bool,
-    /// Whever a grey semitransparent rectangle should be drawn on the map beneath the cursor.
+    /// Whether a grey semitransparent rectangle should be drawn on the map beneath the cursor.
     show_cursor:        bool,
-    /// Whever the "clip" texture should be drawn on top of the brushes with collision enabled.
+    /// Whether the "clip" texture should be drawn on top of the brushes with collision enabled.
     show_collision:     bool,
-    /// Whever textures are currently being reloaded.
+    /// Whether textures are currently being reloaded.
     reloading_textures: bool,
     #[cfg(feature = "debug")]
-    /// Whever debug lines should be drawn on top of the map.
+    /// Whether debug lines should be drawn on top of the map.
     show_debug_lines:   bool
 }
 
@@ -697,7 +697,7 @@ impl State
 
     pressed!(ctrl, shift);
 
-    /// Whever space is pressed.
+    /// Whether space is pressed.
     #[inline]
     pub const fn space_pressed(&self) -> bool { self.inputs.space.pressed() }
 
@@ -831,7 +831,7 @@ impl State
     #[must_use]
     pub fn grid_size_f32(&self) -> f32 { f32::from(self.grid.size()) }
 
-    /// Whever the cursor shuld be snapped to the grid.
+    /// Whether the cursor shuld be snapped to the grid.
     #[inline]
     #[must_use]
     pub const fn cursor_snap(&self) -> bool { self.cursor_snap }
@@ -845,17 +845,17 @@ impl State
     #[must_use]
     pub const fn tools_settings(&self) -> &ToolsSettings { &self.tools_settings }
 
-    /// Whever map preview mode is enabled.
+    /// Whether map preview mode is enabled.
     #[inline]
     #[must_use]
     pub const fn map_preview(&self) -> bool { self.core.map_preview() }
 
-    /// Whever the brushes collision overlay should be drawn.
+    /// Whether the brushes collision overlay should be drawn.
     #[inline]
     #[must_use]
     pub const fn show_collision_overlay(&self) -> bool { self.show_collision }
 
-    /// Checks whever any hardcoded keyboard input was pressed and executes the necessary piece of
+    /// Checks whether any hardcoded keyboard input was pressed and executes the necessary piece of
     /// code. Returns true if that was the case.
     #[inline]
     #[must_use]
@@ -1067,7 +1067,7 @@ impl State
     //==============================================================
     // Save
 
-    /// Whever there are no unsaved changes.
+    /// Whether there are no unsaved changes.
     #[inline]
     #[must_use]
     const fn no_edits(&self, drawing_resources: &DrawingResources) -> bool
@@ -1089,7 +1089,7 @@ impl State
         save_as: Option<&'static str>
     ) -> Result<(), &'static str>
     {
-        /// Tests whever `test` is an error and returns an [`Err`] wrapping the error message `err`.
+        /// Tests whether `test` is an error and returns an [`Err`] wrapping the error message `err`.
         macro_rules! test {
             ($test:expr, $err:literal) => {
                 if $test.is_err()
@@ -1112,7 +1112,7 @@ impl State
 
         impl SaveTarget
         {
-            /// Whever `self` represents a new file to create.
+            /// Whether `self` represents a new file to create.
             #[inline]
             #[must_use]
             const fn is_new(&self) -> bool { matches!(self, Self::New(_)) }
@@ -1419,7 +1419,7 @@ impl State
     //==============================================================
     // Copy/Paste
 
-    /// Whever copy paste is available.
+    /// Whether copy paste is available.
     #[inline]
     #[must_use]
     fn copy_paste_available(&self) -> bool { self.core.copy_paste_available() }

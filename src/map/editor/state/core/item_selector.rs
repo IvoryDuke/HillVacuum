@@ -95,7 +95,7 @@ impl<T> ItemsBeneathCursor<T>
 where
     T: EntityId + Clone + Copy + PartialEq
 {
-    /// Whever there are no items.
+    /// Whether there are no items.
     #[inline]
     fn is_empty(&self) -> bool { self.selected.is_empty() && self.non_selected.is_empty() }
 

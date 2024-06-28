@@ -105,7 +105,7 @@ impl Square
         )
     }
 
-    /// Whever `self` contains `point` in its area.
+    /// Whether `self` contains `point` in its area.
     #[inline]
     #[must_use]
     fn contains_point(&self, point: Vec2) -> bool
@@ -129,13 +129,13 @@ impl Square
         }
     }
 
-    /// Whever the area covered by `self` intersects `hull`.
+    /// Whether the area covered by `self` intersects `hull`.
     #[inline]
     #[must_use]
     fn overlaps_hull(&self, hull: &Hull) -> bool { hull.overlaps(&self.hull()) }
 
     #[cfg(feature = "debug")]
-    /// Whever the area of `self` is visible within `viewport`.
+    /// Whether the area of `self` is visible within `viewport`.
     #[inline]
     #[must_use]
     fn outline_visible(&self, viewport: &Hull) -> bool { self.hull().intersects(viewport) }
@@ -206,7 +206,7 @@ impl Node
     #[must_use]
     pub fn split_segments(&self) -> SplitSegments { self.square.split_segments() }
 
-    /// Whever `pos` is contained in the covered area.
+    /// Whether `pos` is contained in the covered area.
     #[inline]
     #[must_use]
     pub fn contains_point(&self, pos: Vec2) -> bool { self.square.contains_point(pos) }
@@ -246,7 +246,7 @@ impl Node
     }
 
     /// Stores the ids of the entities of the [`Node`]s that contain `pos` in `identifiers`.
-    /// Returns whever `pos` is contained in the area covered by `self`.
+    /// Returns whether `pos` is contained in the area covered by `self`.
     #[inline]
     pub fn entities_at_pos(
         quad_tree: &QuadTree,

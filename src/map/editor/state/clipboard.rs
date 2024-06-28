@@ -187,7 +187,7 @@ impl EntityCenter for ClipboardData
 
 impl ClipboardData
 {
-    /// Whever `self` is out of bounds if moved by the amount `delta`.
+    /// Whether `self` is out of bounds if moved by the amount `delta`.
     #[inline]
     #[must_use]
     fn out_of_bounds(&self, delta: Vec2) -> bool { (self.hull() + delta).out_of_bounds() }
@@ -359,7 +359,7 @@ impl Prop
     //==============================================================
     // Info
 
-    /// Whever `self` contains copied entities.
+    /// Whether `self` contains copied entities.
     #[inline]
     #[must_use]
     fn has_data(&self) -> bool { !self.data.is_empty() }
@@ -492,7 +492,7 @@ impl Prop
             .center();
     }
 
-    /// Updates the things of the contained [`ThingInstance`]s after a things reload. Returns whever
+    /// Updates the things of the contained [`ThingInstance`]s after a things reload. Returns whether
     /// any thing were changed.
     #[inline]
     #[must_use]
@@ -516,7 +516,7 @@ impl Prop
         false
     }
 
-    /// Updates the textures of the contained brushes after a texture reload. Returns whever any
+    /// Updates the textures of the contained brushes after a texture reload. Returns whether any
     /// textures were changed.
     #[inline]
     #[must_use]
@@ -725,7 +725,7 @@ impl PropScreenshotTimer
     #[must_use]
     pub fn id(&self) -> bevy::prelude::Entity { self.1.unwrap() }
 
-    /// Updates the assigned camera, deactivating it once the time has finished. Returns whever the
+    /// Updates the assigned camera, deactivating it once the time has finished. Returns whether the
     /// camera has been disabled.
     #[inline]
     pub fn update(&mut self, prop_cameras: &mut PropCamerasMut) -> bool
@@ -770,7 +770,7 @@ pub(in crate::map::editor::state) struct Clipboard
     ui_text: String,
     /// The copied platform path, if any.
     platform_path: Option<Path>,
-    /// Whever the stored [`Prop`]s were edited.
+    /// Whether the stored [`Prop`]s were edited.
     props_changed: bool,
     /// The [`Prop`]s which have an assigned camera to take their screenshot.
     props_with_assigned_camera: ArrayVec<(PropScreenshotTimer, usize), PROP_CAMERAS_AMOUNT>,
@@ -922,7 +922,7 @@ impl Clipboard
     //==============================================================
     // Info
 
-    /// Whever `self` was edited.
+    /// Whether `self` was edited.
     #[inline]
     #[must_use]
     pub const fn props_changed(&self) -> bool { self.props_changed }
@@ -942,12 +942,12 @@ impl Clipboard
     #[must_use]
     pub const fn selected_prop_index(&self) -> Option<usize> { self.selected_prop }
 
-    /// Whever the quick prop stored contains entities.
+    /// Whether the quick prop stored contains entities.
     #[inline]
     #[must_use]
     pub fn has_quick_prop(&self) -> bool { self.quick_prop.has_data() }
 
-    /// Whever there are no [`Prop`]s stored.
+    /// Whether there are no [`Prop`]s stored.
     #[inline]
     #[must_use]
     pub fn no_props(&self) -> bool { self.props.is_empty() && !self.has_quick_prop() }

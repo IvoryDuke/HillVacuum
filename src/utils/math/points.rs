@@ -164,7 +164,7 @@ pub fn are_vxs_ccw(vxs: &[Vec2; 3]) -> bool
 
 //=======================================================================//
 
-/// Whever the polygon described by the vertexes `vxs` is convex.
+/// Whether the polygon described by the vertexes `vxs` is convex.
 /// Assumes `vxs` are clockwise sorted.
 #[inline]
 #[must_use]

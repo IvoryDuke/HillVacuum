@@ -308,7 +308,7 @@ impl Vertexes
     #[must_use]
     pub const fn len(&self) -> usize { self.0.len() }
 
-    /// Returns whever `self` contains no [`Vertex`]es.
+    /// Returns whether `self` contains no [`Vertex`]es.
     #[inline]
     #[must_use]
     pub const fn is_empty(&self) -> bool { self.0.is_empty() }
@@ -401,7 +401,7 @@ impl Intersection
         self.corners.iter().map(|(id, corner)| (id, corner.hull()))
     }
 
-    /// Whever `self` contains a [`Corner`] with [`Id`] `identifier`.
+    /// Whether `self` contains a [`Corner`] with [`Id`] `identifier`.
     #[inline]
     #[must_use]
     pub fn contains_id(&self, identifier: Id) -> bool { self.corners.contains_key(&identifier) }
@@ -476,7 +476,7 @@ impl Intersections
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &Intersection> { self.0.iter() }
 
-    /// Whever `self` contains an [`Intersection`] containing `identifier`.
+    /// Whether `self` contains an [`Intersection`] containing `identifier`.
     #[inline]
     #[must_use]
     pub fn contains_id(&self, identifier: Id) -> bool

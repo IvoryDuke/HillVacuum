@@ -950,7 +950,7 @@ const fn no_clamp(value: f32, _: f32) -> f32 { value }
 
 //=======================================================================//
 
-/// Shows a delete button and returns whever it was pressed.
+/// Shows a delete button and returns whether it was pressed.
 #[inline]
 #[must_use]
 fn delete_button(ui: &mut egui::Ui) -> bool

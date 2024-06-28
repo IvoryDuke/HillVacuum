@@ -23,11 +23,11 @@ use crate::{
 #[derive(Default, Clone, Copy)]
 pub(in crate::map::editor::state) struct Response
 {
-    /// Whever the UI element has focus.
+    /// Whether the UI element has focus.
     pub has_focus:     bool,
-    /// Whever the UI element is being interacted with.
+    /// Whether the UI element is being interacted with.
     pub interacting:   bool,
-    /// Whever the value was changed.
+    /// Whether the value was changed.
     pub value_changed: bool
 }
 

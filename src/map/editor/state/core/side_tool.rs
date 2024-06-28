@@ -226,12 +226,12 @@ impl BrushesWithSelectedSides
         }
     }
 
-    /// Whever the vertex merge is available.
+    /// Whether the vertex merge is available.
     #[inline]
     #[must_use]
     const fn vx_merge_available(&self) -> bool { self.selected_sides.vx_merge_available() }
 
-    /// Whever the xtrusion is available.
+    /// Whether the xtrusion is available.
     #[inline]
     #[must_use]
     fn xtrusion_available(&self) -> bool
@@ -423,7 +423,7 @@ impl SideTool
     //==============================================================
     // Info
 
-    /// Whever an intrusion is currently happening.
+    /// Whether an intrusion is currently happening.
     #[inline]
     #[must_use]
     pub const fn intrusion(&self) -> bool
@@ -439,11 +439,11 @@ impl SideTool
     #[must_use]
     const fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world() }
 
-    /// Whever the vertexes merge is available.
+    /// Whether the vertexes merge is available.
     #[inline]
     pub const fn vx_merge_available(&self) -> bool { self.1.vx_merge_available() }
 
-    /// Whever the xtrusion is available.
+    /// Whether the xtrusion is available.
     #[inline]
     #[must_use]
     pub fn xtrusion_available(&self) -> bool { self.1.xtrusion_available() }
@@ -1022,7 +1022,7 @@ impl SideTool
         });
     }
 
-    /// Whever the xtrusion is moving against the side normal.
+    /// Whether the xtrusion is moving against the side normal.
     #[inline]
     fn xtrusion_delta_against_normal(normal: Vec2, delta: Vec2) -> bool { delta.dot(normal) < 0f32 }
 

@@ -128,7 +128,7 @@ impl NodesEditor
         )
     );
 
-    /// Whever an UI element is being interacted with.
+    /// Whether an UI element is being interacted with.
     #[inline]
     #[must_use]
     pub fn interacting(&self) -> bool { self.interacting.iter().any(|b| *b) }

@@ -17,7 +17,7 @@ use super::misc::ReplaceValues;
 /// A trait for types representing the overall value of a list of elements.
 pub trait OverallValueInterface<T>
 {
-    /// Whever `self` now represents a non uniform value.
+    /// Whether `self` now represents a non uniform value.
     #[must_use]
     fn is_not_uniform(&self) -> bool;
 
@@ -129,7 +129,7 @@ impl<T: PartialEq + Clone> OverallValue<T>
     #[inline]
     pub const fn new(value: T) -> Self { Self::Uniform(value) }
 
-    /// Whever `self` described at least one value.
+    /// Whether `self` described at least one value.
     #[inline]
     #[must_use]
     pub const fn is_some(&self) -> bool { !matches!(self, Self::None) }

@@ -183,7 +183,7 @@ impl Animation
     #[inline]
     pub(in crate::map) const fn atlas_animation() -> Self { Self::Atlas(Atlas::new()) }
 
-    /// Whever there is no animation.
+    /// Whether there is no animation.
     #[inline]
     #[must_use]
     pub const fn is_none(&self) -> bool { matches!(self, Self::None) }
@@ -306,7 +306,7 @@ impl Atlas
     #[must_use]
     pub const fn y_partition(&self) -> u32 { self.y }
 
-    /// Whever the [`Timing`] is uniform.
+    /// Whether the [`Timing`] is uniform.
     #[inline]
     #[must_use]
     pub(in crate::map) const fn is_uniform(&self) -> bool
