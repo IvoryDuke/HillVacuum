@@ -22,7 +22,11 @@ use self::{
     texture::{TextureInterface, TextureInterfaceExtra}
 };
 use super::{
-    editor::state::{clipboard::PropCameras, editor_state::ToolsSettings, grid::Grid},
+    editor::state::{
+        clipboard::PropCameras,
+        editor_state::ToolsSettings,
+        grid::{Grid, GridLines}
+    },
     thing::{catalog::ThingsCatalog, ThingInterface}
 };
 use crate::utils::{
@@ -186,12 +190,16 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     #[inline]
     pub fn grid(&mut self, grid: Grid, window: &Window, camera: &Transform)
     {
-        let (grid, axis) = grid.lines(window, camera);
+        let GridLines {
+            axis,
+            horizontal_lines,
+            vertical_lines
+        } = grid.lines(window, camera);
 
         // The grid lines.
         let mut mesh = self.resources.mesh_generator();
 
-        for (start, end, color) in grid
+        for (start, end, color) in horizontal_lines.into_iter().chain(vertical_lines)
         {
             mesh.push_positions([start, end]);
             mesh.push_colors([self.color_resources.bevy_color(color).as_rgba_f32(); 2]);
@@ -219,7 +227,8 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
                 Vec2::new(top.x - side, top.y),
                 Vec2::new(bottom.x - side, bottom.y),
                 Vec2::new(bottom.x + side, bottom.y)
-            ].into_iter(),
+            ]
+            .into_iter(),
             Color::OriginGridLines
         );
     }

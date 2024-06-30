@@ -301,7 +301,7 @@ impl Node
     pub fn world_pos(&self, center: Vec2) -> Vec2 { self.selectable_vector.vec + center }
 
     /// Returns a reference to the node's [`Movement`].
-    pub fn movement(&self) -> &Movement { &self.movement }
+    pub const fn movement(&self) -> &Movement { &self.movement }
 }
 
 //=======================================================================//

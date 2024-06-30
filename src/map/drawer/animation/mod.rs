@@ -496,7 +496,7 @@ impl List
     /// Returns a reference to the frames of the animation.
     #[inline]
     #[must_use]
-    pub fn frames(&self) -> &Vec<(String, f32)> { &self.0 }
+    pub const fn frames(&self) -> &Vec<(String, f32)> { &self.0 }
 
     /// Pushes a new frame.
     #[inline]

@@ -8,8 +8,15 @@ use bevy::prelude::{Transform, Vec2, Window};
 use super::manager::EntitiesManager;
 use crate::{
     map::drawer::{color::Color, EditDrawer},
-    utils::{hull::Hull, math::AroundEqual, misc::Camera}
+    utils::{hull::Hull, misc::Camera}
 };
+
+//=======================================================================//
+// CONSTANTS
+//
+//=======================================================================//
+
+const SKEW_PIVOT: f32 = 64f32;
 
 //=======================================================================//
 // TYPES
@@ -93,7 +100,7 @@ impl Grid
         let (mut top, mut bottom, mut left, mut right);
 
         // Y coordinates.
-        let mut y = (pos.y as i16 / self.size) * self.size;
+        let mut y = floor_multiple(pos.y, self.size);
 
         if pos.y.is_sign_positive()
         {
@@ -104,7 +111,7 @@ impl Grid
         bottom = top - size_f;
 
         // X coordinates.
-        let mut x = (pos.x as i16 / self.size) * self.size;
+        let mut x = floor_multiple(pos.x, self.size);
 
         if pos.x.is_sign_negative()
         {
@@ -247,7 +254,7 @@ impl Grid
             return rounded;
         }
 
-        let mut result = f32::from(value as i16 / self.size * self.size);
+        let mut result = f32::from(floor_multiple(value, self.size));
 
         if value < center
         {
@@ -323,39 +330,57 @@ impl Grid
     /// if they are visible.
     #[allow(clippy::cast_possible_truncation)]
     #[inline]
-    pub(in crate::map) fn lines(
-        self,
-        window: &Window,
-        camera: &Transform
-    ) -> (impl ExactSizeIterator<Item = (Vec2, Vec2, Color)>, Axis)
+    pub(in crate::map) fn lines(self, window: &Window, camera: &Transform) -> GridLines
     {
-        let (top, bottom, left, right) = camera.viewport_ui_constricted(window).decompose();
+        #[inline(always)]
+        #[must_use]
+        fn skewed_y(y: f32, skew: f32) -> f32 { (y / SKEW_PIVOT) * skew }
 
-        if self.skew == 0
+        let viewport = camera.viewport_ui_constricted(window);
+        let (top, bottom, left, right) = viewport.decompose();
+        let (x_range, y_range) = viewport.range();
+
+        let axis = if self.skew == 0
         {
-            return (GridLines::new(top, bottom, left, right, self), Axis {
-                x: (bottom..top)
+            Axis {
+                x: y_range
                     .contains(&0f32)
                     .then(|| (Vec2::new(left, 0f32), Vec2::new(right, 0f32))),
-                y: (left..right)
+                y: x_range
                     .contains(&0f32)
                     .then(|| (Vec2::new(0f32, top), Vec2::new(0f32, bottom)))
-            });
+            }
         }
+        else
+        {
+            let skew_f32 = f32::from(self.skew);
+            let y_left = skewed_y(bottom, skew_f32);
+            let y_right = skewed_y(top, skew_f32);
+            let draw_y = x_range.contains(&y_left) || x_range.contains(&y_right);
 
-        let skew_f32 = f32::from(self.skew);
-        let y_left = skewed_y(bottom, skew_f32);
-        let y_right = skewed_y(top, skew_f32);
-        let x_range = left..right;
-        let draw_y = x_range.contains(&y_left) || x_range.contains(&y_right);
+            Axis {
+                x: y_range
+                    .contains(&0f32)
+                    .then(|| (Vec2::new(left, 0f32), Vec2::new(right, 0f32))),
+                y: draw_y.then(|| (Vec2::new(y_right, top), Vec2::new(y_left, bottom)))
+            }
+        };
 
-        (GridLines::new(top, bottom, left, right, self), Axis {
-            x: (bottom..top)
-                .contains(&0f32)
-                .then(|| (Vec2::new(left, 0f32), Vec2::new(right, 0f32))),
-            y: draw_y.then(|| (Vec2::new(y_right, top), Vec2::new(y_left, bottom)))
-        })
+        GridLines {
+            axis,
+            horizontal_lines: HorizontalLines::new(&viewport, self),
+            vertical_lines: VerticalLines::new(&viewport, self)
+        }
     }
+}
+
+//=======================================================================//
+
+pub(in crate::map) struct GridLines
+{
+    pub axis:             Axis,
+    pub horizontal_lines: HorizontalLines,
+    pub vertical_lines:   VerticalLines
 }
 
 //=======================================================================//
@@ -371,43 +396,24 @@ pub(in crate::map) struct Axis
 
 //=======================================================================//
 
-/// An iterator that returns the visible grid lines to be drawn.
-struct GridLines
+pub(in crate::map) struct HorizontalLines
 {
     /// The y coordinate of the next horizontal line.
-    y_left:         f32,
-    /// The y coordinate of the last horizontal line.
-    y_right:        f32,
-    /// The x coordinate of the next vertical line.
-    x_left:         f32,
-    /// The x cordinate of the last vertical line.
-    x_right:        f32,
-    /// The length of the side of the squares of the grid.
-    grid_size:      f32,
-    /// Half of the length of the sides of the squares of the grid.
-    half_grid_size: f32,
-    /// The y coordinate of the highest point of the vertical lines.
-    top:            f32,
-    /// The y coordinate of the lowest point of the vertical lines.
-    bottom:         f32,
+    y:              f32,
     /// The x coordinate of the left point of the horizontal lines.
     left:           f32,
     /// The x coordinate of the right point of the horizontal lines.
     right:          f32,
+    /// The length of the side of the squares of the grid.
+    grid_size:      f32,
+    /// Half of the length of the sides of the squares of the grid.
+    half_grid_size: f32,
+    len:            usize,
     /// The function returning the color the next line should be drawn.
     color:          fn(f32, f32) -> Color
 }
 
-impl ExactSizeIterator for GridLines
-{
-    #[allow(clippy::cast_possible_truncation)]
-    #[allow(clippy::cast_sign_loss)]
-    #[inline]
-    #[must_use]
-    fn len(&self) -> usize { (self.y_right - self.y_left + self.x_right - self.x_left) as usize }
-}
-
-impl Iterator for GridLines
+impl Iterator for HorizontalLines
 {
     type Item = (Vec2, Vec2, Color);
 
@@ -415,146 +421,141 @@ impl Iterator for GridLines
     #[must_use]
     fn next(&mut self) -> Option<Self::Item>
     {
-        if !self.x_left.around_equal(&self.x_right)
+        if self.len == 0
         {
-            let line_x = self.x_left;
-            self.x_left += self.grid_size;
-            Some((
-                Vec2::new(line_x, self.bottom),
-                Vec2::new(line_x, self.top),
-                (self.color)(self.half_grid_size, line_x)
-            ))
+            return None;
         }
-        else if !self.y_left.around_equal(&self.y_right)
+
+        let line_y = self.y;
+        self.y += self.grid_size;
+        self.len -= 1;
+
+        Some((
+            Vec2::new(self.left, line_y),
+            Vec2::new(self.right, line_y),
+            (self.color)(self.half_grid_size, line_y)
+        ))
+    }
+}
+
+impl HorizontalLines
+{
+    /// Returns a new [`HorizontalLines`] based on the parameters.
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_sign_loss)]
+    #[inline]
+    fn new(viewport: &Hull, grid: Grid) -> Self
+    {
+        let bottom = floor_multiple(viewport.bottom(), grid.size);
+        let mut y = f32::from(bottom);
+        let grid_size_f32 = grid.size_f32();
+        let half_grid_size = grid_size_f32 / 2f32;
+
+        if grid.shifted
         {
-            let line_y = self.y_left;
-            self.y_left += self.grid_size;
-            Some((
-                Vec2::new(self.left, line_y),
-                Vec2::new(self.right, line_y),
-                (self.color)(self.half_grid_size, line_y)
-            ))
+            y -= half_grid_size;
         }
-        else
-        {
-            None
+
+        Self {
+            y,
+            left: viewport.left(),
+            right: viewport.right(),
+            grid_size: grid_size_f32,
+            half_grid_size,
+            len: usize::try_from((floor_multiple(viewport.top(), grid.size) - bottom) / grid.size)
+                .unwrap() +
+                1,
+            color: color_function(grid)
         }
     }
 }
 
-impl GridLines
+//=======================================================================//
+
+pub(in crate::map) struct VerticalLines
+{
+    x:              f32,
+    bottom:         f32,
+    top:            f32,
+    width:          f32,
+    grid_size:      f32,
+    half_grid_size: f32,
+    len:            usize,
+    color:          fn(f32, f32) -> Color,
+    color_offset:   f32
+}
+
+impl Iterator for VerticalLines
+{
+    type Item = (Vec2, Vec2, Color);
+
+    #[inline]
+    #[must_use]
+    fn next(&mut self) -> Option<Self::Item>
+    {
+        if self.len == 0
+        {
+            return None;
+        }
+
+        let line_x = self.x;
+        self.x += self.grid_size;
+        self.len -= 1;
+
+        Some((
+            Vec2::new(line_x, self.bottom),
+            Vec2::new(line_x + self.width, self.top),
+            (self.color)(self.half_grid_size, line_x + self.color_offset)
+        ))
+    }
+}
+
+impl VerticalLines
 {
     /// Returns a new [`GridLines`] based on the parameters.
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
     #[inline]
-    fn new(top: f32, bottom: f32, left: f32, right: f32, grid: Grid) -> Self
+    fn new(viewport: &Hull, grid: Grid) -> Self
     {
-        /// Returns the result of the division of `value`/`rhs` rounded to the higher integer.
-        #[inline]
-        #[must_use]
-        const fn div_ceil(value: i16, rhs: i16) -> i16
+        let grid_size_f32 = grid.size_f32();
+        let half_grid_size = grid_size_f32 / 2f32;
+        let (top, mut bottom, left, right) = viewport.decompose();
+        bottom -= grid_size_f32;
+
+        let width = right - left;
+        let mut height = top - bottom;
+        let mut len = ((width + height) / grid_size_f32) as i16;
+        let mut bottom = f32::from(floor_multiple(bottom, grid.size));
+
+        let x = if grid.skew <= 0
         {
-            let d = value / rhs;
-            let r = value % rhs;
-
-            if (r > 0 && rhs > 0) || (r < 0 && rhs < 0)
-            {
-                d + 1
-            }
-            else
-            {
-                d
-            }
+            f32::from(floor_multiple(left, grid.size))
         }
-
-        assert!(top > bottom, "Top {top} is equal or lower than bottom {bottom}.");
-        assert!(left < right, "Left {left} is equal or higher than right {right}.");
-
-        let grid_size = grid.size_f32();
-        let grid_shifted = grid.shifted;
-
-        let i_grid_size = grid_size as i16;
-        let y_right = div_ceil(top as i16, i_grid_size);
-        let y_left = div_ceil(bottom as i16, i_grid_size);
-        let x_left = div_ceil(left as i16, i_grid_size);
-        let x_right = div_ceil(right as i16, i_grid_size);
-
-        let mut y_right = f32::from(y_right) * grid_size;
-        let mut y_left = f32::from(y_left) * grid_size;
-        let mut x_left = f32::from(x_left) * grid_size;
-        let mut x_right = f32::from(x_right) * grid_size;
-
-        let half_grid_size = grid_size / 2f32;
+        else
+        {
+            f32::from((right as i16 / grid.size - len) * grid.size)
+        };
 
         if grid.shifted
         {
-            y_right += half_grid_size;
-            y_left -= half_grid_size;
-            x_left -= half_grid_size;
-            x_right += half_grid_size;
+            len += 1;
+            bottom -= half_grid_size;
+            height += half_grid_size;
         }
+
+        let grid_skew_f32 = f32::from(grid.skew);
 
         Self {
-            y_right,
-            y_left,
-            x_left,
-            x_right,
-            grid_size,
-            half_grid_size,
-            top,
+            x,
             bottom,
-            left,
-            right,
-            color: if grid_size >= 64f32
-            {
-                Self::grid_64_line_color
-            }
-            else if grid_shifted
-            {
-                Self::grid_less_than_64_shifted_line_color
-            }
-            else
-            {
-                Self::grid_less_than_64_line_color
-            }
-        }
-    }
-
-    /// Returns the color the next line of a grid with size 64 or higher should be drawn.
-    #[inline]
-    #[must_use]
-    const fn grid_64_line_color(_: f32, _: f32) -> Color { Color::GridLines }
-
-    /// Returns the color the next line of a grid with size less than 64 should be drawn.
-    #[allow(clippy::cast_possible_truncation)]
-    #[inline]
-    #[must_use]
-    const fn grid_less_than_64_line_color(_: f32, line: f32) -> Color
-    {
-        if line as i16 % 64 == 0
-        {
-            Color::GridLines
-        }
-        else
-        {
-            Color::SoftGridLines
-        }
-    }
-
-    /// Returns the color the next line of a shifted grid with size less than 64 should be drawn.
-    #[allow(clippy::cast_possible_truncation)]
-    #[inline]
-    #[must_use]
-    fn grid_less_than_64_shifted_line_color(half_grid_size: f32, line: f32) -> Color
-    {
-        if (line - half_grid_size) as i16 % 64 == 0
-        {
-            Color::GridLines
-        }
-        else
-        {
-            Color::SoftGridLines
+            top: bottom + height,
+            grid_size: grid_size_f32,
+            half_grid_size,
+            width: height * grid_skew_f32 / SKEW_PIVOT,
+            len: usize::try_from(len).unwrap(),
+            color: color_function(grid),
+            color_offset: bottom * grid_skew_f32 / SKEW_PIVOT
         }
     }
 }
@@ -564,9 +565,73 @@ impl GridLines
 //
 //=======================================================================//
 
-#[must_use]
+#[allow(clippy::cast_possible_truncation)]
 #[inline(always)]
-fn skewed_y(y: f32, skew: f32) -> f32
+#[must_use]
+const fn floor_multiple(value: f32, grid_size: i16) -> i16
 {
-    (y / 64f32) * skew
+    (value as i16 / grid_size) * grid_size
+}
+
+//=======================================================================//
+
+#[inline]
+#[must_use]
+fn color_function(grid: Grid) -> fn(f32, f32) -> Color
+{
+    if grid.size >= 64
+    {
+        grid_64_line_color
+    }
+    else if grid.shifted
+    {
+        grid_less_than_64_shifted_line_color
+    }
+    else
+    {
+        grid_less_than_64_line_color
+    }
+}
+
+//=======================================================================//
+
+/// Returns the color the next line of a grid with size 64 or higher should be drawn.
+#[inline]
+#[must_use]
+const fn grid_64_line_color(_: f32, _: f32) -> Color { Color::GridLines }
+
+//=======================================================================//
+
+/// Returns the color the next line of a grid with size less than 64 should be drawn.
+#[allow(clippy::cast_possible_truncation)]
+#[inline]
+#[must_use]
+const fn grid_less_than_64_line_color(_: f32, line: f32) -> Color
+{
+    if line as i16 % 64 == 0
+    {
+        Color::GridLines
+    }
+    else
+    {
+        Color::SoftGridLines
+    }
+}
+
+//=======================================================================//
+
+/// Returns the color the next line of a shifted grid with size less than 64 should be drawn.
+#[allow(clippy::cast_possible_truncation)]
+#[inline]
+#[must_use]
+fn grid_less_than_64_shifted_line_color(half_grid_size: f32, line: f32) -> Color
+{
+    if (line - half_grid_size) as i16 % 64 == 0
+    {
+        Color::GridLines
+    }
+    else
+    {
+        Color::SoftGridLines
+    }
 }

@@ -701,6 +701,7 @@ impl<K, V> HvHashMap<K, V>
     /// An iterator visiting all key-value pairs in arbitrary order.
     /// The iterator element type is `(&'a K, &'a V)`.
     #[inline]
+    #[must_use]
     pub fn iter(&self) -> hashbrown::hash_map::Iter<'_, K, V> { self.0.iter() }
 
     /// An iterator visiting all key-value pairs in arbitrary order,
@@ -715,11 +716,13 @@ impl<K, V> HvHashMap<K, V>
     /// An iterator visiting all keys in arbitrary order.
     /// The iterator element type is `&'a K`.
     #[inline]
+    #[must_use]
     pub fn keys(&self) -> hashbrown::hash_map::Keys<'_, K, V> { self.0.keys() }
 
     /// An iterator visiting all values in arbitrary order.
     /// The iterator element type is `&'a V`.
     #[inline]
+    #[must_use]
     pub fn values(&self) -> hashbrown::hash_map::Values<'_, K, V> { self.0.values() }
 
     /// An iterator visiting all values mutably in arbitrary order.
@@ -1050,6 +1053,7 @@ impl<T> HvHashSet<T>
     /// An iterator visiting all elements in arbitrary order.
     /// The iterator element type is `&'a T`.
     #[inline]
+    #[must_use]
     pub fn iter(&self) -> hashbrown::hash_set::Iter<T> { self.0.iter() }
 }
 
