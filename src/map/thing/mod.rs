@@ -7,12 +7,11 @@ pub mod catalog;
 
 use bevy::{prelude::Vec2, transform::components::Transform, window::Window};
 use bevy_egui::egui;
-use hill_vacuum_shared::{draw_height_to_world, return_if_none, TEXTURE_HEIGHT_RANGE};
+use hill_vacuum_shared::{return_if_none, TEXTURE_HEIGHT_RANGE};
 use serde::{Deserialize, Serialize};
 
 use self::catalog::ThingsCatalog;
 use super::{
-    containers::{HvHashMap, HvVec},
     drawer::{color::Color, EditDrawer, MapPreviewDrawer},
     editor::state::{
         clipboard::{ClipboardData, CopyToClipboard},
@@ -23,10 +22,13 @@ use super::{
     properties::{Properties, PropertiesRefactor, Value},
     OutOfBounds
 };
-use crate::utils::{
-    hull::{EntityHull, Hull},
-    identifiers::{EntityCenter, EntityId, Id},
-    math::AroundEqual
+use crate::{
+    utils::{
+        hull::{EntityHull, Hull},
+        identifiers::{EntityCenter, EntityId, Id},
+        math::AroundEqual
+    },
+    HvHashMap
 };
 
 //=======================================================================//
@@ -167,7 +169,7 @@ impl<'a> ThingInterface for MovedThingInstance<'a>
     fn pos(&self) -> Vec2 { self.thing.pos + self.delta }
 
     #[inline]
-    fn draw_height_f32(&self) -> f32 { draw_height_to_world(self.thing.draw_height) }
+    fn draw_height_f32(&self) -> f32 { f32::from(self.thing.draw_height) }
 
     #[inline]
     fn angle(&self) -> f32 { self.thing.angle }
@@ -310,7 +312,7 @@ impl ThingInterface for ThingInstance
     fn pos(&self) -> Vec2 { self.data.pos }
 
     #[inline]
-    fn draw_height_f32(&self) -> f32 { draw_height_to_world(self.data.draw_height) }
+    fn draw_height_f32(&self) -> f32 { f32::from(self.data.draw_height) }
 
     #[inline]
     fn angle(&self) -> f32 { self.data.angle }
@@ -672,6 +674,7 @@ pub struct ThingViewer
     pub draw_height: f32,
     /// The optional associated [`Path`].
     pub path:        Option<Path>,
+    /// The associated properties.
     pub properties:  HvHashMap<String, Value>
 }
 

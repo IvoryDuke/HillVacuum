@@ -28,7 +28,7 @@ use crate::{
         brush::Brush,
         drawer::EditDrawer,
         editor::{
-            cursor_pos::Cursor,
+            cursor::Cursor,
             state::{
                 core::{rect, tool::subtools_buttons},
                 editor_state::{edit_target, InputsPresses, TargetSwitch, ToolsSettings},
@@ -590,7 +590,7 @@ impl EntityTool
                     return;
                 }
 
-                let drag = return_if_none!(CursorDelta::try_new(*pos, bundle.cursor, grid));
+                let drag = return_if_none!(CursorDelta::try_new(bundle.cursor, grid, *pos));
 
                 // Drag the brushes.
                 if *forced_spawn || inputs.alt_pressed()

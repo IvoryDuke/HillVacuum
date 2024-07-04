@@ -27,7 +27,7 @@ const INI_SECTION: &str = "EDITOR_CONTROLS";
 //=======================================================================//
 
 /// `Keycode` values associated with the `Bind`s.
-pub struct BindsKeyCodes([Option<KeyCode>; Bind::SIZE]);
+pub(crate) struct BindsKeyCodes([Option<KeyCode>; Bind::SIZE]);
 
 impl Default for BindsKeyCodes
 {

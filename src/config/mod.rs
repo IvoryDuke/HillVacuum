@@ -55,7 +55,7 @@ const EXPORTER_FIELD: &str = "exporter";
 //=======================================================================//
 
 /// Plugin in charge of loading and saving the config file.
-pub struct ConfigPlugin;
+pub(crate) struct ConfigPlugin;
 
 impl Plugin for ConfigPlugin
 {
@@ -73,7 +73,7 @@ impl Plugin for ConfigPlugin
 /// The opened file being edited, if any.
 #[must_use]
 #[derive(Clone, Default)]
-pub struct OpenFile(Option<PathBuf>);
+pub(crate) struct OpenFile(Option<PathBuf>);
 
 impl OpenFile
 {
@@ -112,7 +112,7 @@ impl OpenFile
 //=======================================================================//
 
 #[derive(Default, Resource)]
-pub struct Config
+pub(crate) struct Config
 {
     /// The keyboard binds.
     pub binds:     BindsKeyCodes,

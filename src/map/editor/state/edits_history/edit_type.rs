@@ -21,10 +21,10 @@ use crate::{
         editor::state::{core::UndoRedoInterface, ui::Ui},
         path::{MovementValueEdit, NodesMove, StandbyValueEdit},
         properties::Value,
-        thing::{ThingId, ThingInstanceData},
-        HvVec
+        thing::{ThingId, ThingInstanceData}
     },
     utils::{hull::Flip, identifiers::Id},
+    HvVec,
     Path
 };
 
@@ -696,13 +696,13 @@ impl EditType
     fn property(
         &mut self,
         interface: &mut UndoRedoInterface,
-        identifier: Id,
+        identifiers: &HvVec<Id>,
         key: Option<&String>
     ) -> bool
     {
         if let Self::Property(value) = self
         {
-            *value = interface.set_property(identifier, key.unwrap(), value);
+            *value = interface.set_property(identifiers[0], key.unwrap(), value);
             return true;
         }
 
@@ -764,7 +764,7 @@ impl EditType
             return;
         }
 
-        if self.property(interface, single!(), property)
+        if self.property(interface, identifiers, property)
         {
             return;
         }
@@ -1125,7 +1125,7 @@ impl EditType
             return;
         }
 
-        if self.property(interface, single!(), property)
+        if self.property(interface, identifiers, property)
         {
             return;
         }

@@ -3,10 +3,7 @@
 //
 //=======================================================================//
 
-use bevy::{prelude::Vec2, window::Window};
 use bevy_egui::egui;
-
-use super::misc::{Camera, Toggle};
 
 //=======================================================================//
 // CONSTANTS
@@ -22,25 +19,6 @@ const TEXT_WIDTH_X_CENTER_COEFFICIENT: f32 = TOOLTIP_FONT_SIZE / 3.25;
 //=======================================================================//
 // FUNCTIONS
 //
-//=======================================================================//
-
-/// Converts 'p' to UI coorinates.
-#[inline]
-#[must_use]
-pub fn to_egui_coordinates<T: Camera>(p: Vec2, window: &Window, camera: &T) -> egui::Pos2
-{
-    let pos = camera.pos();
-    let scale = camera.scale();
-
-    let mut q = egui::Pos2::new(p.x, p.y);
-    q.y.toggle();
-    q.x += (window.width() * scale) / 2f32 - pos.x;
-    q.y += (window.height() * scale) / 2f32 + pos.y;
-    q.x /= scale;
-    q.y /= scale;
-    q
-}
-
 //=======================================================================//
 
 /// Draws a tooltip an position 'pos'.

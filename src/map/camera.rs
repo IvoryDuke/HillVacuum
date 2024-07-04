@@ -7,12 +7,9 @@ use std::cmp::Ordering;
 
 use bevy::prelude::{Transform, Vec2, Vec3, Window};
 
-use super::editor::state::ui::{
-    ui_camera_displacement,
-    ui_left_space,
-    ui_right_space,
-    ui_size,
-    ui_top_space
+use super::editor::state::{
+    grid::Grid,
+    ui::{ui_camera_displacement, ui_left_space, ui_right_space, ui_size, ui_top_space}
 };
 use crate::utils::{hull::Hull, misc::Camera};
 
@@ -30,9 +27,18 @@ impl Camera for Transform
     fn scale(&self) -> f32 { self.scale.x }
 
     #[inline]
-    fn viewport_ui_constricted(&self, window: &Window) -> Hull
+    fn viewport(&self, window: &Window, grid: Grid) -> Hull
     {
-        let viewport = self.viewport(window);
+        const VISIBILITY_PADDING: f32 = 64f32;
+
+        let (half_width, half_height) = self.scaled_window_half_sizes(window);
+        let viewport = Hull::new(
+            self.translation.y + half_height,
+            self.translation.y - half_height,
+            self.translation.x - half_width,
+            self.translation.x + half_width
+        )
+        .transformed(|vx| grid.point_projection(vx));
 
         Hull::new(
             viewport.top() - ui_top_space() * self.scale(),
@@ -40,19 +46,7 @@ impl Camera for Transform
             viewport.left() + ui_left_space() * self.scale(),
             viewport.right() - ui_right_space() * self.scale()
         )
-    }
-
-    #[inline]
-    fn viewport(&self, window: &Window) -> Hull
-    {
-        let (half_width, half_height) = self.scaled_window_half_sizes(window);
-
-        Hull::new(
-            self.translation.y + half_height,
-            self.translation.y - half_height,
-            self.translation.x - half_width,
-            self.translation.x + half_width
-        )
+        .bumped(VISIBILITY_PADDING * self.scale())
     }
 
     #[inline]
@@ -77,8 +71,10 @@ impl Camera for Transform
     }
 
     #[inline]
-    fn scale_viewport_ui_constricted_to_hull(&mut self, window: &Window, hull: &Hull, padding: f32)
+    fn scale_viewport_to_hull(&mut self, window: &Window, grid: Grid, hull: &Hull, padding: f32)
     {
+        let hull = &hull.transformed(|vx| grid.transform_point(vx));
+
         let ui_size = ui_size();
         scale_viewport(
             self,

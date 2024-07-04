@@ -44,25 +44,30 @@ use map::MapEditorPlugin;
 // EXPORTS
 //
 //=======================================================================//
-pub use crate::map::{
-    brush::{
-        mover::{Motor, Mover},
-        BrushViewer as Brush
+pub use crate::{
+    map::{
+        brush::{
+            mover::{Motor, Mover},
+            BrushViewer as Brush
+        },
+        drawer::{
+            animation::{Animation, Atlas, List},
+            texture::{Sprite, TextureInterface, TextureSettings}
+        },
+        path::{
+            nodes::{Movement, Node},
+            Path
+        },
+        properties::{BrushProperties, ThingProperties, ToValue, Value},
+        thing::{catalog::HardcodedThings, MapThing, Thing, ThingId, ThingViewer as ThingInstance},
+        Exporter
     },
-    containers::{HvHashMap, HvHashSet, HvVec},
-    drawer::{
-        animation::{Animation, Atlas, List},
-        texture::{Sprite, TextureInterface, TextureSettings}
-    },
-    path::{
-        nodes::{Movement, Node},
-        Path
-    },
-    properties::{BrushProperties, ThingProperties, ToValue, Value},
-    thing::{catalog::HardcodedThings, MapThing, Thing, ThingId, ThingViewer as ThingInstance},
-    Exporter
+    utils::{
+        containers::{HvHashMap, HvHashSet, HvVec},
+        hull::Hull,
+        identifiers::Id
+    }
 };
-pub use crate::utils::{hull::Hull, identifiers::Id};
 
 //=======================================================================//
 // CONSTANTS

@@ -13,7 +13,7 @@ use crate::{
         brush::convex_polygon::{ConvexPolygon, ScaleInfo},
         drawer::texture::TextureInterface,
         editor::{
-            cursor_pos::Cursor,
+            cursor::Cursor,
             state::{
                 core::draw_selected_and_non_selected_brushes,
                 editor_state::{edit_target, InputsPresses, TargetSwitch, ToolsSettings},
@@ -23,16 +23,16 @@ use crate::{
             },
             DrawBundle,
             ToolUpdateBundle
-        },
-        hv_vec,
-        HvVec
+        }
     },
     utils::{
+        containers::hv_vec,
         hull::{Corner, Flip, Hull, ScaleResult},
         identifiers::{EntityId, Id},
         math::AroundEqual,
         misc::{Camera, TakeValue}
-    }
+    },
+    HvVec
 };
 
 //=======================================================================//

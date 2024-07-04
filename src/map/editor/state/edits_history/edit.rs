@@ -9,10 +9,10 @@ use crate::{
         drawer::drawing_resources::DrawingResources,
         editor::state::{core::UndoRedoInterface, ui::Ui},
         hv_vec,
-        properties::Value,
-        HvVec
+        properties::Value
     },
-    utils::identifiers::Id
+    utils::identifiers::Id,
+    HvVec
 };
 
 //=======================================================================//

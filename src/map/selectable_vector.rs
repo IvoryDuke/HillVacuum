@@ -8,7 +8,7 @@ use std::ops::{Add, AddAssign, SubAssign};
 use bevy::prelude::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{map::HvVec, utils::misc::Toggle};
+use crate::utils::{containers::HvVec, misc::Toggle};
 
 //=======================================================================//
 // MACROS
@@ -90,7 +90,7 @@ pub(in crate::map) enum VectorSelectionResult
 
 /// A 2D vertex which can be selected and deselected.
 #[derive(Clone, Copy, PartialEq)]
-pub struct SelectableVector
+pub(in crate::map) struct SelectableVector
 {
     /// The vector.
     pub vec:      Vec2,

@@ -11,7 +11,7 @@ use crate::{
     map::{
         drawer::color::Color,
         editor::{
-            cursor_pos::Cursor,
+            cursor::Cursor,
             state::{
                 core::{draw_selected_and_non_selected_brushes, ActiveTool},
                 editor_state::InputsPresses,
@@ -164,7 +164,7 @@ impl ShatterTool
                 .draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
 
             for brush in manager
-                .visible_brushes(bundle.window, bundle.camera)
+                .visible_brushes(bundle.window, bundle.camera, bundle.drawer.grid())
                 .iter()
                 .filter_set_with_predicate(hgl_e, |brush| brush.id())
             {

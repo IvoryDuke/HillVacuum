@@ -8,9 +8,10 @@ use std::ops::{AddAssign, SubAssign};
 use bevy::prelude::Vec2;
 use serde::{Deserialize, Serialize};
 
+use crate::HvVec;
 #[allow(unused_imports)]
 use crate::{
-    map::{path::Path, selectable_vector::SelectableVector, HvVec},
+    map::{path::Path, selectable_vector::SelectableVector},
     utils::math::AroundEqual
 };
 
@@ -301,7 +302,7 @@ impl Node
     pub fn world_pos(&self, center: Vec2) -> Vec2 { self.selectable_vector.vec + center }
 
     /// Returns a reference to the node's [`Movement`].
-    pub fn movement(&self) -> &Movement { &self.movement }
+    pub const fn movement(&self) -> &Movement { &self.movement }
 }
 
 //=======================================================================//

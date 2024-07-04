@@ -13,6 +13,8 @@ mod window;
 //
 //=======================================================================//
 
+use std::ops::Range;
+
 use arrayvec::ArrayVec;
 use bevy::prelude::{AssetServer, Transform, Vec2};
 use bevy_egui::{egui, EguiUserTextures};
@@ -41,7 +43,7 @@ use crate::{
     embedded_assets::embedded_asset_path,
     map::{
         drawer::drawing_resources::DrawingResources,
-        editor::{cursor_pos::Cursor, Placeholder, StateUpdateBundle},
+        editor::{cursor::Cursor, Placeholder, StateUpdateBundle},
         properties::DefaultProperties
     },
     utils::misc::{Camera, FromToStr, Toggle},
@@ -506,7 +508,8 @@ pub(in crate::map::editor::state) struct Ui
     /// The texture editor.
     texture_editor:       TextureEditor,
     /// The manual.
-    manual:               Manual
+    manual:               Manual,
+    window_focused:       bool
 }
 
 impl Placeholder for Ui
@@ -524,7 +527,8 @@ impl Placeholder for Ui
             settings_window:      SettingsWindow::default(),
             properties_window:    PropertiesWindow::placeholder(),
             texture_editor:       TextureEditor::default(),
-            manual:               Manual::default()
+            manual:               Manual::default(),
+            window_focused:       false
         }
     }
 }
@@ -551,9 +555,14 @@ impl Ui
                 things_default_properties
             ),
             texture_editor:       TextureEditor::default(),
-            manual:               Manual::default()
+            manual:               Manual::default(),
+            window_focused:       false
         }
     }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_window_focused(&self) -> bool { self.window_focused }
 
     /// Updates the UI.
     #[inline]
@@ -565,15 +574,11 @@ impl Ui
         inputs: &mut InputsPresses,
         edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
-        grid: Grid,
+        grid: &mut Grid,
         settings: &mut ToolsSettings,
         tool_change_conditions: &ChangeConditions
     ) -> Interaction
     {
-        bundle.egui_context.memory(|mem| {
-            WindowCloser::check_window_close(mem.layer_ids(), inputs, self);
-        });
-
         // Top bar.
         let mut command = self.menu_bar(bundle, manager, core);
 
@@ -581,7 +586,7 @@ impl Ui
         self.manual.show(bundle, &self.tools_buttons);
 
         // Floating windows.
-        let mut focused = if core.map_preview()
+        self.window_focused = if core.map_preview()
         {
             false
         }
@@ -591,14 +596,13 @@ impl Ui
                 .show(bundle, manager, edits_history, clipboard, inputs, settings)
         };
 
-        focused |= self.settings_window.show(bundle, inputs) |
+        self.window_focused |= self.settings_window.show(bundle, inputs, grid) |
             self.properties_window
                 .show(bundle, manager, edits_history, clipboard, inputs);
 
         // Panels.
         let us_context = unsafe { std::ptr::from_mut(bundle.egui_context).as_mut().unwrap() };
 
-        // Panels.
         self.right_panel_layer_id = egui::SidePanel::right("subtools")
             .resizable(false)
             .exact_width(RIGHT_SIDE_PANEL_WIDTH)
@@ -612,7 +616,7 @@ impl Ui
                         bundle,
                         manager,
                         edits_history,
-                        grid,
+                        *grid,
                         &mut self.tools_buttons,
                         tool_change_conditions
                     );
@@ -622,6 +626,8 @@ impl Ui
             .layer_id;
 
         // Left Side Panel.
+        let mut focused = false;
+
         self.left_panel_layer_id = egui::SidePanel::left("tools")
             .resizable(false)
             .exact_width(LEFT_SIDE_PANEL_WIDTH)
@@ -636,7 +642,7 @@ impl Ui
                 Self::cursor_info(bundle.cursor, ui);
 
                 // Grid info.
-                Self::grid_info(grid, ui);
+                Self::grid_info(*grid, ui);
 
                 // Camera info.
                 Self::camera_info(bundle.camera, ui);
@@ -650,7 +656,13 @@ impl Ui
         // Bottom panel
         focused |= core.bottom_panel(bundle, manager, inputs, edits_history, clipboard);
 
-        if focused
+        // Close windows.
+        bundle.egui_context.memory(|mem| {
+            WindowCloser::check_window_close(mem.layer_ids(), inputs, self);
+        });
+
+        // If typing, clear stored inputs.
+        if focused || self.window_focused
         {
             inputs.clear();
             bundle.key_inputs.clear();
@@ -981,6 +993,34 @@ impl Ui
         /// The icons in each row.
         const ICONS_PER_ROW: usize = 3;
 
+        #[inline]
+        fn tool_image_buttons_row(
+            ui: &mut Ui,
+            core: &Core,
+            egui_ui: &mut egui::Ui,
+            bundle: &mut StateUpdateBundle,
+            tool_change_conditions: &ChangeConditions,
+            tool_to_enable: &mut Option<Tool>,
+            range: Range<usize>,
+            row_padding: f32
+        )
+        {
+            egui_ui.spacing_mut().item_spacing = ICONS_PADDING;
+            egui_ui.add_space(row_padding);
+
+            for i in range
+            {
+                let tool = Into::<Tool>::into(i);
+
+                if ui
+                    .tools_buttons
+                    .draw(egui_ui, bundle, tool, tool_change_conditions, core)
+                {
+                    *tool_to_enable = tool.into();
+                }
+            }
+        }
+
         let row_padding =
             (ui.available_width() - 24f32 - ICON_DRAW_SIZE[1] * 3f32 - ICONS_PADDING.x * 2f32) /
                 2f32; // Magic magic magic
@@ -988,33 +1028,36 @@ impl Ui
         ui.add_space(ICONS_PADDING.y);
 
         let mut tool_to_enable = None;
-        let mut tool_image_buttons_row = |ui: &mut egui::Ui, range| {
-            ui.spacing_mut().item_spacing = ICONS_PADDING;
-            ui.add_space(row_padding);
-
-            for i in range
-            {
-                let tool = Into::<Tool>::into(i);
-
-                if self
-                    .tools_buttons
-                    .draw(ui, bundle, tool, tool_change_conditions, core)
-                {
-                    tool_to_enable = tool.into();
-                }
-            }
-        };
 
         for i in 0..Tool::SIZE / ICONS_PER_ROW
         {
             ui.horizontal(|ui| {
                 let i = i * 3;
-                tool_image_buttons_row(ui, i..i + 3);
+
+                tool_image_buttons_row(
+                    self,
+                    core,
+                    ui,
+                    bundle,
+                    tool_change_conditions,
+                    &mut tool_to_enable,
+                    i..i + 3,
+                    row_padding
+                );
             });
         }
 
         ui.horizontal(|ui| {
-            tool_image_buttons_row(ui, (Tool::SIZE / ICONS_PER_ROW) * ICONS_PER_ROW..Tool::SIZE);
+            tool_image_buttons_row(
+                self,
+                core,
+                ui,
+                bundle,
+                tool_change_conditions,
+                &mut tool_to_enable,
+                (Tool::SIZE / ICONS_PER_ROW) * ICONS_PER_ROW..Tool::SIZE,
+                row_padding
+            );
         });
 
         tool_to_enable
@@ -1043,9 +1086,11 @@ impl Ui
         ui.separator();
 
         ui.label(egui::RichText::new(format!(
-            "GRID\nSize: {}\nShifted: {}",
+            "GRID\nSize: {}\nShifted: {}\nSkew: {}\nAngle: {}",
             grid.size(),
-            grid.shifted
+            grid.shifted,
+            grid.skew(),
+            grid.angle()
         )));
     }
 

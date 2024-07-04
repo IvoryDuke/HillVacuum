@@ -12,7 +12,7 @@ use super::{window::Window, WindowCloserInfo};
 use crate::{
     config::{controls::bind::Bind, Config},
     map::editor::{
-        state::{editor_state::InputsPresses, ui::WindowCloser},
+        state::{editor_state::InputsPresses, grid::Grid, ui::WindowCloser},
         StateUpdateBundle
     },
     utils::misc::{Blinker, Toggle}
@@ -120,7 +120,12 @@ impl SettingsWindow
     /// Shows the settings window.
     #[inline]
     #[must_use]
-    pub fn show(&mut self, bundle: &mut StateUpdateBundle, inputs: &mut InputsPresses) -> bool
+    pub fn show(
+        &mut self,
+        bundle: &mut StateUpdateBundle,
+        inputs: &mut InputsPresses,
+        grid: &mut Grid
+    ) -> bool
     {
         let StateUpdateBundle {
             delta_time,
@@ -176,6 +181,22 @@ impl SettingsWindow
                     .spacing([40f32, 4f32])
                     .striped(true)
                     .show(ui, |ui| {
+                        // Grid.
+                        ui.label("GRID");
+                        ui.end_row();
+
+                        ui.label("Skew");
+                        let mut skew = grid.skew();
+                        ui.add(egui::Slider::new(&mut skew, Grid::SKEW_RANGE));
+                        grid.set_skew(skew);
+                        ui.end_row();
+
+                        ui.label("Angle");
+                        let mut angle = grid.angle();
+                        ui.add(egui::Slider::new(&mut angle, Grid::ANGLE_RANGE));
+                        grid.set_angle(angle);
+                        ui.end_row();
+
                         // Keyboard binds.
                         ui.label("CONTROLS");
                         ui.end_row();

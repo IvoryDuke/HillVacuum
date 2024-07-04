@@ -46,7 +46,6 @@ use crate::{
             SelectableVector,
             VectorSelectionResult
         },
-        HvVec,
         OutOfBounds,
         MAP_RANGE,
         TOOLTIP_OFFSET
@@ -89,13 +88,15 @@ use crate::{
             prev,
             prev_element,
             prev_element_n_steps,
+            Camera,
             NoneIfEmpty,
             PointInsideUiHighlight,
             VX_HGL_SIDE,
             VX_HGL_SIDE_SQUARED
         },
-        tooltips::{draw_tooltip_x_centered_above_pos, to_egui_coordinates}
-    }
+        tooltips::draw_tooltip_x_centered_above_pos
+    },
+    HvVec
 };
 
 //=======================================================================//
@@ -1185,6 +1186,7 @@ impl<'a> From<ConvexPolygon> for Cow<'a, ConvexPolygon>
 
 impl<'a> From<&'a ConvexPolygon> for Cow<'a, ConvexPolygon>
 {
+    #[inline]
     fn from(val: &'a ConvexPolygon) -> Self { Cow::Borrowed(val) }
 }
 
@@ -4669,6 +4671,7 @@ impl ConvexPolygon
                 camera,
                 egui_context,
                 drawer.color_resources(),
+                drawer.grid(),
                 vx,
                 label,
                 &mut text
@@ -4772,6 +4775,7 @@ impl ConvexPolygon
                         window,
                         camera,
                         egui_context,
+                        drawer.grid(),
                         svx_j.vec,
                         continue_if_none!(drawer.vx_tooltip_label(svx_j.vec)),
                         &mut vx_coordinates
@@ -4783,6 +4787,7 @@ impl ConvexPolygon
                             window,
                             camera,
                             egui_context,
+                            drawer.grid(),
                             svx_i.vec,
                             continue_if_none!(drawer.vx_tooltip_label(svx_i.vec)),
                             &mut vx_coordinates
@@ -4818,6 +4823,7 @@ impl ConvexPolygon
                         window,
                         camera,
                         egui_context,
+                        drawer.grid(),
                         svx.vec,
                         continue_if_none!(drawer.vx_tooltip_label(svx.vec)),
                         &mut vx_coordinates
@@ -4861,6 +4867,7 @@ impl ConvexPolygon
                         window,
                         camera,
                         egui_context,
+                        drawer.grid(),
                         svx.vec,
                         continue_if_none!(drawer.vx_tooltip_label(svx.vec)),
                         &mut vx_coordinates
@@ -4874,7 +4881,7 @@ impl ConvexPolygon
                     egui::Order::Background,
                     format!("{} {}", new_vx.x, new_vx.y).as_str(),
                     egui::TextStyle::Monospace,
-                    to_egui_coordinates(*new_vx, window, camera),
+                    camera.to_egui_coordinates(window, drawer.grid(), *new_vx),
                     TOOLTIP_OFFSET,
                     egui::Color32::BLACK,
                     egui::Color32::RED,
@@ -5124,6 +5131,7 @@ pub(in crate::map) fn vx_tooltip(
     window: &Window,
     camera: &Transform,
     egui_context: &egui::Context,
+    grid: Grid,
     pos: Vec2,
     label: &'static str,
     text: &mut String,
@@ -5140,7 +5148,7 @@ pub(in crate::map) fn vx_tooltip(
         egui::Order::Background,
         text,
         egui::TextStyle::Monospace,
-        to_egui_coordinates(pos, window, camera),
+        camera.to_egui_coordinates(window, grid, pos),
         TOOLTIP_OFFSET,
         text_color,
         fill_color,
@@ -5155,6 +5163,7 @@ pub(in crate::map) fn vertex_tooltip(
     window: &Window,
     camera: &Transform,
     egui_context: &egui::Context,
+    grid: Grid,
     pos: Vec2,
     label: &'static str,
     text: &mut String
@@ -5164,6 +5173,7 @@ pub(in crate::map) fn vertex_tooltip(
         window,
         camera,
         egui_context,
+        grid,
         pos,
         label,
         text,
@@ -5180,6 +5190,7 @@ pub(in crate::map) fn free_draw_tooltip(
     camera: &Transform,
     egui_context: &egui::Context,
     color_resources: &ColorResources,
+    grid: Grid,
     pos: Vec2,
     label: &'static str,
     text: &mut String
@@ -5189,6 +5200,7 @@ pub(in crate::map) fn free_draw_tooltip(
         window,
         camera,
         egui_context,
+        grid,
         pos,
         label,
         text,

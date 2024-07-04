@@ -54,8 +54,8 @@ impl FlipTool
         manager: &mut EntitiesManager,
         inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
-        settings: &ToolsSettings,
-        grid: Grid
+        grid: Grid,
+        settings: &ToolsSettings
     )
     {
         let dir = return_if_none!(inputs.directional_keys_vector(grid.size()));

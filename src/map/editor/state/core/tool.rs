@@ -35,7 +35,6 @@ use crate::{
     config::controls::{bind::Bind, BindsKeyCodes},
     map::{
         brush::{convex_polygon::ConvexPolygon, Brush},
-        containers::HvHashSet,
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             state::{
@@ -51,16 +50,17 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
-        hv_vec,
         properties::DefaultProperties,
         thing::catalog::ThingsCatalog
     },
     utils::{
+        containers::hv_vec,
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::{polygons::convex_hull, HashVec2},
         misc::FromToStr
-    }
+    },
+    HvHashSet
 };
 
 //=======================================================================//
@@ -624,8 +624,8 @@ impl ActiveTool
     pub fn update_outline(
         &mut self,
         manager: &EntitiesManager,
-        settings: &ToolsSettings,
-        grid: Grid
+        grid: Grid,
+        settings: &ToolsSettings
     )
     {
         match self
@@ -688,8 +688,8 @@ impl ActiveTool
         &mut self,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        settings: &ToolsSettings,
-        grid: Grid
+        grid: Grid,
+        settings: &ToolsSettings
     )
     {
         assert!(self.select_all_available(), "Select all is not available.");
@@ -719,7 +719,7 @@ impl ActiveTool
             _ => manager.select_all_entities(edits_history)
         };
 
-        self.update_outline(manager, settings, grid);
+        self.update_outline(manager, grid, settings);
     }
 
     //==============================================================
@@ -792,11 +792,11 @@ impl ActiveTool
             },
             Self::Flip(t) =>
             {
-                t.update(bundle, manager, inputs, edits_history, settings, grid);
+                t.update(bundle, manager, inputs, edits_history, grid, settings);
             },
             Self::Zoom(t) =>
             {
-                *self = std::mem::take(return_if_none!(t.update(bundle, inputs)));
+                *self = std::mem::take(return_if_none!(t.update(bundle, inputs, grid)));
             },
             Self::Path(t) => t.update(bundle, manager, inputs, edits_history, grid),
             Self::Paint(t) =>
@@ -819,8 +819,8 @@ impl ActiveTool
         bundle: &StateUpdateBundle,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        settings: &ToolsSettings,
         grid: Grid,
+        settings: &ToolsSettings,
         tool_change_conditions: &ChangeConditions
     )
     {
@@ -851,7 +851,7 @@ impl ActiveTool
             Tool::Side => SideTool::tool(self.drag_selection()),
             Tool::Snap =>
             {
-                self.snap_tool(bundle.drawing_resources, manager, edits_history, settings, grid);
+                self.snap_tool(bundle.drawing_resources, manager, edits_history, grid, settings);
                 return;
             },
             Tool::Zoom => ZoomTool::tool(self.drag_selection(), self),
@@ -873,8 +873,8 @@ impl ActiveTool
                     bundle.default_properties.brushes,
                     manager,
                     edits_history,
-                    settings,
-                    grid
+                    grid,
+                    settings
                 );
                 return;
             },
@@ -897,8 +897,8 @@ impl ActiveTool
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        settings: &ToolsSettings,
-        grid: Grid
+        grid: Grid,
+        settings: &ToolsSettings
     )
     {
         /// Snap the selected brushes to the grid.
@@ -984,7 +984,7 @@ impl ActiveTool
 
         if snapped
         {
-            self.update_outline(manager, settings, grid);
+            self.update_outline(manager, grid, settings);
         }
     }
 
@@ -1042,8 +1042,8 @@ impl ActiveTool
         brushes_default_properties: &DefaultProperties,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        settings: &ToolsSettings,
-        grid: Grid
+        grid: Grid,
+        settings: &ToolsSettings
     )
     {
         let (mut intersection_polygon, filters) = {
@@ -1092,7 +1092,7 @@ impl ActiveTool
             }
         });
 
-        self.update_outline(manager, settings, grid);
+        self.update_outline(manager, grid, settings);
     }
 
     /// Merges all selected vertexes.
@@ -1337,12 +1337,12 @@ impl ActiveTool
 
                 let brushes = manager.brushes();
 
-                for brush in manager.visible_anchors(window, camera).iter()
+                for brush in manager.visible_anchors(window, camera, drawer.grid()).iter()
                 {
                     brush.draw_anchors(brushes, drawer);
                 }
 
-                for brush in manager.visible_sprites(window, camera).iter()
+                for brush in manager.visible_sprites(window, camera, drawer.grid()).iter()
                 {
                     let color = if manager.is_selected(brush.id())
                     {
@@ -1367,7 +1367,9 @@ impl ActiveTool
                 },
                 _ =>
                 {
-                    for thing in manager.visible_things(bundle.window, bundle.camera).iter()
+                    for thing in manager
+                        .visible_things(bundle.window, bundle.camera, bundle.drawer.grid())
+                        .iter()
                     {
                         thing.draw_opaque(&mut bundle.drawer, bundle.things_catalog);
                     }
@@ -1404,7 +1406,9 @@ impl ActiveTool
             };
 
             // Non simulation common stuff.
-            for brush in manager.visible_paths(bundle.window, bundle.camera).iter()
+            for brush in manager
+                .visible_paths(bundle.window, bundle.camera, bundle.drawer.grid())
+                .iter()
             {
                 brush.draw_semitransparent_path(&mut bundle.drawer);
             }

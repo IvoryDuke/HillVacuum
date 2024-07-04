@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 
 use bevy::prelude::Vec2;
 
-use super::AroundEqual;
+use super::{angles::FastSinCosTan, AroundEqual};
 
 //=======================================================================//
 // ENUMS
@@ -17,7 +17,7 @@ use super::AroundEqual;
 /// The orientation of three consecutive vertexes.
 #[must_use]
 #[derive(Clone, Copy, PartialEq)]
-pub enum VertexesOrientation
+pub(crate) enum VertexesOrientation
 {
     /// Clockwise.
     Clockwise,
@@ -37,9 +37,8 @@ pub enum VertexesOrientation
 #[must_use]
 pub fn rotate_point(p: Vec2, o: Vec2, angle: f32) -> Vec2
 {
-    let (sin, cos) = angle.sin_cos();
-    let t = p - o;
-    Vec2::new(t.x * cos - t.y * sin + o.x, t.y * cos + t.x * sin + o.y)
+    let p = p - o;
+    rotate_point_around_origin(p, angle) + o
 }
 
 //=======================================================================//
@@ -50,6 +49,27 @@ pub fn rotate_point(p: Vec2, o: Vec2, angle: f32) -> Vec2
 pub fn rotate_point_around_origin(p: Vec2, angle: f32) -> Vec2
 {
     let (sin, cos) = angle.sin_cos();
+    rotated_point(p, sin, cos)
+}
+
+//=======================================================================//
+
+/// Rotates a point around the origin using a sin cos lookup table.
+/// `angle` is assumed to be in degrees.
+#[inline]
+#[must_use]
+pub fn fast_rotate_point_around_origin(p: Vec2, angle: i16) -> Vec2
+{
+    let (sin, cos) = angle.fast_sin_cos();
+    rotated_point(p, sin, cos)
+}
+
+//=======================================================================//
+
+#[inline]
+#[must_use]
+fn rotated_point(p: Vec2, sin: f32, cos: f32) -> Vec2
+{
     Vec2::new(p.x * cos - p.y * sin, p.y * cos + p.x * sin)
 }
 
@@ -157,6 +177,7 @@ pub fn vertexes_orientation(vxs: &[Vec2; 3]) -> VertexesOrientation
 
 /// Returns true if the vertexes contained in vxs are in a counterclockwise order.
 #[inline]
+#[must_use]
 pub fn are_vxs_ccw(vxs: &[Vec2; 3]) -> bool
 {
     matches!(vertexes_orientation(vxs), VertexesOrientation::CounterClockwise)

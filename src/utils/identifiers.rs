@@ -80,7 +80,7 @@ impl Id
 //=======================================================================//
 
 /// A generator of unique [`Id`]s for the map entities.
-pub struct IdGenerator(Id);
+pub(crate) struct IdGenerator(Id);
 
 impl Default for IdGenerator
 {

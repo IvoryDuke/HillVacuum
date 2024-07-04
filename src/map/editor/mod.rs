@@ -1,4 +1,4 @@
-mod cursor_pos;
+mod cursor;
 pub mod state;
 
 //=======================================================================//
@@ -34,7 +34,7 @@ use super::{
 use crate::{
     config::{controls::BindsKeyCodes, Config},
     map::{
-        editor::{cursor_pos::Cursor, state::editor_state::State},
+        editor::{cursor::Cursor, state::editor_state::State},
         hv_vec,
         MAP_HALF_SIZE
     },
@@ -184,7 +184,7 @@ pub(in crate::map) struct Editor
     /// The current state.
     state: State,
     /// The position of the cursor on the map.
-    cursor_pos: Cursor,
+    cursor: Cursor,
     /// The catalog of the loaded [`Thing`]s.
     things_catalog: ThingsCatalog,
     /// The resources to draw the map on screen.
@@ -207,7 +207,7 @@ impl Placeholder for Editor
         unsafe {
             Self {
                 state: State::placeholder(),
-                cursor_pos: Cursor::default(),
+                cursor: Cursor::default(),
                 things_catalog: ThingsCatalog::default(),
                 drawing_resources: DrawingResources::placeholder(),
                 brushes_default_properties: DefaultProperties::default(),
@@ -296,7 +296,7 @@ impl Editor
 
         Self {
             state,
-            cursor_pos: Cursor::default(),
+            cursor: Cursor::default(),
             things_catalog,
             drawing_resources,
             brushes_default_properties,
@@ -306,55 +306,11 @@ impl Editor
         }
     }
 
-    /// Quits the application.
-    #[allow(clippy::too_many_arguments)]
+    //==============================================================
+    // Info
+
     #[inline]
-    pub fn quit(
-        &mut self,
-        window: &mut Window,
-        images: &mut Assets<Image>,
-        materials: &mut Assets<ColorMaterial>,
-        camera: &mut Transform,
-        prop_cameras: &mut PropCamerasMut,
-        time: &Time,
-        egui_context: &mut egui::Context,
-        user_textures: &mut EguiUserTextures,
-        mouse_buttons: &ButtonInput<MouseButton>,
-        key_inputs: &mut ButtonInput<KeyCode>,
-        config: &mut Config,
-        next_editor_state: &mut NextState<EditorState>,
-        next_tex_load: &mut NextState<TextureLoadingProgress>
-    ) -> bool
-    {
-        self.state.quit(
-            &mut StateUpdateBundle {
-                window,
-                images,
-                materials,
-                camera,
-                prop_cameras,
-                elapsed_time: time.elapsed_seconds(),
-                delta_time: time.delta_seconds(),
-                mouse_buttons,
-                key_inputs,
-                egui_context,
-                user_textures,
-                config,
-                cursor: &self.cursor_pos,
-                things_catalog: &mut self.things_catalog,
-                drawing_resources: &mut self.drawing_resources,
-                default_properties: &mut AllDefaultProperties {
-                    brushes:     &self.brushes_default_properties,
-                    things:      &self.things_default_properties,
-                    map_brushes: &mut self.map_brushes_default_properties,
-                    map_things:  &mut self.map_things_default_properties
-                },
-                next_editor_state,
-                next_tex_load
-            },
-            rfd::MessageButtons::YesNo
-        )
-    }
+    pub const fn is_window_focused(&self) -> bool { self.state.is_window_focused() }
 
     //==============================================================
     // Update
@@ -402,7 +358,7 @@ impl Editor
             egui_context,
             user_textures,
             config,
-            cursor: &self.cursor_pos,
+            cursor: &self.cursor,
             things_catalog: &mut self.things_catalog,
             drawing_resources: &mut self.drawing_resources,
             default_properties: &mut AllDefaultProperties {
@@ -442,7 +398,7 @@ impl Editor
             prop_cameras,
             paint_tool_camera,
             user_textures,
-            cursor: &self.cursor_pos,
+            cursor: &self.cursor,
             things_catalog: &self.things_catalog,
             drawing_resources: &self.drawing_resources,
             brushes_default_properties: &self.map_brushes_default_properties,
@@ -468,13 +424,8 @@ impl Editor
         {
             view_moved |= self.update_view_mouse(window, camera, mouse_wheel);
 
-            self.cursor_pos.update(
-                cursor_pos,
-                window,
-                camera,
-                &self.state,
-                self.state.space_pressed()
-            );
+            self.cursor
+                .update(cursor_pos, window, camera, &self.state, self.state.space_pressed());
 
             if !view_moved
             {
@@ -536,7 +487,12 @@ impl Editor
         if let Some(hull) = self.state.quick_zoom_hull(key_inputs, binds)
         {
             // Zoom on the selected entities.
-            camera.scale_viewport_ui_constricted_to_hull(window, &hull, self.state.grid_size_f32());
+            camera.scale_viewport_to_hull(
+                window,
+                self.state.grid(),
+                &hull,
+                self.state.grid_size_f32()
+            );
             return true;
         }
 
@@ -584,7 +540,13 @@ impl Editor
 
         if self.state.ctrl_pressed()
         {
-            camera.zoom_on_ui_pos(window, self.cursor_pos.ui_snapped(), mouse_wheel_scroll);
+            camera.zoom_on_ui_pos(
+                window,
+                self.state.grid(),
+                self.cursor.world_snapped(),
+                self.cursor.ui_snapped(),
+                mouse_wheel_scroll
+            );
         }
         else
         {
@@ -615,7 +577,7 @@ impl Editor
             return;
         }
 
-        let delta = self.cursor_pos.delta_ui() * camera.scale();
+        let delta = self.cursor.delta_ui() * camera.scale();
         camera.translate(Vec2::new(-delta.x, delta.y));
     }
 
@@ -667,6 +629,56 @@ impl Editor
         camera.set_pos(camera_pos);
     }
 
+    /// Quits the application.
+    #[allow(clippy::too_many_arguments)]
+    #[inline]
+    pub fn quit(
+        &mut self,
+        window: &mut Window,
+        images: &mut Assets<Image>,
+        materials: &mut Assets<ColorMaterial>,
+        camera: &mut Transform,
+        prop_cameras: &mut PropCamerasMut,
+        time: &Time,
+        egui_context: &mut egui::Context,
+        user_textures: &mut EguiUserTextures,
+        mouse_buttons: &ButtonInput<MouseButton>,
+        key_inputs: &mut ButtonInput<KeyCode>,
+        config: &mut Config,
+        next_editor_state: &mut NextState<EditorState>,
+        next_tex_load: &mut NextState<TextureLoadingProgress>
+    ) -> bool
+    {
+        self.state.quit(
+            &mut StateUpdateBundle {
+                window,
+                images,
+                materials,
+                camera,
+                prop_cameras,
+                elapsed_time: time.elapsed_seconds(),
+                delta_time: time.delta_seconds(),
+                mouse_buttons,
+                key_inputs,
+                egui_context,
+                user_textures,
+                config,
+                cursor: &self.cursor,
+                things_catalog: &mut self.things_catalog,
+                drawing_resources: &mut self.drawing_resources,
+                default_properties: &mut AllDefaultProperties {
+                    brushes:     &self.brushes_default_properties,
+                    things:      &self.things_default_properties,
+                    map_brushes: &mut self.map_brushes_default_properties,
+                    map_things:  &mut self.map_things_default_properties
+                },
+                next_editor_state,
+                next_tex_load
+            },
+            rfd::MessageButtons::YesNo
+        )
+    }
+
     //==============================================================
     // Drawing
 
@@ -701,6 +713,7 @@ impl Editor
                     meshes,
                     meshes_query,
                     &mut self.drawing_resources,
+                    self.state.grid(),
                     elapsed_time
                 ),
                 camera,
@@ -722,6 +735,7 @@ impl Editor
                 &mut self.drawing_resources,
                 color_resources,
                 self.state.tools_settings(),
+                self.state.grid(),
                 elapsed_time,
                 camera.scale(),
                 paint_tool_camera.scale(),
@@ -731,7 +745,7 @@ impl Editor
             prop_cameras,
             paint_tool_camera,
             things_catalog: &self.things_catalog,
-            cursor: &self.cursor_pos,
+            cursor: &self.cursor,
             #[cfg(feature = "debug")]
             gizmos
         });

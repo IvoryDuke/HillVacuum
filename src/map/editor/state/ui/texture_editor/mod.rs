@@ -844,7 +844,7 @@ impl WindowCloserInfo for TextureEditor
     fn window_closer(&self) -> Option<WindowCloser>
     {
         /// Calls the window close function.
-        #[inline(always)]
+        #[inline]
         fn close(ed: &mut TextureEditor) { ed.window.close(); }
 
         self.window
@@ -944,7 +944,7 @@ impl TextureEditor
 //=======================================================================//
 
 /// A function that does nothing, used for a macro.
-#[inline(always)]
+#[inline]
 #[must_use]
 const fn no_clamp(value: f32, _: f32) -> f32 { value }
 

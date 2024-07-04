@@ -50,7 +50,6 @@ use super::{
 use crate::{
     map::{
         brush::{convex_polygon::TextureSetResult, BrushData},
-        containers::HvBox,
         drawer::{
             drawing_resources::DrawingResources,
             texture::{Sprite, TextureSettings}
@@ -65,7 +64,10 @@ use crate::{
         properties::Value,
         thing::{catalog::ThingsCatalog, ThingId, ThingInstanceData}
     },
-    utils::identifiers::{EntityId, Id},
+    utils::{
+        containers::HvBox,
+        identifiers::{EntityId, Id}
+    },
     Path
 };
 
@@ -127,7 +129,7 @@ macro_rules! draw_selected_and_non_selected {
         let mut selected_entities_iterated = 0;
         let selected_entities_len = $manager.[< selected_ $entities _amount >]();
 
-        let entities = $manager.[< visible_ $entities >](window, camera);
+        let entities = $manager.[< visible_ $entities >](window, camera, drawer.grid());
         let mut entities = entities.iter()$(.filter_set_with_predicate($filters, |brush| brush.id()))?;
 
         for entity in entities.by_ref()
@@ -252,12 +254,12 @@ macro_rules! selected_vertexes {
         /// A record of the selected brushes selected vertexes.
         #[must_use]
         #[derive(Debug)]
-        struct SelectedVertexes(crate::map::containers::HvHashMap<Id, u8>, usize);
+        struct SelectedVertexes(crate::utils::containers::HvHashMap<Id, u8>, usize);
 
         impl Default for SelectedVertexes
         {
             #[inline]
-            fn default() -> Self { Self(crate::map::containers::hv_hash_map![], 0) }
+            fn default() -> Self { Self(crate::utils::containers::hv_hash_map![], 0) }
         }
 
         impl SelectedVertexes
@@ -744,11 +746,11 @@ impl Core
         &mut self,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        settings: &ToolsSettings,
-        grid: Grid
+        grid: Grid,
+        settings: &ToolsSettings
     )
     {
-        self.active_tool.select_all(manager, edits_history, settings, grid);
+        self.active_tool.select_all(manager, edits_history, grid, settings);
     }
 
     //==============================================================
@@ -873,7 +875,7 @@ impl Core
         settings: &mut ToolsSettings
     )
     {
-        self.active_tool.update_outline(manager, settings, grid);
+        self.active_tool.update_outline(manager, grid, settings);
     }
 
     /// Updates the data stored concerning the selected vertexes.
@@ -922,8 +924,8 @@ impl Core
         bundle: &StateUpdateBundle,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        settings: &ToolsSettings,
         grid: Grid,
+        settings: &ToolsSettings,
         tool_change_conditions: &ChangeConditions
     )
     {
@@ -932,8 +934,8 @@ impl Core
             bundle,
             manager,
             edits_history,
-            settings,
             grid,
+            settings,
             tool_change_conditions
         );
     }
@@ -993,8 +995,8 @@ impl Core
             drawing_resources,
             manager,
             edits_history,
-            settings,
-            Grid::new(2, true, grid_shifted)
+            Grid::quick_snap(grid_shifted),
+            settings
         );
     }
 
@@ -1111,7 +1113,7 @@ fn draw_non_selected_brushes(bundle: &mut DrawBundle, manager: &EntitiesManager)
     let mut selected_entities_iterated = 0;
     let selected_entities_len = manager.selected_brushes_amount();
 
-    let brushes = manager.visible_brushes(window, camera);
+    let brushes = manager.visible_brushes(window, camera, drawer.grid());
     let mut brushes = brushes.iter();
 
     for brush in brushes.by_ref()

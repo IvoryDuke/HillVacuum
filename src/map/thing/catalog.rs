@@ -16,15 +16,17 @@ use hill_vacuum_shared::{continue_if_err, continue_if_none};
 use super::{Thing, ThingId, ThingInstance};
 use crate::{
     map::{
-        containers::{hv_hash_map, hv_vec},
         drawer::drawing_resources::DrawingResources,
         indexed_map::IndexedMap,
-        properties::DefaultProperties,
-        AssertedInsertRemove,
-        HvHashMap,
-        HvVec
+        properties::DefaultProperties
     },
-    utils::identifiers::Id,
+    utils::{
+        containers::{hv_hash_map, hv_vec},
+        identifiers::Id,
+        misc::AssertedInsertRemove
+    },
+    HvHashMap,
+    HvVec,
     MapThing
 };
 

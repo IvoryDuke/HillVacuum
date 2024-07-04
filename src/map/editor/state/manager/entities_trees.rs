@@ -10,7 +10,10 @@ use bevy::prelude::{Transform, Vec2, Window};
 use crate::{
     map::{
         brush::Brush,
-        editor::state::manager::quad_tree::{QuadTree, QuadTreeIds},
+        editor::state::{
+            grid::Grid,
+            manager::quad_tree::{QuadTree, QuadTreeIds}
+        },
         path::Moving,
         thing::ThingInstance
     },
@@ -34,10 +37,11 @@ macro_rules! visible_iters {
         pub fn [< visible_ $entities >](
             &self,
             camera: &Transform,
-            window: &Window
+            window: &Window,
+            grid: Grid
         ) -> Ref<'_, QuadTreeIds>
         {
-            self.[< visible_ $entities >].borrow_mut().update(camera, window, |ids, viewport| {
+            self.[< visible_ $entities >].borrow_mut().update(camera, window, grid, |ids, viewport| {
                 self.[< $entities _tree >]
                     .entities_intersect_range(ids, &viewport);
             });
@@ -501,29 +505,11 @@ impl VisibleQuadTreeIds
         &mut self,
         camera: &Transform,
         window: &Window,
+        grid: Grid,
         mut f: F
     )
     {
-        /// Generates the world viewport of the `camera`.
-        #[inline]
-        #[must_use]
-        fn viewport(camera: &Transform, window: &Window) -> Hull
-        {
-            /// Extra space for improved visibility detection.
-            const PADDING: f32 = 64f32;
-
-            let hull = camera.viewport_ui_constricted(window);
-            let scaled_increment = PADDING * camera.scale();
-
-            Hull::new(
-                hull.top() + scaled_increment,
-                hull.bottom() - scaled_increment,
-                hull.left() - scaled_increment,
-                hull.right() + scaled_increment
-            )
-        }
-
-        let viewport = viewport(camera, window);
+        let viewport = camera.viewport(window, grid);
 
         if !self.dirty && self.last_viewport.around_equal_narrow(&viewport)
         {

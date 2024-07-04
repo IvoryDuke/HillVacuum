@@ -9,15 +9,13 @@ use std::{cmp::Ordering, fmt::Debug, ops::Index};
 use bevy::prelude::Vec2;
 
 use crate::{
-    map::{
-        editor::{
-            cursor_pos::Cursor,
-            hv_vec,
-            state::{editor_state::InputsPresses, manager::EntitiesManager}
-        },
-        HvVec
+    map::editor::{
+        cursor::Cursor,
+        hv_vec,
+        state::{editor_state::InputsPresses, manager::EntitiesManager}
     },
-    utils::{identifiers::EntityId, misc::next}
+    utils::{identifiers::EntityId, misc::next},
+    HvVec
 };
 
 //=======================================================================//

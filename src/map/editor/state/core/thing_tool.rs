@@ -13,7 +13,6 @@ use super::{
 };
 use crate::{
     map::{
-        containers::{hv_hash_set, Ids},
         drawer::color::Color,
         editor::{
             state::{
@@ -27,10 +26,13 @@ use crate::{
             DrawBundle,
             StateUpdateBundle,
             ToolUpdateBundle
-        },
-        AssertedInsertRemove
+        }
     },
-    utils::identifiers::{EntityId, Id}
+    utils::{
+        containers::{hv_hash_set, Ids},
+        identifiers::{EntityId, Id},
+        misc::AssertedInsertRemove
+    }
 };
 
 //=======================================================================//
@@ -184,7 +186,7 @@ impl ThingTool
 
         let mut iterated_drawn = 0;
         let drawn_len = self.drawn_things.len();
-        let things = manager.visible_things(window, camera);
+        let things = manager.visible_things(window, camera, drawer.grid());
         let mut things = things.iter();
 
         for thing in things.by_ref()
@@ -225,7 +227,7 @@ impl ThingTool
             }
         }
 
-        for brush in manager.visible_brushes(window, camera).iter()
+        for brush in manager.visible_brushes(window, camera, drawer.grid()).iter()
         {
             brush.draw_opaque(camera, drawer);
         }

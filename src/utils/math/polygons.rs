@@ -13,14 +13,15 @@ use super::{
     HashVec2
 };
 use crate::{
-    map::containers::{HvHashSet, HvVec},
     utils::{
         math::{
             lines_and_segments::{is_point_inside_clip_edge, lines_intersection},
             AroundEqual
         },
         misc::prev
-    }
+    },
+    HvHashSet,
+    HvVec
 };
 
 //=======================================================================//

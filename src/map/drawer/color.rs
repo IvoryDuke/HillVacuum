@@ -10,7 +10,7 @@ use hashbrown::HashMap;
 use hill_vacuum_proc_macros::{color_enum, EnumFromUsize, EnumIter, EnumSize};
 use hill_vacuum_shared::return_if_none;
 
-use crate::{config::IniConfig, map::containers::hv_vec};
+use crate::{config::IniConfig, utils::containers::hv_vec};
 
 //=======================================================================//
 // CONSTANTS

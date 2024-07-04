@@ -1,8 +1,7 @@
 pub mod brush;
 mod camera;
-pub mod containers;
 pub mod drawer;
-mod editor;
+pub mod editor;
 mod indexed_map;
 pub mod path;
 pub mod properties;
@@ -34,13 +33,11 @@ use bevy_egui::{
     EguiSet,
     EguiUserTextures
 };
-use containers::hv_hash_map;
 use hill_vacuum_shared::{continue_if_no_match, return_if_err, return_if_none, NextValue};
 use serde::{Deserialize, Serialize};
 
 use self::{
     camera::init_camera_transform,
-    containers::{hv_vec, HvHashMap, HvVec},
     drawer::{
         color::Color,
         drawing_resources::DrawingResources,
@@ -60,12 +57,14 @@ use crate::{
         thing::ThingViewer
     },
     utils::{
+        containers::{hv_hash_map, hv_vec},
         hull::{EntityHull, Hull},
-        misc::Toggle
+        misc::{AssertedInsertRemove, Toggle}
     },
     Animation,
     EditorState,
     HardcodedThings,
+    HvHashMap,
     Id,
     TextureInterface,
     PROP_CAMERAS_AMOUNT,
@@ -97,7 +96,7 @@ const TOOLTIP_OFFSET: egui::Vec2 = egui::Vec2::new(0f32, -12.5);
 //=======================================================================//
 
 /// A trait to determine wherever an entity fits within the map's bounds.
-pub trait OutOfBounds
+pub(crate) trait OutOfBounds
 {
     /// Whether the entity fits within the map bounds.
     #[must_use]
@@ -131,36 +130,6 @@ impl OutOfBounds for f32
 impl<T: EntityHull> OutOfBounds for T
 {
     fn out_of_bounds(&self) -> bool { self.hull().out_of_bounds() }
-}
-
-//=======================================================================//
-
-/// A trait for collections that allows to insert and remove a value but causes the application to
-/// panic if the insert or remove was unsuccesful.
-trait AssertedInsertRemove<T, U, V, X>
-{
-    /// Insert `value` in the collection. Panics if the collection already contains `value`.
-    fn asserted_insert(&mut self, value: T) -> V;
-
-    /// Remove `value` from the collection. Panics if the collection does not contain `value`.
-    fn asserted_remove(&mut self, value: &U) -> X;
-}
-
-impl<K, V> AssertedInsertRemove<(K, V), K, (), V> for HvHashMap<K, V>
-where
-    K: Eq + std::hash::Hash
-{
-    /// Inserts `value`, a (key, element) pair. Panics if the collection already contains the key.
-    #[inline]
-    fn asserted_insert(&mut self, value: (K, V))
-    {
-        assert!(self.insert(value.0, value.1).is_none(), "Key is a already present.");
-    }
-
-    /// Remove the element associated with the key `value`. Panics if the collection does not
-    /// contain `value`. Returns the removed element.
-    #[inline]
-    fn asserted_remove(&mut self, value: &K) -> V { self.remove(value).unwrap() }
 }
 
 //=======================================================================//
@@ -237,7 +206,7 @@ type PaintToolCameraQueryMut<'world, 'state, 'a> = Query<
 //=======================================================================//
 
 /// The plugin that builds the map editor.
-pub struct MapEditorPlugin;
+pub(crate) struct MapEditorPlugin;
 
 impl Plugin for MapEditorPlugin
 {
@@ -424,7 +393,7 @@ impl Exporter
 #[allow(clippy::needless_pass_by_value)]
 #[allow(clippy::cast_precision_loss)]
 #[inline]
-pub(in crate::map) fn initialize(
+fn initialize(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     mut egui_contexts: Query<EguiContextQuery>
@@ -449,6 +418,11 @@ pub(in crate::map) fn initialize(
                             ..Default::default()
                         },
                         transform: Transform::from_translation(pos.extend(0f32)),
+                        projection: OrthographicProjection {
+                            near: -1000f32,
+                            far: 10000f32,
+                            ..Default::default()
+                        },
                         ..Default::default()
                     },
                     $marker
@@ -462,6 +436,11 @@ pub(in crate::map) fn initialize(
     // Cameras.
     commands.spawn(Camera2dBundle {
         transform: init_camera_transform(),
+        projection: OrthographicProjection {
+            near: f32::MIN,
+            far: f32::MAX,
+            ..Default::default()
+        },
         ..Default::default()
     });
 
@@ -535,31 +514,73 @@ pub(in crate::map) fn initialize(
 
 //=======================================================================//
 
-/// Removes tab for the inputs fed to `egui`.
+/// Removes tab from the egui inputs.
+#[allow(clippy::needless_pass_by_value)]
 #[inline]
-fn clean_egui_inputs(mut input: Query<&mut EguiInput>)
+fn clean_egui_inputs(mut input: Query<&mut EguiInput>, editor: NonSend<Editor>)
 {
     let events = &mut input.get_single_mut().unwrap().0.events;
     let mut iter = events.iter_mut().enumerate();
     let mut index = None;
+    let mut add_escape = false;
 
     for (i, ev) in iter.by_ref()
     {
-        let (key, modifiers) =
-            continue_if_no_match!(ev, egui::Event::Key { key, modifiers, .. }, (key, modifiers));
+        let (key, modifiers) = continue_if_no_match!(
+            ev,
+            egui::Event::Key {
+                key,
+                modifiers,
+                pressed: true,
+                ..
+            },
+            (key, modifiers)
+        );
         *modifiers = egui::Modifiers::NONE;
 
-        if *key == egui::Key::Tab
+        match key
         {
-            index = i.into();
-            break;
-        }
+            egui::Key::Tab =>
+            {
+                index = i.into();
+                break;
+            },
+            egui::Key::F4 => add_escape = true,
+            _ => ()
+        };
     }
 
     for (_, ev) in iter
     {
-        *continue_if_no_match!(ev, egui::Event::Key { modifiers, .. }, modifiers) =
-            egui::Modifiers::NONE;
+        let (key, modifiers) = continue_if_no_match!(
+            ev,
+            egui::Event::Key {
+                key,
+                modifiers,
+                pressed: true,
+                ..
+            },
+            (key, modifiers)
+        );
+        *modifiers = egui::Modifiers::NONE;
+
+        if *key == egui::Key::F4
+        {
+            add_escape = true;
+        }
+    }
+
+    // If F4 is pressed to close an egui window add an artificial escape press to surrender focus of
+    // the text editor being used (if any) before the window is closed.
+    if add_escape && editor.is_window_focused()
+    {
+        events.push(egui::Event::Key {
+            key:          egui::Key::Escape,
+            physical_key: egui::Key::Escape.into(),
+            pressed:      true,
+            repeat:       false,
+            modifiers:    egui::Modifiers::NONE
+        });
     }
 
     events.swap_remove(return_if_none!(index));

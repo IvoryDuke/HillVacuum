@@ -15,10 +15,9 @@ use super::{
 use crate::{
     map::{
         brush::convex_polygon::SubtractResult,
-        containers::{hv_hash_set, Ids},
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
-            cursor_pos::Cursor,
+            cursor::Cursor,
             state::{
                 core::rect,
                 editor_state::InputsPresses,
@@ -27,13 +26,13 @@ use crate::{
             },
             DrawBundle,
             ToolUpdateBundle
-        },
-        AssertedInsertRemove
+        }
     },
     utils::{
+        containers::{hv_hash_set, Ids},
         identifiers::{EntityId, Id},
         iterators::FilterSet,
-        misc::{Camera, ReplaceValues, TakeValue}
+        misc::{AssertedInsertRemove, Camera, ReplaceValues, TakeValue}
     }
 };
 
@@ -351,7 +350,7 @@ impl SubtractTool
             );
 
             for brush in manager
-                .visible_brushes(window, camera)
+                .visible_brushes(window, camera, drawer.grid())
                 .iter()
                 .filter_set_with_predicate([sel_id, hgl_s], |brush| brush.id())
             {
@@ -369,7 +368,7 @@ impl SubtractTool
         }
 
         for brush in manager
-            .visible_brushes(window, camera)
+            .visible_brushes(window, camera, drawer.grid())
             .iter()
             .filter_set_with_predicate(sel_id, |brush| brush.id())
         {

@@ -10,21 +10,24 @@ use std::{
 };
 
 use bevy::{
-    prelude::*,
+    asset::{AssetServer, Assets, Handle},
+    math::{UVec2, Vec2},
+    prelude::{Commands, Entity, Query, With},
     render::{
-        mesh::{Indices, VertexAttributeValues},
+        mesh::{Indices, Mesh, VertexAttributeValues},
         render_asset::RenderAssetUsages,
         render_resource::PrimitiveTopology,
         view::NoFrustumCulling
     },
-    sprite::{MaterialMesh2dBundle, Mesh2dHandle}
+    sprite::{ColorMaterial, MaterialMesh2dBundle, Mesh2dHandle},
+    transform::components::Transform
 };
 use bevy_egui::{egui, EguiUserTextures};
 use hill_vacuum_proc_macros::{meshes_indexes, str_array};
 use hill_vacuum_shared::{continue_if_none, match_or_panic, return_if_none, NextValue};
 
 use super::{
-    animation::{Animation, Animator, AtlasAnimator},
+    animation::{Animation, AtlasAnimator},
     color::Color,
     texture::{DefaultAnimation, Texture, TextureInterface, TextureInterfaceExtra},
     texture_loader::TextureLoader,
@@ -37,23 +40,26 @@ use crate::{
     embedded_assets::embedded_asset_path,
     map::{
         brush::convex_polygon::NEW_VX,
-        containers::{hv_hash_map, hv_hash_set, hv_vec, HvHashMap, HvHashSet, HvVec},
         editor::{
             state::{
                 clipboard::{PropCameras, PropCamerasMut},
-                core::cursor_delta::CursorDelta
+                core::cursor_delta::CursorDelta,
+                grid::Grid
             },
             Placeholder
         },
         indexed_map::IndexedMap,
-        thing::{catalog::ThingsCatalog, ThingInterface},
-        AssertedInsertRemove
+        thing::{catalog::ThingsCatalog, ThingInterface}
     },
     utils::{
+        containers::{hv_hash_map, hv_hash_set, hv_vec},
         hull::Hull,
         math::{points::rotate_point_around_origin, HashVec2},
-        misc::{vertex_highlight_square, Camera}
-    }
+        misc::{vertex_highlight_square, AssertedInsertRemove, Camera}
+    },
+    HvHashMap,
+    HvHashSet,
+    HvVec
 };
 
 //=======================================================================//
@@ -824,14 +830,11 @@ impl DrawingResources
     pub(in crate::map::drawer) fn push_map_preview_sprite<T: TextureInterface>(
         &mut self,
         mesh: Mesh2dHandle,
+        texture: &TextureMaterials,
         settings: &T
     )
     {
-        self.push_mesh(
-            mesh,
-            self.texture_materials(settings.name()).pure.clone_weak(),
-            settings.height_f32()
-        );
+        self.push_mesh(mesh, texture.pure.clone_weak(), settings.height_f32());
     }
 
     /// Pushes a thing mesh.
@@ -1308,6 +1311,20 @@ impl<'a> MeshGenerator<'a>
 
     /// Adds the vertexes in `iter`.
     #[inline]
+    pub fn push_positions_skewed(&mut self, grid: Grid, iter: impl IntoIterator<Item = Vec2>)
+    {
+        if grid.skew() != 0 || grid.angle() != 0
+        {
+            self.0
+                .extend(iter.into_iter().map(|vx| grid.transform_point(vx).as_f32x3()));
+        }
+        else
+        {
+            self.0.extend(iter.into_iter().map(IntoArray3::as_f32x3));
+        }
+    }
+
+    #[inline]
     pub fn push_positions(&mut self, iter: impl IntoIterator<Item = Vec2>)
     {
         self.0.extend(iter.into_iter().map(IntoArray3::as_f32x3));
@@ -1371,42 +1388,20 @@ impl<'a> MeshGenerator<'a>
     pub fn set_animated_sprite_uv<T: TextureInterface + TextureInterfaceExtra>(
         &mut self,
         settings: &T,
-        animator: &Animator,
+        animator: &AtlasAnimator,
         elapsed_time: f32
     )
     {
-        match animator
+        let pivot = animator.pivot();
+        let mut uvs = self.sprite_uv(settings.name(), settings, elapsed_time);
+
+        for uv in &mut uvs
         {
-            Animator::List(animator) =>
-            {
-                self.3.extend(
-                    self.sprite_uv(
-                        animator
-                            .texture(
-                                self.4,
-                                settings.overall_animation(self.4).get_list_animation()
-                            )
-                            .texture()
-                            .name(),
-                        settings,
-                        elapsed_time
-                    )
-                );
-            },
-            Animator::Atlas(animator) =>
-            {
-                let pivot = animator.pivot();
-                let mut uvs = self.sprite_uv(settings.name(), settings, elapsed_time);
+            uv[0] += pivot[0];
+            uv[1] += pivot[1];
+        }
 
-                for uv in &mut uvs
-                {
-                    uv[0] += pivot[0];
-                    uv[1] += pivot[1];
-                }
-
-                self.3.extend(uvs);
-            }
-        };
+        self.3.extend(uvs);
     }
 
     /// Sets the UV coordinates to the one of a thing.

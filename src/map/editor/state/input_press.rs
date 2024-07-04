@@ -32,7 +32,7 @@ enum State
 //=======================================================================//
 
 /// The state of a hardcoded button.
-pub struct InputStateHardCoded<T>
+pub(in crate::map::editor::state) struct InputStateHardCoded<T>
 {
     /// The button.
     button: T,
@@ -94,7 +94,7 @@ where
 //=======================================================================//
 
 /// The state of the button associated to a [`Bind`].
-pub struct InputState
+pub(in crate::map::editor::state) struct InputState
 {
     /// The [`Bind`].
     bind:  Bind,

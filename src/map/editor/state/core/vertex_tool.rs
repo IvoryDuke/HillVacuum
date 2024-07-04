@@ -40,10 +40,9 @@ use crate::{
             SplitResult,
             VertexesMoveResult
         },
-        containers::{hv_hash_map, hv_hash_set, hv_vec, HvHashMap, HvVec, Ids},
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
-            cursor_pos::Cursor,
+            cursor::Cursor,
             state::{
                 core::{rect, VertexesToggle},
                 editor_state::InputsPresses,
@@ -56,16 +55,18 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
-        selectable_vector::VectorSelectionResult,
-        AssertedInsertRemove
+        selectable_vector::VectorSelectionResult
     },
     utils::{
+        containers::{hv_hash_map, hv_hash_set, hv_vec, Ids},
         hull::{EntityHull, Hull},
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::HashVec2,
-        misc::{Camera, TakeValue}
+        misc::{AssertedInsertRemove, Camera, TakeValue}
     },
+    HvHashMap,
+    HvVec,
     Path
 };
 
@@ -517,7 +518,7 @@ impl VertexTool
                 }
 
                 self.0 = Status::Drag(
-                    return_if_none!(CursorDelta::try_new(*pos, bundle.cursor, grid), None),
+                    return_if_none!(CursorDelta::try_new(bundle.cursor, grid, *pos), None),
                     hv_vec![]
                 );
                 edits_history.start_multiframe_edit();

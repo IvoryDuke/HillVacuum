@@ -30,7 +30,6 @@ use self::{
     mover::Mover
 };
 use super::{
-    containers::{HvHashMap, Ids},
     drawer::{
         animation::{Animation, Animator, Timing},
         color::Color,
@@ -63,14 +62,18 @@ use super::{
     },
     properties::{Properties, PropertiesRefactor, Value},
     selectable_vector::VectorSelectionResult,
-    thing::catalog::ThingsCatalog,
-    HvVec
+    thing::catalog::ThingsCatalog
 };
-use crate::utils::{
-    hull::{EntityHull, Flip, Hull},
-    identifiers::{EntityCenter, EntityId, Id},
-    iterators::SlicePairIter,
-    math::lines_and_segments::{line_equation, LineEquation}
+use crate::{
+    utils::{
+        containers::Ids,
+        hull::{EntityHull, Flip, Hull},
+        identifiers::{EntityCenter, EntityId, Id},
+        iterators::SlicePairIter,
+        math::lines_and_segments::{line_equation, LineEquation}
+    },
+    HvHashMap,
+    HvVec
 };
 
 //=======================================================================//
@@ -2458,7 +2461,7 @@ pub struct BrushViewer
     pub mover:      Mover,
     /// Whether collision against the polygonal shape is enabled.
     pub collision:  bool,
-    /// The properties.
+    /// The associated properties.
     pub properties: HvHashMap<String, Value>
 }
 

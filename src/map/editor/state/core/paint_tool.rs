@@ -22,7 +22,7 @@ use super::{
 };
 use crate::{
     map::editor::{
-        cursor_pos::Cursor,
+        cursor::Cursor,
         state::{
             clipboard::{Clipboard, Prop, PropScreenshotTimer, PROP_SCREENSHOT_SIZE},
             core::tool::subtools_buttons,

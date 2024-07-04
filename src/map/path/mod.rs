@@ -25,17 +25,15 @@ use super::{
 };
 use crate::{
     map::{
-        containers::{hv_hash_map, hv_hash_set, hv_vec, HvHashMap, HvHashSet},
         drawer::{color::Color, EditDrawer},
         editor::state::grid::Grid,
         path::nodes::NodesInsertionIter,
         selectable_vector::deselect_vectors,
-        AssertedInsertRemove,
-        HvVec,
         OutOfBounds,
         TOOLTIP_OFFSET
     },
     utils::{
+        containers::{hv_hash_map, hv_hash_set, hv_vec},
         hull::{EntityHull, Hull},
         identifiers::{EntityCenter, EntityId, Id},
         iterators::{FilterSet, PairIterator, SkipIndexIterator, TripletIterator},
@@ -46,10 +44,23 @@ use crate::{
             HashVec2,
             NecessaryPrecisionValue
         },
-        misc::{next, prev, NoneIfEmpty, PointInsideUiHighlight, TakeValue, Toggle, VX_HGL_SIDE},
+        misc::{
+            next,
+            prev,
+            AssertedInsertRemove,
+            Camera,
+            NoneIfEmpty,
+            PointInsideUiHighlight,
+            TakeValue,
+            Toggle,
+            VX_HGL_SIDE
+        },
         overall_value::OverallValueInterface,
-        tooltips::{draw_tooltip_x_centered_above_pos, to_egui_coordinates}
+        tooltips::draw_tooltip_x_centered_above_pos
     },
+    HvHashMap,
+    HvHashSet,
+    HvVec,
     INDEXES
 };
 
@@ -234,7 +245,7 @@ macro_rules! common_edit_path {
 
         #[inline]
         #[must_use]
-        fn deselect_path_nodes(&mut self) -> Option<HvVec<u8>>
+        fn deselect_path_nodes(&mut self) -> Option<crate::HvVec<u8>>
         {
             let center = self.center();
             self.path_mut().deselect_nodes(center)
@@ -248,21 +259,21 @@ macro_rules! common_edit_path {
 
         #[inline]
         #[must_use]
-        fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
+        fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<crate::HvVec<u8>>
         {
             let center = self.center();
             self.path_mut().select_nodes_in_range(center, range)
         }
 
         #[inline]
-        fn select_all_path_nodes(&mut self) -> Option<HvVec<u8>>
+        fn select_all_path_nodes(&mut self) -> Option<crate::HvVec<u8>>
         {
             self.path_mut().select_all_nodes()
         }
 
         #[inline]
         #[must_use]
-        fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
+        fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<crate::HvVec<u8>>
         {
             let center = self.center();
             self.path_mut().exclusively_select_nodes_in_range(center, range)
@@ -283,7 +294,7 @@ macro_rules! common_edit_path {
         }
 
         #[inline]
-        fn insert_path_nodes_at_indexes(&mut self, nodes: &HvVec<(Vec2, u8)>)
+        fn insert_path_nodes_at_indexes(&mut self, nodes: &crate::HvVec<(Vec2, u8)>)
         {
             self.path_mut().insert_nodes_at_indexes(nodes);
         }
@@ -301,13 +312,13 @@ macro_rules! common_edit_path {
         }
 
         #[inline]
-        fn move_path_nodes_at_indexes(&mut self, snap: &HvVec<(HvVec<u8>, Vec2)>)
+        fn move_path_nodes_at_indexes(&mut self, snap: &crate::HvVec<(crate::HvVec<u8>, Vec2)>)
         {
             self.path_mut().move_nodes_at_indexes(snap);
         }
 
         #[inline]
-        fn remove_selected_path_nodes(&mut self, payload: NodesDeletionPayload) -> HvVec<(Vec2, u8)>
+        fn remove_selected_path_nodes(&mut self, payload: NodesDeletionPayload) -> crate::HvVec<(Vec2, u8)>
         {
             assert!(
                 self.id() == payload.id(),
@@ -336,7 +347,7 @@ macro_rules! common_edit_path {
         fn snap_selected_path_nodes(
             &mut self,
             grid: crate::map::editor::state::grid::Grid
-        ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
+        ) -> Option<crate::HvVec<(crate::HvVec<u8>, Vec2)>>
         {
             let center = self.center();
             self.path_mut().snap_selected_nodes(grid, center)
@@ -1730,7 +1741,7 @@ impl Path
     //==============================================================
     // Info
 
-    /// Returns the vector containing the [`Node`]s of the path.
+    /// Returns a reference to the vector containing the [`Node`]s of the path.
     #[inline]
     pub const fn nodes(&self) -> &HvVec<Node> { &self.nodes }
 
@@ -2908,7 +2919,16 @@ impl Path
     {
         let label = return_if_none!(drawer.vx_tooltip_label(pos));
         write!(text, ": {}", pos.necessary_precision_value()).ok();
-        node_tooltip(window, camera, egui_context, pos, label, text, drawer.egui_color(color));
+        node_tooltip(
+            window,
+            camera,
+            egui_context,
+            drawer.grid(),
+            pos,
+            label,
+            text,
+            drawer.egui_color(color)
+        );
         text.clear();
     }
 
@@ -3068,6 +3088,7 @@ pub(in crate::map) fn node_tooltip(
     window: &Window,
     camera: &Transform,
     egui_context: &egui::Context,
+    grid: Grid,
     pos: Vec2,
     label: &'static str,
     text: &str,
@@ -3080,7 +3101,7 @@ pub(in crate::map) fn node_tooltip(
         egui::Order::Background,
         text,
         egui::TextStyle::Monospace,
-        to_egui_coordinates(pos, window, camera),
+        camera.to_egui_coordinates(window, grid, pos),
         TOOLTIP_OFFSET,
         egui::Color32::BLACK,
         fill_color,

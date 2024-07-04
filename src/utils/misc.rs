@@ -4,8 +4,10 @@
 //=======================================================================//
 
 use bevy::{prelude::Vec2, window::Window};
+use bevy_egui::egui;
 
 use super::hull::Hull;
+use crate::map::editor::state::grid::Grid;
 
 //=======================================================================//
 // CONSTANTS
@@ -22,8 +24,21 @@ pub const VX_HGL_SIDE_SQUARED: f32 = VX_HGL_SIDE * VX_HGL_SIDE;
 //
 //=======================================================================//
 
+/// A trait for collections that allows to insert and remove a value but causes the application to
+/// panic if the insert or remove was unsuccesful.
+pub(crate) trait AssertedInsertRemove<T, U, V, X>
+{
+    /// Insert `value` in the collection. Panics if the collection already contains `value`.
+    fn asserted_insert(&mut self, value: T) -> V;
+
+    /// Remove `value` from the collection. Panics if the collection does not contain `value`.
+    fn asserted_remove(&mut self, value: &U) -> X;
+}
+
+//=======================================================================//
+
 /// A trait for collections that consumes them and returns None if they are empty.
-pub trait NoneIfEmpty
+pub(crate) trait NoneIfEmpty
 {
     /// Returns None is `self` is empty, otherwise returns `Some(self)`.
     #[must_use]
@@ -42,7 +57,7 @@ impl<T> NoneIfEmpty for Vec<T>
 
 /// A trait for collections that replaces all the value with new ones.
 /// This is helpful to preserve the accumulated capacity.
-pub trait ReplaceValues<T>
+pub(crate) trait ReplaceValues<T>
 {
     /// Replaces all the contained values with the ones returned by `iter`.
     fn replace_values<I: IntoIterator<Item = T>>(&mut self, iter: I);
@@ -82,7 +97,7 @@ impl ReplaceValues<char> for String
 
 /// A trait to replace values of variables with their default and return the original.
 /// Equivalent to using `std::mem::take(value)`.
-pub trait TakeValue
+pub(crate) trait TakeValue
 {
     /// Replaces `self` with its default and returns its value.
     #[must_use]
@@ -92,7 +107,7 @@ pub trait TakeValue
 //=======================================================================//
 
 /// A trait for objects representing cameras.
-pub trait Camera
+pub(crate) trait Camera
 {
     /// The camera position.
     #[must_use]
@@ -104,11 +119,36 @@ pub trait Camera
 
     /// Returns a [`Hull`] representing the camera's viewport.
     #[must_use]
-    fn viewport_ui_constricted(&self, window: &Window) -> Hull;
+    fn viewport(&self, window: &Window, grid: Grid) -> Hull;
 
-    /// Returns a [`Hull`] describing the viewport of `window`.
+    /// Returns the world position of 'p'.
+    #[inline]
     #[must_use]
-    fn viewport(&self, window: &Window) -> Hull;
+    fn to_world_coordinates(&self, window: &Window, grid: Grid, p: Vec2) -> Vec2
+    {
+        let p =
+            p * self.scale() - (Vec2::new(window.width(), window.height()) * self.scale()) / 2f32;
+        let camera_pos = self.pos();
+        grid.point_projection(Vec2::new(p.x + camera_pos.x, -(p.y - camera_pos.y)))
+    }
+
+    /// Converts 'p' to UI coorinates.
+    #[inline]
+    #[must_use]
+    fn to_egui_coordinates(&self, window: &Window, grid: Grid, p: Vec2) -> egui::Pos2
+    {
+        let p = grid.transform_point(p);
+        let pos = self.pos();
+        let scale = self.scale();
+
+        let mut q = egui::Pos2::new(p.x, p.y);
+        q.y.toggle();
+        q.x += (window.width() * scale) / 2f32 - pos.x;
+        q.y += (window.height() * scale) / 2f32 + pos.y;
+        q.x /= scale;
+        q.y /= scale;
+        q
+    }
 
     /// Sets the position of `self`.
     fn set_pos(&mut self, pos: Vec2);
@@ -132,18 +172,23 @@ pub trait Camera
     fn zoom_out(&mut self) { self.zoom(-1f32); }
 
     /// Zooms `self` on a certain position by `units` amount.
-    #[inline]
-    fn zoom_on_ui_pos(&mut self, window: &Window, pos: Vec2, units: f32)
-    where
-        Self: Sized
+    fn zoom_on_ui_pos(
+        &mut self,
+        window: &Window,
+        grid: Grid,
+        world_pos: Vec2,
+        ui_pos: Vec2,
+        units: f32
+    )
     {
-        let pre_scale_pos = to_world_coordinates(pos, window, self);
         _ = self.change_scale(units);
-        self.translate(pre_scale_pos - to_world_coordinates(pos, window, self));
+        self.translate(
+            grid.transform_point(world_pos - self.to_world_coordinates(window, grid, ui_pos))
+        );
     }
 
     /// Like `scale_viewport_to_hull`, but also accounts for the UI on screen space.
-    fn scale_viewport_ui_constricted_to_hull(&mut self, window: &Window, hull: &Hull, padding: f32);
+    fn scale_viewport_to_hull(&mut self, window: &Window, grid: Grid, hull: &Hull, padding: f32);
 
     /// Returns the UI dimensions of the window divided by half and scaled to represent its world
     /// dimensions.
@@ -159,7 +204,7 @@ pub trait Camera
 
 /// A trait to create an object from a static `str` and to get a static `str` representing the
 /// object.
-pub trait FromToStr
+pub(crate) trait FromToStr
 where
     Self: Sized
 {
@@ -321,7 +366,7 @@ keycode_from_to_str!(
 //=======================================================================//
 
 /// A trait to implement value toggle for an object.
-pub trait Toggle
+pub(crate) trait Toggle
 {
     /// Toggles 'self'.
     fn toggle(&mut self);
@@ -341,8 +386,8 @@ impl Toggle for f32
 
 //=======================================================================//
 
-/// A trait to determine whether a point is inside the UI rectangle highlight of a point.
-pub trait PointInsideUiHighlight
+/// A trait to determine whever a point is inside the UI rectangle highlight of a point.
+pub(crate) trait PointInsideUiHighlight
 {
     /// Whether `p` is inside the area of `self` while accounting for `camera_scale`.
     #[must_use]
@@ -367,7 +412,7 @@ impl PointInsideUiHighlight for Vec2
 /// An on/off switch that pulses at a certain interval.
 #[must_use]
 #[derive(Clone, Copy)]
-pub struct Blinker
+pub(crate) struct Blinker
 {
     /// The leftover amount of time it must pulse.
     time:     f32,
@@ -417,19 +462,6 @@ impl Blinker
 //=======================================================================//
 // FUNCTIONS
 //
-//=======================================================================//
-
-/// Returns the world position of 'p'.
-#[inline]
-#[must_use]
-pub fn to_world_coordinates<T: Camera>(p: Vec2, window: &Window, camera: &T) -> Vec2
-{
-    let p =
-        p * camera.scale() - (Vec2::new(window.width(), window.height()) * camera.scale()) / 2f32;
-    let camera_pos = camera.pos();
-    Vec2::new(p.x + camera_pos.x, -(p.y - camera_pos.y))
-}
-
 //=======================================================================//
 
 /// Returns the scaled length of the vertex highlight side.

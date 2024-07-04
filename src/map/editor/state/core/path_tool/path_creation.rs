@@ -200,6 +200,7 @@ impl PathCreation
             window,
             camera,
             egui_context,
+            drawer.grid(),
             pos,
             label,
             &tooltip_text,

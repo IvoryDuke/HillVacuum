@@ -10,15 +10,12 @@ use hill_vacuum_shared::return_if_none;
 use crate::{
     map::{
         drawer::{color::Color, EditDrawer},
-        editor::{cursor_pos::Cursor, state::grid::Grid}
+        editor::{cursor::Cursor, state::grid::Grid}
     },
     utils::{
         math::AroundEqual,
-        tooltips::{
-            draw_tooltip_x_centered_above_pos,
-            draw_tooltip_y_centered,
-            to_egui_coordinates
-        }
+        misc::Camera,
+        tooltips::{draw_tooltip_x_centered_above_pos, draw_tooltip_y_centered}
     }
 };
 
@@ -59,9 +56,9 @@ impl CursorDelta
     #[inline]
     #[must_use]
     pub(in crate::map::editor::state::core) fn try_new(
-        origin: Vec2,
         cursor: &Cursor,
-        grid: Grid
+        grid: Grid,
+        origin: Vec2
     ) -> Option<Self>
     {
         let drag = Self::new(origin);
@@ -181,10 +178,10 @@ impl CursorDelta
                 #[allow(clippy::cast_possible_truncation)]
                 &format!("{}", self.delta.x as i16),
                 egui::TextStyle::Monospace,
-                to_egui_coordinates(
-                    Vec2::new(self.origin.x + self.delta.x / 2f32, self.origin.y),
+                camera.to_egui_coordinates(
                     window,
-                    camera
+                    drawer.grid(),
+                    Vec2::new(self.origin.x + self.delta.x / 2f32, self.origin.y)
                 ),
                 egui::Vec2::new(0f32, -4f32),
                 TOOLTIP_TEXT_COLOR,
@@ -205,7 +202,11 @@ impl CursorDelta
             #[allow(clippy::cast_possible_truncation)]
             format!("{}", self.delta.y as i8).as_str(),
             egui::TextStyle::Monospace,
-            to_egui_coordinates(Vec2::new(p.x, p.y - self.delta.y / 2f32), window, camera),
+            camera.to_egui_coordinates(
+                window,
+                drawer.grid(),
+                Vec2::new(p.x, p.y - self.delta.y / 2f32)
+            ),
             egui::Vec2::new(4f32, 0f32),
             TOOLTIP_TEXT_COLOR,
             egui::Color32::from_black_alpha(0),

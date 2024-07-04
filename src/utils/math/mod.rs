@@ -17,8 +17,8 @@ use bevy::prelude::Vec2;
 //
 //=======================================================================//
 
-/// A trait to determine whether two objects are equal within a certain error margin.
-pub trait AroundEqual
+/// A trait to determine whever two objects are equal within a certain error margin.
+pub(crate) trait AroundEqual
 {
     /// Whether `self` and `other` are equal within a somewhat loose margin.
     #[must_use]
@@ -57,7 +57,7 @@ impl AroundEqual for Vec2
 
 /// A trait to calculate the inverse square root of a number using the famous Quake
 /// `fast_inverse_sqrt` algorithm.
-pub trait FastSqrt
+pub(crate) trait FastSqrt
 {
     /// Calculates the inverse square root of a number using the famous Quake `fast_inverse_sqrt`
     /// algorithm.
@@ -74,7 +74,7 @@ impl FastSqrt for f32
 //=======================================================================//
 
 /// A trait to normalize a vector using the Quake `fast_inverse_sqrt` algorithm.
-pub trait FastNormalize
+pub(crate) trait FastNormalize
 {
     /// Calculates the normalized vector through the Quake `fast_inverse_sqrt` algorithm.
     #[must_use]
@@ -94,7 +94,7 @@ impl FastNormalize for Vec2
 
 /// A trait to create types from types using floating point values, that do not print the fractional
 /// part if it's equal to zero.
-pub trait NecessaryPrecisionValue<T>
+pub(crate) trait NecessaryPrecisionValue<T>
 {
     /// Returns a value that only prints the fractional part if it's different from zero.
     #[must_use]
@@ -126,7 +126,7 @@ impl NecessaryPrecisionValue<NecessaryPrecisionF32> for f32
 
 /// A hashable [`Vec2`]. Only to be used in contexts where the x and y coordinates cannot be NaN.
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub struct HashVec2(pub Vec2);
+pub(crate) struct HashVec2(pub Vec2);
 
 impl Eq for HashVec2 {}
 
@@ -145,7 +145,7 @@ impl Hash for HashVec2
 /// A representation of a vector that only prints the fractional part of the x and y coordinates if
 /// they are different from zero.
 #[derive(Clone, Copy)]
-pub struct NecessaryPrecisionVec2(NecessaryPrecisionF32, NecessaryPrecisionF32);
+pub(crate) struct NecessaryPrecisionVec2(NecessaryPrecisionF32, NecessaryPrecisionF32);
 
 impl std::fmt::Display for NecessaryPrecisionVec2
 {
@@ -160,7 +160,7 @@ impl std::fmt::Display for NecessaryPrecisionVec2
 
 /// A representation of a [`f32`] that only prints the fractional part if it's different from zero.
 #[derive(Clone, Copy)]
-pub struct NecessaryPrecisionF32(f32);
+pub(crate) struct NecessaryPrecisionF32(f32);
 
 impl std::fmt::Display for NecessaryPrecisionF32
 {

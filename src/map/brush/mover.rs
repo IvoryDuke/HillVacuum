@@ -6,12 +6,12 @@
 use hill_vacuum_shared::{match_or_panic, return_if_no_match};
 use serde::{Deserialize, Serialize};
 
+use crate::utils::{
+    containers::{hv_hash_set, Ids},
+    misc::AssertedInsertRemove
+};
 #[allow(unused_imports)]
 use crate::{
-    map::{
-        containers::{hv_hash_set, Ids},
-        AssertedInsertRemove
-    },
     utils::{identifiers::Id, misc::TakeValue},
     Brush,
     Path
