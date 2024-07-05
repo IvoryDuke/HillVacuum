@@ -16,11 +16,11 @@ use bevy::{
     asset::Assets,
     ecs::{
         event::EventWriter,
-        schedule::OnEnter,
         system::{Res, ResMut, Resource},
         world::{FromWorld, Mut, World}
     },
-    sprite::ColorMaterial
+    sprite::ColorMaterial,
+    state::state::OnEnter
 };
 use configparser::ini::Ini;
 use hill_vacuum_shared::FILE_EXTENSION;
@@ -242,5 +242,5 @@ fn save_config(
         error_message("Error while saving config file.");
     }
 
-    app_exit_events.send(AppExit);
+    app_exit_events.send(AppExit::Success);
 }

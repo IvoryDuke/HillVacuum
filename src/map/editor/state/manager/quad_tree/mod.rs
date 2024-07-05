@@ -292,24 +292,6 @@ impl QuadTree
         Node::intersect_range(self, 0, entities, range);
         entities.retain(|_, hull| range.overlaps(hull));
     }
-
-    #[cfg(feature = "debug")]
-    /// Draws the outlines of the [`Hull`]s.
-    #[inline]
-    pub fn draw(&self, gizmos: &mut bevy::prelude::Gizmos, viewport: &Hull, camera_scale: f32)
-    {
-        let square_side = vertex_highlight_side_length(camera_scale);
-
-        Node::draw_grid(self, 0, viewport, gizmos, Vec2::new(square_side, square_side));
-
-        let mut entities = QuadTreeIds::new();
-        self.entities_intersect_range(&mut entities, viewport);
-
-        for hull in entities.hulls()
-        {
-            draw_gizmo_hull(gizmos, hull, bevy::prelude::Color::RED);
-        }
-    }
 }
 
 //=======================================================================//
@@ -342,11 +324,6 @@ impl QuadTreeIds
     #[inline]
     pub fn ids(&self) -> hashbrown::hash_map::Keys<'_, Id, Hull> { self.0.keys() }
 
-    #[cfg(feature = "debug")]
-    /// Returns an iterator to the stored [`Hull`]s.
-    #[inline]
-    fn hulls(&self) -> impl Iterator<Item = &Hull> { self.0.values() }
-
     /// Whether it contains a value for the specified key.
     #[inline]
     #[must_use]
@@ -368,19 +345,4 @@ impl QuadTreeIds
     /// Clears the stored elements.
     #[inline]
     pub fn clear(&mut self) { self.0.clear() }
-}
-
-//=======================================================================//
-// FUNCTONS
-//
-//=======================================================================//
-
-#[cfg(feature = "debug")]
-#[inline]
-fn draw_gizmo_hull(gizmos: &mut bevy::prelude::Gizmos, hull: &Hull, color: bevy::prelude::Color)
-{
-    for [start, end] in hull.sides_segments()
-    {
-        gizmos.line_2d(start, end, color);
-    }
 }

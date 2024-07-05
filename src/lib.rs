@@ -1,3 +1,4 @@
+#![doc = include_str!("../docs/crate_description.md")]
 #![forbid(clippy::enum_glob_use)]
 #![allow(clippy::single_match_else)]
 #![allow(clippy::manual_let_else)]
@@ -5,8 +6,8 @@
 #![allow(clippy::module_name_repetitions)]
 #![warn(clippy::missing_assert_message)]
 #![warn(clippy::missing_const_for_fn)]
-// #![warn(clippy::missing_errors_doc)]
-// #![warn(clippy::missing_panics_doc_)]
+#![warn(clippy::missing_errors_doc)]
+#![warn(clippy::missing_panics_doc)]
 // #![warn(clippy::missing_docs_in_private_items)]
 #![cfg_attr(feature = "arena_alloc", feature(allocator_api))]
 
@@ -21,19 +22,11 @@ mod utils;
 //=======================================================================//
 
 use bevy::{
-    a11y::AccessibilityPlugin,
-    core_pipeline::CorePipelinePlugin,
-    input::InputPlugin,
+    diagnostic::DiagnosticsPlugin,
+    log::LogPlugin,
     prelude::*,
-    render::{
-        pipelined_rendering::PipelinedRenderingPlugin,
-        texture::{ImageAddressMode, ImageSamplerDescriptor},
-        RenderPlugin
-    },
-    sprite::SpritePlugin,
-    time::TimePlugin,
-    window::Cursor,
-    winit::WinitPlugin
+    render::texture::{ImageAddressMode, ImageSamplerDescriptor},
+    window::Cursor
 };
 use config::ConfigPlugin;
 use embedded_assets::EmbeddedPlugin;
@@ -303,67 +296,48 @@ impl Plugin for HillVacuumPlugin
     #[inline]
     fn build(&self, app: &mut App)
     {
-        app.add_plugins((
-            AssetPlugin {
-                file_path: ASSETS_PATH.to_owned(),
-                processed_file_path: "processed_assets/".to_owned(),
-                watch_for_changes_override: false.into(),
-                mode: bevy::prelude::AssetMode::Unprocessed
-            },
-            AccessibilityPlugin,
-            TaskPoolPlugin::default(),
-            TypeRegistrationPlugin,
-            FrameCountPlugin,
-            TimePlugin,
-            TransformPlugin,
-            InputPlugin,
-            WindowPlugin {
-                primary_window: Some(Window {
-                    cursor: Cursor {
-                        icon: CursorIcon::Pointer,
-                        ..Default::default()
-                    },
-                    title: NAME.into(),
-                    position: WindowPosition::At((0, 0).into()),
-                    resolution: (1920f32, 1080f32).into(),
-                    resize_constraints: WindowResizeConstraints {
-                        min_width: 640f32,
-                        min_height: 480f32,
-                        ..Default::default()
-                    },
+        app.add_plugins(
+            DefaultPlugins
+                .set(AssetPlugin {
+                    file_path: ASSETS_PATH.to_owned(),
+                    processed_file_path: "processed_assets/".to_owned(),
+                    watch_for_changes_override: false.into(),
+                    mode: bevy::prelude::AssetMode::Unprocessed,
                     ..Default::default()
-                }),
-                ..Default::default()
-            },
-            WinitPlugin {
-                run_on_any_thread: true
-            },
-            RenderPlugin::default(),
-            ImagePlugin {
-                default_sampler: ImageSamplerDescriptor {
-                    address_mode_u: ImageAddressMode::Repeat,
-                    address_mode_v: ImageAddressMode::Repeat,
-                    address_mode_w: ImageAddressMode::Repeat,
+                })
+                .set(ImagePlugin {
+                    default_sampler: ImageSamplerDescriptor {
+                        address_mode_u: ImageAddressMode::Repeat,
+                        address_mode_v: ImageAddressMode::Repeat,
+                        address_mode_w: ImageAddressMode::Repeat,
+                        ..Default::default()
+                    }
+                })
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        cursor: Cursor {
+                            icon: CursorIcon::Pointer,
+                            ..Default::default()
+                        },
+                        title: NAME.into(),
+                        position: WindowPosition::At((0, 0).into()),
+                        resolution: (1920f32, 1080f32).into(),
+                        resize_constraints: WindowResizeConstraints {
+                            min_width: 640f32,
+                            min_height: 480f32,
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }),
                     ..Default::default()
-                }
-            }
-        ));
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            app.add_plugins(PipelinedRenderingPlugin);
-        }
-
-        app.add_plugins((CorePipelinePlugin, SpritePlugin));
-
-        #[cfg(feature = "debug")]
-        {
-            app.add_plugins(bevy::gizmos::GizmoPlugin);
-        }
-
-        app.add_plugins((EmbeddedPlugin, ConfigPlugin, MapEditorPlugin))
-            .insert_state(EditorState::default())
-            .insert_resource(Msaa::Sample4);
+                })
+                .disable::<LogPlugin>()
+                .disable::<HierarchyPlugin>()
+                .disable::<DiagnosticsPlugin>()
+        )
+        .add_plugins((EmbeddedPlugin, ConfigPlugin, MapEditorPlugin))
+        .init_state::<EditorState>()
+        .insert_resource(Msaa::Sample4);
     }
 }
 

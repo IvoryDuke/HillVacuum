@@ -219,7 +219,7 @@ impl Plugin for MapEditorPlugin
             .add_systems(PreUpdate, clean_egui_inputs.after(EguiSet::ProcessInput).before(EguiSet::BeginFrame))
             // Init resources
             .insert_non_send_resource(unsafe { Editor::placeholder() })
-            .insert_state(TextureLoadingProgress::default())
+            .init_state::<TextureLoadingProgress>()
             .insert_resource(ClearColor(Color::Clear.default_bevy_color()))
             .insert_resource(WinitSettings::default())
             .init_resource::<TextureLoader>()
@@ -232,15 +232,14 @@ impl Plugin for MapEditorPlugin
             )
             .add_systems(
                 OnEnter(TextureLoadingProgress::Complete),
-                (store_loaded_textures, apply_state_transition::<EditorState>).chain()
+                store_loaded_textures
             )
             // Handle entity creation and editing
             .add_systems(
                 Update,
                 (
                     update_state,
-                    update_active_tool,
-                    apply_state_transition::<EditorState>
+                    update_active_tool
                 )
                 .chain()
                 .in_set(EditorSet::Update)
@@ -484,15 +483,14 @@ fn initialize(
     // Extract necessary values.
     let ctx = context.ctx.get_mut();
 
-    // Do a fake frame thing to allow the labels initialization.
-    ctx.begin_frame(egui::RawInput::default());
-    let full_output = ctx.end_frame();
-
+    // Initialize the labels.
     let egui::FullOutput {
         platform_output,
         textures_delta,
         ..
-    } = full_output;
+    } = ctx.run(egui::RawInput::default(), |ctx| {
+        DrawingResources::init(ctx);
+    });
     context.render_output.textures_delta.append(textures_delta);
     context.egui_output.platform_output = platform_output.clone();
 
@@ -508,8 +506,6 @@ fn initialize(
     visuals.override_text_color = egui::Color32::WHITE.into();
     visuals.faint_bg_color = egui::Color32::from_gray(35);
     ctx.set_visuals(visuals);
-
-    DrawingResources::init(ctx);
 }
 
 //=======================================================================//
@@ -762,8 +758,7 @@ fn draw(
     mut egui_context: EguiContexts,
     meshes_query: Query<Entity, With<Mesh2dHandle>>,
     mut editor: NonSendMut<Editor>,
-    config: Res<Config>,
-    #[cfg(feature = "debug")] mut gizmos: bevy::gizmos::gizmos::Gizmos
+    config: Res<Config>
 )
 {
     editor.draw(
@@ -776,9 +771,7 @@ fn draw(
         &mut meshes,
         egui_context.ctx_mut(),
         &meshes_query,
-        &config.colors,
-        #[cfg(feature = "debug")]
-        &mut gizmos
+        &config.colors
     );
 }
 
@@ -801,7 +794,7 @@ fn load_textures(
     mut images: ResMut<Assets<Image>>,
     mut user_textures: ResMut<EguiUserTextures>,
     mut texture_loader: ResMut<TextureLoader>,
-    mut load_state: ResMut<NextState<TextureLoadingProgress>>
+    mut load_state: ResMut<bevy::prelude::NextState<TextureLoadingProgress>>
 )
 {
     texture_loader.load(&mut images, &mut user_textures, &mut load_state);

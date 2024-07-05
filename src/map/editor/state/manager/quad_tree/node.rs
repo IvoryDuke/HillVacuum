@@ -133,20 +133,6 @@ impl Square
     #[inline]
     #[must_use]
     fn overlaps_hull(&self, hull: &Hull) -> bool { hull.overlaps(&self.hull()) }
-
-    #[cfg(feature = "debug")]
-    /// Whether the area of `self` is visible within `viewport`.
-    #[inline]
-    #[must_use]
-    fn outline_visible(&self, viewport: &Hull) -> bool { self.hull().intersects(viewport) }
-
-    #[cfg(feature = "debug")]
-    /// Draws the outline of the area.
-    #[inline]
-    fn draw(&self, gizmos: &mut bevy::prelude::Gizmos)
-    {
-        super::draw_gizmo_hull(gizmos, &self.hull(), bevy::prelude::Color::BLUE);
-    }
 }
 
 //=======================================================================//
@@ -535,46 +521,6 @@ impl Node
                     Self::intersect_range(quad_tree, subnode_index, identifiers, range);
                 }
             }
-        }
-    }
-
-    #[cfg(feature = "debug")]
-    /// Draws the grid created by the [`QuadTree`].
-    #[inline]
-    pub fn draw_grid(
-        quad_tree: &QuadTree,
-        index: usize,
-        viewport: &Hull,
-        gizmos: &mut bevy::prelude::Gizmos,
-        square_size: Vec2
-    )
-    {
-        let node = quad_tree.node(index);
-
-        if !node.square.overlaps_hull(viewport)
-        {
-            return;
-        }
-
-        // Only draw the outline if it's in sight.
-        if node.square.outline_visible(viewport)
-        {
-            node.square.draw(gizmos);
-        }
-
-        let (subnodes, ints) =
-            return_if_no_match!(&node.content, Content::Subnodes(subnodes, ints), (subnodes, ints));
-
-        for pos in ints
-            .iter()
-            .filter_map(|int| viewport.contains_point(int.pos()).then_some(int.pos()))
-        {
-            gizmos.rect_2d(pos, 0f32, square_size, bevy::prelude::Color::GREEN);
-        }
-
-        for subnode_index in subnodes.iter()
-        {
-            Self::draw_grid(quad_tree, subnode_index, viewport, gizmos, square_size);
         }
     }
 }

@@ -86,9 +86,14 @@ impl Tooltip
             }
             else
             {
-                egui::show_tooltip_at_pointer(&response.ctx, tool.icon_file_name().into(), |ui| {
-                    ui.label(&self.text);
-                });
+                egui::show_tooltip_at_pointer(
+                    &response.ctx,
+                    response.layer_id,
+                    tool.icon_file_name().into(),
+                    |ui| {
+                        ui.label(&self.text);
+                    }
+                );
             }
 
             return;

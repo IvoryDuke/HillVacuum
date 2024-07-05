@@ -144,9 +144,7 @@ struct DrawBundle<
     's,
     'a,
     'b,
-    'c,
-    #[cfg(feature = "debug")] 't,
-    #[cfg(feature = "debug")] 'u
+    'c
 > {
     window:            &'a Window,
     delta_time:        f32,
@@ -156,9 +154,7 @@ struct DrawBundle<
     prop_cameras:      &'a PropCameras<'world, 'state, 'c>,
     paint_tool_camera: &'a Transform,
     things_catalog:    &'b ThingsCatalog,
-    cursor:            &'b Cursor,
-    #[cfg(feature = "debug")]
-    gizmos:            &'a mut Gizmos<'t, 'u>
+    cursor:            &'b Cursor
 }
 
 //=======================================================================//
@@ -696,8 +692,7 @@ impl Editor
         meshes: &mut Assets<Mesh>,
         egui_context: &mut egui::Context,
         meshes_query: &Query<Entity, With<Mesh2dHandle>>,
-        color_resources: &ColorResources,
-        #[cfg(feature = "debug")] gizmos: &mut Gizmos
+        color_resources: &ColorResources
     )
     {
         let elapsed_time = time.elapsed_seconds();
@@ -745,9 +740,7 @@ impl Editor
             prop_cameras,
             paint_tool_camera,
             things_catalog: &self.things_catalog,
-            cursor: &self.cursor,
-            #[cfg(feature = "debug")]
-            gizmos
+            cursor: &self.cursor
         });
     }
 

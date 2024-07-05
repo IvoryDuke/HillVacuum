@@ -3280,19 +3280,6 @@ impl EntitiesManager
         self.brush(error)
             .draw_wih_solid_color(&mut bundle.drawer, Color::ErrorHighlight);
     }
-
-    #[cfg(feature = "debug")]
-    /// Draws the quad tree debug lines.
-    #[inline]
-    pub fn draw_debug_lines(
-        &self,
-        gizmos: &mut bevy::prelude::Gizmos,
-        viewport: &Hull,
-        camera_scale: f32
-    )
-    {
-        self.quad_trees.draw(gizmos, viewport, camera_scale);
-    }
 }
 
 //=======================================================================//

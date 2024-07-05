@@ -492,8 +492,8 @@ impl Prop
             .center();
     }
 
-    /// Updates the things of the contained [`ThingInstance`]s after a things reload. Returns whether
-    /// any thing were changed.
+    /// Updates the things of the contained [`ThingInstance`]s after a things reload. Returns
+    /// whether any [`Thing`]s were changed.
     #[inline]
     #[must_use]
     fn reload_things(&mut self, catalog: &ThingsCatalog) -> bool

@@ -659,10 +659,7 @@ pub(in crate::map::editor) struct State
     /// Whether the "clip" texture should be drawn on top of the brushes with collision enabled.
     show_collision:     bool,
     /// Whether textures are currently being reloaded.
-    reloading_textures: bool,
-    #[cfg(feature = "debug")]
-    /// Whether debug lines should be drawn on top of the map.
-    show_debug_lines:   bool
+    reloading_textures: bool
 }
 
 impl Placeholder for State
@@ -683,9 +680,7 @@ impl Placeholder for State
             cursor_snap: true,
             show_cursor: true,
             show_collision: true,
-            reloading_textures: false,
-            #[cfg(feature = "debug")]
-            show_debug_lines: false
+            reloading_textures: false
         }
     }
 }
@@ -746,9 +741,7 @@ impl State
                 cursor_snap: true,
                 show_cursor: true,
                 show_collision: true,
-                reloading_textures: false,
-                #[cfg(feature = "debug")]
-                show_debug_lines: false
+                reloading_textures: false
             }
         }
 
@@ -792,9 +785,7 @@ impl State
                     cursor_snap: true,
                     show_cursor: true,
                     show_collision: true,
-                    reloading_textures: false,
-                    #[cfg(feature = "debug")]
-                    show_debug_lines: false
+                    reloading_textures: false
                 };
 
                 state.manager.finish_things_reload(things_catalog);
@@ -1093,10 +1084,11 @@ impl State
         save_as: Option<&'static str>
     ) -> Result<(), &'static str>
     {
-        /// Tests whether `test` is an error and returns an [`Err`] wrapping the error message `err`.
+        /// Tests whether `$value` is an error and returns an [`Err`] wrapping the error message
+        /// `$err` if it is.
         macro_rules! test {
-            ($test:expr, $err:literal) => {
-                if $test.is_err()
+            ($value:expr, $err:literal) => {
+                if $value.is_err()
                 {
                     return Err($err);
                 }
@@ -1778,9 +1770,7 @@ impl State
             {
                 self.quit(bundle, rfd::MessageButtons::YesNoCancel);
                 return true;
-            },
-            #[cfg(feature = "debug")]
-            Command::ToggleDebugLines => self.toggle_debug_lines()
+            }
         };
 
         if !(ui_interaction.command.world_edit() || self.harcoded_key_inputs(bundle))
@@ -2058,11 +2048,6 @@ impl State
         );
     }
 
-    #[cfg(feature = "debug")]
-    #[inline]
-    /// Toggles the debug lines visibility.
-    fn toggle_debug_lines(&mut self) { self.show_debug_lines.toggle(); }
-
     //==============================================================
     // Texture reload
 
@@ -2133,18 +2118,6 @@ impl State
         }
 
         self.ui.frame_end_update(bundle.egui_context);
-
-        #[cfg(feature = "debug")]
-        {
-            if self.show_debug_lines
-            {
-                self.manager.draw_debug_lines(
-                    bundle.gizmos,
-                    &bundle.camera.viewport(bundle.window),
-                    bundle.camera.scale()
-                );
-            }
-        }
     }
 
     /// Draws the map preview.

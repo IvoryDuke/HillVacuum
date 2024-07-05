@@ -8,7 +8,7 @@ use bevy_egui::egui;
 use configparser::ini::Ini;
 use hashbrown::HashMap;
 use hill_vacuum_proc_macros::{color_enum, EnumFromUsize, EnumIter, EnumSize};
-use hill_vacuum_shared::return_if_none;
+use hill_vacuum_shared::{match_or_panic, return_if_none};
 
 use crate::{config::IniConfig, utils::containers::hv_vec};
 
@@ -36,7 +36,7 @@ impl FromArray for BevyColor
 {
     #[inline]
     #[must_use]
-    fn from_array(rgb: &[f32; 3]) -> Self { Self::rgb(rgb[0], rgb[1], rgb[2]) }
+    fn from_array(rgb: &[f32; 3]) -> Self { Self::srgb(rgb[0], rgb[1], rgb[2]) }
 }
 
 impl FromArray for egui::Color32
@@ -48,6 +48,32 @@ impl FromArray for egui::Color32
     fn from_array(rgb: &[f32; 3]) -> Self
     {
         Self::from_rgb((255f32 * rgb[0]) as u8, (255f32 * rgb[1]) as u8, (255f32 * rgb[2]) as u8)
+    }
+}
+
+//=======================================================================//
+
+trait Rgb
+{
+    #[must_use]
+    fn to_rgb(&self) -> [f32; 3];
+}
+
+impl Rgb for BevyColor
+{
+    #[inline]
+    fn to_rgb(&self) -> [f32; 3]
+    {
+        match_or_panic!(
+            self,
+            BevyColor::Srgba(Srgba {
+                red,
+                green,
+                blue,
+                ..
+            }),
+            [*red, *green, *blue]
+        )
     }
 }
 
@@ -177,33 +203,38 @@ impl Color
     #[must_use]
     pub const fn default_bevy_color(self) -> BevyColor
     {
+        use bevy::color::palettes::css;
+
         match self
         {
-            Self::Clear => BevyColor::BLACK,
-            Self::SoftGridLines => BevyColor::rgb(0.04, 0.06, 0.09),
-            Self::GridLines | Self::ClippedPolygonsNotToSpawn => BevyColor::DARK_GRAY,
-            Self::OriginGridLines => BevyColor::WHITE,
-            Self::HullExtensions => BevyColor::INDIGO,
-            Self::NonSelectedEntity => BevyColor::ANTIQUE_WHITE,
+            Self::Clear => BevyColor::Srgba(css::BLACK),
+            Self::SoftGridLines => BevyColor::srgb(0.12, 0.2, 0.3),
+            Self::GridLines | Self::ClippedPolygonsNotToSpawn => BevyColor::srgb(0.3, 0.3, 0.3),
+            Self::OriginGridLines => BevyColor::Srgba(css::WHITE),
+            Self::HullExtensions => BevyColor::Srgba(css::INDIGO),
+            Self::NonSelectedEntity => BevyColor::Srgba(css::ANTIQUE_WHITE),
             Self::SelectedEntity |
             Self::SubtractorBrush |
             Self::SelectedVertex |
             Self::SelectedPathNode |
-            Self::ErrorHighlight => BevyColor::RED,
-            Self::NonSelectedVertex | Self::SideModeVertex => BevyColor::YELLOW,
-            Self::HighlightedNonSelectedEntity | Self::ToolCursor => BevyColor::ORANGE,
-            Self::HighlightedSelectedEntity | Self::HighlightedPath => BevyColor::GREEN,
+            Self::ErrorHighlight => BevyColor::Srgba(css::RED),
+            Self::NonSelectedVertex | Self::SideModeVertex => BevyColor::Srgba(css::YELLOW),
+            Self::HighlightedNonSelectedEntity | Self::ToolCursor => BevyColor::Srgba(css::ORANGE),
+            Self::HighlightedSelectedEntity | Self::HighlightedPath =>
+            {
+                BevyColor::srgb(0f32, 1f32, 0f32)
+            },
             Self::ClippedPolygonsToSpawn | Self::SubtracteeBrush | Self::PathNode =>
             {
-                BevyColor::GOLD
+                BevyColor::Srgba(css::GOLD)
             },
-            Self::OpaqueEntity => BevyColor::rgb(0.6, 0.6, 0.6),
-            Self::BrushAnchor => BevyColor::rgb(0.7, 0.34, 0.05),
-            Self::SpriteAnchor => BevyColor::rgb(1f32, 0.03, 0.91),
-            Self::Hull => BevyColor::AQUAMARINE,
-            Self::CursorPolygonHull => BevyColor::DARK_GREEN,
-            Self::CursorPolygon => BevyColor::CYAN,
-            Self::DefaultCursor => BevyColor::GRAY
+            Self::OpaqueEntity => BevyColor::srgb(0.6, 0.6, 0.6),
+            Self::BrushAnchor => BevyColor::srgb(0.7, 0.34, 0.05),
+            Self::SpriteAnchor => BevyColor::srgb(1f32, 0.03, 0.91),
+            Self::Hull => BevyColor::Srgba(css::AQUAMARINE),
+            Self::CursorPolygonHull => BevyColor::srgb(0.0, 0.5, 0.0),
+            Self::CursorPolygon => BevyColor::Srgba(css::AQUA),
+            Self::DefaultCursor => BevyColor::Srgba(css::GRAY)
         }
     }
 }
@@ -221,7 +252,18 @@ impl std::fmt::Display for ColorWrapper
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
-        write!(f, "{},{},{}", self.0.r(), self.0.g(), self.0.b())
+        let (r, g, b) = match_or_panic!(
+            self.0,
+            BevyColor::Srgba(Srgba {
+                red,
+                green,
+                blue,
+                ..
+            }),
+            (red, green, blue)
+        );
+
+        write!(f, "{r},{g},{b}")
     }
 }
 
@@ -247,16 +289,16 @@ impl ColorHandles
     {
         if color == Color::DefaultCursor
         {
-            bevy_color.set_a(0.5);
+            bevy_color.set_alpha(0.5);
         }
 
         let mut material = ColorMaterial::from(bevy_color);
         let line_color = materials.add(material.clone());
 
-        material.color.set_a(0.25);
+        material.color.set_alpha(0.25);
         let st_line_color = materials.add(material.clone());
 
-        material.color.set_a(0.021_875);
+        material.color.set_alpha(0.021_875);
         let body_color = materials.add(material);
 
         Self {
@@ -344,7 +386,7 @@ impl ColorResources
                 None => color.default_bevy_color()
             };
 
-            let rgb = [bevy_color.r(), bevy_color.g(), bevy_color.b()];
+            let rgb = bevy_color.to_rgb();
 
             self.0.insert(color, Slot {
                 rgb,
@@ -517,11 +559,7 @@ impl ColorResources
             let slot = self.get_mut(color);
 
             slot.bevy_color = bevy_color;
-            slot.rgb = [
-                slot.bevy_color.r(),
-                slot.bevy_color.g(),
-                slot.bevy_color.b()
-            ];
+            slot.rgb = slot.bevy_color.to_rgb();
             slot.egui_color = egui::Color32::from_array(&slot.rgb);
             slot.handles = handles;
         }

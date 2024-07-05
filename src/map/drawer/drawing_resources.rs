@@ -11,6 +11,7 @@ use std::{
 
 use bevy::{
     asset::{AssetServer, Assets, Handle},
+    color::Alpha,
     math::{UVec2, Vec2},
     prelude::{Commands, Entity, Query, With},
     render::{
@@ -141,12 +142,12 @@ impl TextureMaterials
 
         let pure = materials.add(texture.handle());
         let semi_transparent = materials.add(ColorMaterial {
-            color:   bevy::prelude::Color::rgba(1f32, 1f32, 1f32, Self::ALPHA),
+            color:   bevy::prelude::Color::srgba(1f32, 1f32, 1f32, Self::ALPHA),
             texture: texture.handle().into()
         });
         let mut materials = std::array::from_fn::<Handle<ColorMaterial>, LEN, _>(|i| {
             let mut color = COLORS[i].default_bevy_color();
-            color.set_a(Self::ALPHA);
+            color.set_alpha(Self::ALPHA);
 
             materials.add(ColorMaterial {
                 color,
@@ -184,7 +185,7 @@ impl TextureMaterials
     {
         let pure = materials.add(texture.0.handle());
         let semi_transparent = materials.add(ColorMaterial {
-            color:   bevy::prelude::Color::rgba(1f32, 1f32, 1f32, Self::ALPHA),
+            color:   bevy::prelude::Color::srgba(1f32, 1f32, 1f32, Self::ALPHA),
             texture: texture.0.handle().into()
         });
 
@@ -395,7 +396,7 @@ impl DrawingResources
     {
         for label in [CursorDelta::X_DELTA, CursorDelta::Y_DELTA, NEW_VX]
             .into_iter()
-            .chain(TooltipLabelGenerator::iter().copied())
+            .chain(TooltipLabelGenerator::iter())
         {
             egui::Area::new(label.into())
                 .order(egui::Order::Background)
@@ -1020,7 +1021,7 @@ impl TooltipLabelGenerator
 
     /// Returns an iterator to all assignable labels.
     #[inline]
-    fn iter() -> impl Iterator<Item = &'static &'static str> { Self::VX_LABELS.iter() }
+    fn iter() -> impl Iterator<Item = &'static str> { Self::VX_LABELS.iter().copied() }
 
     /// Resets the assigned labels.
     #[inline]
@@ -1096,14 +1097,14 @@ impl Meshes
     {
         for handle in &self.remove
         {
-            self.parts.push(meshes.remove(handle.clone()).unwrap());
+            self.parts.push(meshes.remove(handle).unwrap());
         }
 
         self.remove.clear();
 
         if let Some(handle) = std::mem::take(&mut self.grid_handle)
         {
-            self.parts.push_grid(meshes.remove(handle.clone()).unwrap());
+            self.parts.push_grid(meshes.remove(&handle).unwrap());
         }
 
         for id in meshes_query
@@ -1154,7 +1155,7 @@ impl Meshes
     {
         for handle in &self.remove
         {
-            MeshParts::cleanup_indexes(meshes.remove(handle.clone()).unwrap());
+            MeshParts::cleanup_indexes(meshes.remove(handle).unwrap());
         }
     }
 }

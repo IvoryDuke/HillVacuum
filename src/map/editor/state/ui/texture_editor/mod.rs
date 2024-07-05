@@ -591,7 +591,7 @@ impl Innards
                     f(texture, &response);
 
                     ui.vertical_centered(|ui| {
-                        ui.add(egui::Label::new(texture.label()).wrap(true));
+                        ui.add(egui::Label::new(texture.label()).wrap());
                     });
                     response
                 })

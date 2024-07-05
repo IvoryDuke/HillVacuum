@@ -60,7 +60,7 @@ const LEFT_SIDE_PANEL_WIDTH: f32 = 184f32;
 /// The width of the right panel.
 const RIGHT_SIDE_PANEL_WIDTH: f32 = 54f32;
 /// The height of the menu bar.
-const MENU_BAR_HEIGHT: f32 = 28f32;
+const MENU_BAR_HEIGHT: f32 = 34f32;
 /// The actual with of the left panel.
 const LEFT_SIDE_PANEL_REAL_WIDTH: f32 = 1.08 * LEFT_SIDE_PANEL_WIDTH;
 /// The actual with of the right panel.
@@ -268,10 +268,7 @@ pub(in crate::map::editor::state) enum Command
     /// Snap the vertexes of the selected brushes.
     QuickSnap,
     /// Quits the application
-    Quit,
-    #[cfg(feature = "debug")]
-    /// Toggles the debug lines.
-    ToggleDebugLines
+    Quit
 }
 
 impl Command
@@ -760,221 +757,216 @@ impl Ui
         let mut command = Command::None;
 
         egui::TopBottomPanel::top("top_panel")
-        .exact_height(MENU_BAR_HEIGHT)
-        .show(bundle.egui_context, |ui| {
-            egui::menu::bar(ui, |ui| {
-                let spacing = ui.spacing_mut();
-                spacing.button_padding = [6f32; 2].into();
-                spacing.item_spacing = [2f32; 2].into();
-                ui.visuals_mut().menu_rounding = 0f32.into();
+            .exact_height(MENU_BAR_HEIGHT)
+            .show(bundle.egui_context, |ui| {
+                egui::menu::bar(ui, |ui| {
+                    let spacing = ui.spacing_mut();
+                    spacing.button_padding = [6f32; 2].into();
+                    spacing.item_spacing = [2f32; 2].into();
+                    ui.visuals_mut().menu_rounding = 0f32.into();
 
-                let StateUpdateBundle { window, camera, config: Config { binds, exporter, .. }, .. } = bundle;
+                    let StateUpdateBundle { window, camera, config: Config { binds, exporter, .. }, .. } = bundle;
 
-                let select_all = core.select_all_available();
-                let copy_paste = core.copy_paste_available();
-                let undo_redo = core.undo_redo_available();
-                let reload = !core.map_preview();
-                let export = exporter.is_some();
-                let quick_snap = manager.any_selected_brushes();
-                let quick_zoom = manager.any_selected_entities();
+                    let select_all = core.select_all_available();
+                    let copy_paste = core.copy_paste_available();
+                    let undo_redo = core.undo_redo_available();
+                    let reload = !core.map_preview();
+                    let export = exporter.is_some();
+                    let quick_snap = manager.any_selected_brushes();
+                    let quick_zoom = manager.any_selected_entities();
 
-                /// Draws a menu button.
-                macro_rules! menu_button {
-                    (
-                        $ui:ident,
-                        $label:literal,
-                        $action:block
-                        $(, $shortcut:expr)?
-                    ) => {
-                        if $ui.add(egui::Button::new($label)$(.shortcut_text($shortcut))?).clicked()
-                        {
-                            $action
-                            $ui.close_menu();
-                        }
-                    };
-
-                    (
-                        $ui:ident,
-                        $enabled:ident,
-                        $label:literal,
-                        $action:block
-                        $(, $shortcut:expr)?
-                    ) => {
-                        if $ui.add_enabled($enabled, egui::Button::new($label)$(.shortcut_text($shortcut))?).clicked()
-                        {
-                            $action
-                            $ui.close_menu();
-                        }
-                    };
-                }
-
-                /// Draws a submenu.
-                macro_rules! submenu {
-                    (
-                        $ui:ident,
-                        $label:literal,
-                        $((
-                            $($cfg:ident, )?
-                            $tag:literal,
-                            $($enabled:ident, )?
+                    /// Draws a menu button.
+                    macro_rules! menu_button {
+                        (
+                            $ui:ident,
+                            $label:literal,
                             $action:block
                             $(, $shortcut:expr)?
-                        )),
-                    +) => {
-                        egui::menu::menu_button($ui, $label, |ui| {
-                            ui.set_min_width(200f32);
-                            let spacing = ui.spacing_mut();
-                            spacing.button_padding = [6f32; 2].into();
-                            spacing.item_spacing = [2f32; 2].into();
-                            ui.visuals_mut().menu_rounding = 0f32.into();
+                        ) => {
+                            if $ui.add(egui::Button::new($label)$(.shortcut_text($shortcut))?).clicked()
+                            {
+                                $action
+                                $ui.close_menu();
+                            }
+                        };
 
-                            $(
-                                $(#[$cfg(feature = "debug")])?
-                                menu_button!(ui, $($enabled, )? $tag, $action $(, $shortcut)?);
-                            )+
+                        (
+                            $ui:ident,
+                            $enabled:ident,
+                            $label:literal,
+                            $action:block
+                            $(, $shortcut:expr)?
+                        ) => {
+                            if $ui.add_enabled($enabled, egui::Button::new($label)$(.shortcut_text($shortcut))?).clicked()
+                            {
+                                $action
+                                $ui.close_menu();
+                            }
+                        };
+                    }
+
+                    /// Draws a submenu.
+                    macro_rules! submenu {
+                        (
+                            $ui:ident,
+                            $label:literal,
+                            $((
+                                $tag:literal,
+                                $($enabled:ident, )?
+                                $action:block
+                                $(, $shortcut:expr)?
+                            )),
+                        +) => {
+                            egui::menu::menu_button($ui, $label, |ui| {
+                                ui.set_min_width(200f32);
+                                let spacing = ui.spacing_mut();
+                                spacing.button_padding = [6f32; 2].into();
+                                spacing.item_spacing = [2f32; 2].into();
+                                ui.visuals_mut().menu_rounding = 0f32.into();
+
+                                $(
+                                    menu_button!(ui, $($enabled, )? $tag, $action $(, $shortcut)?);
+                                )+
+                            })
+                            .response
+                            .hovered();
+                        };
+                    }
+
+                    submenu!(
+                        ui,
+                        "File",
+                        ("New", {
+                            command = Command::New;
+                        }, HardcodedActions::New.key_combo()),
+                        ("Open", {
+                            command = Command::Open;
+                        }, HardcodedActions::Open.key_combo()),
+                        ("Save", {
+                            command = Command::Save;
+                        }, HardcodedActions::Save.key_combo()),
+                        ("Save as", {
+                            command = Command::SaveAs;
+                        }, "Ctrl+Shift+S"),
+                        ("Export", export, {
+                            command = Command::Export;
+                        }, HardcodedActions::Export.key_combo()),
+                        ("Import animations", {
+                            command = Command::ImportAnimations;
+                        }),
+                        ("Export animations", {
+                            command = Command::ExportAnimations;
+                        }),
+                        ("Import props", {
+                            command = Command::ImportProps;
+                        }),
+                        ("Export props", {
+                            command = Command::ExportProps;
+                        }),
+                        ("Quit", {
+                            command = Command::Quit;
+                        }, HardcodedActions::Quit.key_combo())
+                    );
+
+                    submenu!(
+                        ui,
+                        "Edit",
+                        ("Select all", select_all, {
+                            command = Command::SelectAll;
+                        }, HardcodedActions::SelectAll.key_combo()),
+                        ("Copy", copy_paste, {
+                            command = Command::Copy;
+                        }, HardcodedActions::Copy.key_combo()),
+                        ("Cut", copy_paste, {
+                            command = Command::Cut;
+                        }, HardcodedActions::Cut.key_combo()),
+                        ("Paste", copy_paste, {
+                            command = Command::Paste;
+                        }, HardcodedActions::Paste.key_combo()),
+                        ("Duplicate", copy_paste, {
+                            command = Command::Duplicate;
+                        }, HardcodedActions::Duplicate.key_combo()),
+                        ("Undo", undo_redo, {
+                            command = Command::Undo;
+                        }, HardcodedActions::Undo.key_combo()),
+                        ("Redo", undo_redo, {
+                            command = Command::Redo;
+                        }, HardcodedActions::Redo.key_combo()),
+                        ("Quick snap", quick_snap, {
+                            command = Command::QuickSnap;
+                        }, format!("Alt+{}", Tool::Snap.keycode_str(binds))),
+                        ("Texture editor", {
+                            self.texture_editor.toggle();
+                        }, binds.get(Bind::TextureEditor).map_or("", FromToStr::to_str)),
+                        ("Properties", {
+                            self.properties_window.toggle();
+                        }, binds.get(Bind::PropertiesEditor).map_or("", FromToStr::to_str))
+                    );
+
+                    submenu!(
+                        ui,
+                        "View",
+                        ("Zoom in", {
+                            camera.zoom_in();
+                        }, HardcodedActions::ZoomIn.key_combo()),
+                        ("Zoom out", {
+                            camera.zoom_out();
+                        }, HardcodedActions::ZoomOut.key_combo()),
+                        ("Quick zoom", quick_zoom, {
+                            command = Command::QuickZoom;
+                        }, format!("Alt+{}", Tool::Zoom.keycode_str(binds))),
+                        ("Fullscreen", {
+                            window.mode.toggle();
+                        }, HardcodedActions::Fullscreen.key_combo()),
+                        ("Toggle map preview", {
+                            command = Command::ToggleMapPreview;
                         })
-                        .response
-                        .hovered();
-                    };
-                }
+                    );
 
-                submenu!(
-                    ui,
-                    "File",
-                    ("New", {
-                        command = Command::New;
-                    }, HardcodedActions::New.key_combo()),
-                    ("Open", {
-                        command = Command::Open;
-                    }, HardcodedActions::Open.key_combo()),
-                    ("Save", {
-                        command = Command::Save;
-                    }, HardcodedActions::Save.key_combo()),
-                    ("Save as", {
-                        command = Command::SaveAs;
-                    }, "Ctrl+Shift+S"),
-                    ("Export", export, {
-                        command = Command::Export;
-                    }, HardcodedActions::Export.key_combo()),
-                    ("Import animations", {
-                        command = Command::ImportAnimations;
-                    }),
-                    ("Export animations", {
-                        command = Command::ExportAnimations;
-                    }),
-                    ("Import props", {
-                        command = Command::ImportProps;
-                    }),
-                    ("Export props", {
-                        command = Command::ExportProps;
-                    }),
-                    ("Quit", {
-                        command = Command::Quit;
-                    }, HardcodedActions::Quit.key_combo())
-                );
+                    submenu!(
+                        ui,
+                        "Options",
+                        ("Toggle grid", {
+                            command = Command::ToggleGrid;
+                        }, Bind::ToggleGrid.keycode_str(binds)),
+                        ("Increase grid size", {
+                            command = Command::IncreaseGridSize;
+                        }, Bind::IncreaseGridSize.keycode_str(binds)),
+                        ("Decrease grid size", {
+                            command = Command::DecreaseGridSize;
+                        }, Bind::DecreaseGridSize.keycode_str(binds)),
+                        ("Shift grid", {
+                            command = Command::ShifGrid;
+                        }, Bind::ShiftGrid.keycode_str(binds)),
+                        ("Toggle tooltips", {
+                            command = Command::ToggleTooltips;
+                        }, Bind::ToggleTooltips.keycode_str(binds)),
+                        ("Toggle cursor snap", {
+                            command = Command::ToggleCursorSnap;
+                        }, Bind::ToggleCursorSnap.keycode_str(binds)),
+                        ("Toggle collision overlay", {
+                            command = Command::ToggleCollision;
+                        }, Bind::ToggleCollision.keycode_str(binds)),
+                        ("Settings", {
+                            self.settings_window.toggle();
+                        }, Bind::Settings.keycode_str(binds)),
+                        ("Reload textures", reload, {
+                            command = Command::ReloadTextures;
+                        }),
+                        ("Reload things", reload, {
+                            command = Command::ReloadThings;
+                        })
+                    );
 
-                submenu!(
-                    ui,
-                    "Edit",
-                    ("Select all", select_all, {
-                        command = Command::SelectAll;
-                    }, HardcodedActions::SelectAll.key_combo()),
-                    ("Copy", copy_paste, {
-                        command = Command::Copy;
-                    }, HardcodedActions::Copy.key_combo()),
-                    ("Cut", copy_paste, {
-                        command = Command::Cut;
-                    }, HardcodedActions::Cut.key_combo()),
-                    ("Paste", copy_paste, {
-                        command = Command::Paste;
-                    }, HardcodedActions::Paste.key_combo()),
-                    ("Duplicate", copy_paste, {
-                        command = Command::Duplicate;
-                    }, HardcodedActions::Duplicate.key_combo()),
-                    ("Undo", undo_redo, {
-                        command = Command::Undo;
-                    }, HardcodedActions::Undo.key_combo()),
-                    ("Redo", undo_redo, {
-                        command = Command::Redo;
-                    }, HardcodedActions::Redo.key_combo()),
-                    ("Quick snap", quick_snap, {
-                        command = Command::QuickSnap;
-                    }, format!("Alt+{}", Tool::Snap.keycode_str(binds))),
-                    ("Texture editor", {
-                        self.texture_editor.toggle();
-                    }, binds.get(Bind::TextureEditor).map_or("", FromToStr::to_str)),
-                    ("Properties", {
-                        self.properties_window.toggle();
-                    }, binds.get(Bind::PropertiesEditor).map_or("", FromToStr::to_str))
-                );
-
-                submenu!(
-                    ui,
-                    "View",
-                    ("Zoom in", {
-                        camera.zoom_in();
-                    }, HardcodedActions::ZoomIn.key_combo()),
-                    ("Zoom out", {
-                        camera.zoom_out();
-                    }, HardcodedActions::ZoomOut.key_combo()),
-                    ("Quick zoom", quick_zoom, {
-                        command = Command::QuickZoom;
-                    }, format!("Alt+{}", Tool::Zoom.keycode_str(binds))),
-                    ("Fullscreen", {
-                        window.mode.toggle();
-                    }, HardcodedActions::Fullscreen.key_combo()),
-                    ("Toggle map preview", {
-                        command = Command::ToggleMapPreview;
-                    })
-                );
-
-                submenu!(
-                    ui,
-                    "Options",
-                    ("Toggle grid", {
-                        command = Command::ToggleGrid;
-                    }, Bind::ToggleGrid.keycode_str(binds)),
-                    ("Increase grid size", {
-                        command = Command::IncreaseGridSize;
-                    }, Bind::IncreaseGridSize.keycode_str(binds)),
-                    ("Decrease grid size", {
-                        command = Command::DecreaseGridSize;
-                    }, Bind::DecreaseGridSize.keycode_str(binds)),
-                    ("Shift grid", {
-                        command = Command::ShifGrid;
-                    }, Bind::ShiftGrid.keycode_str(binds)),
-                    ("Toggle tooltips", {
-                        command = Command::ToggleTooltips;
-                    }, Bind::ToggleTooltips.keycode_str(binds)),
-                    ("Toggle cursor snap", {
-                        command = Command::ToggleCursorSnap;
-                    }, Bind::ToggleCursorSnap.keycode_str(binds)),
-                    ("Toggle collision overlay", {
-                        command = Command::ToggleCollision;
-                    }, Bind::ToggleCollision.keycode_str(binds)),
-                    ("Settings", {
-                        self.settings_window.toggle();
-                    }, Bind::Settings.keycode_str(binds)),
-                    ("Reload textures", reload, {
-                        command = Command::ReloadTextures;
-                    }),
-                    ("Reload things", reload, {
-                        command = Command::ReloadThings;
-                    }),
-                    (cfg, "Toggle debug lines", {
-                        command = Command::ToggleDebugLines;
-                    })
-                );
-
-                submenu!(
-                    ui,
-                    "Help",
-                    ("Manual", {
-                        self.manual.toggle();
-                    }, HardcodedActions::ToggleManual.key_combo())
-                );
+                    submenu!(
+                        ui,
+                        "Help",
+                        ("Manual", {
+                            self.manual.toggle();
+                        }, HardcodedActions::ToggleManual.key_combo())
+                    );
+                });
             });
-        });
 
         command
     }

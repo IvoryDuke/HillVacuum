@@ -39,6 +39,8 @@ pub fn draw_tooltip(
     egui::Area::new(label.into())
         .fixed_pos(pos)
         .order(order)
+        .constrain(false)
+        .movable(false)
         .show(egui_context, |ui| {
             egui::Frame::none()
                 .fill(fill_color)
@@ -46,11 +48,14 @@ pub fn draw_tooltip(
                 .outer_margin(0f32)
                 .rounding(rounding)
                 .show(ui, |ui| {
-                    ui.label(
-                        egui::RichText::new(text)
-                            .color(text_color)
-                            .text_style(style)
-                            .size(TOOLTIP_FONT_SIZE)
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(text)
+                                .color(text_color)
+                                .text_style(style)
+                                .size(TOOLTIP_FONT_SIZE)
+                        )
+                        .extend()
                     );
                 });
         });

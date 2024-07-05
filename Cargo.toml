@@ -1,6 +1,6 @@
 [package]
 name = "hill_vacuum"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "A bevy-based 2D map editor"
@@ -10,38 +10,35 @@ readme = "README.md"
 keywords = ["gamedev", "mapeditor", "bevy"]
 
 [features]
-debug = [
-    "bevy/bevy_gizmos",
-    "bevy/dynamic_linking"
-]
+debug = ["bevy/dynamic_linking"]
 arena_alloc = [
     "dep:blink-alloc",
     "hashbrown/nightly"
 ]
 
 [dependencies.hill_vacuum_shared]
-version = "0.3.0"
+version = "0.3.1"
 
 [dependencies.hill_vacuum_proc_macros]
-version = "0.3.0"
+version = "0.3.1"
 
 [dependencies.bevy]
-version = "0.13"
+version = "0.14"
 default-features = false
 features = [
     "bevy_asset",
     "bevy_core_pipeline",
     "bevy_render",
     "bevy_sprite",
+    "bevy_state",
     "bevy_winit",
-    "multi-threaded",
     "png",
     "x11",
     "wayland"
 ]
 
 [dependencies.bevy_egui]
-version = "0.27"
+version = "0.28"
 default-features = false
 features = ["default_fonts", "render"]
 
@@ -52,7 +49,7 @@ version = "0.7"
 version = "0.2"
 
 [dependencies.egui_extras]
-version = "0.27"
+version = "0.28"
 
 [dependencies.blink-alloc]
 version = "0.3"

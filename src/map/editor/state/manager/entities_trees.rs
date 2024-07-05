@@ -388,18 +388,6 @@ impl Trees
             .entities_in_range(&mut self.things_in_range.borrow_mut(), range);
         self.things_in_range.borrow()
     }
-
-    //==============================================================
-    // Draw
-
-    #[cfg(feature = "debug")]
-    /// Draws the [`QuadTree`]s of the brushes and sprites.
-    #[inline]
-    pub fn draw(&self, gizmos: &mut bevy::prelude::Gizmos, viewport: &Hull, camera_scale: f32)
-    {
-        self.brushes_tree.draw(gizmos, viewport, camera_scale);
-        self.sprites_tree.draw(gizmos, viewport, camera_scale);
-    }
 }
 
 //=======================================================================//

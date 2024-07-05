@@ -7,7 +7,7 @@ pub mod bind;
 
 use bevy::input::keyboard::KeyCode;
 use configparser::ini::Ini;
-use hill_vacuum_shared::{continue_if_none, return_if_none};
+use hill_vacuum_shared::{continue_if_none, return_if_none, NextValue};
 
 use self::bind::Bind;
 use super::IniConfig;
@@ -32,7 +32,12 @@ pub(crate) struct BindsKeyCodes([Option<KeyCode>; Bind::SIZE]);
 impl Default for BindsKeyCodes
 {
     #[inline]
-    fn default() -> Self { Self([None; Bind::SIZE]) }
+    fn default() -> Self
+    {
+        const LEN: usize = Bind::SIZE;
+        let mut iter = Bind::iter();
+        BindsKeyCodes(std::array::from_fn::<_, LEN, _>(|_| iter.next_value().default_bind().into()))
+    }
 }
 
 impl BindsKeyCodes

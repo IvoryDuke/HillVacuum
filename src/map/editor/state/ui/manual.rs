@@ -16,6 +16,13 @@ use crate::{
 };
 
 //=======================================================================//
+// CONSTANTS
+//
+//=======================================================================//
+
+hill_vacuum_proc_macros::generate_manual!();
+
+//=======================================================================//
 // TYPES
 //
 //=======================================================================//
@@ -57,12 +64,12 @@ impl Manual
         {
             /// Generates a section of the manual.
             macro_rules! manual_section {
-                ($name:literal, $(($command:literal, $explanation:literal)),+) => {
+                ($name:literal, $(($command:literal, $explanation:expr)),+) => {
                     manual_section!(no_separator, $name, $(($command, $explanation)),+);
                     ui.separator();
                 };
 
-                (no_separator, $name:literal, $(($command:literal, $explanation:literal)),+) => {
+                (no_separator, $name:literal, $(($command:literal, $explanation:expr)),+) => {
                     ui.collapsing($name, |ui| {
                         ui.vertical(|ui| { $(
                             manual_section!(ui, |ui: &mut egui::Ui| ui.label($command), $explanation);
@@ -72,7 +79,7 @@ impl Manual
 
                 (
                     $tool:ident,
-                    $(($command:literal, $explanation:literal)),+
+                    $(($command:literal, $explanation:expr)),+
                     $(, $(($subtool:ident, $sub_explanation:literal)),+)?
                     $(, TEXTURE, $tex_explanation:literal)?
                 ) => {
@@ -89,7 +96,7 @@ impl Manual
                 (
                     no_separator,
                     $tool:ident,
-                    $(($command:literal, $explanation:literal)),+
+                    $(($command:literal, $explanation:expr)),+
                     $($(($subtool:ident, $sub_explanation:literal)),+)?
                     $(, TEXTURE, $tex_explanation:literal)?
                 ) => {
@@ -103,11 +110,11 @@ impl Manual
                     });
                 };
 
-                ($ui:ident, $command:literal, $explanation:literal) => {
+                ($ui:ident, $command:literal, $explanation:expr) => {
                     manual_section!($ui, |ui: &mut egui::Ui| ui.label($command), $explanation);
                 };
 
-                ($ui:ident, $subtool:ident, $explanation:literal) => {
+                ($ui:ident, $subtool:ident, $explanation:expr) => {
                     manual_section!($ui, |ui| tools_buttons.image(ui, SubTool::$subtool), $explanation);
                 };
 
@@ -115,7 +122,7 @@ impl Manual
                     manual_section!($ui, |ui| ui.label("TEXTURE"), $explanation);
                 };
 
-                ($ui:ident, $left:expr, $explanation:literal) => {
+                ($ui:ident, $left:expr, $explanation:expr) => {
                     $ui.horizontal_wrapped(|ui| {
                         egui_extras::StripBuilder::new(ui)
                             .size(egui_extras::Size::exact(250f32))
@@ -160,72 +167,12 @@ impl Manual
                      time disables them.\nEvery subtool shows the associated keyboard shortcut in \
                      the tooltip.\nSubtools can be disabled by pressing Escape."
                 ),
-                (
-                    "Brushes",
-                    "Brushes are convex polygonal surfaces.\nThey can have an associated texture \
-                     which can either be drawn filling their area or as a sprite. The sprite can \
-                     be displaced independently of the brush surface.\nBrushes can also be \
-                     assigned a path that describes how it moves in the bidimensional space and \
-                     that can be edited with the Path tool.\nFinally, brushes have a built-in \
-                     property, collision, which determines whether they should represent a \
-                     clipping surface or not. It can be edited in the properties window."
-                ),
-                (
-                    "Things",
-                    "Things are objects which can be placed around the map. They area \
-                     characterized by an ID, a width and height, a name, and a texture which \
-                     represents them.\nThings can also be assigned a path that describes how it \
-                     moves in the bidimensional space and that can be edited with the Path \
-                     tool.\nThings can either be defined in one or many .ini files to be placed \
-                     in the assets/things/ folder or, if HillVacuum is used as a library, \
-                     implementing the MapThing interface for the structs representing an object \
-                     to be placed in the map and using the \"hardcoded_things\" macro to insert \
-                     them in the bevy App.\n\nIf defined in the .ini files, the things must \
-                     follow a similar format:\n[Name]\nwidth = N\nheight = M\nid = ID\npreview = \
-                     TEX\nWhere N and M represent the sizes of the thing's bounding box, ID is a \
-                     unique identifier between 0 and 65534, and TEX is the name of the texture to \
-                     be drawn along with the bounding box.\nIf a thing defined through the \
-                     MapThing interface has the same ID as one loaded from file, the latter will \
-                     overwrite the former.\n\nFinally, things have two built-in properties, angle \
-                     and draw height. The orientation of the arrow drawn on top of the things \
-                     will change based on the value of angle, and draw height determines its draw \
-                     order. They can be edited in the properties window.\n\nThings can be \
-                     reloaded while the application is running through the UI button in the \
-                     Options menu."
-                ),
-                (
-                    "Properties",
-                    "Properties are custom user defined values which can be associated to brushes \
-                     and things.\nSuch values can be defined through the \"brush_properties\" and \
-                     \"thing_properties\" macros defining the pairs (name, default_value) of the \
-                     properties.\nProperties can be edited per-entity using the properties \
-                     window.\nCurrently supported value types are bool, u8, u16, u32, u64, u128, \
-                     i8, i16, i32, i64, i128, f32, f64, and String.\n\n!!! If a saved map \
-                     contains properties that differ in type and/or name from the ones defined in \
-                     the aforementioned resources, a warning window will appear on screen when \
-                     trying to load the .hv file, asking whether you'd like to use the app or map \
-                     ones."
-                ),
-                (
-                    "Textures",
-                    "Textures must be placed in the assets/textures/ folder to be loaded.\nThe \
-                     texture editor can be opened at any time to edit the properties of the \
-                     textures of the selected brushes.\nEntity, scale, and rotate tool also \
-                     feature texture editing capabilities. These capabilities can be either \
-                     enabled through the dedicated \"Target\" UI element in the bottom left area, \
-                     or by pressing Alt + texture editor bind.\n\nTextures can have an associated \
-                     animation which can either consist of a list of textures to display, each \
-                     one for a specific time, or an atlas of textures generated by subdividing \
-                     the textures in subareas. The animations can be applied to the texture as a \
-                     default or to the texture of the selected brushes only.\nWhen editing a list \
-                     type animation, it is possible to add a texture by clicking it with the left \
-                     mouse button.\nTo edit the default animation of a texture that is not the \
-                     one of the selected brushes, it needs to be clicked with the right mouse \
-                     button.\nTextures can be reloaded while the application is running through \
-                     the UI button in the Options menu.\n\nDefault textures animation can be \
-                     exported and imported between map files. The file extension of the \
-                     animations files is .anms."
-                )
+                ("Brushes", BRUSHES),
+                ("Things", THINGS),
+                ("Properties", PROPERTIES),
+                ("Textures", TEXTURES),
+                ("Props", PROPS),
+                ("Grid", GRID)
             );
 
             manual_section!(
@@ -731,13 +678,6 @@ impl Manual
 
             manual_section!(
                 Paint,
-                (
-                    "PROPS",
-                    "A prop is a collection of entities which can be painted around the map like \
-                     the brushes of a image editing tool.\nEach prop has a pivot, the point \
-                     relative to which it is painted onto the map.\n\nProps can be imported and \
-                     exported between map files. The file extension of the props files is .prps."
-                ),
                 (
                     "Enter",
                     "Initiates the prop creation process. A prop is generated from the selected \
