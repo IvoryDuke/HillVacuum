@@ -10,7 +10,6 @@ readme = "README.md"
 keywords = ["gamedev", "mapeditor", "bevy"]
 
 [features]
-debug = ["bevy/dynamic_linking"]
 arena_alloc = [
     "dep:blink-alloc",
     "hashbrown/nightly"
@@ -19,7 +18,7 @@ arena_alloc = [
 [dependencies.hill_vacuum_shared]
 version = "0.3.3"
 
-[build_dependencies.hill_vacuum_shared]
+[build-dependencies.hill_vacuum_shared]
 version = "0.3.3"
 
 [dependencies.hill_vacuum_proc_macros]

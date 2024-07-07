@@ -134,8 +134,7 @@ The map being edited can be exported through such an executable through the File
 The executable can be picked through Options->Exporter.
 
 ## Features
-- `debug`: enables dynamic linking for faster compile times and some debug lines of the editor;
-- `arena_alloc`: enables the usage of an arena allocator for fast allocation times. Requires nightly compiler.
+`arena_alloc`: enables the usage of an arena allocator for fast allocation times. Requires nightly compiler.
 
 ## !! WARNING
 [The only thing I know for real](https://youtu.be/T928kJvqTlo?si=2_YnB2pEuFSKKq-j), there will be bugs.  
