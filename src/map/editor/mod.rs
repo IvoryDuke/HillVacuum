@@ -137,15 +137,8 @@ struct ToolUpdateBundle<'world, 'state, 'a, 'b, 'c>
 /// A bundle of variables required to draw the visible portion of the map.
 #[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
-struct DrawBundle<
-    'world,
-    'state,
-    'w,
-    's,
-    'a,
-    'b,
-    'c
-> {
+struct DrawBundle<'world, 'state, 'w, 's, 'a, 'b, 'c>
+{
     window:            &'a Window,
     delta_time:        f32,
     egui_context:      &'a mut egui::Context,

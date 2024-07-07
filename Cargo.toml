@@ -1,6 +1,6 @@
 [package]
 name = "hill_vacuum"
-version = "0.3.1"
+version = "0.3.3"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "A bevy-based 2D map editor"
@@ -17,10 +17,13 @@ arena_alloc = [
 ]
 
 [dependencies.hill_vacuum_shared]
-version = "0.3.1"
+version = "0.3.3"
+
+[build_dependencies.hill_vacuum_shared]
+version = "0.3.3"
 
 [dependencies.hill_vacuum_proc_macros]
-version = "0.3.1"
+version = "0.3.3"
 
 [dependencies.bevy]
 version = "0.14"

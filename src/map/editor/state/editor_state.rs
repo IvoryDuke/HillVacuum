@@ -668,18 +668,18 @@ impl Placeholder for State
     unsafe fn placeholder() -> Self
     {
         Self {
-            core: Core::default(),
-            manager: EntitiesManager::new(),
-            clipboard: Clipboard::new(),
-            edits_history: EditsHistory::default(),
-            inputs: InputsPresses::default(),
-            grid: Grid::default(),
-            tools_settings: ToolsSettings::default(),
-            ui: Ui::placeholder(),
-            show_tooltips: true,
-            cursor_snap: true,
-            show_cursor: true,
-            show_collision: true,
+            core:               Core::default(),
+            manager:            EntitiesManager::new(),
+            clipboard:          Clipboard::new(),
+            edits_history:      EditsHistory::default(),
+            inputs:             InputsPresses::default(),
+            grid:               Grid::default(),
+            tools_settings:     ToolsSettings::default(),
+            ui:                 Ui::placeholder(),
+            show_tooltips:      true,
+            cursor_snap:        true,
+            show_cursor:        true,
+            show_collision:     true,
             reloading_textures: false
         }
     }
@@ -724,23 +724,23 @@ impl State
         ) -> State
         {
             State {
-                core: Core::default(),
-                manager: EntitiesManager::new(),
-                clipboard: Clipboard::new(),
-                edits_history: EditsHistory::default(),
-                inputs: InputsPresses::default(),
-                grid: Grid::default(),
-                ui: Ui::new(
+                core:               Core::default(),
+                manager:            EntitiesManager::new(),
+                clipboard:          Clipboard::new(),
+                edits_history:      EditsHistory::default(),
+                inputs:             InputsPresses::default(),
+                grid:               Grid::default(),
+                ui:                 Ui::new(
                     asset_server,
                     user_textures,
                     brushes_default_properties,
                     things_default_properties
                 ),
-                tools_settings: ToolsSettings::default(),
-                show_tooltips: true,
-                cursor_snap: true,
-                show_cursor: true,
-                show_collision: true,
+                tools_settings:     ToolsSettings::default(),
+                show_tooltips:      true,
+                cursor_snap:        true,
+                show_cursor:        true,
+                show_collision:     true,
                 reloading_textures: false
             }
         }

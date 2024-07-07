@@ -1,10 +1,12 @@
 use std::{fs::File, io::Write};
 
+use hill_vacuum_shared::return_if_err;
+
 fn main()
 {
     #[inline]
     #[must_use]
-    fn create(file: &str) -> File { File::create(file).expect("Unable to create file") }
+    fn create(file: &str) -> std::io::Result<File> { File::create(file) }
 
     #[inline]
     fn write(f: &mut File, buffer: &str)
@@ -12,6 +14,7 @@ fn main()
         f.write_all(buffer.as_bytes()).expect("Unable to write data");
     }
 
+    let mut f = return_if_err!(create("docs/crate_description.md"));
     let mut readme = String::new();
 
     macro_rules! include {
@@ -41,16 +44,14 @@ fn main()
 
     include!("outro");
 
-    let mut f = create("docs/crate_description.md");
     write(&mut f, &readme);
 
     include!("faq");
 
-    let mut f = create("README.md");
+    let mut f = return_if_err!(create("README.md"));
     write(&mut f, include_str!("docs/license.md"));
     write(&mut f, &readme);
 
     println!("cargo::rerun-if-changed=docs/license.md");
     println!("cargo::rerun-if-changed=build.rs");
-    println!("cargo::rerun-if-changed=src/map/editor/state/ui/manual/docs.rs");
 }
