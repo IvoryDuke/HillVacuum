@@ -7,6 +7,7 @@ use std::cell::{Ref, RefCell};
 
 use bevy::prelude::{Transform, Vec2, Window};
 
+use super::quad_tree::InsertResult;
 use crate::{
     map::{
         brush::Brush,
@@ -19,7 +20,7 @@ use crate::{
     },
     utils::{
         hull::{EntityHull, Hull},
-        identifiers::{EntityId, Id},
+        identifiers::EntityId,
         math::AroundEqual,
         misc::Camera
     }
@@ -127,123 +128,94 @@ impl Trees
 
     /// Inserts the anchor [`Hull`] of the brush with [`Id`] `owner_id`.
     #[inline]
-    pub fn insert_anchor_hull(&mut self, owner_id: Id, hull: &Hull)
+    #[must_use]
+    pub fn insert_anchor_hull(&mut self, brush: &Brush, hull: &Hull) -> InsertResult
     {
-        self.anchors_tree.insert_hull(owner_id, hull);
         self.set_anchors_dirty();
+        self.anchors_tree.insert_entity(brush, |_| *hull)
     }
 
     /// Removes the anchor [`Hull`] of the brush with [`Id`] `owner_id`.
     #[inline]
-    pub fn remove_anchor_hull(&mut self, owner_id: Id, hull: &Hull)
+    #[must_use]
+    pub fn remove_anchor_hull(&mut self, brush: &Brush) -> bool
     {
-        self.anchors_tree.remove_hull(owner_id, hull);
         self.set_anchors_dirty();
+        self.anchors_tree.remove_entity(brush)
     }
 
     /// Inserts the [`Hull`] of `brush`.
     #[inline]
-    pub fn insert_brush_hull(&mut self, brush: &Brush)
+    #[must_use]
+    pub fn insert_brush_hull(&mut self, brush: &Brush) -> InsertResult
     {
-        self.brushes_tree.insert_entity(brush);
         self.set_brushes_dirty();
+        self.brushes_tree.insert_entity(brush, EntityHull::hull)
     }
 
     /// Removes the [`Hull`] of `brush`.
     #[inline]
-    pub fn remove_brush_hull(&mut self, brush: &Brush)
+    #[must_use]
+    pub fn remove_brush_hull(&mut self, brush: &Brush) -> bool
     {
-        self.brushes_tree.remove_entity(brush);
         self.set_brushes_dirty();
-    }
-
-    /// Replaces the [`Hull`] of the brush with [`Id`] `identifier`.
-    #[inline]
-    pub fn replace_brush_hull(&mut self, identifier: Id, current_hull: &Hull, previous_hull: &Hull)
-    {
-        self.brushes_tree
-            .replace_hull(identifier, current_hull, previous_hull);
-        self.set_brushes_dirty();
+        self.brushes_tree.remove_entity(brush)
     }
 
     /// Inserts the [`Path`] [`Hull`] of `entity`.
     #[inline]
-    pub fn insert_path_hull<P: EntityId + Moving>(&mut self, entity: &P)
+    #[must_use]
+    pub fn insert_path_hull<T: EntityId + Moving>(&mut self, entity: &T) -> InsertResult
     {
-        self.paths_tree.insert_hull(entity.id(), &entity.path_hull().unwrap());
         self.set_paths_dirty();
+        self.paths_tree
+            .insert_entity(entity, |entity| entity.path_hull().unwrap())
     }
 
     /// Removes the [`Path`] [`Hull`] of `entity`.
     #[inline]
-    pub fn remove_path_hull<P: EntityId + ?Sized>(&mut self, entity: &P, hull: &Hull)
+    #[must_use]
+    pub fn remove_path_hull<T: EntityId + ?Sized>(&mut self, entity: &T) -> bool
     {
-        self.paths_tree.remove_hull(entity.id(), hull);
         self.set_paths_dirty();
-    }
-
-    /// Replaces the [`Path`] [`Hull`] of `entity`.
-    #[inline]
-    pub fn replace_path_hull<P: EntityId + Moving>(
-        &mut self,
-        entity: &P,
-        current_hull: &Hull,
-        previous_hull: &Hull
-    )
-    {
-        self.paths_tree.replace_hull(entity.id(), current_hull, previous_hull);
-        self.set_paths_dirty();
+        self.paths_tree.remove_entity(entity)
     }
 
     /// Inserts the [`Hull`] of the sprite of `brush`.
     #[inline]
-    pub fn insert_sprite_hull(&mut self, brush: &Brush)
+    #[must_use]
+    pub fn insert_sprite_hull(&mut self, brush: &Brush) -> InsertResult
     {
-        self.sprites_tree
-            .insert_hull(brush.id(), &brush.sprite_and_anchor_hull().unwrap());
         self.set_sprites_dirty();
+        self.sprites_tree
+            .insert_entity(brush, |brush| brush.sprite_and_anchor_hull().unwrap())
     }
 
     /// Removes the [`Hull`] of the sprite of `brush`.
     #[inline]
-    pub fn remove_sprite_hull(&mut self, brush: &Brush, hull: &Hull)
+    #[must_use]
+    pub fn remove_sprite_hull(&mut self, brush: &Brush) -> bool
     {
-        self.sprites_tree.remove_hull(brush.id(), hull);
         self.set_sprites_dirty();
-    }
-
-    /// Replaces the [`Hull`] of the sprite of `brush`.
-    #[inline]
-    pub fn replace_sprite_hull(&mut self, brush: &Brush, current_hull: &Hull, previous_hull: &Hull)
-    {
-        self.sprites_tree
-            .replace_hull(brush.id(), current_hull, previous_hull);
-        self.set_sprites_dirty();
+        self.sprites_tree.remove_entity(brush)
     }
 
     /// Inserts the [`Hull`] of `thing`.
     #[inline]
-    pub fn insert_thing_hull(&mut self, thing: &ThingInstance)
+    #[must_use]
+    pub fn insert_thing_hull(&mut self, thing: &ThingInstance) -> InsertResult
     {
-        self.things_tree.insert_hull(thing.id(), &thing.hull());
         self.set_things_dirty();
+        self.things_tree.insert_entity(thing, EntityHull::hull)
     }
 
     /// Removes the [`Hull`] of `thing`.
     #[inline]
-    pub fn remove_thing_hull(&mut self, thing: &ThingInstance)
+    #[must_use]
+    pub fn remove_thing_hull(&mut self, thing: &ThingInstance) -> bool
     {
-        self.things_tree.remove_hull(thing.id(), &thing.hull());
         self.set_things_dirty();
-    }
-
-    /// Replaces the [`Hull`] of `thing`.
-    #[inline]
-    pub fn replace_thing_hull(&mut self, thing: &ThingInstance, previous_hull: &Hull)
-    {
-        self.things_tree
-            .replace_hull(thing.id(), &thing.hull(), previous_hull);
-        self.set_things_dirty();
+        self.things_tree.remove_entity(thing)
     }
 
     /// Marks the brush [`DirtyQuadTreeIdsNearPos`]es as dirty.

@@ -5,7 +5,6 @@ use hill_vacuum_shared::return_if_err;
 fn main()
 {
     #[inline]
-    #[must_use]
     fn create(file: &str) -> std::io::Result<File> { File::create(file) }
 
     #[inline]

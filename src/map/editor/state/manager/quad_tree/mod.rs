@@ -9,6 +9,7 @@ mod subnodes;
 
 use bevy::prelude::Vec2;
 use hashbrown::hash_map::Iter;
+use hill_vacuum_shared::return_if_none;
 
 use self::{
     node::{Node, Square},
@@ -17,10 +18,10 @@ use self::{
 use crate::{
     utils::{
         containers::{hv_hash_map, hv_vec},
-        hull::{EntityHull, Hull},
+        hull::Hull,
         identifiers::{EntityId, Id},
         math::AroundEqual,
-        misc::bumped_vertex_highlight_square
+        misc::{bumped_vertex_highlight_square, AssertedInsertRemove}
     },
     HvHashMap,
     HvVec
@@ -29,6 +30,23 @@ use crate::{
 //=======================================================================//
 // ENUMS
 //
+//=======================================================================//
+
+#[derive(Clone, Copy)]
+pub(in crate::map::editor::state::manager) enum InsertResult
+{
+    Inserted,
+    Replaced,
+    Unchanged
+}
+
+impl InsertResult
+{
+    #[inline]
+    #[must_use]
+    pub const fn inserted(self) -> bool { matches!(self, Self::Inserted) }
+}
+
 //=======================================================================//
 
 /// The outcome of an [`Id`] removal.
@@ -90,6 +108,7 @@ impl MaybeNode
 #[derive(Debug)]
 pub(in crate::map::editor::state::manager) struct QuadTree
 {
+    entities:              HvHashMap<Id, Hull>,
     /// The nodes of the tree.
     nodes:                 HvVec<MaybeNode>,
     /// The nodes that are currently unused.
@@ -109,6 +128,7 @@ impl QuadTree
         vec.push(MaybeNode(Node::full_map().into()));
 
         Self {
+            entities:              hv_hash_map![],
             nodes:                 vec,
             vacant_spots:          hv_vec![],
             recycle_intersections: hv_vec![capacity; 32]
@@ -149,16 +169,39 @@ impl QuadTree
 
     /// Inserts `entity`.
     #[inline]
-    pub fn insert_entity<T>(&mut self, entity: &T)
+    #[must_use]
+    pub fn insert_entity<T, F>(&mut self, entity: &T, f: F) -> InsertResult
     where
-        T: EntityHull + EntityId
+        T: EntityId + ?Sized,
+        F: Fn(&T) -> Hull
     {
-        self.insert_hull(entity.id(), &entity.hull());
+        let id = entity.id();
+        let hull = &f(entity);
+
+        match self.entities.get(&id).copied()
+        {
+            Some(prev_hull) =>
+            {
+                if prev_hull.around_equal_narrow(hull)
+                {
+                    return InsertResult::Unchanged;
+                }
+
+                self.remove_hull(id);
+                self.insert_hull(id, hull);
+                InsertResult::Replaced
+            },
+            None =>
+            {
+                self.insert_hull(id, hull);
+                InsertResult::Inserted
+            }
+        }
     }
 
     /// Inserts a ([`Id`], [`Hull`]) pair.
     #[inline]
-    pub fn insert_hull(&mut self, identifier: Id, hull: &Hull)
+    fn insert_hull(&mut self, identifier: Id, hull: &Hull)
     {
         for corner in hull.corners().map(|(corner, _)| Corner::from_hull(hull, corner))
         {
@@ -172,40 +215,26 @@ impl QuadTree
         {
             Node::insert_intersections(self, 0, identifier, &sides, hull);
         }
-    }
 
-    /// Replaces the [`Hull`] associated to `identifier`.
-    #[inline]
-    pub fn replace_hull(
-        &mut self,
-        identifier: Id,
-        current_hull: &Hull,
-        previous_hull: &Hull
-    ) -> bool
-    {
-        if previous_hull.around_equal_narrow(current_hull)
-        {
-            return false;
-        }
-
-        self.remove_hull(identifier, previous_hull);
-        self.insert_hull(identifier, current_hull);
-        true
+        self.entities.asserted_insert((identifier, *hull));
     }
 
     /// Removes `entity`.
     #[inline]
-    pub fn remove_entity<T>(&mut self, entity: &T)
+    #[must_use]
+    pub fn remove_entity<T>(&mut self, entity: &T) -> bool
     where
-        T: EntityHull + EntityId
+        T: EntityId + ?Sized
     {
-        self.remove_hull(entity.id(), &entity.hull());
+        self.remove_hull(entity.id())
     }
 
     /// Removes the ([`Id`], [`Hull`]) pair.
     #[inline]
-    pub fn remove_hull(&mut self, identifier: Id, hull: &Hull)
+    fn remove_hull(&mut self, identifier: Id) -> bool
     {
+        let hull = return_if_none!(self.entities.remove(&identifier), false);
+
         for pos in hull.vertexes()
         {
             match Node::remove(self, 0, pos, identifier)
@@ -224,7 +253,8 @@ impl QuadTree
             };
         }
 
-        Node::remove_intersections(self, 0, identifier, hull);
+        Node::remove_intersections(self, 0, identifier, &hull);
+        true
     }
 
     /// Inserts a new [`Node`] in the tree with size defined by `square`.

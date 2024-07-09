@@ -17,6 +17,7 @@ use std::{
 
 use bevy::prelude::{Transform, Vec2, Window};
 use hill_vacuum_shared::{continue_if_none, return_if_none, NextValue};
+use quad_tree::InsertResult;
 
 use self::{
     entities_trees::Trees,
@@ -1103,7 +1104,10 @@ impl Innards
     fn insert_brush(&mut self, quad_trees: &mut Trees, brush: Brush, selected: bool)
     {
         let id = brush.id();
-        quad_trees.insert_brush_hull(&brush);
+        assert!(
+            quad_trees.insert_brush_hull(&brush).inserted(),
+            "Brush hull was already in the quad tree."
+        );
         self.outline_update = true;
 
         if brush.has_selected_vertexes()
@@ -1119,7 +1123,10 @@ impl Innards
         {
             self.overall_node_update = true;
             self.moving.asserted_insert(id);
-            quad_trees.insert_path_hull(&brush);
+            assert!(
+                quad_trees.insert_path_hull(&brush).inserted(),
+                "Brush path hull was already in the quad tree."
+            );
         }
 
         if brush.has_texture()
@@ -1165,7 +1172,10 @@ impl Innards
 
         if has_sprite
         {
-            quad_trees.insert_sprite_hull(self.brush(id));
+            assert!(
+                quad_trees.insert_sprite_hull(self.brush(id)).inserted(),
+                "Sprite hull was already in the quad tree."
+            );
         }
     }
 
@@ -1203,7 +1213,7 @@ impl Innards
         }
 
         let brush = self.brushes.remove(&identifier).unwrap();
-        quad_trees.remove_brush_hull(&brush);
+        assert!(quad_trees.remove_brush_hull(&brush), "Brush hull was not in the quad tree.");
 
         if brush.has_selected_vertexes()
         {
@@ -1213,7 +1223,10 @@ impl Innards
         if brush.has_path()
         {
             self.overall_node_update = true;
-            quad_trees.remove_path_hull(&brush, &brush.path_hull().unwrap());
+            assert!(
+                quad_trees.remove_path_hull(&brush),
+                "Brush path hull was not in the quad tree."
+            );
             self.moving.asserted_remove(&identifier);
         }
         else
@@ -1253,7 +1266,7 @@ impl Innards
 
         if brush.has_sprite()
         {
-            quad_trees.remove_sprite_hull(&brush, &brush.sprite_and_anchor_hull().unwrap());
+            assert!(quad_trees.remove_sprite_hull(&brush), "Sprite hull was not in the quad tree.");
         }
 
         brush
@@ -1448,7 +1461,10 @@ impl Innards
     {
         let hull = return_if_none!(self.brush(owner_id).anchors_hull(self.brushes()), false);
         self.brushes_with_anchors.asserted_insert((owner_id, hull));
-        quad_trees.insert_anchor_hull(owner_id, &hull);
+        assert!(
+            quad_trees.insert_anchor_hull(self.brush(owner_id), &hull).inserted(),
+            "Brush anchor hull was already in the quad tree."
+        );
         true
     }
 
@@ -1458,8 +1474,11 @@ impl Innards
     #[must_use]
     fn remove_anchors_hull(&mut self, quad_trees: &mut Trees, owner_id: Id) -> bool
     {
-        let hull = return_if_none!(self.brushes_with_anchors.remove(&owner_id), false);
-        quad_trees.remove_anchor_hull(owner_id, &hull);
+        return_if_none!(self.brushes_with_anchors.remove(&owner_id), false);
+        assert!(
+            quad_trees.remove_anchor_hull(self.brush(owner_id)),
+            "Brush anchors hull was not in the quad tree."
+        );
         true
     }
 
@@ -1500,12 +1519,18 @@ impl Innards
 
         let id = thing.id();
 
-        quad_trees.insert_thing_hull(&thing);
+        assert!(
+            quad_trees.insert_thing_hull(&thing).inserted(),
+            "Thing hull was already in the quad tree."
+        );
 
         if thing.has_path()
         {
             self.moving.asserted_insert(id);
-            quad_trees.insert_path_hull(&thing);
+            assert!(
+                quad_trees.insert_path_hull(&thing).inserted(),
+                "Thing path hull was already in the quad tree."
+            );
         }
         else
         {
@@ -1538,7 +1563,10 @@ impl Innards
 
         self.error_highlight.check_entity_error_removal(identifier);
 
-        quad_trees.remove_thing_hull(self.things.get(&identifier).unwrap());
+        assert!(
+            quad_trees.remove_thing_hull(self.things.get(&identifier).unwrap()),
+            "Thing hull was not in the quad tree."
+        );
         let thing = self.things.asserted_remove(&identifier);
         self.selected_things.asserted_remove(&identifier);
 
@@ -1546,7 +1574,10 @@ impl Innards
         {
             self.moving.asserted_remove(&identifier);
             self.selected_moving.asserted_remove(&identifier);
-            quad_trees.remove_path_hull(&thing, &thing.path_hull().unwrap());
+            assert!(
+                quad_trees.remove_path_hull(&thing),
+                "Thing path hull was not in the quad tree."
+            );
         }
         else
         {
@@ -3314,16 +3345,8 @@ pub(in crate::map) struct BrushMut<'a>
     quad_trees:        &'a mut Trees,
     /// The [`Id`] of the brush.
     id:                Id,
-    /// The [`Hull`] of the brush at the moment the struct was created.
-    hull:              Hull,
     /// The center of the brush at the moment the struct was created.
     center:            Vec2,
-    /// The [`Hull`] of the [`Path`] of the brush, if any, at the moment the struct was
-    /// created.
-    path_hull:         Option<Hull>,
-    /// The [`Hull`] of the sprite and sprite highlight of the brush, if any, at the moment the
-    /// struct was created.
-    sprite_hull:       Option<Hull>,
     /// The amount of selected vertexes of the brush at the moment the struct was created.
     selected_vertexes: bool
 }
@@ -3355,38 +3378,9 @@ impl<'a> Drop for BrushMut<'a>
                 .unwrap()
         };
 
-        /// Updates the quad trees storing the brush's hulls.
-        macro_rules! update_quad_tree {
-            ($(($name:ident, $func:ident $(, $schedule:block)?)),+) => { paste::paste! { $(
-                match (&self.[< $name _hull >], brush.$func())
-                {
-                    (None, None) => (),
-                    (None, Some(_)) =>
-                    {
-                        self.quad_trees.[< insert_ $name _hull >](brush);
-                    },
-                    (Some(hull), None) =>
-                    {
-                        self.quad_trees.[< remove_ $name _hull >](brush, hull);
-                    },
-                    (Some(prev_hull), Some(hull)) =>
-                    {
-                        if !prev_hull.around_equal_narrow(&hull)
-                        {
-                            $($schedule)?
-                            self.quad_trees.[< replace_ $name _hull >](brush, &hull, prev_hull);
-                        }
-                    }
-                };
-            )+ }};
-        }
-
-        let new_hull = brush.hull();
-
-        if !self.hull.around_equal_narrow(&new_hull)
+        if matches!(self.quad_trees.insert_brush_hull(brush), InsertResult::Replaced)
         {
             self.manager.outline_update = true;
-            self.quad_trees.replace_brush_hull(self.id, &new_hull, &self.hull);
         }
 
         // Has or had selected vertexes and now it doesn't.
@@ -3407,12 +3401,29 @@ impl<'a> Drop for BrushMut<'a>
             }
         }
 
-        update_quad_tree!(
-            (path, path_hull),
-            (sprite, sprite_and_anchor_hull, {
+        if brush.has_path()
+        {
+            _ = self.quad_trees.insert_path_hull(brush);
+        }
+        else
+        {
+            _ = self.quad_trees.remove_path_hull(brush);
+        }
+
+        if brush.has_sprite()
+        {
+            if matches!(
+                self.quad_trees.insert_sprite_hull(brush),
+                InsertResult::Inserted | InsertResult::Replaced
+            )
+            {
                 self.manager.outline_update = true;
-            })
-        );
+            }
+        }
+        else if self.quad_trees.remove_sprite_hull(brush)
+        {
+            self.manager.outline_update = true;
+        }
 
         if brush.was_texture_edited()
         {
@@ -3437,20 +3448,14 @@ impl<'a> BrushMut<'a>
     fn new(manager: &'a mut Innards, quad_trees: &'a mut Trees, identifier: Id) -> Self
     {
         let brush = manager.brush(identifier);
-        let hull = brush.hull();
         let center = brush.center();
-        let path_hull = brush.path_hull();
-        let sprite_hull = brush.sprite_and_anchor_hull();
         let selected_vertexes = brush.has_selected_vertexes();
 
         Self {
             manager,
             quad_trees,
             id: identifier,
-            hull,
             center,
-            path_hull,
-            sprite_hull,
             selected_vertexes
         }
     }
@@ -3468,12 +3473,7 @@ pub(in crate::map) struct ThingMut<'a>
     /// A mutable reference to the [`QuadTree`]s.
     quad_trees: &'a mut Trees,
     /// The [`Id`] of the [`ThingInstance`].
-    id:         Id,
-    /// The [`Hull`] of the [`ThingInstance`] at the moment the struct was created.
-    hull:       Hull,
-    /// The [`Hull`] of the [`Path`] of the [`ThingInstance`] at the moment the struct was created,
-    /// if any.
-    path_hull:  Option<Hull>
+    id:         Id
 }
 
 impl<'a> Deref for ThingMut<'a>
@@ -3498,21 +3498,16 @@ impl<'a> Drop for ThingMut<'a>
     fn drop(&mut self)
     {
         let thing = self.manager.things.get_mut(&self.id).unwrap();
-        self.quad_trees.replace_thing_hull(thing, &self.hull);
+        _ = self.quad_trees.insert_thing_hull(thing);
 
-        match (&self.path_hull, thing.path_hull())
+        if thing.has_path()
         {
-            (None, None) => (),
-            (None, Some(_)) => self.quad_trees.insert_path_hull(thing),
-            (Some(hull), None) => self.quad_trees.remove_path_hull(thing, hull),
-            (Some(previous_hull), Some(current_hull)) =>
-            {
-                if !current_hull.around_equal_narrow(previous_hull)
-                {
-                    self.quad_trees.replace_path_hull(thing, &current_hull, previous_hull);
-                }
-            }
-        };
+            _ = self.quad_trees.insert_path_hull(thing);
+        }
+        else
+        {
+            _ = self.quad_trees.remove_path_hull(thing);
+        }
     }
 }
 
@@ -3531,16 +3526,10 @@ impl<'a> ThingMut<'a>
     #[inline]
     fn new(manager: &'a mut Innards, quad_trees: &'a mut Trees, identifier: Id) -> Self
     {
-        let thing = manager.thing(identifier);
-        let hull = thing.hull();
-        let path_hull = thing.path_hull();
-
         Self {
             manager,
             quad_trees,
-            id: identifier,
-            hull,
-            path_hull
+            id: identifier
         }
     }
 }
