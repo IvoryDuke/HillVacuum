@@ -124,7 +124,7 @@ impl NecessaryPrecisionValue<NecessaryPrecisionF32> for f32
 //
 //=======================================================================//
 
-/// A hashable [`Vec2`]. Only to be used in contexts where the x and y coordinates cannot be NaN.
+/// A hashable [`Vec2`]. Only to be used in contexts where the x and y coordinates are finite.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) struct HashVec2(pub Vec2);
 
@@ -135,6 +135,8 @@ impl Hash for HashVec2
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H)
     {
+        assert!(self.0.is_finite(), "Vector is not a finite value.");
+
         self.0.x.to_bits().hash(state);
         self.0.y.to_bits().hash(state);
     }
