@@ -107,84 +107,6 @@ use crate::{
 pub(in crate::map) const NEW_VX: &str = "new_vx";
 
 //=======================================================================//
-// MACROS
-//
-//=======================================================================//
-
-macro_rules! snap_filtered_vertexes {
-    ($self:ident, $drawing_resources:ident, $grid:ident, $iter:expr) => {{
-        #[inline]
-        fn round<'a, I, F>(iter: I, moved_vxs: &mut HvVec<(HvVec<u8>, Vec2)>, f: F)
-        where
-            I: Iterator<Item = (usize, &'a mut SelectableVector)>,
-            F: Fn(Vec2) -> Option<Vec2>
-        {
-            'outer: for (i, svx) in iter
-            {
-                let delta = continue_if_none!(f(svx.vec)) - svx.vec;
-                svx.vec += delta;
-
-                let idx = u8::try_from(i).unwrap();
-
-                for (idxs, d) in &mut *moved_vxs
-                {
-                    if d.around_equal_narrow(&delta)
-                    {
-                        idxs.push(idx);
-                        continue 'outer;
-                    }
-                }
-
-                moved_vxs.push((hv_vec![idx], delta));
-            }
-        }
-
-        let mut moved_vxs: HvVec<(HvVec<u8>, Vec2)> = hv_vec![];
-
-        round($iter, &mut moved_vxs, |vec| $grid.snap_point(vec));
-
-        if moved_vxs.is_empty()
-        {
-            return None;
-        }
-
-        if $self.vxs_valid()
-        {
-            $self.update_center_hull_vertexes($drawing_resources);
-            return moved_vxs.into();
-        }
-
-        for (idxs, delta) in &moved_vxs
-        {
-            for idx in idxs
-            {
-                $self.vertexes[*idx as usize] -= *delta;
-            }
-        }
-
-        moved_vxs.clear();
-
-        round($iter, &mut moved_vxs, |vec| $grid.snap_point_from_center(vec, $self.center));
-
-        if !$self.vxs_valid()
-        {
-            for (idxs, delta) in moved_vxs
-            {
-                for idx in idxs
-                {
-                    $self.vertexes[idx as usize] -= delta;
-                }
-            }
-
-            return None;
-        }
-
-        $self.update_center_hull_vertexes($drawing_resources);
-        moved_vxs.into()
-    }};
-}
-
-//=======================================================================//
 // ENUMS
 //
 //=======================================================================//
@@ -2232,6 +2154,97 @@ impl ConvexPolygon
     // Snap
 
     #[inline]
+    fn snap_filtered_vertexes<F>(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        grid: Grid,
+        f: F
+    ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
+    where
+        F: Fn(&mut SelectableVector) -> bool
+    {
+        #[inline]
+        fn round<F, G>(
+            vertexes: &mut HvVec<SelectableVector>,
+            moved_vxs: &mut HvVec<(HvVec<u8>, Vec2)>,
+            f: &F,
+            g: G
+        ) where
+            F: Fn(&mut SelectableVector) -> bool,
+            G: Fn(Vec2) -> Option<Vec2>
+        {
+            'outer: for (i, svx) in vertexes.iter_mut().enumerate()
+            {
+                if f(svx)
+                {
+                    continue;
+                }
+
+                let delta = continue_if_none!(g(svx.vec)) - svx.vec;
+                svx.vec += delta;
+
+                let idx = u8::try_from(i).unwrap();
+
+                for (idxs, d) in &mut *moved_vxs
+                {
+                    if d.around_equal_narrow(&delta)
+                    {
+                        idxs.push(idx);
+                        continue 'outer;
+                    }
+                }
+
+                moved_vxs.push((hv_vec![idx], delta));
+            }
+        }
+
+        let mut moved_vxs = hv_vec![];
+
+        round(&mut self.vertexes, &mut moved_vxs, &f, |vec| grid.snap_point(vec));
+
+        if moved_vxs.is_empty()
+        {
+            return None;
+        }
+
+        if self.vxs_valid()
+        {
+            self.update_center_hull_vertexes(drawing_resources);
+            return moved_vxs.into();
+        }
+
+        for (idxs, delta) in &moved_vxs
+        {
+            for idx in idxs
+            {
+                self.vertexes[*idx as usize] -= *delta;
+            }
+        }
+
+        moved_vxs.clear();
+
+        round(&mut self.vertexes, &mut moved_vxs, &f, |vec| {
+            grid.snap_point_from_center(vec, self.center)
+        });
+
+        if !self.vxs_valid()
+        {
+            for (idxs, delta) in moved_vxs
+            {
+                for idx in idxs
+                {
+                    self.vertexes[idx as usize] -= delta;
+                }
+            }
+
+            return None;
+        }
+
+        self.update_center_hull_vertexes(drawing_resources);
+        moved_vxs.into()
+    }
+
+    #[inline]
     #[must_use]
     pub(in crate::map::brush) fn snap_vertexes(
         &mut self,
@@ -2239,7 +2252,7 @@ impl ConvexPolygon
         grid: Grid
     ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
     {
-        snap_filtered_vertexes!(self, drawing_resources, grid, self.vertexes.iter_mut().enumerate())
+        self.snap_filtered_vertexes(drawing_resources, grid, |_| true)
     }
 
     #[inline]
@@ -2250,12 +2263,7 @@ impl ConvexPolygon
         grid: Grid
     ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
     {
-        snap_filtered_vertexes!(
-            self,
-            drawing_resources,
-            grid,
-            self.vertexes.iter_mut().enumerate().filter(|(_, svx)| svx.selected)
-        )
+        self.snap_filtered_vertexes(drawing_resources, grid, |svx| svx.selected)
     }
 
     #[inline]
@@ -2267,12 +2275,7 @@ impl ConvexPolygon
     ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
     {
         let vertexes_to_deselect = self.select_vertexes_of_selected_sides();
-        let result = snap_filtered_vertexes!(
-            self,
-            drawing_resources,
-            grid,
-            self.vertexes.iter_mut().enumerate().filter(|(_, svx)| svx.selected)
-        );
+        let result = self.snap_filtered_vertexes(drawing_resources, grid, |svx| svx.selected);
 
         for idx in vertexes_to_deselect
         {
