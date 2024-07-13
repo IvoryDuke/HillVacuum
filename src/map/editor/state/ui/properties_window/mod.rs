@@ -559,6 +559,7 @@ impl PropertiesWindow
         self.window
             .show(
                 egui_context,
+                #[allow(clippy::cast_precision_loss)]
                 egui::Window::new("Properties")
                     .vscroll(true)
                     .collapsible(true)

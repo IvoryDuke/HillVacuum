@@ -58,7 +58,8 @@ use crate::{
         containers::{hv_hash_map, hv_hash_set, hv_vec},
         hull::Hull,
         math::{points::rotate_point_around_origin, HashVec2},
-        misc::{vertex_highlight_square, AssertedInsertRemove, Camera}
+        misc::{vertex_highlight_square, AssertedInsertRemove, Camera},
+        overall_value::UiOverallValue
     },
     HvHashMap,
     HvHashSet,
@@ -589,12 +590,107 @@ impl DrawingResources
 
     /// Returns a [`Chunks`] iterator with `chunk_size` to the [`TextureMaterials`].
     #[inline]
-    pub fn chunked_textures(
-        &self,
+    pub fn chunked_textures<'a>(
+        &'a self,
+        overall_name: &'a UiOverallValue<String>,
         chunk_size: usize
-    ) -> impl ExactSizeIterator<Item = &[TextureMaterials]>
+    ) -> impl Iterator<Item = &'a [&'a TextureMaterials]>
     {
-        self.textures.chunks(chunk_size)
+        type TextureRef<'a> = &'a TextureMaterials;
+        type ReturnType<'a> = &'a [TextureRef<'a>];
+
+        //=======================================================================//
+
+        #[must_use]
+        struct FilteredTextures<'a, I>(I, usize, HvVec<TextureRef<'a>>)
+        where
+            I: Iterator<Item = TextureRef<'a>>;
+
+        impl<'a, I> Iterator for FilteredTextures<'a, I>
+        where
+            I: Iterator<Item = TextureRef<'a>>
+        {
+            type Item = ReturnType<'a>;
+
+            fn next(&mut self) -> Option<Self::Item>
+            {
+                self.2.clear();
+
+                for _ in 0..self.1
+                {
+                    match self.0.next()
+                    {
+                        Some(e) => self.2.push(e),
+                        None =>
+                        {
+                            if self.2.is_empty()
+                            {
+                                return None;
+                            }
+
+                            break;
+                        }
+                    };
+                }
+
+                Some(unsafe { std::ptr::from_ref(&self.2).as_ref().unwrap() })
+            }
+        }
+
+        impl<'a, I> FilteredTextures<'a, I>
+        where
+            I: Iterator<Item = TextureRef<'a>>
+        {
+            #[inline]
+            fn new(iter: I, chunk_size: usize) -> Self { Self(iter, chunk_size, hv_vec![]) }
+        }
+
+        //=======================================================================//
+
+        #[must_use]
+        enum ChunkedTextures<'a, I, J>
+        where
+            I: Iterator<Item = ReturnType<'a>>,
+            J: Iterator<Item = ReturnType<'a>>
+        {
+            Unfiltered(I),
+            Filtered(J)
+        }
+
+        impl<'a, I, J> Iterator for ChunkedTextures<'a, I, J>
+        where
+            I: Iterator<Item = ReturnType<'a>>,
+            J: Iterator<Item = ReturnType<'a>>
+        {
+            type Item = ReturnType<'a>;
+
+            #[inline]
+            fn next(&mut self) -> Option<Self::Item>
+            {
+                match self
+                {
+                    ChunkedTextures::Unfiltered(i) => i.next(),
+                    ChunkedTextures::Filtered(i) => i.next()
+                }
+            }
+        }
+
+        let buffer = overall_name.buffer();
+
+        if buffer.is_empty() || (overall_name.uniform_value() == Some(buffer))
+        {
+            return ChunkedTextures::Unfiltered(FilteredTextures::new(
+                self.textures.values(),
+                chunk_size
+            ));
+        }
+
+        ChunkedTextures::Filtered(FilteredTextures::new(
+            self.textures
+                .values()
+                .filter(move |texture| texture.texture.name().contains(buffer)),
+            chunk_size
+        ))
     }
 
     //==============================================================

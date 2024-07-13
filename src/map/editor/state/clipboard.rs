@@ -191,7 +191,7 @@ impl ClipboardData
     /// Whether `self` is out of bounds if moved by the amount `delta`.
     #[inline]
     #[must_use]
-    fn out_of_bounds(&self, delta: Vec2) -> bool { (self.hull() + delta).out_of_bounds() }
+    fn out_of_bounds_moved(&self, delta: Vec2) -> bool { (self.hull() + delta).out_of_bounds() }
 
     /// Draws the [`ClipboardData`] at its position moved by `delta`
     #[inline]
@@ -597,7 +597,7 @@ impl Prop
 
         assert!(self.has_data(), "Prop contains no entities.");
 
-        if self.data.iter().any(|item| item.out_of_bounds(delta))
+        if self.data.iter().any(|item| item.out_of_bounds_moved(delta))
         {
             error_message("Cannot spawn copy: out of bounds");
             return;

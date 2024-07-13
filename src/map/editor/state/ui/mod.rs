@@ -96,7 +96,7 @@ macro_rules! textures_gallery {
 
         #[allow(clippy::redundant_closure_call)]
         let mut chunks = $chunker(textures_per_row);
-        let len = chunks.len();
+        let mut len = 0;
 
         if let Some(highlight_index) = $highlight_index
         {
@@ -105,7 +105,8 @@ macro_rules! textures_gallery {
             for _ in 0..row_with_highlight
             {
                 #[allow(clippy::redundant_closure_call)]
-                $row_without_highlight($ui, chunks.next().unwrap());
+                let add = $row_without_highlight($ui, chunks.next().unwrap());
+                len += add;
             }
 
             $ui.horizontal(|ui| {
@@ -114,15 +115,18 @@ macro_rules! textures_gallery {
 
                 for _ in 0..highlight_index_in_row
                 {
+                    len += 1;
                     #[allow(clippy::redundant_closure_call)]
                     $draw_texture(ui, textures.next().unwrap());
                 }
 
+                len += 1;
                 #[allow(clippy::redundant_closure_call)]
                 $draw_texture(ui, textures.next().unwrap()).highlight();
 
                 for texture in textures
                 {
+                    len += 1;
                     #[allow(clippy::redundant_closure_call)]
                     $draw_texture(ui, texture);
                 }
@@ -577,6 +581,32 @@ impl Ui
         tool_change_conditions: &ChangeConditions
     ) -> Interaction
     {
+        #[inline]
+        fn clear_inputs(bundle: &mut StateUpdateBundle, inputs: &mut InputsPresses)
+        {
+            inputs.clear();
+            bundle.key_inputs.clear();
+        }
+
+        #[inline]
+        #[must_use]
+        fn show_and_clear_inputs<F>(
+            bundle: &mut StateUpdateBundle,
+            inputs: &mut InputsPresses,
+            mut f: F
+        ) -> bool
+        where
+            F: FnMut(&mut StateUpdateBundle, &mut InputsPresses) -> bool
+        {
+            if f(bundle, inputs)
+            {
+                clear_inputs(bundle, inputs);
+                return true;
+            }
+
+            false
+        }
+
         // Top bar.
         let mut command = self.menu_bar(bundle, manager, core);
 
@@ -590,13 +620,24 @@ impl Ui
         }
         else
         {
-            self.texture_editor
-                .show(bundle, manager, edits_history, clipboard, inputs, settings)
+            show_and_clear_inputs(bundle, inputs, |bundle, inputs| {
+                self.texture_editor.show(
+                    bundle,
+                    manager,
+                    edits_history,
+                    clipboard,
+                    inputs,
+                    settings
+                )
+            })
         };
 
-        self.window_focused |= self.settings_window.show(bundle, inputs, grid) |
+        self.window_focused |= show_and_clear_inputs(bundle, inputs, |bundle, inputs| {
+            self.settings_window.show(bundle, inputs, grid)
+        }) | show_and_clear_inputs(bundle, inputs, |bundle, inputs| {
             self.properties_window
-                .show(bundle, manager, edits_history, clipboard, inputs);
+                .show(bundle, manager, edits_history, clipboard, inputs)
+        });
 
         // Panels.
         let us_context = unsafe { std::ptr::from_mut(bundle.egui_context).as_mut().unwrap() };
@@ -660,10 +701,9 @@ impl Ui
         });
 
         // If typing, clear stored inputs.
-        if focused || self.window_focused
+        if focused
         {
-            inputs.clear();
-            bundle.key_inputs.clear();
+            clear_inputs(bundle, inputs);
         }
 
         // Output.

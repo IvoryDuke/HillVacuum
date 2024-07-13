@@ -5,7 +5,7 @@
 
 use std::{
     hash::Hash,
-    ops::{Index, IndexMut, Range, RangeInclusive},
+    ops::{Index, IndexMut, Range, RangeFrom, RangeInclusive},
     slice::Chunks
 };
 
@@ -205,6 +205,14 @@ impl<T> Index<Range<usize>> for HvVec<T>
 
     #[inline]
     fn index(&self, index: Range<usize>) -> &Self::Output { &self.0[index] }
+}
+
+impl<T> Index<RangeFrom<usize>> for HvVec<T>
+{
+    type Output = [T];
+
+    #[inline]
+    fn index(&self, index: RangeFrom<usize>) -> &Self::Output { &self.0[index] }
 }
 
 impl<T> IndexMut<Range<usize>> for HvVec<T>

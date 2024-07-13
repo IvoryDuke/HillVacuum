@@ -211,16 +211,21 @@ macro_rules! bottom_area {
                         ui: &mut egui::Ui,
                         chunk: impl Iterator<Item = (usize, egui::TextureId $(, glam::UVec2, &'a $t)?)>,
                         clicked_prop: &mut Option<usize>
-                    )
+                    ) -> usize
                     {
+                        let mut len = 0;
+
                         ui.horizontal(|ui| {
                             for texture in chunk
                             {
+                                len += 1;
                                 draw_preview(ui, texture, clicked_prop);
                             }
 
                             ui.add_space(ui.available_width());
                         });
+
+                        len
                     }
 
                     paste::paste! {

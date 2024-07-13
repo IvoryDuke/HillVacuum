@@ -612,7 +612,10 @@ impl Innards
                     textures_gallery!(
                         ui,
                         TEXTURE_GALLERY_PREVIEW_FRAME_SIDE,
-                        |textures_per_row| { drawing_resources.chunked_textures(textures_per_row) },
+                        |textures_per_row| {
+                            drawing_resources
+                                .chunked_textures(&self.overall_texture.name, textures_per_row)
+                        },
                         match self.overall_texture.name.uniform_value()
                         {
                             Some(name) => drawing_resources.texture_index(name),
@@ -620,14 +623,23 @@ impl Innards
                         },
                         |ui, texture| { texture_preview(ui, texture, $f) },
                         |ui: &mut egui::Ui, textures| {
+                            let mut len = 0;
+
                             ui.horizontal(|ui| {
                                 for texture_materials in textures
                                 {
-                                    texture_preview(ui, texture_materials, $f);
+                                    len += 1;
+                                    texture_preview(
+                                        ui,
+                                        texture_materials as &&TextureMaterials,
+                                        $f
+                                    );
                                 }
 
                                 ui.add_space(ui.available_width());
                             });
+
+                            len
                         }
                     );
                 };

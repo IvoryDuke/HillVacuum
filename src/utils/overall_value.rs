@@ -230,7 +230,7 @@ impl<T: ToString + FromStr + PartialEq> UiOverallValue<T>
     /// Returns a reference to the [`String`] where the new desired value is being typed.
     #[inline]
     #[must_use]
-    const fn buffer(&self) -> &String
+    pub const fn buffer(&self) -> &String
     {
         let (UiValueEnum::None(buffer) |
         UiValueEnum::NonUniform(buffer) |

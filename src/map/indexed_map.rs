@@ -148,6 +148,10 @@ pub(in crate::map) mod ui_only
             self.map.iter().map(|(k, i)| (k, &self.vec[*i]))
         }
 
+        /// Returns an iterator to the references of the contained values.
+        #[inline]
+        pub fn values(&self) -> impl Iterator<Item = &T> { self.vec.iter() }
+
         /// Returns an iterator returning the keys and the mutable references of the values
         /// associated to them.
         #[inline]
