@@ -101,4 +101,4 @@ mod ui_mod
 }
 
 #[cfg(feature = "ui")]
-pub(in crate::map::drawer) use ui_mod::*;
+use ui_mod::*;

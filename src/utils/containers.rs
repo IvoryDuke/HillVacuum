@@ -75,13 +75,13 @@ pub(crate) use hv_vec;
 
 /// Creates a new [`HvHashMap`] based on the parameters.
 macro_rules! hv_hash_map {
-    [] => {{
+    [] => {
         crate::utils::containers::HvHashMap::new()
-    }};
+    };
 
-    [capacity; $n:expr] => {{
+    [capacity; $n:expr] => {
         crate::utils::containers::HvHashMap::with_capacity($n)
-    }};
+    };
 
     [$(($k:expr, $v:expr)),+] => ({
         let mut map = crate::utils::containers::hv_hash_map![];

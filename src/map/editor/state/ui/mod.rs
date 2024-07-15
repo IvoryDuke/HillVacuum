@@ -62,12 +62,6 @@ const LEFT_SIDE_PANEL_WIDTH: f32 = 184f32;
 const RIGHT_SIDE_PANEL_WIDTH: f32 = 54f32;
 /// The height of the menu bar.
 const MENU_BAR_HEIGHT: f32 = 34f32;
-/// The actual with of the left panel.
-const LEFT_SIDE_PANEL_REAL_WIDTH: f32 = 1.08 * LEFT_SIDE_PANEL_WIDTH;
-/// The actual with of the right panel.
-const RIGHT_SIDE_PANEL_REAL_WIDTH: f32 = 0.99 * RIGHT_SIDE_PANEL_WIDTH;
-/// The actual height of the menu bar.
-const MENU_BAR_REAL_HEIGHT: f32 = 1.08 * MENU_BAR_HEIGHT;
 /// The size of the tool icons.
 const ICON_DRAW_SIZE: egui::Vec2 = egui::Vec2::splat(32f32);
 /// The padding between two icons.
@@ -1153,21 +1147,21 @@ impl Ui
 /// Returns the width taken by the UI elements on the left of the screen.
 #[inline]
 #[must_use]
-pub(in crate::map) const fn ui_left_space() -> f32 { LEFT_SIDE_PANEL_REAL_WIDTH }
+pub(in crate::map) const fn ui_left_space() -> f32 { LEFT_SIDE_PANEL_WIDTH }
 
 //=======================================================================//
 
 /// Returns the width taken by the UI elements on the right of the screen.
 #[inline]
 #[must_use]
-pub(in crate::map) const fn ui_right_space() -> f32 { RIGHT_SIDE_PANEL_REAL_WIDTH }
+pub(in crate::map) const fn ui_right_space() -> f32 { RIGHT_SIDE_PANEL_WIDTH }
 
 //=======================================================================//
 
 /// Returns the width taken by the UI elements on the top of the screen.
 #[inline]
 #[must_use]
-pub(in crate::map) const fn ui_top_space() -> f32 { MENU_BAR_REAL_HEIGHT }
+pub(in crate::map) const fn ui_top_space() -> f32 { MENU_BAR_HEIGHT }
 
 //=======================================================================//
 
