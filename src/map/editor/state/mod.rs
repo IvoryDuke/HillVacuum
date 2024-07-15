@@ -16,7 +16,7 @@ pub(in crate::map) mod ui;
 macro_rules! format_texture_preview {
     ($widget:ident, $ui:ident, $texture_id:expr, $size:expr, $frame_size:expr) => {{
         macro_rules! uneven {
-            ($_ui:ident, $div:ident, $pad:ident) => {{
+            ($_ui: ident,$div: ident,$pad: ident) => {{
                 let size = $size.as_vec2();
                 let size = egui::vec2(size.x, size.y) * ($frame_size / size.$div);
                 let padding = ($frame_size - size.$pad) / 2f32;

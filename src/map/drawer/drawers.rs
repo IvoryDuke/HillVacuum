@@ -52,6 +52,14 @@ use crate::{
 };
 
 //=======================================================================//
+// CONSTANTS
+//
+//=======================================================================//
+
+pub(in crate::map::drawer) const HULL_HEIGHT_LABEL: &str = "hull_height";
+pub(in crate::map::drawer) const HULL_WIDTH_LABEL: &str = "hull_width";
+
+//=======================================================================//
 // TRAITS
 //
 //=======================================================================//
@@ -611,10 +619,8 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
         draw_tooltip_y_centered(
             egui_context,
-            "hull_height",
-            egui::Order::Background,
+            HULL_HEIGHT_LABEL,
             value.as_str(),
-            egui::TextStyle::Monospace,
             camera.to_egui_coordinates(
                 window,
                 self.grid,
@@ -631,10 +637,8 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
         draw_tooltip_x_centered_above_pos(
             egui_context,
-            "hull_width",
-            egui::Order::Background,
+            HULL_WIDTH_LABEL,
             value.as_str(),
-            egui::TextStyle::Monospace,
             camera.to_egui_coordinates(
                 window,
                 self.grid,

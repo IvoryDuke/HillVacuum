@@ -3187,9 +3187,7 @@ pub(in crate::map) mod ui_mod
         draw_tooltip_x_centered_above_pos(
             egui_context,
             label,
-            egui::Order::Background,
             text,
-            egui::TextStyle::Monospace,
             camera.to_egui_coordinates(window, grid, pos),
             TOOLTIP_OFFSET,
             egui::Color32::BLACK,

@@ -175,10 +175,8 @@ impl CursorDelta
             draw_tooltip_x_centered_above_pos(
                 egui_context,
                 Self::X_DELTA,
-                egui::Order::Background,
                 #[allow(clippy::cast_possible_truncation)]
                 &format!("{}", self.delta.x as i16),
-                egui::TextStyle::Monospace,
                 camera.to_egui_coordinates(
                     window,
                     drawer.grid(),
@@ -199,10 +197,8 @@ impl CursorDelta
         draw_tooltip_y_centered(
             egui_context,
             Self::Y_DELTA,
-            egui::Order::Background,
             #[allow(clippy::cast_possible_truncation)]
             format!("{}", self.delta.y as i8).as_str(),
-            egui::TextStyle::Monospace,
             camera.to_egui_coordinates(
                 window,
                 drawer.grid(),

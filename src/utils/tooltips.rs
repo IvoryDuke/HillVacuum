@@ -26,9 +26,7 @@ const TEXT_WIDTH_X_CENTER_COEFFICIENT: f32 = TOOLTIP_FONT_SIZE / 3.25;
 pub fn draw_tooltip(
     egui_context: &egui::Context,
     label: &'static str,
-    order: egui::Order,
     text: &str,
-    style: egui::TextStyle,
     pos: egui::Pos2,
     text_color: egui::Color32,
     fill_color: egui::Color32,
@@ -38,7 +36,7 @@ pub fn draw_tooltip(
 {
     egui::Area::new(label.into())
         .fixed_pos(pos)
-        .order(order)
+        .order(egui::Order::Background)
         .constrain(false)
         .movable(false)
         .show(egui_context, |ui| {
@@ -52,7 +50,7 @@ pub fn draw_tooltip(
                         egui::Label::new(
                             egui::RichText::new(text)
                                 .color(text_color)
-                                .text_style(style)
+                                .text_style(egui::TextStyle::Monospace)
                                 .size(TOOLTIP_FONT_SIZE)
                         )
                         .extend()
@@ -77,9 +75,7 @@ fn x_center_text_offset(text: &str) -> f32 { text.len() as f32 * TEXT_WIDTH_X_CE
 pub fn draw_tooltip_y_centered(
     egui_context: &egui::Context,
     label: &'static str,
-    order: egui::Order,
     text: &str,
-    style: egui::TextStyle,
     pos: egui::Pos2,
     mut offset: egui::Vec2,
     text_color: egui::Color32,
@@ -89,18 +85,7 @@ pub fn draw_tooltip_y_centered(
 {
     offset.y -= TOOLTIP_FONT_SIZE;
 
-    draw_tooltip(
-        egui_context,
-        label,
-        order,
-        text,
-        style,
-        pos + offset,
-        text_color,
-        fill_color,
-        margin,
-        margin
-    );
+    draw_tooltip(egui_context, label, text, pos + offset, text_color, fill_color, margin, margin);
 }
 
 //=======================================================================//
@@ -111,9 +96,7 @@ pub fn draw_tooltip_y_centered(
 pub fn draw_tooltip_x_centered_above_pos(
     egui_context: &egui::Context,
     label: &'static str,
-    order: egui::Order,
     text: &str,
-    style: egui::TextStyle,
     pos: egui::Pos2,
     offset: egui::Vec2,
     text_color: egui::Color32,
@@ -124,9 +107,7 @@ pub fn draw_tooltip_x_centered_above_pos(
     draw_tooltip(
         egui_context,
         label,
-        order,
         text,
-        style,
         pos + egui::Vec2::new(
             offset.x - x_center_text_offset(text) - margin,
             offset.y - TOOLTIP_FONT_SIZE - margin * 2f32

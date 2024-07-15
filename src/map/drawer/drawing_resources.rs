@@ -33,7 +33,7 @@ use hill_vacuum_shared::{continue_if_none, match_or_panic, return_if_none, NextV
 use super::{
     animation::{Animation, AtlasAnimator},
     color::Color,
-    drawers::{Uv, VxColor, VxPos},
+    drawers::{Uv, VxColor, VxPos, HULL_HEIGHT_LABEL, HULL_WIDTH_LABEL},
     file_animations,
     texture::{DefaultAnimation, TextureInterface, TextureInterfaceExtra},
     texture_loader::TextureLoader
@@ -399,9 +399,15 @@ impl DrawingResources
     #[inline]
     pub fn init(ctx: &egui::Context)
     {
-        for label in [CursorDelta::X_DELTA, CursorDelta::Y_DELTA, NEW_VX]
-            .into_iter()
-            .chain(TooltipLabelGenerator::iter())
+        for label in [
+            CursorDelta::X_DELTA,
+            CursorDelta::Y_DELTA,
+            NEW_VX,
+            HULL_WIDTH_LABEL,
+            HULL_HEIGHT_LABEL
+        ]
+        .into_iter()
+        .chain(TooltipLabelGenerator::iter())
         {
             egui::Area::new(label.into())
                 .order(egui::Order::Background)
@@ -1139,7 +1145,7 @@ impl TooltipLabelGenerator
 
     /// Renders one tooltip for each label that has not been utilized this frame, to fix an egui
     /// issue where the first queued tooltip is not rendered during the frame where the amount of
-    /// tooltips to render increases from the previous frame.
+    /// tooltips to render has increased from the previous frame.
     #[inline]
     pub fn render_leftover_labels(&mut self, egui_context: &egui::Context)
     {
@@ -1151,9 +1157,7 @@ impl TooltipLabelGenerator
             draw_tooltip(
                 egui_context,
                 Self::VX_LABELS[i],
-                egui::Order::Background,
                 "",
-                egui::TextStyle::Monospace,
                 POS,
                 egui::Color32::WHITE,
                 egui::Color32::WHITE,
