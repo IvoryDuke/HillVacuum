@@ -136,11 +136,170 @@ pub(in crate::map) struct EditDrawer<'w, 's, 'a>
 impl<'w: 'a, 's: 'a, 'a> Drop for EditDrawer<'w, 's, 'a>
 {
     #[inline]
-    fn drop(&mut self) { self.spawn_meshes() }
+    fn drop(&mut self) { self.resources.spawn_meshes(self.commands); }
 }
 
 impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 {
+    //==============================================================
+    // New
+
+    /// Returns a new [`EditDrawer`].
+    #[allow(clippy::too_many_arguments)]
+    #[inline]
+    #[must_use]
+    pub fn new(
+        commands: &'a mut Commands<'w, 's>,
+        prop_cameras: &PropCameras,
+        meshes: &'a mut Assets<Mesh>,
+        meshes_query: &Query<Entity, With<Mesh2dHandle>>,
+        resources: &'a mut DrawingResources,
+        color_resources: &'a ColorResources,
+        settings: &ToolsSettings,
+        grid: Grid,
+        mut elapsed_time: f32,
+        camera_scale: f32,
+        paint_tool_camera_scale: f32,
+        show_collision_overlay: bool
+    ) -> Self
+    {
+        resources.setup_frame(
+            commands,
+            prop_cameras,
+            meshes,
+            meshes_query,
+            camera_scale,
+            paint_tool_camera_scale
+        );
+
+        if !settings.scroll_enabled
+        {
+            elapsed_time = 0f32;
+        }
+
+        Self {
+            commands,
+            meshes,
+            resources,
+            color_resources,
+            grid,
+            camera_scale,
+            elapsed_time,
+            parallax_enabled: settings.parallax_enabled,
+            show_collision_overlay
+        }
+    }
+
+    //==============================================================
+    // Mesh creation
+
+    /// Returns a reference to the [`ColorResources`].
+    #[inline]
+    pub const fn color_resources(&self) -> &ColorResources { self.color_resources }
+
+    /// Returns the [`egui::Color32`] associated with [`Color`].
+    #[inline]
+    #[must_use]
+    pub fn egui_color(&self, color: Color) -> egui::Color32
+    {
+        self.color_resources.egui_color(color)
+    }
+
+    /// Queues a new [`Mesh`] to spawn.
+    #[inline]
+    fn push_mesh(&mut self, mesh: Mesh, material: Handle<ColorMaterial>, height: f32)
+    {
+        self.resources
+            .push_mesh(self.meshes.add(mesh).into(), material, height);
+    }
+
+    /// Queues a new square [`Mesh`] to spawn.
+    #[inline]
+    fn push_square_highlight_mesh(
+        &mut self,
+        material: Handle<ColorMaterial>,
+        center: Vec2,
+        color: Color
+    )
+    {
+        self.resources.push_square_highlight_mesh(
+            material,
+            self.grid.transform_point(center),
+            color.square_hgl_height()
+        );
+    }
+
+    /// Queues a new grid [`Mesh`] to spawn.
+    #[inline]
+    fn push_grid_mesh(&mut self, mesh: Mesh)
+    {
+        self.resources.push_grid_mesh(self.meshes.add(mesh).into());
+    }
+
+    /// Returns the [`Mesh`] of a line that goes from points `start` to `end`.
+    #[inline]
+    fn line_mesh(&mut self, start: Vec2, end: Vec2) -> Mesh
+    {
+        let mut mesh = self.resources.mesh_generator();
+        mesh.push_positions_skewed(self.grid, [start, end]);
+        mesh.mesh(PrimitiveTopology::LineStrip)
+    }
+
+    /// Returns a [`Mesh`] of a line with an arrow in the middle that points toward `end`.
+    #[inline]
+    fn arrowed_line_mesh(&mut self, start: Vec2, end: Vec2) -> Mesh
+    {
+        // Basic line.
+        let mut mesh = self.resources.mesh_generator();
+        mesh.push_positions_skewed(self.grid, [start, end]);
+
+        // Arrow.
+        let half_height = VX_HGL_SIDE * self.camera_scale;
+        let mid = (start + end) / 2f32;
+        let mut tip = Vec2::new(mid.x + half_height, mid.y);
+        let bottom_x = mid.x - half_height;
+        let mut top_left = Vec2::new(bottom_x, mid.y + half_height);
+        let mut bottom_left = Vec2::new(bottom_x, mid.y - half_height);
+        let angle = -(end - start).angle_between(Vec2::X);
+
+        for vx in [&mut tip, &mut top_left, &mut bottom_left]
+        {
+            *vx = rotate_point(*vx, mid, angle);
+        }
+
+        mesh.push_positions_skewed(self.grid, [top_left, tip, tip, bottom_left]);
+        mesh.mesh(PrimitiveTopology::LineList)
+    }
+
+    /// Returns the [`Mesh`] of a circle with `resolution` sides.
+    #[inline]
+    #[must_use]
+    fn circle_mesh(&mut self, center: Vec2, resolution: u8, radius: f32) -> Mesh
+    {
+        assert!(resolution != 0, "Cannot create a circle with 0 sides.");
+
+        let mut mesh = self.resources.mesh_generator();
+        let center = self.grid.transform_point(center);
+        mesh.push_positions_skewed(
+            self.grid,
+            DrawingResources::circle_vxs(resolution, radius).map(|vx| vx + center)
+        );
+        mesh.mesh(PrimitiveTopology::LineStrip)
+    }
+
+    /// Returns the [`Mesh`] of a polygon.
+    #[inline]
+    #[must_use]
+    fn polygon_mesh(&mut self, vertexes: impl ExactSizeIterator<Item = Vec2>) -> Mesh
+    {
+        let len = vertexes.len();
+
+        let mut mesh = self.resources.mesh_generator();
+        mesh.push_positions_skewed(self.grid, vertexes);
+        mesh.set_indexes(len);
+        mesh.mesh(PrimitiveTopology::TriangleList)
+    }
+
     //==============================================================
     // Info
 
@@ -154,10 +313,6 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
     //==============================================================
     // Draw
-
-    /// Spawns the meshes.
-    #[inline]
-    fn spawn_meshes(&mut self) { self.resources.spawn_meshes(self.commands); }
 
     /// Draws a line.
     #[inline]
@@ -923,167 +1078,14 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     {
         self.resources.vx_tooltip_label(pos)
     }
-}
 
-impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
-{
-    //==============================================================
-    // New
-
-    /// Returns a new [`EditDrawer`].
-    #[allow(clippy::too_many_arguments)]
+    /// Renders one tooltip for each label that has not been utilized this frame, to fix an egui
+    /// issue where the first queued tooltip is not rendered during the frame where the amount of
+    /// tooltips to render increases from the previous frame.
     #[inline]
-    #[must_use]
-    pub fn new(
-        commands: &'a mut Commands<'w, 's>,
-        prop_cameras: &PropCameras,
-        meshes: &'a mut Assets<Mesh>,
-        meshes_query: &Query<Entity, With<Mesh2dHandle>>,
-        resources: &'a mut DrawingResources,
-        color_resources: &'a ColorResources,
-        settings: &ToolsSettings,
-        grid: Grid,
-        mut elapsed_time: f32,
-        camera_scale: f32,
-        paint_tool_camera_scale: f32,
-        show_collision_overlay: bool
-    ) -> Self
+    pub fn render_leftover_labels(&mut self, egui_context: &egui::Context)
     {
-        resources.setup_frame(
-            commands,
-            prop_cameras,
-            meshes,
-            meshes_query,
-            camera_scale,
-            paint_tool_camera_scale
-        );
-
-        if !settings.scroll_enabled
-        {
-            elapsed_time = 0f32;
-        }
-
-        Self {
-            commands,
-            meshes,
-            resources,
-            color_resources,
-            grid,
-            camera_scale,
-            elapsed_time,
-            parallax_enabled: settings.parallax_enabled,
-            show_collision_overlay
-        }
-    }
-
-    //==============================================================
-    // Mesh creation
-
-    /// Returns a reference to the [`ColorResources`].
-    #[inline]
-    pub const fn color_resources(&self) -> &ColorResources { self.color_resources }
-
-    /// Returns the [`egui::Color32`] associated with [`Color`].
-    #[inline]
-    #[must_use]
-    pub fn egui_color(&self, color: Color) -> egui::Color32
-    {
-        self.color_resources.egui_color(color)
-    }
-
-    /// Queues a new [`Mesh`] to spawn.
-    #[inline]
-    fn push_mesh(&mut self, mesh: Mesh, material: Handle<ColorMaterial>, height: f32)
-    {
-        self.resources
-            .push_mesh(self.meshes.add(mesh).into(), material, height);
-    }
-
-    /// Queues a new square [`Mesh`] to spawn.
-    #[inline]
-    fn push_square_highlight_mesh(
-        &mut self,
-        material: Handle<ColorMaterial>,
-        center: Vec2,
-        color: Color
-    )
-    {
-        self.resources.push_square_highlight_mesh(
-            material,
-            self.grid.transform_point(center),
-            color.square_hgl_height()
-        );
-    }
-
-    /// Queues a new grid [`Mesh`] to spawn.
-    #[inline]
-    fn push_grid_mesh(&mut self, mesh: Mesh)
-    {
-        self.resources.push_grid_mesh(self.meshes.add(mesh).into());
-    }
-
-    /// Returns the [`Mesh`] of a line that goes from points `start` to `end`.
-    #[inline]
-    fn line_mesh(&mut self, start: Vec2, end: Vec2) -> Mesh
-    {
-        let mut mesh = self.resources.mesh_generator();
-        mesh.push_positions_skewed(self.grid, [start, end]);
-        mesh.mesh(PrimitiveTopology::LineStrip)
-    }
-
-    /// Returns a [`Mesh`] of a line with an arrow in the middle that points toward `end`.
-    #[inline]
-    fn arrowed_line_mesh(&mut self, start: Vec2, end: Vec2) -> Mesh
-    {
-        // Basic line.
-        let mut mesh = self.resources.mesh_generator();
-        mesh.push_positions_skewed(self.grid, [start, end]);
-
-        // Arrow.
-        let half_height = VX_HGL_SIDE * self.camera_scale;
-        let mid = (start + end) / 2f32;
-        let mut tip = Vec2::new(mid.x + half_height, mid.y);
-        let bottom_x = mid.x - half_height;
-        let mut top_left = Vec2::new(bottom_x, mid.y + half_height);
-        let mut bottom_left = Vec2::new(bottom_x, mid.y - half_height);
-        let angle = -(end - start).angle_between(Vec2::X);
-
-        for vx in [&mut tip, &mut top_left, &mut bottom_left]
-        {
-            *vx = rotate_point(*vx, mid, angle);
-        }
-
-        mesh.push_positions_skewed(self.grid, [top_left, tip, tip, bottom_left]);
-        mesh.mesh(PrimitiveTopology::LineList)
-    }
-
-    /// Returns the [`Mesh`] of a circle with `resolution` sides.
-    #[inline]
-    #[must_use]
-    fn circle_mesh(&mut self, center: Vec2, resolution: u8, radius: f32) -> Mesh
-    {
-        assert!(resolution != 0, "Cannot create a circle with 0 sides.");
-
-        let mut mesh = self.resources.mesh_generator();
-        let center = self.grid.transform_point(center);
-        mesh.push_positions_skewed(
-            self.grid,
-            DrawingResources::circle_vxs(resolution, radius).map(|vx| vx + center)
-        );
-        mesh.mesh(PrimitiveTopology::LineStrip)
-    }
-
-    /// Returns the [`Mesh`] of a polygon.
-    #[inline]
-    #[must_use]
-    fn polygon_mesh(&mut self, vertexes: impl ExactSizeIterator<Item = Vec2>) -> Mesh
-    {
-        let len = vertexes.len();
-
-        let mut mesh = self.resources.mesh_generator();
-        mesh.push_positions_skewed(self.grid, vertexes);
-        mesh.set_indexes(len);
-        mesh.mesh(PrimitiveTopology::TriangleList)
+        self.resources.render_leftover_labels(egui_context);
     }
 }
 
@@ -1106,7 +1108,7 @@ pub(in crate::map) struct MapPreviewDrawer<'w, 's, 'a>
 impl<'w: 'a, 's: 'a, 'a> Drop for MapPreviewDrawer<'w, 's, 'a>
 {
     #[inline]
-    fn drop(&mut self) { self.spawn_meshes() }
+    fn drop(&mut self) { self.resources.spawn_meshes(self.commands); }
 }
 
 impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
@@ -1137,10 +1139,6 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
 
     #[inline]
     pub const fn grid(&self) -> Grid { self.grid }
-
-    /// Spawns the meshes.
-    #[inline]
-    fn spawn_meshes(&mut self) { self.resources.spawn_meshes(self.commands); }
 
     /// Draws `settings` mapping the texture to `vertexes`.
     #[inline]

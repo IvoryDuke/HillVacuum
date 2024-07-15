@@ -2117,6 +2117,7 @@ impl State
         }
 
         self.ui.frame_end_update(bundle.egui_context);
+        bundle.drawer.render_leftover_labels(bundle.egui_context);
     }
 
     /// Draws the map preview.

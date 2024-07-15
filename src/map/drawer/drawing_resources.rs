@@ -52,14 +52,16 @@ use crate::{
             Placeholder
         },
         indexed_map::IndexedMap,
-        thing::{catalog::ThingsCatalog, ThingInterface}
+        thing::{catalog::ThingsCatalog, ThingInterface},
+        MAP_SIZE
     },
     utils::{
         containers::{hv_hash_map, hv_hash_set, hv_vec},
         hull::Hull,
         math::{points::rotate_point_around_origin, HashVec2},
         misc::{vertex_highlight_square, AssertedInsertRemove, Camera},
-        overall_value::UiOverallValue
+        overall_value::UiOverallValue,
+        tooltips::draw_tooltip
     },
     HvHashMap,
     HvHashSet,
@@ -1060,6 +1062,15 @@ impl DrawingResources
         self.brush_meshes.spawn_batch(commands);
     }
 
+    /// Renders one tooltip for each label that has not been utilized this frame, to fix an egui
+    /// issue where the first queued tooltip is not rendered during the frame where the amount of
+    /// tooltips to render increases from the previous frame.
+    #[inline]
+    pub fn render_leftover_labels(&mut self, egui_context: &egui::Context)
+    {
+        self.tt_label_gen.render_leftover_labels(egui_context);
+    }
+
     //==============================================================
     // Cleanup
 
@@ -1098,7 +1109,7 @@ impl TooltipLabelGenerator
 
     /// Returns an iterator to all assignable labels.
     #[inline]
-    fn iter() -> impl Iterator<Item = &'static str> { Self::VX_LABELS.iter().copied() }
+    fn iter() -> impl Iterator<Item = &'static str> { Self::VX_LABELS.into_iter() }
 
     /// Resets the assigned labels.
     #[inline]
@@ -1124,6 +1135,32 @@ impl TooltipLabelGenerator
         let value = Self::VX_LABELS[self.vx_labels_index];
         self.vx_labels_index += 1;
         Some(value)
+    }
+
+    /// Renders one tooltip for each label that has not been utilized this frame, to fix an egui
+    /// issue where the first queued tooltip is not rendered during the frame where the amount of
+    /// tooltips to render increases from the previous frame.
+    #[inline]
+    pub fn render_leftover_labels(&mut self, egui_context: &egui::Context)
+    {
+        const COORDINATE: f32 = MAP_SIZE * 20f32;
+        const POS: egui::Pos2 = egui::Pos2::new(COORDINATE, COORDINATE);
+
+        for i in self.vx_labels_index..Self::VX_LABELS.len()
+        {
+            draw_tooltip(
+                egui_context,
+                Self::VX_LABELS[i],
+                egui::Order::Background,
+                "",
+                egui::TextStyle::Monospace,
+                POS,
+                egui::Color32::WHITE,
+                egui::Color32::WHITE,
+                0f32,
+                0f32
+            );
+        }
     }
 }
 
