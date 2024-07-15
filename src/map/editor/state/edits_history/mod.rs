@@ -745,13 +745,23 @@ impl EditsHistory
     /// Whether there are no unsaved edits.
     #[inline]
     #[must_use]
-    pub const fn no_unsaved_edits(&self) -> bool
+    pub fn no_unsaved_edits(&self) -> bool
     {
-        match self.last_save_edit
+        let idx = match self.last_save_edit
         {
-            Some(idx) => idx == self.prev_states_amount,
-            None => false
-        }
+            Some(idx) =>
+            {
+                if idx == self.prev_states_amount
+                {
+                    return true;
+                }
+
+                idx
+            },
+            None => 0
+        };
+
+        (idx..self.prev_states_amount).all(|i| self.stack[i].contains_free_draw_edit())
     }
 
     /// Sets the current edit to be the one of the last save.

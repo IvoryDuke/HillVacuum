@@ -1071,7 +1071,7 @@ impl State
     /// Whether there are no unsaved changes.
     #[inline]
     #[must_use]
-    const fn no_edits(&self, drawing_resources: &DrawingResources) -> bool
+    fn no_edits(&self, drawing_resources: &DrawingResources) -> bool
     {
         self.edits_history.no_unsaved_edits() &&
             !self.clipboard.props_changed() &&
