@@ -280,7 +280,7 @@ pub(in crate::map) mod ui_mod
     use arrayvec::ArrayVec;
     use bevy::{
         asset::{Assets, Handle},
-        render::texture::Image
+        render::texture::{Image, ImageSampler, ImageSamplerDescriptor}
     };
     use glam::{UVec2, Vec2};
     use hill_vacuum_shared::{
@@ -319,164 +319,164 @@ pub(in crate::map) mod ui_mod
 
     /// Generates the code for functions relative to x/y parameters.
     macro_rules! xy {
-    ($($xy:ident),+) => { paste::paste! { $(
-        #[inline]
-        #[must_use]
-        pub(in crate::map) fn [< check_offset_ $xy >](&mut self, drawing_resources: &DrawingResources, value: f32, center: Vec2) -> bool
-        {
-            if !self.sprite.enabled() || value.around_equal_narrow(&self.[< offset_ $xy >])
+        ($($xy:ident),+) => { paste::paste! { $(
+            #[inline]
+            #[must_use]
+            pub(in crate::map) fn [< check_offset_ $xy >](&mut self, drawing_resources: &DrawingResources, value: f32, center: Vec2) -> bool
             {
-                return true;
-            }
-
-            let prev = std::mem::replace(&mut self.[< offset_ $xy >], value);
-            let result = self.check_sprite_vxs(drawing_resources, center);
-            self.[< offset_ $xy >] = prev;
-
-            result.is_ok()
-        }
-
-        #[inline]
-        #[must_use]
-        pub(in crate::map) fn [< set_offset_ $xy >](&mut self, drawing_resources: &DrawingResources, value: f32, center: Vec2) -> Option<f32>
-        {
-            if value.around_equal_narrow(&self.[< offset_ $xy >])
-            {
-                return None;
-            }
-
-            let prev = std::mem::replace(&mut self.[< offset_ $xy >], value);
-            self.update_sprite_vxs(drawing_resources, center);
-            prev.into()
-        }
-
-        #[inline]
-        pub(in crate::map) fn [< check_scale_ $xy >](&mut self, drawing_resources: &DrawingResources, value: f32, center: Vec2) -> bool
-        {
-            assert!(value != 0f32, "Scale is 0.");
-
-            if !self.sprite.enabled() || value.around_equal_narrow(&self.[< scale_ $xy >])
-            {
-                return true;
-            }
-
-            let prev = std::mem::replace(&mut self.[< scale_ $xy >], value);
-            let result = self.check_sprite_vxs(drawing_resources, center);
-            self.[< scale_ $xy >] = prev;
-
-            result.is_ok()
-        }
-
-        #[inline]
-        #[must_use]
-        pub(in crate::map) fn [< set_scale_ $xy >](&mut self, drawing_resources: &DrawingResources, value: f32, center: Vec2) -> Option<f32>
-        {
-            assert!(value != 0f32, "Scale is 0.");
-
-            if value.around_equal_narrow(&self.[< scale_ $xy >])
-            {
-                return None;
-            }
-
-            let prev = std::mem::replace(&mut self.[< scale_ $xy >], value);
-            self.update_sprite_vxs(drawing_resources, center);
-            prev.into()
-        }
-
-        #[inline]
-        pub(in crate::map) fn [< check_ $xy _flip >](&mut self, drawing_resources: &DrawingResources, mirror: f32, old_center: Vec2, new_center: Vec2) -> bool
-        {
-            if !self.sprite.enabled()
-            {
-                return true;
-            }
-
-            let sprite_center = self.sprite_hull(old_center).center();
-            let [< new_offset_ $xy >] = mirror - sprite_center.$xy - new_center.$xy;
-            let [< prev_offset_ $xy >] = std::mem::replace(&mut self.[< offset_ $xy >], [< new_offset_ $xy >]);
-            let result = self.check_sprite_vxs(drawing_resources, new_center);
-
-            self.[< offset_ $xy >] = [< prev_offset_ $xy >];
-
-            result.is_ok()
-        }
-
-        #[inline]
-        pub(in crate::map) fn [< $xy _flip >](&mut self, drawing_resources: &DrawingResources, mirror: f32, old_center: Vec2, new_center: Vec2)
-        {
-            self.[< scale_ $xy >] = -self.[< scale_ $xy >];
-
-            if !self.sprite.enabled()
-            {
-                return;
-            }
-
-            let sprite_center = self.sprite_hull(old_center).center();
-            self.[< offset_ $xy >] = mirror - sprite_center.$xy - new_center.$xy;
-            self.update_sprite_vxs(drawing_resources, new_center);
-        }
-
-        #[inline]
-        #[must_use]
-        pub(in crate::map) fn [< set_parallax_ $xy >](&mut self, value: f32) -> Option<f32>
-        {
-            let prev = self.[< parallax_ $xy >]();
-
-            if value.around_equal_narrow(&prev)
-            {
-                return None;
-            }
-
-            self.sprite.[< set_parallax_ $xy >](value);
-            prev.into()
-        }
-
-        #[inline]
-        #[must_use]
-        pub(in crate::map) fn [< check_atlas_animation_ $xy _partition >](
-            &mut self,
-            drawing_resources: &DrawingResources,
-            value: u32,
-            center: Vec2
-        ) -> bool
-        {
-            let prev = {
-                let atlas = self.animation.get_atlas_animation_mut();
-                let prev = atlas.[< $xy _partition >]();
-
-                if prev <= value
+                if !self.sprite.enabled() || value.around_equal_narrow(&self.[< offset_ $xy >])
                 {
                     return true;
                 }
 
-                _ = atlas.[< set _$xy _partition >](value);
+                let prev = std::mem::replace(&mut self.[< offset_ $xy >], value);
+                let result = self.check_sprite_vxs(drawing_resources, center);
+                self.[< offset_ $xy >] = prev;
+
+                result.is_ok()
+            }
+
+            #[inline]
+            #[must_use]
+            pub(in crate::map) fn [< set_offset_ $xy >](&mut self, drawing_resources: &DrawingResources, value: f32, center: Vec2) -> Option<f32>
+            {
+                if value.around_equal_narrow(&self.[< offset_ $xy >])
+                {
+                    return None;
+                }
+
+                let prev = std::mem::replace(&mut self.[< offset_ $xy >], value);
+                self.update_sprite_vxs(drawing_resources, center);
+                prev.into()
+            }
+
+            #[inline]
+            pub(in crate::map) fn [< check_scale_ $xy >](&mut self, drawing_resources: &DrawingResources, value: f32, center: Vec2) -> bool
+            {
+                assert!(value != 0f32, "Scale is 0.");
+
+                if !self.sprite.enabled() || value.around_equal_narrow(&self.[< scale_ $xy >])
+                {
+                    return true;
+                }
+
+                let prev = std::mem::replace(&mut self.[< scale_ $xy >], value);
+                let result = self.check_sprite_vxs(drawing_resources, center);
+                self.[< scale_ $xy >] = prev;
+
+                result.is_ok()
+            }
+
+            #[inline]
+            #[must_use]
+            pub(in crate::map) fn [< set_scale_ $xy >](&mut self, drawing_resources: &DrawingResources, value: f32, center: Vec2) -> Option<f32>
+            {
+                assert!(value != 0f32, "Scale is 0.");
+
+                if value.around_equal_narrow(&self.[< scale_ $xy >])
+                {
+                    return None;
+                }
+
+                let prev = std::mem::replace(&mut self.[< scale_ $xy >], value);
+                self.update_sprite_vxs(drawing_resources, center);
+                prev.into()
+            }
+
+            #[inline]
+            pub(in crate::map) fn [< check_ $xy _flip >](&mut self, drawing_resources: &DrawingResources, mirror: f32, old_center: Vec2, new_center: Vec2) -> bool
+            {
+                if !self.sprite.enabled()
+                {
+                    return true;
+                }
+
+                let sprite_center = self.sprite_hull(old_center).center();
+                let [< new_offset_ $xy >] = mirror - sprite_center.$xy - new_center.$xy;
+                let [< prev_offset_ $xy >] = std::mem::replace(&mut self.[< offset_ $xy >], [< new_offset_ $xy >]);
+                let result = self.check_sprite_vxs(drawing_resources, new_center);
+
+                self.[< offset_ $xy >] = [< prev_offset_ $xy >];
+
+                result.is_ok()
+            }
+
+            #[inline]
+            pub(in crate::map) fn [< $xy _flip >](&mut self, drawing_resources: &DrawingResources, mirror: f32, old_center: Vec2, new_center: Vec2)
+            {
+                self.[< scale_ $xy >] = -self.[< scale_ $xy >];
+
+                if !self.sprite.enabled()
+                {
+                    return;
+                }
+
+                let sprite_center = self.sprite_hull(old_center).center();
+                self.[< offset_ $xy >] = mirror - sprite_center.$xy - new_center.$xy;
+                self.update_sprite_vxs(drawing_resources, new_center);
+            }
+
+            #[inline]
+            #[must_use]
+            pub(in crate::map) fn [< set_parallax_ $xy >](&mut self, value: f32) -> Option<f32>
+            {
+                let prev = self.[< parallax_ $xy >]();
+
+                if value.around_equal_narrow(&prev)
+                {
+                    return None;
+                }
+
+                self.sprite.[< set_parallax_ $xy >](value);
+                prev.into()
+            }
+
+            #[inline]
+            #[must_use]
+            pub(in crate::map) fn [< check_atlas_animation_ $xy _partition >](
+                &mut self,
+                drawing_resources: &DrawingResources,
+                value: u32,
+                center: Vec2
+            ) -> bool
+            {
+                let prev = {
+                    let atlas = self.animation.get_atlas_animation_mut();
+                    let prev = atlas.[< $xy _partition >]();
+
+                    if prev <= value
+                    {
+                        return true;
+                    }
+
+                    _ = atlas.[< set _$xy _partition >](value);
+                    prev
+                };
+
+                let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
+                _ = self.animation
+                    .get_atlas_animation_mut()
+                    .[< set _$xy _partition >](prev);
+                result
+            }
+
+            #[inline]
+            #[must_use]
+            pub(in crate::map) fn [< set_atlas_animation_ $xy _partition >](
+                &mut self,
+                drawing_resources: &DrawingResources,
+                value: u32,
+                center: Vec2
+            ) -> Option<u32>
+            {
+                let atlas = self.animation.get_atlas_animation_mut();
+                let prev = atlas.[< set _$xy _partition >](value);
+                prev?;
+                self.update_sprite_vxs(drawing_resources, center);
                 prev
-            };
-
-            let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
-            _ = self.animation
-                .get_atlas_animation_mut()
-                .[< set _$xy _partition >](prev);
-            result
-        }
-
-        #[inline]
-        #[must_use]
-        pub(in crate::map) fn [< set_atlas_animation_ $xy _partition >](
-            &mut self,
-            drawing_resources: &DrawingResources,
-            value: u32,
-            center: Vec2
-        ) -> Option<u32>
-        {
-            let atlas = self.animation.get_atlas_animation_mut();
-            let prev = atlas.[< set _$xy _partition >](value);
-            prev?;
-            self.update_sprite_vxs(drawing_resources, center);
-            prev
-        }
-    )+}};
-}
+            }
+        )+}};
+    }
 
     //=======================================================================//
     // TRAITS
@@ -579,6 +579,9 @@ pub(in crate::map) mod ui_mod
     }
 
     //=======================================================================//
+    // TYPES
+    //
+    //=======================================================================//
 
     /// A texture which can be rendered on screen and its metadata.
     #[allow(clippy::missing_docs_in_private_items)]
@@ -590,7 +593,8 @@ pub(in crate::map) mod ui_mod
         size:      UVec2,
         label:     String,
         size_str:  String,
-        handle:    Handle<Image>,
+        repeat:    Handle<Image>,
+        clamp:     Handle<Image>,
         animation: Animation,
         hull:      Hull,
         dirty:     bool
@@ -606,7 +610,8 @@ pub(in crate::map) mod ui_mod
                 size:      self.size,
                 label:     self.label.clone(),
                 size_str:  self.size_str.clone(),
-                handle:    self.handle.clone_weak(),
+                repeat:    self.repeat.clone_weak(),
+                clamp:     self.clamp.clone_weak(),
                 animation: self.animation.clone(),
                 dirty:     false,
                 hull:      self.hull
@@ -631,7 +636,8 @@ pub(in crate::map) mod ui_mod
                 label:     String::new(),
                 size_str:  String::new(),
                 hull:      Hull::new(1f32, 0f32, 0f32, 1f32),
-                handle:    Handle::default(),
+                repeat:    Handle::default(),
+                clamp:     Handle::default(),
                 animation: Animation::default(),
                 dirty:     false
             }
@@ -673,12 +679,16 @@ pub(in crate::map) mod ui_mod
             let size_str = Self::format_size(size);
             let label = Self::format_label(&name, size);
 
+            let mut clamp = image.clone();
+            clamp.sampler = ImageSampler::Descriptor(ImageSamplerDescriptor::default());
+
             Self {
                 name,
                 size,
                 label,
                 size_str,
-                handle: images.add(image),
+                repeat: images.add(image),
+                clamp: images.add(clamp),
                 animation: Animation::None,
                 hull: Self::create_hull(size),
                 dirty: false
@@ -687,7 +697,12 @@ pub(in crate::map) mod ui_mod
 
         /// Returns a new [`Texture`] from the arguments.
         #[inline]
-        pub fn from_parts(name: impl Into<String>, size: UVec2, handle: Handle<Image>) -> Self
+        pub fn from_parts(
+            name: impl Into<String>,
+            size: UVec2,
+            handle: Handle<Image>,
+            clamp: Handle<Image>
+        ) -> Self
         {
             let name = Into::<String>::into(name);
             let label = Self::format_label(&name, size);
@@ -698,7 +713,8 @@ pub(in crate::map) mod ui_mod
                 size,
                 label,
                 size_str,
-                handle,
+                repeat: handle,
+                clamp,
                 animation: Animation::None,
                 hull: Self::create_hull(size),
                 dirty: false
@@ -728,7 +744,12 @@ pub(in crate::map) mod ui_mod
         /// The [`Handle<Image>`] of the texture.
         #[inline]
         #[must_use]
-        pub fn handle(&self) -> Handle<Image> { self.handle.clone_weak() }
+        pub fn repeat_handle(&self) -> Handle<Image> { self.repeat.clone_weak() }
+
+        /// The [`Handle<Image>`] of the clamped texture.
+        #[inline]
+        #[must_use]
+        pub fn clamp_handle(&self) -> Handle<Image> { self.clamp.clone_weak() }
 
         /// Returns a reference to the texture's [`Animation`].
         #[inline]

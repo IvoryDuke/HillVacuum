@@ -598,7 +598,7 @@ impl AnimationEditor
     /// gallery.
     #[inline]
     #[must_use]
-    pub fn can_add_textures_to_atlas(&self, overall_animation: &UiOverallAnimation) -> bool
+    pub fn can_add_textures_to_list(&self, overall_animation: &UiOverallAnimation) -> bool
     {
         match &self.target
         {

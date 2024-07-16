@@ -647,7 +647,7 @@ impl Innards
 
             if self
                 .animation_editor
-                .can_add_textures_to_atlas(&self.overall_texture.animation)
+                .can_add_textures_to_list(&self.overall_texture.animation)
             {
                 let mut clicked_texture = None;
 

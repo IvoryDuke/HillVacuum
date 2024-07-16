@@ -20,6 +20,7 @@ use bevy::{
     render::{
         mesh::{Indices, Mesh, PrimitiveTopology, VertexAttributeValues},
         render_asset::RenderAssetUsages,
+        texture::Image,
         view::NoFrustumCulling
     },
     sprite::{ColorMaterial, MaterialMesh2dBundle, Mesh2dHandle},
@@ -80,13 +81,9 @@ meshes_indexes!(INDEXES, 128);
 //
 //=======================================================================//
 
-/// A [`Texture`] and the [`Handle`]s of the [`ColorMaterial`]s necessary to draw the entities.
-#[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
-pub(in crate::map) struct TextureMaterials
+struct Materials
 {
-    texture:                  Texture,
-    egui_id:                  egui::TextureId,
     pure:                     Handle<ColorMaterial>,
     semi_transparent:         Handle<ColorMaterial>,
     selected:                 Handle<ColorMaterial>,
@@ -98,14 +95,12 @@ pub(in crate::map) struct TextureMaterials
     opaque:                   Handle<ColorMaterial>
 }
 
-impl Placeholder for TextureMaterials
+impl Placeholder for Materials
 {
     #[inline]
     unsafe fn placeholder() -> Self
     {
         Self {
-            texture:                  Texture::placeholder(),
-            egui_id:                  egui::TextureId::default(),
             pure:                     Handle::default(),
             semi_transparent:         Handle::default(),
             selected:                 Handle::default(),
@@ -119,18 +114,13 @@ impl Placeholder for TextureMaterials
     }
 }
 
-impl TextureMaterials
+impl Materials
 {
     /// The alpha of the materials.
     const ALPHA: f32 = 0.25;
 
-    /// Returns a new [`TextureMaterials`].
     #[inline]
-    fn new(
-        texture: Texture,
-        egui_id: egui::TextureId,
-        materials: &mut Assets<ColorMaterial>
-    ) -> Self
+    fn new(handle: Handle<Image>, materials: &mut Assets<ColorMaterial>) -> Self
     {
         /// The [`Color`]s used to draw entities.
         const COLORS: [Color; 7] = [
@@ -145,34 +135,100 @@ impl TextureMaterials
         /// The amount of materials to create.
         const LEN: usize = COLORS.len();
 
-        let pure = materials.add(texture.handle());
         let semi_transparent = materials.add(ColorMaterial {
-            color:   bevy::color::Color::srgba(1f32, 1f32, 1f32, Self::ALPHA),
-            texture: texture.handle().into()
+            color:   bevy::prelude::Color::srgba(1f32, 1f32, 1f32, Self::ALPHA),
+            texture: handle.clone_weak().into()
         });
-        let mut materials = std::array::from_fn::<Handle<ColorMaterial>, LEN, _>(|i| {
+        let mut iter = std::array::from_fn::<Handle<ColorMaterial>, LEN, _>(|i| {
             let mut color = COLORS[i].default_bevy_color();
             color.set_alpha(Self::ALPHA);
 
             materials.add(ColorMaterial {
                 color,
-                texture: texture.handle().into()
+                texture: handle.clone_weak().into()
             })
         })
         .into_iter();
+        let pure = materials.add(handle);
 
         Self {
-            texture,
-            egui_id,
             pure,
             semi_transparent,
-            selected: materials.next_value(),
-            highlighted_non_selected: materials.next_value(),
-            highlighted_selected: materials.next_value(),
-            side_mode: materials.next_value(),
-            gold: materials.next_value(),
-            opaque: materials.next_value(),
-            clip_not_to_spawn: materials.next_value()
+            selected: iter.next_value(),
+            highlighted_non_selected: iter.next_value(),
+            highlighted_selected: iter.next_value(),
+            side_mode: iter.next_value(),
+            gold: iter.next_value(),
+            opaque: iter.next_value(),
+            clip_not_to_spawn: iter.next_value()
+        }
+    }
+
+    #[inline]
+    fn clean(handle: Handle<Image>, materials: &mut Assets<ColorMaterial>) -> Self
+    {
+        let semi_transparent = materials.add(ColorMaterial {
+            color:   bevy::prelude::Color::srgba(1f32, 1f32, 1f32, Self::ALPHA),
+            texture: handle.clone_weak().into()
+        });
+        let pure = materials.add(handle);
+
+        Self {
+            pure:                     pure.clone(),
+            semi_transparent:         semi_transparent.clone(),
+            selected:                 semi_transparent.clone(),
+            highlighted_non_selected: semi_transparent.clone(),
+            highlighted_selected:     semi_transparent.clone(),
+            side_mode:                semi_transparent.clone(),
+            gold:                     semi_transparent.clone(),
+            opaque:                   semi_transparent.clone(),
+            clip_not_to_spawn:        semi_transparent
+        }
+    }
+}
+
+//=======================================================================//
+
+/// A [`Texture`] and the [`Handle`]s of the [`ColorMaterial`]s necessary to draw the entities.
+#[allow(clippy::missing_docs_in_private_items)]
+#[must_use]
+pub(in crate::map) struct TextureMaterials
+{
+    texture:          Texture,
+    egui_id:          egui::TextureId,
+    repeat_materials: Materials,
+    clamp_materials:  Materials
+}
+
+impl Placeholder for TextureMaterials
+{
+    #[inline]
+    unsafe fn placeholder() -> Self
+    {
+        Self {
+            texture:          Texture::placeholder(),
+            egui_id:          egui::TextureId::default(),
+            repeat_materials: Materials::placeholder(),
+            clamp_materials:  Materials::placeholder()
+        }
+    }
+}
+
+impl TextureMaterials
+{
+    /// Returns a new [`TextureMaterials`].
+    #[inline]
+    fn new(
+        texture: Texture,
+        egui_id: egui::TextureId,
+        materials: &mut Assets<ColorMaterial>
+    ) -> Self
+    {
+        Self {
+            egui_id,
+            repeat_materials: Materials::new(texture.repeat_handle(), materials),
+            clamp_materials: Materials::new(texture.clamp_handle(), materials),
+            texture
         }
     }
 
@@ -188,24 +244,11 @@ impl TextureMaterials
     #[inline]
     fn clean(texture: (Texture, egui::TextureId), materials: &mut Assets<ColorMaterial>) -> Self
     {
-        let pure = materials.add(texture.0.handle());
-        let semi_transparent = materials.add(ColorMaterial {
-            color:   bevy::color::Color::srgba(1f32, 1f32, 1f32, Self::ALPHA),
-            texture: texture.0.handle().into()
-        });
-
         Self {
-            texture:                  texture.0,
-            egui_id:                  texture.1,
-            pure:                     pure.clone(),
-            semi_transparent:         semi_transparent.clone(),
-            selected:                 semi_transparent.clone(),
-            highlighted_non_selected: semi_transparent.clone(),
-            highlighted_selected:     semi_transparent.clone(),
-            side_mode:                semi_transparent.clone(),
-            gold:                     semi_transparent.clone(),
-            opaque:                   semi_transparent.clone(),
-            clip_not_to_spawn:        semi_transparent
+            repeat_materials: Materials::clean(texture.0.repeat_handle(), materials),
+            clamp_materials:  Materials::clean(texture.0.clamp_handle(), materials),
+            texture:          texture.0,
+            egui_id:          texture.1
         }
     }
 
@@ -216,14 +259,14 @@ impl TextureMaterials
     {
         match color
         {
-            Color::NonSelectedEntity => &self.semi_transparent,
-            Color::SelectedEntity | Color::SubtractorBrush => &self.selected,
-            Color::HighlightedNonSelectedEntity => &self.highlighted_non_selected,
-            Color::HighlightedSelectedEntity => &self.highlighted_selected,
-            Color::NonSelectedVertex => &self.side_mode,
-            Color::ClippedPolygonsToSpawn | Color::SubtracteeBrush => &self.gold,
-            Color::ClippedPolygonsNotToSpawn => &self.clip_not_to_spawn,
-            Color::OpaqueEntity => &self.opaque,
+            Color::NonSelectedEntity => &self.repeat_materials.semi_transparent,
+            Color::SelectedEntity | Color::SubtractorBrush => &self.repeat_materials.selected,
+            Color::HighlightedNonSelectedEntity => &self.repeat_materials.highlighted_non_selected,
+            Color::HighlightedSelectedEntity => &self.repeat_materials.highlighted_selected,
+            Color::NonSelectedVertex => &self.repeat_materials.side_mode,
+            Color::ClippedPolygonsToSpawn | Color::SubtracteeBrush => &self.repeat_materials.gold,
+            Color::ClippedPolygonsNotToSpawn => &self.repeat_materials.clip_not_to_spawn,
+            Color::OpaqueEntity => &self.repeat_materials.opaque,
             _ => panic!("Color with no associated color material.")
         }
         .clone_weak()
@@ -368,12 +411,12 @@ impl DrawingResources
                 .iter()
                 .map(|(id, ..)| (id, meshes.add(square_mesh.clone()).into()))
         ];
-        let err_tex = Texture::from_parts(
-            ERROR_TEXTURE_NAME,
-            UVec2::splat(64),
-            asset_server.load(embedded_asset_path(ERROR_TEXTURE_NAME))
-        );
-        let err_id = user_textures.add_image(err_tex.handle());
+        let err_tex = {
+            let handle = asset_server.load(embedded_asset_path(ERROR_TEXTURE_NAME));
+            let clamp = handle.clone_weak();
+            Texture::from_parts(ERROR_TEXTURE_NAME, UVec2::splat(64), handle, clamp)
+        };
+        let err_id = user_textures.add_image(err_tex.repeat_handle());
 
         Self {
             brush_meshes: Meshes::default(),
@@ -892,7 +935,7 @@ impl DrawingResources
         settings: &T
     )
     {
-        self.push_mesh(mesh, texture.pure.clone_weak(), settings.height_f32());
+        self.push_mesh(mesh, texture.repeat_materials.pure.clone_weak(), settings.height_f32());
     }
 
     /// Pushes a sprite mesh.
@@ -906,7 +949,10 @@ impl DrawingResources
     {
         self.push_mesh(
             mesh,
-            self.texture_materials(settings.name()).semi_transparent.clone_weak(),
+            self.texture_materials(settings.name())
+                .clamp_materials
+                .semi_transparent
+                .clone_weak(),
             color.height() + settings.height_f32()
         );
     }
@@ -920,7 +966,7 @@ impl DrawingResources
         settings: &T
     )
     {
-        self.push_mesh(mesh, texture.pure.clone_weak(), settings.height_f32());
+        self.push_mesh(mesh, texture.clamp_materials.pure.clone_weak(), settings.height_f32());
     }
 
     /// Pushes a thing mesh.
@@ -953,6 +999,7 @@ impl DrawingResources
         self.push_mesh(
             mesh,
             self.texture_materials(self.texture_or_error(catalog.texture(thing.thing())).name())
+                .clamp_materials
                 .pure
                 .clone_weak(),
             thing.draw_height_f32()

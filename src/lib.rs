@@ -169,8 +169,6 @@ pub(crate) mod ui_mod
 
     /// The name of the application.
     pub(crate) const NAME: &str = "HillVacuum";
-    /// The folder where the assets are stored.
-    const ASSETS_PATH: &str = "assets/";
 
     //=======================================================================//
     // ENUMS
@@ -326,7 +324,7 @@ pub(crate) mod ui_mod
             app.add_plugins(
                 DefaultPlugins
                     .set(AssetPlugin {
-                        file_path: ASSETS_PATH.to_owned(),
+                        file_path: "assets/".to_owned(),
                         processed_file_path: "processed_assets/".to_owned(),
                         watch_for_changes_override: false.into(),
                         mode: AssetMode::Unprocessed,

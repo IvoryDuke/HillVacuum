@@ -252,19 +252,19 @@ impl TextureLoader
                         {
                             let path = &paths[i][j];
 
-                            let image = Image::from_buffer(
-                                &std::fs::read(path).unwrap(),
-                                ImageType::Extension(path.extension().unwrap().to_str().unwrap()),
-                                CompressedImageFormats::all(),
-                                true,
-                                ImageSampler::default(),
-                                RenderAssetUsages::all()
-                            )
-                            .unwrap();
-
                             textures.push((
                                 path.file_stem().unwrap().to_str().unwrap().to_owned(),
-                                image
+                                Image::from_buffer(
+                                    &std::fs::read(path).unwrap(),
+                                    ImageType::Extension(
+                                        path.extension().unwrap().to_str().unwrap()
+                                    ),
+                                    CompressedImageFormats::all(),
+                                    true,
+                                    ImageSampler::default(),
+                                    RenderAssetUsages::all()
+                                )
+                                .unwrap()
                             ));
                         }
 
@@ -287,7 +287,7 @@ impl TextureLoader
                 {
                     let (name, image) = vec.pop().unwrap();
                     let texture = Texture::new(name, image, images);
-                    let tex_id = user_textures.add_image(texture.handle());
+                    let tex_id = user_textures.add_image(texture.clamp_handle());
                     self.textures.push((texture, tex_id));
                 }
 
