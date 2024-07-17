@@ -105,10 +105,10 @@ impl Window
         &mut self,
         egui_context: &egui::Context,
         window: egui::Window,
-        mut f: F
+        f: F
     ) -> Option<R>
     where
-        F: FnMut(&mut egui::Ui) -> R
+        F: FnOnce(&mut egui::Ui) -> R
     {
         window
             .open(&mut self.open)

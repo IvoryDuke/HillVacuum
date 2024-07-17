@@ -135,7 +135,7 @@ impl NodesEditor
 
     /// The textedit widget. Returns its [`egui::Response`].
     #[inline]
-    fn textedit<F: FnMut(f32) -> Option<f32>>(
+    fn textedit<F: FnOnce(f32) -> Option<f32>>(
         ui: &mut egui::Ui,
         value: &mut UiOverallValue<f32>,
         clipboard: &mut Clipboard,

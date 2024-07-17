@@ -76,11 +76,11 @@ impl CursorDelta
     /// Updates `self` and executes `dragger` if the delta changed. `dragger` is fed the delta of
     /// the current frame. The new overall delta is stored if `dragger` returns true.
     #[inline]
-    pub(in crate::map::editor::state::core) fn conditional_update<F: FnMut(Vec2) -> bool>(
+    pub(in crate::map::editor::state::core) fn conditional_update<F: FnOnce(Vec2) -> bool>(
         &mut self,
         cursor: &Cursor,
         grid: Grid,
-        mut dragger: F
+        dragger: F
     )
     {
         let (overall_delta, frame_delta) =
@@ -95,11 +95,11 @@ impl CursorDelta
     /// Updates `self` and executes `dragger` if the delta changed. `dragger` is fed the delta of
     /// the current frame.
     #[inline]
-    pub(in crate::map::editor::state::core) fn update<F: FnMut(Vec2)>(
+    pub(in crate::map::editor::state::core) fn update<F: FnOnce(Vec2)>(
         &mut self,
         cursor: &Cursor,
         grid: Grid,
-        mut dragger: F
+        dragger: F
     )
     {
         let (overall_delta, frame_delta) =

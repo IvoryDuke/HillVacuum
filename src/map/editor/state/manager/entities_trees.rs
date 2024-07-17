@@ -400,11 +400,11 @@ impl QuadTreeIdsNearPos
 
     /// Updates the contained [`Id`]s if necessary.
     #[inline]
-    pub fn update<F: FnMut(&mut QuadTreeIds, Vec2, Option<f32>)>(
+    pub fn update<F: FnOnce(&mut QuadTreeIds, Vec2, Option<f32>)>(
         &mut self,
         pos: Vec2,
         camera_scale: Option<f32>,
-        mut f: F
+        f: F
     )
     {
         if !self.dirty &&
@@ -462,12 +462,12 @@ impl VisibleQuadTreeIds
 
     /// Updates the contained [`Id`]s if necessary.
     #[inline]
-    pub fn update<F: FnMut(&mut QuadTreeIds, &Hull)>(
+    pub fn update<F: FnOnce(&mut QuadTreeIds, &Hull)>(
         &mut self,
         camera: &Transform,
         window: &Window,
         grid: Grid,
-        mut f: F
+        f: F
     )
     {
         let viewport = camera.viewport(window, grid);

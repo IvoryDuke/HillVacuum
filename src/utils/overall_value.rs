@@ -252,11 +252,11 @@ impl<T: ToString + FromStr + PartialEq> UiOverallValue<T>
     /// Updates the value with what the user has typed if it can be properly parsed, executing `f`
     /// if it's the case. Otherwise the shown value is reset to what it originally was.
     #[inline]
-    pub fn update<F: FnMut(T) -> Option<T>>(
+    pub fn update<F: FnOnce(T) -> Option<T>>(
         &mut self,
         gained_focus: bool,
         lost_focus: bool,
-        mut f: F
+        f: F
     ) -> bool
     {
         match &mut self.0

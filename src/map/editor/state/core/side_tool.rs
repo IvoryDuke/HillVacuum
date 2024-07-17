@@ -87,12 +87,12 @@ impl XTrusionDrag
 
     /// Updates the drag amount and executes `dragger` if it changed.
     #[inline]
-    pub fn conditional_update<F: FnMut(Vec2) -> bool>(
+    pub fn conditional_update<F: FnOnce(Vec2) -> bool>(
         &mut self,
         cursor: &Cursor,
         grid: Grid,
         line: &[Vec2; 2],
-        mut dragger: F
+        dragger: F
     )
     {
         let cursor_pos = cursor.world();

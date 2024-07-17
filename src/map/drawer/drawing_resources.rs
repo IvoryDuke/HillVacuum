@@ -643,7 +643,8 @@ impl DrawingResources
     #[inline]
     pub fn chunked_textures<'a>(
         &'a self,
-        overall_name: &'a UiOverallValue<String>,
+        filter: &'a str,
+        overall_texture: &'a UiOverallValue<String>,
         chunk_size: usize
     ) -> impl Iterator<Item = &'a [&'a TextureMaterials]>
     {
@@ -726,9 +727,8 @@ impl DrawingResources
             }
         }
 
-        let buffer = overall_name.buffer();
-
-        if buffer.is_empty() || (overall_name.uniform_value() == Some(buffer))
+        if filter.is_empty() ||
+            (overall_texture.uniform_value().map(String::as_str) == Some(filter))
         {
             return ChunkedTextures::Unfiltered(FilteredTextures::new(
                 self.textures.values(),
@@ -739,7 +739,7 @@ impl DrawingResources
         ChunkedTextures::Filtered(FilteredTextures::new(
             self.textures
                 .values()
-                .filter(move |texture| texture.texture.name().contains(buffer)),
+                .filter(move |texture| texture.texture.name().contains(filter)),
             chunk_size
         ))
     }

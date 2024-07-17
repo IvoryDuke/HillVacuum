@@ -7,7 +7,12 @@ use std::{marker::PhantomData, str::FromStr};
 
 use bevy_egui::egui;
 
-use super::{minus_plus_buttons::MinusPlusButtons, ActuallyLostFocus, Interacting};
+use super::{
+    minus_plus_buttons::MinusPlusButtons,
+    singleline_textedit,
+    ActuallyLostFocus,
+    Interacting
+};
 use crate::{
     map::editor::state::{clipboard::Clipboard, editor_state::InputsPresses},
     utils::{misc::ReplaceValues, overall_value::UiOverallValue}
@@ -65,16 +70,9 @@ pub(in crate::map) struct OverallValueField<T: ToString + FromStr>(PhantomData<T
 
 impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
 {
-    /// The text editor of the value.
-    #[inline]
-    fn singleline_textedit(buffer: &mut String) -> egui::TextEdit
-    {
-        egui::TextEdit::singleline(buffer).desired_width(f32::INFINITY)
-    }
-
     /// Shows the [`OverallValueField`] enabled depending on the `enabled` parameter.
     #[inline]
-    pub fn show<F: FnMut(T) -> Option<T>>(
+    pub fn show<F: FnOnce(T) -> Option<T>>(
         ui: &mut egui::Ui,
         clipboard: &mut Clipboard,
         inputs: &InputsPresses,
@@ -85,7 +83,7 @@ impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
     {
         if value.is_none() || !enabled
         {
-            ui.add_enabled(false, Self::singleline_textedit(value.buffer_mut()));
+            ui.add_enabled(false, singleline_textedit(value.buffer_mut()));
             return Response::default();
         }
 
@@ -94,7 +92,7 @@ impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
 
     /// Always shows the [`OverallValueField`] enabled.
     #[inline]
-    pub fn show_always_enabled<F: FnMut(T) -> Option<T>>(
+    pub fn show_always_enabled<F: FnOnce(T) -> Option<T>>(
         ui: &mut egui::Ui,
         clipboard: &mut Clipboard,
         inputs: &InputsPresses,
@@ -102,7 +100,7 @@ impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
         f: F
     ) -> Response
     {
-        let output = Self::singleline_textedit(value.buffer_mut()).show(ui);
+        let output = singleline_textedit(value.buffer_mut()).show(ui);
         let response = clipboard.copy_paste_text_editor(inputs, ui, value.buffer_mut(), output);
         let lost_focus = response.actually_lost_focus();
 

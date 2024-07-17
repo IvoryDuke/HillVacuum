@@ -1808,9 +1808,9 @@ impl EntitiesManager
     /// Executes `f` and stores the error returned if any.
     #[inline]
     #[must_use]
-    pub fn test_operation_validity<F>(&mut self, mut f: F) -> bool
+    pub fn test_operation_validity<F>(&mut self, f: F) -> bool
     where
-        F: FnMut(&mut Self) -> Option<Id>
+        F: FnOnce(&mut Self) -> Option<Id>
     {
         let error = return_if_none!(f(self), true);
         self.innards.error_highlight.set_error(error);

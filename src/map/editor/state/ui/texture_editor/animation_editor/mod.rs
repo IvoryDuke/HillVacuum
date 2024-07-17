@@ -1141,9 +1141,9 @@ impl AnimationEditor
 
 /// UI element to pick the animation type of a texture.
 #[inline]
-fn animation_pick<F>(ui: &mut egui::Ui, mut f: F)
+fn animation_pick<F>(ui: &mut egui::Ui, f: F)
 where
-    F: FnMut([egui::Response; 3]) -> Option<egui::Response>
+    F: FnOnce([egui::Response; 3]) -> Option<egui::Response>
 {
     egui_extras::StripBuilder::new(ui)
         .size(egui_extras::Size::exact(LEFT_FIELD))
@@ -1173,10 +1173,10 @@ fn set_partition<F>(
     value: &mut UiOverallValue<u32>,
     label: &str,
     field_width: f32,
-    mut f: F
+    f: F
 ) -> Response
 where
-    F: FnMut(u32) -> bool
+    F: FnOnce(u32) -> bool
 {
     let mut response = Response::default();
 
@@ -1208,9 +1208,9 @@ where
 
 /// UI element to set the timing of an atlas animation.
 #[inline]
-fn set_atlas_timing<F>(ui: &mut egui::Ui, mut f: F) -> bool
+fn set_atlas_timing<F>(ui: &mut egui::Ui, f: F) -> bool
 where
-    F: FnMut([egui::Response; 2], &mut bool) -> Option<egui::Response>
+    F: FnOnce([egui::Response; 2], &mut bool) -> Option<egui::Response>
 {
     let mut value_changed = false;
 
@@ -1249,10 +1249,10 @@ fn set_atlas_time<F>(
     inputs: &InputsPresses,
     value: &mut UiOverallValue<f32>,
     index: usize,
-    mut f: F
+    f: F
 ) -> Response
 where
-    F: FnMut(usize, f32)
+    F: FnOnce(usize, f32)
 {
     let mut response = Response::default();
 
@@ -1289,10 +1289,10 @@ fn set_len<F>(
     inputs: &InputsPresses,
     value: &mut UiOverallValue<usize>,
     field_width: f32,
-    mut f: F
+    f: F
 ) -> Response
 where
-    F: FnMut(usize) -> Option<usize>
+    F: FnOnce(usize) -> Option<usize>
 {
     let mut response = Response::default();
 
@@ -1334,7 +1334,7 @@ fn set_single_atlas_time<F>(
     f: F
 ) -> Response
 where
-    F: FnMut(usize, f32)
+    F: FnOnce(usize, f32)
 {
     let mut response = Response::default();
 
@@ -1360,10 +1360,10 @@ fn set_list_texture<F>(
     inputs: &InputsPresses,
     texture: &mut UiOverallValue<String>,
     index: usize,
-    mut f: F
+    f: F
 ) -> Response
 where
-    F: FnMut(usize, &str)
+    F: FnOnce(usize, &str)
 {
     let mut response = Response::default();
 
@@ -1401,10 +1401,10 @@ fn set_list_time<F>(
     inputs: &InputsPresses,
     time: &mut UiOverallValue<f32>,
     index: usize,
-    mut f: F
+    f: F
 ) -> Response
 where
-    F: FnMut(usize, f32)
+    F: FnOnce(usize, f32)
 {
     let mut response = Response::default();
 
@@ -1439,10 +1439,10 @@ fn new_list_texture<F>(
     texture_slot: &mut UiOverallValue<String>,
     index: usize,
     field_width: f32,
-    mut f: F
+    f: F
 ) -> Response
 where
-    F: FnMut(&str)
+    F: FnOnce(&str)
 {
     let mut response = Response::default();
 

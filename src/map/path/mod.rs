@@ -2964,10 +2964,10 @@ pub(in crate::map) mod ui_mod
         /// Extends `tooltip_text` with a comma, whatever is inserted by `f` and the string
         /// representation of `index`.
         #[inline]
-        fn extend_bucket_tooltip<F: FnMut(&mut String)>(
+        fn extend_bucket_tooltip<F: FnOnce(&mut String)>(
             tooltip_text: &mut String,
             index: usize,
-            mut f: F
+            f: F
         )
         {
             if !tooltip_text.is_empty()

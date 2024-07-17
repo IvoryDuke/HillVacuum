@@ -12,6 +12,7 @@ use self::animation_editor::{AnimationEditor, Target};
 use super::{
     checkbox::CheckBox,
     overall_value_field::{MinusPlusOverallValueField, OverallValueField},
+    singleline_textedit,
     window::Window,
     WindowCloser,
     WindowCloserInfo
@@ -30,8 +31,7 @@ use crate::{
                 editor_state::{InputsPresses, ToolsSettings},
                 edits_history::EditsHistory,
                 format_texture_preview,
-                manager::{EntitiesManager, TextureResult},
-                ui::textures_gallery
+                manager::{EntitiesManager, TextureResult}
             },
             StateUpdateBundle
         }
@@ -328,6 +328,7 @@ struct Bundle<'a>
 #[derive(Default)]
 struct Innards
 {
+    filter:           String,
     /// The overall texture.
     overall_texture:  UiOverallTextureSettings,
     /// The editor of the texture animation.
@@ -529,10 +530,24 @@ impl Innards
     #[inline]
     fn show(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle) -> bool
     {
-        ui.vertical(|ui| {
-            ui.set_height(SETTING_HEIGHT);
-            self.mode_selector(ui, bundle.manager);
-            ui.separator();
+        #[inline]
+        fn top_section<F>(ui: &mut egui::Ui, f: F)
+        where
+            F: FnOnce(&mut egui::Ui)
+        {
+            ui.vertical(|ui| {
+                ui.set_height(SETTING_HEIGHT);
+                f(ui);
+                ui.separator();
+            });
+        }
+
+        top_section(ui, |ui| self.mode_selector(ui, bundle.manager));
+        top_section(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Filter");
+                ui.add(singleline_textedit(&mut self.filter));
+            });
         });
 
         let response = ui
@@ -572,10 +587,10 @@ impl Innards
             fn texture_preview<F>(
                 ui: &mut egui::Ui,
                 texture_materials: &TextureMaterials,
-                mut f: F
+                f: F
             ) -> egui::Response
             where
-                F: FnMut(&Texture, &egui::Response)
+                F: FnOnce(&Texture, &egui::Response)
             {
                 ui.vertical(|ui| {
                     ui.set_width(TEXTURE_GALLERY_PREVIEW_FRAME_SIDE);
@@ -609,19 +624,22 @@ impl Innards
             /// Draws the gallery of loaded textures.
             macro_rules! gallery {
                 ($f:expr) => {
-                    textures_gallery!(
+                    crate::map::editor::state::ui::textures_gallery!(
                         ui,
                         TEXTURE_GALLERY_PREVIEW_FRAME_SIDE,
                         |textures_per_row| {
-                            drawing_resources
-                                .chunked_textures(&self.overall_texture.name, textures_per_row)
+                            drawing_resources.chunked_textures(
+                                &self.filter,
+                                &self.overall_texture.name,
+                                textures_per_row
+                            )
                         },
                         match self.overall_texture.name.uniform_value()
                         {
                             Some(name) => drawing_resources.texture_index(name),
                             None => None
                         },
-                        |ui, texture| { texture_preview(ui, texture, $f) },
+                        |ui, texture| texture_preview(ui, texture, $f),
                         |ui: &mut egui::Ui, textures| {
                             let mut len = 0;
 
@@ -743,13 +761,13 @@ impl Innards
 
                         if let Some(texture) = drawing_resources.texture(&value)
                         {
-                            return Self::assign_texture(
+                            Self::assign_texture(
                                 drawing_resources,
                                 manager,
                                 edits_history,
                                 texture.name()
                             )
-                            .then(|| value.clone());
+                            .then_some(value);
                         }
 
                         None

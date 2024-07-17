@@ -587,10 +587,10 @@ impl Ui
         fn show_and_clear_inputs<F>(
             bundle: &mut StateUpdateBundle,
             inputs: &mut InputsPresses,
-            mut f: F
+            f: F
         ) -> bool
         where
-            F: FnMut(&mut StateUpdateBundle, &mut InputsPresses) -> bool
+            F: FnOnce(&mut StateUpdateBundle, &mut InputsPresses) -> bool
         {
             if f(bundle, inputs)
             {
@@ -1214,4 +1214,13 @@ pub(in crate::map) fn map_view_center(window: &bevy::window::Window) -> egui::Po
         left_space + (window.width() - left_space - ui_right_space()) / 2f32,
         top_space + (window.height() - top_space) / 2f32
     )
+}
+
+//=======================================================================//
+
+/// The text editor of the value.
+#[inline]
+fn singleline_textedit(buffer: &mut String) -> egui::TextEdit
+{
+    egui::TextEdit::singleline(buffer).desired_width(f32::INFINITY)
 }
