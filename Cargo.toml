@@ -1,6 +1,6 @@
 [package]
 name = "hill_vacuum"
-version = "0.3.3"
+version = "0.3.4"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "A bevy-based 2D map editor"
@@ -14,15 +14,28 @@ arena_alloc = [
     "dep:blink-alloc",
     "hashbrown/nightly"
 ]
+ui = [
+    "dep:hill_vacuum_proc_macros",
+    "dep:bevy",
+    "dep:bevy_egui",
+    "dep:configparser",
+    "dep:egui_extras",
+    "dep:is_executable",
+    "dep:paste",
+    "dep:rfd",
+    "dep:threadpool"
+]
+default = ["ui"]
 
 [dependencies.hill_vacuum_shared]
-version = "0.3.3"
+version = "0.3.4"
 
 [build-dependencies.hill_vacuum_shared]
-version = "0.3.3"
+version = "0.3.4"
 
 [dependencies.hill_vacuum_proc_macros]
-version = "0.3.3"
+version = "0.3.4"
+optional = true
 
 [dependencies.bevy]
 version = "0.14"
@@ -38,42 +51,52 @@ features = [
     "x11",
     "wayland"
 ]
+optional = true
 
 [dependencies.bevy_egui]
 version = "0.28"
 default-features = false
 features = ["default_fonts", "render"]
+optional = true
 
 [dependencies.arrayvec]
 version = "0.7"
-
-[dependencies.ciborium]
-version = "0.2"
-
-[dependencies.egui_extras]
-version = "0.28"
 
 [dependencies.blink-alloc]
 version = "0.3"
 features = ["nightly"]
 optional = true
 
+[dependencies.ciborium]
+version = "0.2"
+
 [dependencies.configparser]
 version = "3.*"
 features = ["indexmap"]
+optional = true
 
-[dependencies.is_executable]
-version = "1.*"
+[dependencies.egui_extras]
+version = "0.28"
+optional = true
+
+[dependencies.glam]
+version = "0.27"
 
 [dependencies.hashbrown]
 version = "0.14"
 features = ["inline-more"]
 
+[dependencies.is_executable]
+version = "1.*"
+optional = true
+
 [dependencies.paste]
 version = "1.*"
+optional = true
 
 [dependencies.rfd]
 version = "0.14"
+optional = true
 
 [dependencies.serde]
 version = "1.*"
@@ -84,3 +107,4 @@ features = ["union"]
 
 [dependencies.threadpool]
 version = "1.*"
+optional = true

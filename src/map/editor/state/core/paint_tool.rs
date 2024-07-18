@@ -3,8 +3,9 @@
 //
 //=======================================================================//
 
-use bevy::{prelude::Vec2, window::Window};
+use bevy::window::Window;
 use bevy_egui::egui;
+use glam::Vec2;
 use hill_vacuum_shared::{return_if_no_match, return_if_none};
 
 use super::{

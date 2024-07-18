@@ -5,7 +5,7 @@
 
 use std::ops::{AddAssign, SubAssign};
 
-use bevy::prelude::Vec2;
+use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
 use crate::HvVec;

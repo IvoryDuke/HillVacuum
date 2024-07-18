@@ -3,7 +3,7 @@
 //
 //=======================================================================//
 
-use bevy::prelude::Vec2;
+use glam::Vec2;
 use hill_vacuum_proc_macros::EnumIter;
 
 use super::{node::Square, QuadTree};

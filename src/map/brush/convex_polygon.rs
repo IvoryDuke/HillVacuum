@@ -9,8 +9,9 @@ use std::{
 };
 
 use arrayvec::ArrayVec;
-use bevy::prelude::{Transform, UVec2, Vec2, Window};
+use bevy::{transform::components::Transform, window::Window};
 use bevy_egui::egui;
+use glam::{UVec2, Vec2};
 use hill_vacuum_shared::{continue_if_none, iterate_slice_in_triplets, return_if_none};
 use serde::{
     de::{MapAccess, Visitor},

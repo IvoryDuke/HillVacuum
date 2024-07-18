@@ -5,7 +5,8 @@
 
 use std::cell::{Ref, RefCell};
 
-use bevy::prelude::{Transform, Vec2, Window};
+use bevy::{transform::components::Transform, window::Window};
+use glam::Vec2;
 
 use super::quad_tree::InsertResult;
 use crate::{

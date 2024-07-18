@@ -10,7 +10,7 @@ use std::{
 };
 
 use arrayvec::ArrayVec;
-use bevy::prelude::Vec2;
+use glam::Vec2;
 use hill_vacuum_proc_macros::{EnumFromUsize, EnumIter, EnumSize};
 use hill_vacuum_shared::return_if_none;
 use serde::{Deserialize, Serialize};

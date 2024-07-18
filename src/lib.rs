@@ -2,12 +2,12 @@
 #![forbid(clippy::enum_glob_use)]
 #![allow(clippy::single_match_else)]
 #![allow(clippy::manual_let_else)]
-#![allow(clippy::inline_always)]
 #![allow(clippy::module_name_repetitions)]
 #![warn(clippy::missing_assert_message)]
 #![warn(clippy::missing_const_for_fn)]
 #![warn(clippy::missing_errors_doc)]
 #![warn(clippy::missing_panics_doc)]
+#![forbid(clippy::wildcard_imports)]
 // #![warn(clippy::missing_docs_in_private_items)]
 #![cfg_attr(feature = "arena_alloc", feature(allocator_api))]
 
@@ -17,26 +17,30 @@ mod map;
 mod utils;
 
 //=======================================================================//
-// IMPORTS
+// IMPORTS-EXPORTS
 //
 //=======================================================================//
 
+#[cfg(feature = "ui")]
+pub use bevy;
+#[cfg(feature = "ui")]
 use bevy::{
+    app::PluginGroup,
+    asset::{AssetMode, AssetPlugin},
     diagnostic::DiagnosticsPlugin,
+    hierarchy::HierarchyPlugin,
+    input::keyboard::KeyCode,
     log::LogPlugin,
-    prelude::*,
-    render::texture::{ImageAddressMode, ImageSamplerDescriptor},
-    window::Cursor
+    render::view::Msaa,
+    state::{app::AppExtStates, state::States},
+    window::Cursor,
+    window::{CursorIcon, Window, WindowPlugin, WindowPosition, WindowResizeConstraints},
+    DefaultPlugins
 };
 use config::ConfigPlugin;
 use embedded_assets::EmbeddedPlugin;
-use hill_vacuum_proc_macros::str_array;
 use map::MapEditorPlugin;
 
-//=======================================================================//
-// EXPORTS
-//
-//=======================================================================//
 pub use crate::{
     map::{
         brush::{
@@ -71,7 +75,7 @@ pub use crate::{
 const NAME: &str = "HillVacuum";
 /// The folder where the assets are stored.
 const ASSETS_PATH: &str = "assets/";
-str_array!(INDEXES, 128);
+hill_vacuum_proc_macros::str_array!(INDEXES, 128);
 /// The rows of cameras used to take screenshots of the props placed around the map area.
 const PROP_CAMERAS_ROWS: usize = 2;
 /// The amount of prop screenshot taking cameras placed around the map.
@@ -94,7 +98,7 @@ const PROP_CAMERAS_AMOUNT: usize = 8 * (PROP_CAMERAS_ROWS * (PROP_CAMERAS_ROWS +
 ///     fn thing() -> Thing { Thing::new("test", 0, 32f32, 32f32, "test").unwrap() }
 /// }
 ///
-/// let mut app = bevy::prelude::App::new();
+/// let mut app = bevy::app::App::new();
 /// hardcoded_things!(app, Test);
 /// ```
 #[macro_export]
@@ -115,7 +119,7 @@ macro_rules! hardcoded_things {
 /// ```
 /// use hill_vacuum::{brush_properties, BrushProperties, Value};
 ///
-/// let mut app = bevy::prelude::App::new();
+/// let mut app = bevy::app::App::new();
 /// brush_properties!(app, [("Tag", 0u8), ("Destructible", false)]);
 /// ```
 #[macro_export]
@@ -134,7 +138,7 @@ macro_rules! brush_properties {
 /// ```
 /// use hill_vacuum::{thing_properties, BrushProperties, Value};
 ///
-/// let mut app = bevy::prelude::App::new();
+/// let mut app = bevy::app::App::new();
 /// thing_properties!(app, [("Fire resistance", 1f32), ("Invisible", false)]);
 /// ```
 #[macro_export]
@@ -260,7 +264,7 @@ impl HardcodedActions
     /// Whether the action's keys were pressed.
     #[inline]
     #[must_use]
-    pub fn pressed(self, key_inputs: &ButtonInput<KeyCode>) -> bool
+    pub fn pressed(self, key_inputs: &bevy::input::ButtonInput<KeyCode>) -> bool
     {
         match self
         {
@@ -289,12 +293,13 @@ impl HardcodedActions
 //=======================================================================//
 
 /// The main plugin.
+#[cfg(feature = "ui")]
 pub struct HillVacuumPlugin;
 
-impl Plugin for HillVacuumPlugin
+impl bevy::app::Plugin for HillVacuumPlugin
 {
     #[inline]
-    fn build(&self, app: &mut App)
+    fn build(&self, app: &mut bevy::app::App)
     {
         app.add_plugins(
             DefaultPlugins
@@ -302,16 +307,8 @@ impl Plugin for HillVacuumPlugin
                     file_path: ASSETS_PATH.to_owned(),
                     processed_file_path: "processed_assets/".to_owned(),
                     watch_for_changes_override: false.into(),
-                    mode: bevy::prelude::AssetMode::Unprocessed,
+                    mode: AssetMode::Unprocessed,
                     ..Default::default()
-                })
-                .set(ImagePlugin {
-                    default_sampler: ImageSamplerDescriptor {
-                        address_mode_u: ImageAddressMode::Repeat,
-                        address_mode_v: ImageAddressMode::Repeat,
-                        address_mode_w: ImageAddressMode::Repeat,
-                        ..Default::default()
-                    }
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {

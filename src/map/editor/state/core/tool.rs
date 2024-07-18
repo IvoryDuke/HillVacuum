@@ -5,7 +5,7 @@
 
 use std::borrow::Cow;
 
-use bevy::prelude::{ButtonInput, KeyCode};
+use bevy::input::{keyboard::KeyCode, ButtonInput};
 use bevy_egui::egui;
 use hill_vacuum_proc_macros::{EnumFromUsize, EnumIter, EnumSize, SubToolEnum, ToolEnum};
 use hill_vacuum_shared::{match_or_panic, return_if_no_match, return_if_none, NextValue};

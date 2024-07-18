@@ -3,7 +3,7 @@
 //
 //=======================================================================//
 
-use bevy::prelude::{ButtonInput, KeyCode};
+use bevy::input::{keyboard::KeyCode, ButtonInput};
 use hill_vacuum_shared::return_if_none;
 
 use crate::config::controls::{bind::Bind, BindsKeyCodes};

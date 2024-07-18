@@ -6,7 +6,7 @@
 use core::panic;
 use std::{cmp::Ordering, fmt::Debug, ops::Index};
 
-use bevy::prelude::Vec2;
+use glam::Vec2;
 
 use crate::{
     map::editor::{

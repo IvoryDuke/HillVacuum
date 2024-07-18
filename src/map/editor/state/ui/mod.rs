@@ -16,8 +16,9 @@ mod window;
 use std::ops::Range;
 
 use arrayvec::ArrayVec;
-use bevy::prelude::{AssetServer, Transform, Vec2};
+use bevy::{asset::AssetServer, transform::components::Transform};
 use bevy_egui::{egui, EguiUserTextures};
+use glam::Vec2;
 use hill_vacuum_shared::{return_if_none, NextValue};
 
 use self::{
@@ -1153,7 +1154,7 @@ pub(in crate::map) fn ui_size() -> Vec2
 
 /// Returns a window centered in the portion of the window where the map can be seen.
 pub(in crate::map) fn centered_window<'open>(
-    window: &bevy::prelude::Window,
+    window: &bevy::window::Window,
     title: &'static str
 ) -> egui::Window<'open>
 {
@@ -1170,7 +1171,7 @@ pub(in crate::map) fn centered_window<'open>(
 /// Returns the UI size of the viewport based on the `window` sizes.
 #[inline]
 #[must_use]
-pub(in crate::map) fn map_view_center(window: &bevy::prelude::Window) -> egui::Pos2
+pub(in crate::map) fn map_view_center(window: &bevy::window::Window) -> egui::Pos2
 {
     let left_space = ui_left_space();
     let top_space = ui_top_space();

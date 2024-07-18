@@ -3,7 +3,7 @@
 //
 //=======================================================================//
 
-use bevy::prelude::Vec2;
+use glam::Vec2;
 use hill_vacuum_shared::{continue_if_none, match_or_panic, return_if_no_match, NextValue};
 
 use super::{

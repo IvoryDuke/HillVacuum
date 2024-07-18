@@ -9,8 +9,14 @@ use std::{
     path::{Path, PathBuf}
 };
 
-use bevy::prelude::*;
+use bevy::{
+    asset::{AssetServer, Assets},
+    input::{keyboard::KeyCode, mouse::MouseButton, ButtonInput},
+    render::texture::Image,
+    state::state::NextState
+};
 use bevy_egui::{egui, EguiUserTextures};
+use glam::Vec2;
 use hill_vacuum_proc_macros::{EnumFromUsize, EnumIter, EnumSize};
 use hill_vacuum_shared::{return_if_none, FILE_EXTENSION};
 use is_executable::IsExecutable;

@@ -12,18 +12,21 @@ use std::{
 use bevy::{
     asset::{AssetServer, Assets, Handle},
     color::Alpha,
-    math::{UVec2, Vec2},
-    prelude::{Commands, Entity, Query, With},
+    ecs::{
+        entity::Entity,
+        query::With,
+        system::{Commands, Query}
+    },
     render::{
-        mesh::{Indices, Mesh, VertexAttributeValues},
+        mesh::{Indices, Mesh, PrimitiveTopology, VertexAttributeValues},
         render_asset::RenderAssetUsages,
-        render_resource::PrimitiveTopology,
         view::NoFrustumCulling
     },
     sprite::{ColorMaterial, MaterialMesh2dBundle, Mesh2dHandle},
     transform::components::Transform
 };
 use bevy_egui::{egui, EguiUserTextures};
+use glam::{UVec2, Vec2};
 use hill_vacuum_proc_macros::{meshes_indexes, str_array};
 use hill_vacuum_shared::{continue_if_none, match_or_panic, return_if_none, NextValue};
 
@@ -142,7 +145,7 @@ impl TextureMaterials
 
         let pure = materials.add(texture.handle());
         let semi_transparent = materials.add(ColorMaterial {
-            color:   bevy::prelude::Color::srgba(1f32, 1f32, 1f32, Self::ALPHA),
+            color:   bevy::color::Color::srgba(1f32, 1f32, 1f32, Self::ALPHA),
             texture: texture.handle().into()
         });
         let mut materials = std::array::from_fn::<Handle<ColorMaterial>, LEN, _>(|i| {
@@ -185,7 +188,7 @@ impl TextureMaterials
     {
         let pure = materials.add(texture.0.handle());
         let semi_transparent = materials.add(ColorMaterial {
-            color:   bevy::prelude::Color::srgba(1f32, 1f32, 1f32, Self::ALPHA),
+            color:   bevy::color::Color::srgba(1f32, 1f32, 1f32, Self::ALPHA),
             texture: texture.0.handle().into()
         });
 
@@ -237,7 +240,7 @@ pub(in crate::map) struct DrawingResources
     /// The [`Mesh2dHandle`] of the [`Prop`] pivot displayed in front of the the paint tool camera.
     paint_tool_vertex_highlight_mesh: Mesh2dHandle,
     /// The [`Mesh2dHandle`]s of the [`Prop`] pivots displayed in front of the prop cameras.
-    props_pivots_mesh: HvHashMap<bevy::prelude::Entity, Mesh2dHandle>,
+    props_pivots_mesh: HvHashMap<Entity, Mesh2dHandle>,
     /// The [`Mesh2dHandle`] of the circular highlight of the brushes other brushes are
     /// tied to.
     anchor_highlight_mesh: Mesh2dHandle,
@@ -901,7 +904,7 @@ impl DrawingResources
         material: Handle<ColorMaterial>,
         center: Vec2,
         height: f32,
-        camera_id: Option<bevy::prelude::Entity>
+        camera_id: Option<Entity>
     )
     {
         let transform = Self::mesh_transform(center, height);

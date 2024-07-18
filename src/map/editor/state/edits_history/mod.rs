@@ -6,7 +6,7 @@ pub(in crate::map::editor::state) mod edit_type;
 //
 //=======================================================================//
 
-use bevy::prelude::Vec2;
+use glam::Vec2;
 use hill_vacuum_shared::{continue_if_none, return_if_none};
 
 use self::{edit::Edit, edit_type::EditType};

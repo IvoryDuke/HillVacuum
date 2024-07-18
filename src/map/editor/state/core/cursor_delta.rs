@@ -3,8 +3,9 @@
 //
 //=======================================================================//
 
-use bevy::prelude::{Transform, Vec2, Window};
+use bevy::{transform::components::Transform, window::Window};
 use bevy_egui::egui;
+use glam::Vec2;
 use hill_vacuum_shared::return_if_none;
 
 use crate::{

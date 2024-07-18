@@ -33,6 +33,7 @@ use bevy_egui::{
     EguiSet,
     EguiUserTextures
 };
+use glam::Vec2;
 use hill_vacuum_shared::{continue_if_no_match, return_if_err, return_if_none, NextValue};
 use serde::{Deserialize, Serialize};
 
@@ -398,7 +399,7 @@ fn initialize(
     mut egui_contexts: Query<EguiContextQuery>
 )
 {
-    /// Spawns a [`bevy::prelude::Camera`] with the added `marker`.
+    /// Spawns a [`bevy::render::camera::Camera`] with the added `marker`.
     macro_rules! camera {
         ($marker:ident) => {
             #[must_use]
@@ -794,7 +795,7 @@ fn load_textures(
     mut images: ResMut<Assets<Image>>,
     mut user_textures: ResMut<EguiUserTextures>,
     mut texture_loader: ResMut<TextureLoader>,
-    mut load_state: ResMut<bevy::prelude::NextState<TextureLoadingProgress>>
+    mut load_state: ResMut<NextState<TextureLoadingProgress>>
 )
 {
     texture_loader.load(&mut images, &mut user_textures, &mut load_state);

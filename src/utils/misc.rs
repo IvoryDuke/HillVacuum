@@ -3,8 +3,9 @@
 //
 //=======================================================================//
 
-use bevy::{prelude::Vec2, window::Window};
+use bevy::window::Window;
 use bevy_egui::egui;
+use glam::Vec2;
 
 use super::hull::Hull;
 use crate::map::editor::state::grid::Grid;
@@ -218,17 +219,17 @@ where
     fn to_str(self) -> &'static str;
 }
 
-/// Implements [`FromToStr`] for [`bevy::prelude::KeyCode`].
+/// Implements [`FromToStr`] for [`bevy::input::keyboard::KeyCode`].
 macro_rules! keycode_from_to_str {
     ($(($str:expr, $kc:ident)),+) => (
-        impl FromToStr for bevy::prelude::KeyCode
+        impl FromToStr for bevy::input::keyboard::KeyCode
         {
             #[inline]
             fn from_str(value: &str) -> Option<Self>
             {
                 match value
                 {
-                    $($str => Some(bevy::prelude::KeyCode::$kc),)+
+                    $($str => Some(bevy::input::keyboard::KeyCode::$kc),)+
                     _ => None
                 }
             }
@@ -238,7 +239,7 @@ macro_rules! keycode_from_to_str {
             {
                 match self
                 {
-                    $(bevy::prelude::KeyCode::$kc => $str,)+
+                    $(bevy::input::keyboard::KeyCode::$kc => $str,)+
                     _ => ""
                 }
             }
