@@ -5,8 +5,8 @@
 
 use std::{fmt::Display, ops::RangeInclusive};
 
-use bevy::prelude::Vec2;
 use bevy_egui::egui::{self, emath::Numeric};
+use glam::Vec2;
 use hill_vacuum_shared::match_or_panic;
 
 use super::{

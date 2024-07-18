@@ -9,8 +9,9 @@ pub mod mover;
 use std::borrow::Cow;
 
 use arrayvec::ArrayVec;
-use bevy::prelude::{Transform, Vec2, Window};
+use bevy::{transform::components::Transform, window::Window};
 use bevy_egui::egui;
+use glam::Vec2;
 use hill_vacuum_shared::{return_if_no_match, return_if_none};
 use serde::{Deserialize, Serialize};
 

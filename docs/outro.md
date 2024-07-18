@@ -3,7 +3,7 @@ HV creates three types of files, all of which are relatively simple:
 - .hv is the regular map file;
 ```
 -------------------------------
-| Header (4 usize)            |
+| Header                      |
 | brushes amount              |
 | things amount               |
 | animations amount           |
@@ -51,13 +51,13 @@ Otherwise it can be integrated in your own project as such:
 ```rust
 fn main()
 {
-    bevy::prelude::App::new()
+    bevy::app::App::new()
         .add_plugins(hill_vacuum::HillVacuumPlugin)
         .run();
 }
 ```
 
-Map files can be read through the Exporter struct that will return lists of all the brushes and things, which can then be exported as desired.
+Map files can be read through the `Exporter` struct that will return lists of all the brushes and things, which can then be exported as desired.
 Assuming the path of the map file was passed as an argument to the exporting executable the code will look something like this:
 ```rust
 fn main()
@@ -70,7 +70,8 @@ The map being edited can be exported through such an executable through the File
 The executable can be picked through Options->Exporter.
 
 ## Features
-`arena_alloc`: enables the usage of an arena allocator for fast allocation times. Requires nightly compiler.
+- `arena_alloc`: enables the usage of an arena allocator for fast allocation times. Requires nightly compiler;
+- `ui`: enables the `HillVacuumPlugin` and therefore the UI editor. Enabled by default, it is recommended to turn it off, for example, when creating an executable to export a map using the `Exporter` struct.
 
 ## !! WARNING
 [The only thing I know for real](https://youtu.be/T928kJvqTlo?si=2_YnB2pEuFSKKq-j), there will be bugs.  

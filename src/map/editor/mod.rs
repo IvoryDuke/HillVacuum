@@ -9,11 +9,27 @@ pub mod state;
 use std::fs::File;
 
 use bevy::{
-    input::mouse::{MouseScrollUnit, MouseWheel},
-    prelude::*,
-    sprite::Mesh2dHandle
+    asset::{AssetServer, Assets},
+    ecs::{
+        entity::Entity,
+        event::EventReader,
+        query::With,
+        system::{Commands, Query, Res, ResMut}
+    },
+    input::{
+        keyboard::KeyCode,
+        mouse::{MouseButton, MouseScrollUnit, MouseWheel},
+        ButtonInput
+    },
+    render::{mesh::Mesh, texture::Image},
+    sprite::{ColorMaterial, Mesh2dHandle},
+    state::state::NextState,
+    time::Time,
+    transform::components::Transform,
+    window::Window
 };
 use bevy_egui::{egui, EguiUserTextures};
+use glam::Vec2;
 
 use self::state::{
     clipboard::{PropCameras, PropCamerasMut},
@@ -123,7 +139,7 @@ struct ToolUpdateBundle<'world, 'state, 'a, 'b, 'c>
     delta_time:                 f32,
     camera:                     &'a mut Transform,
     prop_cameras:               &'a mut PropCamerasMut<'world, 'state, 'c>,
-    paint_tool_camera:          (&'a mut bevy::prelude::Camera, &'a mut Transform),
+    paint_tool_camera:          (&'a mut bevy::render::camera::Camera, &'a mut Transform),
     user_textures:              &'a mut EguiUserTextures,
     things_catalog:             &'b ThingsCatalog,
     drawing_resources:          &'b DrawingResources,
@@ -373,7 +389,7 @@ impl Editor
         images: &mut Assets<Image>,
         camera: &mut Transform,
         prop_cameras: &mut PropCamerasMut,
-        paint_tool_camera: (&mut bevy::prelude::Camera, &mut Transform),
+        paint_tool_camera: (&mut bevy::render::camera::Camera, &mut Transform),
         time: &Time,
         user_textures: &mut EguiUserTextures
     )

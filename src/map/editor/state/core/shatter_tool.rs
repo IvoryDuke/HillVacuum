@@ -3,7 +3,7 @@
 //
 //=======================================================================//
 
-use bevy::prelude::Vec2;
+use glam::Vec2;
 use hill_vacuum_shared::return_if_none;
 
 use super::item_selector::{ItemSelector, ItemsBeneathCursor};

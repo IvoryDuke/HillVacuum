@@ -7,7 +7,7 @@ pub(in crate::map) mod overall_values;
 
 use std::cmp::Ordering;
 
-use bevy::prelude::UVec2;
+use glam::UVec2;
 use hill_vacuum_shared::{match_or_panic, return_if_no_match};
 use serde::{Deserialize, Serialize};
 

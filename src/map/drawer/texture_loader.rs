@@ -10,11 +10,14 @@ use std::{
 
 use arrayvec::ArrayVec;
 use bevy::{
-    prelude::{Assets, Image, NextState, Resource, States, Window},
+    asset::Assets,
+    ecs::system::Resource,
     render::{
         render_asset::RenderAssetUsages,
-        texture::{CompressedImageFormats, ImageSampler, ImageType}
-    }
+        texture::{CompressedImageFormats, Image, ImageSampler, ImageType}
+    },
+    state::state::{NextState, States},
+    window::Window
 };
 use bevy_egui::{egui, EguiUserTextures};
 use threadpool::ThreadPool;

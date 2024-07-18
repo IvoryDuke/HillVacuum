@@ -3,8 +3,8 @@
 //
 //=======================================================================//
 
-use bevy::prelude::Vec2;
 use bevy_egui::egui;
+use glam::Vec2;
 use hill_vacuum_shared::return_if_none;
 
 use super::{

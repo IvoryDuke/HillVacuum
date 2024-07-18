@@ -15,12 +15,12 @@ use arrayvec::ArrayVec;
 use bevy::{
     asset::Assets,
     ecs::{
+        change_detection::Mut,
         component::Component,
+        entity::Entity,
         query::{With, Without},
         system::Query
     },
-    math::UVec2,
-    prelude::Vec2,
     render::{
         camera::{Camera, RenderTarget},
         render_resource::{
@@ -43,6 +43,7 @@ use bevy_egui::{
     },
     EguiUserTextures
 };
+use glam::{UVec2, Vec2};
 use hill_vacuum_shared::{
     continue_if_no_match,
     continue_if_none,
@@ -194,7 +195,7 @@ impl ClipboardData
 
     /// Draws the [`ClipboardData`] at its position moved by `delta`
     #[inline]
-    fn draw(&self, bundle: &mut DrawBundle, delta: Vec2, camera_id: Option<bevy::prelude::Entity>)
+    fn draw(&self, bundle: &mut DrawBundle, delta: Vec2, camera_id: Option<Entity>)
     {
         match self
         {
@@ -246,7 +247,7 @@ pub(in crate::map) type PropCameras<'world, 'state, 'a> = Query<
 pub(in crate::map) type PropCamerasMut<'world, 'state, 'a> = Query<
     'world,
     'state,
-    (bevy::prelude::Entity, &'a mut bevy::prelude::Camera, &'a mut Transform),
+    (Entity, &'a mut Camera, &'a mut Transform),
     (With<PropCamera>, Without<PaintToolPropCamera>)
 >;
 
@@ -690,7 +691,7 @@ impl Prop
     pub(in crate::map::editor::state) fn draw(
         &self,
         bundle: &mut DrawBundle,
-        camera_id: Option<bevy::prelude::Entity>
+        camera_id: Option<Entity>
     )
     {
         let delta = draw_camera!(bundle, camera_id).translation.truncate() - self.data_center;
@@ -712,18 +713,18 @@ impl Prop
 /// finished.
 #[must_use]
 #[derive(Clone, Copy, Debug)]
-pub(in crate::map::editor::state) struct PropScreenshotTimer(usize, Option<bevy::prelude::Entity>);
+pub(in crate::map::editor::state) struct PropScreenshotTimer(usize, Option<Entity>);
 
 impl PropScreenshotTimer
 {
     /// Returns a new [`PropScreenshotTimer`].
     #[inline]
-    pub const fn new(camera_id: Option<bevy::prelude::Entity>) -> Self { Self(3, camera_id) }
+    pub const fn new(camera_id: Option<Entity>) -> Self { Self(3, camera_id) }
 
     /// Returns the [`Entity`] of the assigned camera.
     #[inline]
     #[must_use]
-    pub fn id(&self) -> bevy::prelude::Entity { self.1.unwrap() }
+    pub fn id(&self) -> Entity { self.1.unwrap() }
 
     /// Updates the assigned camera, deactivating it once the time has finished. Returns whether the
     /// camera has been disabled.
@@ -889,11 +890,7 @@ impl Clipboard
         &mut self,
         images: &mut Assets<Image>,
         user_textures: &mut EguiUserTextures,
-        camera: Option<(
-            bevy::prelude::Entity,
-            bevy::prelude::Mut<bevy::prelude::Camera>,
-            bevy::prelude::Mut<bevy::prelude::Transform>
-        )>,
+        camera: Option<(Entity, Mut<Camera>, Mut<Transform>)>,
         index: usize
     )
     {
@@ -1035,7 +1032,7 @@ impl Clipboard
     #[inline]
     pub fn assign_camera_to_prop(
         images: &mut Assets<Image>,
-        prop_camera: &mut (&mut bevy::prelude::Camera, &mut Transform),
+        prop_camera: &mut (&mut Camera, &mut Transform),
         user_textures: &mut EguiUserTextures,
         prop: &mut Prop
     )

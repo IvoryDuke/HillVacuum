@@ -3,7 +3,7 @@
 //
 //=======================================================================//
 
-use bevy::prelude::Vec2;
+use glam::Vec2;
 use hill_vacuum_shared::NextValue;
 
 use crate::{

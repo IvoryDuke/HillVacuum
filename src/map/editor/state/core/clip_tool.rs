@@ -3,8 +3,8 @@
 //
 //=======================================================================//
 
-use bevy::prelude::Vec2;
 use bevy_egui::egui;
+use glam::Vec2;
 use hill_vacuum_proc_macros::{EnumFromUsize, EnumSize};
 use hill_vacuum_shared::{continue_if_none, match_or_panic, return_if_no_match, return_if_none};
 

@@ -5,7 +5,8 @@
 
 use std::cmp::Ordering;
 
-use bevy::prelude::{Transform, Vec2, Vec3, Window};
+use bevy::{transform::components::Transform, window::Window};
+use glam::{Vec2, Vec3};
 
 use super::editor::state::{
     grid::Grid,

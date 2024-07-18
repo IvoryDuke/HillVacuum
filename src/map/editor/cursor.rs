@@ -3,7 +3,8 @@
 //
 //=======================================================================//
 
-use bevy::prelude::{Transform, Vec2, Window};
+use bevy::{transform::components::Transform, window::Window};
+use glam::Vec2;
 
 use super::{state::editor_state::State, MAP_HALF_SIZE};
 use crate::{

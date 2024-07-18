@@ -16,4 +16,4 @@ type-complexity-threshold = 250
 unreadable-literal-lint-fractions = true
 vec-box-size-threshold = 4096
 verbose-bit-mask-threshold = 1
-warn-on-all-wildcard-imports = false
+warn-on-all-wildcard-imports = true

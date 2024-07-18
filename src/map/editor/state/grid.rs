@@ -5,7 +5,8 @@
 
 use std::ops::RangeInclusive;
 
-use bevy::prelude::{Transform, Vec2, Window};
+use bevy::{transform::components::Transform, window::Window};
+use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
 use super::manager::EntitiesManager;

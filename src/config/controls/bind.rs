@@ -3,7 +3,7 @@
 //
 //=======================================================================//
 
-use bevy::prelude::{ButtonInput, KeyCode};
+use bevy::input::{keyboard::KeyCode, ButtonInput};
 use configparser::ini::Ini;
 use hill_vacuum_proc_macros::{bind_enum, EnumIter, EnumSize};
 use hill_vacuum_shared::return_if_none;

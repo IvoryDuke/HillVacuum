@@ -5,8 +5,9 @@ pub mod catalog;
 //
 //=======================================================================//
 
-use bevy::{prelude::Vec2, transform::components::Transform, window::Window};
+use bevy::{transform::components::Transform, window::Window};
 use bevy_egui::egui;
+use glam::Vec2;
 use hill_vacuum_shared::{return_if_none, TEXTURE_HEIGHT_RANGE};
 use serde::{Deserialize, Serialize};
 

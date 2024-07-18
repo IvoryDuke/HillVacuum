@@ -15,7 +15,8 @@ use std::{
     ops::{Deref, DerefMut}
 };
 
-use bevy::prelude::{Transform, Vec2, Window};
+use bevy::{transform::components::Transform, window::Window};
+use glam::Vec2;
 use hill_vacuum_shared::{continue_if_none, return_if_none, NextValue};
 use quad_tree::InsertResult;
 

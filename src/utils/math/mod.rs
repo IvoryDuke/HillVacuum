@@ -10,7 +10,7 @@ pub mod polygons;
 
 use std::hash::Hash;
 
-use bevy::prelude::Vec2;
+use glam::Vec2;
 
 //=======================================================================//
 // TRAITS

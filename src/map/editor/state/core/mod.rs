@@ -24,8 +24,8 @@ mod zoom_tool;
 //
 //=======================================================================//
 
-use bevy::prelude::Vec2;
 use bevy_egui::egui;
+use glam::Vec2;
 use hill_vacuum_shared::{match_or_panic, return_if_no_match};
 
 use self::{
@@ -102,7 +102,7 @@ macro_rules! draw_selected_and_non_selected_things {
             things,
             $bundle,
             $manager,
-            |thing, _: &bevy::prelude::Transform, drawer: &mut crate::map::drawer::EditDrawer, color| {
+            |thing, _: &bevy::transform::components::Transform, drawer: &mut crate::map::drawer::EditDrawer, color| {
                 drawer.thing($bundle.things_catalog, thing, color);
             }
             $(, $filters)?
@@ -190,7 +190,7 @@ macro_rules! bottom_area {
                     #[inline]
                     fn draw_preview(
                         ui: &mut egui::Ui,
-                        texture: (usize, egui::TextureId $(, bevy::prelude::UVec2, &$t)?),
+                        texture: (usize, egui::TextureId $(, glam::UVec2, &$t)?),
                         clicked_prop: &mut Option<usize>
                     ) -> egui::Response
                     {
@@ -209,7 +209,7 @@ macro_rules! bottom_area {
                     #[inline]
                     fn row_without_highlight<'a>(
                         ui: &mut egui::Ui,
-                        chunk: impl Iterator<Item = (usize, egui::TextureId $(, bevy::prelude::UVec2, &'a $t)?)>,
+                        chunk: impl Iterator<Item = (usize, egui::TextureId $(, glam::UVec2, &'a $t)?)>,
                         clicked_prop: &mut Option<usize>
                     )
                     {

@@ -7,7 +7,7 @@ mod subnodes;
 //
 //=======================================================================//
 
-use bevy::prelude::Vec2;
+use glam::Vec2;
 use hashbrown::hash_map::Iter;
 use hill_vacuum_shared::return_if_none;
 

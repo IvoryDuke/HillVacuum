@@ -3,7 +3,7 @@
 //
 //=======================================================================//
 
-use bevy::prelude::KeyCode;
+use bevy::input::keyboard::KeyCode;
 use bevy_egui::egui;
 use hill_vacuum_shared::return_if_no_match;
 use is_executable::IsExecutable;

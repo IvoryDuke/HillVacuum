@@ -5,8 +5,8 @@ pub(in crate::map::editor::state) mod cursor_polygon;
 //
 //=======================================================================//
 
-use bevy::prelude::Vec2;
 use bevy_egui::egui::{self, Color32};
+use glam::Vec2;
 use hill_vacuum_shared::match_or_panic;
 
 use self::cursor_polygon::{

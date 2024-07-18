@@ -3,7 +3,7 @@
 //
 //=======================================================================//
 
-use bevy::prelude::Plugin;
+use bevy::app::{App, Plugin};
 use hill_vacuum_proc_macros::embedded_assets;
 
 //=======================================================================//
@@ -17,7 +17,7 @@ pub(crate) struct EmbeddedPlugin;
 impl Plugin for EmbeddedPlugin
 {
     #[inline]
-    fn build(&self, app: &mut bevy::prelude::App)
+    fn build(&self, app: &mut App)
     {
         embedded_assets!();
     }

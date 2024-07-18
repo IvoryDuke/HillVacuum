@@ -3,8 +3,9 @@
 //
 //=======================================================================//
 
-use bevy::prelude::{Transform, Vec2};
+use bevy::transform::components::Transform;
 use bevy_egui::egui;
+use glam::Vec2;
 use hill_vacuum_shared::{match_or_panic, return_if_no_match, return_if_none};
 
 use super::{

@@ -5,7 +5,7 @@
 
 use std::cmp::Ordering;
 
-use bevy::prelude::Vec2;
+use glam::Vec2;
 
 use super::{angles::FastSinCosTan, AroundEqual};
 

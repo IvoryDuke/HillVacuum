@@ -11,8 +11,21 @@ pub(in crate::map) mod texture_loader;
 
 use std::fmt::Write;
 
-use bevy::{prelude::*, render::render_resource::PrimitiveTopology, sprite::Mesh2dHandle};
+use bevy::{
+    asset::{Assets, Handle},
+    color::{ColorToComponents, LinearRgba},
+    ecs::{
+        entity::Entity,
+        query::With,
+        system::{Commands, Query}
+    },
+    render::{mesh::Mesh, render_resource::PrimitiveTopology},
+    sprite::{ColorMaterial, Mesh2dHandle},
+    transform::components::Transform,
+    window::Window
+};
 use bevy_egui::egui;
+use glam::Vec2;
 use hill_vacuum_shared::{return_if_none, NextValue};
 
 use self::{
@@ -74,7 +87,7 @@ trait AsRgba32
     fn as_rgba_f32(&self) -> [f32; 4];
 }
 
-impl AsRgba32 for bevy::prelude::Color
+impl AsRgba32 for bevy::color::Color
 {
     #[inline]
     fn as_rgba_f32(&self) -> [f32; 4] { LinearRgba::from(*self).to_f32_array() }
@@ -490,12 +503,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
     /// Draws the pivot of a [`Prop`].
     #[inline]
-    pub fn prop_pivot(
-        &mut self,
-        center: Vec2,
-        color: Color,
-        camera_id: Option<bevy::prelude::Entity>
-    )
+    pub fn prop_pivot(&mut self, center: Vec2, color: Color, camera_id: Option<Entity>)
     {
         self.resources.push_prop_pivot_mesh(
             self.color_resources.line_material(color),

@@ -3,7 +3,11 @@
 //
 //=======================================================================//
 
-use bevy::prelude::{Color as BevyColor, *};
+use bevy::{
+    asset::{Assets, Handle},
+    color::{Alpha, Color as BevyColor, Srgba},
+    sprite::ColorMaterial
+};
 use bevy_egui::egui;
 use configparser::ini::Ini;
 use hashbrown::HashMap;
@@ -244,7 +248,7 @@ impl Color
 //
 //=======================================================================//
 
-/// A wrapper for [`bevy::prelude::Color`] to format it in a specific way.
+/// A wrapper for [`bevy::color::Color`] to format it in a specific way.
 struct ColorWrapper(BevyColor);
 
 impl std::fmt::Display for ColorWrapper
@@ -316,7 +320,7 @@ struct Slot
 {
     /// The RGB values.
     rgb:        [f32; 3],
-    /// The [`bevy::prelude::Color`].
+    /// The [`bevy::color::Color`].
     bevy_color: BevyColor,
     /// The [`egui::Color32`].
     egui_color: egui::Color32,
@@ -348,8 +352,8 @@ impl ColorResources
             {
                 Some(string) =>
                 {
-                    /// Parses the [`bevy::prelude::Color`] defined in `string` and returns it. If
-                    /// it cannot be parsed the default [`bevy::prelude::Color`] associated with
+                    /// Parses the [`bevy::color::Color`] defined in `string` and returns it. If
+                    /// it cannot be parsed the default [`bevy::color::Color`] associated with
                     /// `color` is returned.
                     #[inline]
                     #[must_use]
@@ -425,7 +429,7 @@ impl ColorResources
         }
     }
 
-    /// Returns the [`bevy::prelude::Color`] associated with `color`.
+    /// Returns the [`bevy::color::Color`] associated with `color`.
     #[inline]
     #[must_use]
     pub fn bevy_color(&self, color: Color) -> BevyColor { self.get(color).bevy_color }
@@ -449,7 +453,7 @@ impl ColorResources
         self.get(color).egui_color
     }
 
-    /// The associated line [`bevy::prelude::Color`] and draw height.
+    /// The associated line [`bevy::color::Color`] and draw height.
     #[inline]
     #[must_use]
     pub(in crate::map::drawer) fn line_color_height(&self, color: Color) -> (BevyColor, f32)
