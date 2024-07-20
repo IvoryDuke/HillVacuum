@@ -11,7 +11,7 @@ use hill_vacuum_shared::{match_or_panic, return_if_none};
 use crate::{
     map::{
         brush::convex_polygon::{free_draw_tooltip, ConvexPolygon, FreeDrawVertexDeletionResult},
-        drawer::{color::Color, EditDrawer},
+        drawer::{color::Color, drawers::EditDrawer},
         editor::{
             cursor::Cursor,
             state::{
@@ -24,10 +24,10 @@ use crate::{
                 manager::EntitiesManager
             },
             DrawBundle,
-            ToolUpdateBundle,
-            MAP_HALF_SIZE
+            ToolUpdateBundle
         },
-        properties::DefaultProperties
+        properties::DefaultProperties,
+        MAP_HALF_SIZE
     },
     utils::{
         containers::{hv_vec, Ids},

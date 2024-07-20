@@ -8,81 +8,6 @@ use std::ops::{Add, AddAssign, SubAssign};
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::utils::{containers::HvVec, misc::Toggle};
-
-//=======================================================================//
-// MACROS
-//
-//=======================================================================//
-
-/// Deselects all [`SelectableVector`]s and returns their indexes, if any.
-macro_rules! deselect_vectors {
-    ($value:expr) => {{
-        let mut idxs = crate::map::hv_vec![];
-
-        for (i, value) in $value.iter_mut().enumerate()
-        {
-            if *value.1
-            {
-                idxs.push(i.try_into().unwrap());
-                *value.1 = false;
-            }
-        }
-
-        idxs.none_if_empty()
-    }};
-}
-
-pub(in crate::map) use deselect_vectors;
-
-//=======================================================================//
-
-/// Selects the [`SelectableVector`]s in range of `$x_range` and `$y_range` and returns their
-/// indexes, if any.
-macro_rules! select_vectors_in_range {
-    ($value:expr, $range:ident) => {{
-        let mut idxs = crate::map::hv_vec![];
-
-        for (i, value) in $value.iter_mut().enumerate()
-        {
-            let selection = *value.1;
-
-            if $range.contains_point(value.0)
-            {
-                *value.1 = true;
-            }
-
-            if *value.1 != selection
-            {
-                idxs.push(i.try_into().unwrap());
-            }
-        }
-
-        idxs.none_if_empty()
-    }};
-}
-
-pub(in crate::map) use select_vectors_in_range;
-
-//=======================================================================//
-// ENUMS
-//
-//=======================================================================//
-
-/// The result of the selection process of one [`SelectableVector`].
-#[must_use]
-#[derive(Debug)]
-pub(in crate::map) enum VectorSelectionResult
-{
-    /// The vector has been or was already selected.
-    Selected,
-    /// The vector was not selected, it was exclusively selected and n >= 0 other vectors were
-    /// deselected.
-    NotSelected(Vec2, HvVec<u8>),
-    /// Nothing occurred.
-    None
-}
-
 //=======================================================================//
 // TYPES
 //
@@ -134,12 +59,6 @@ impl std::fmt::Debug for SelectableVector
     }
 }
 
-impl Toggle for SelectableVector
-{
-    #[inline]
-    fn toggle(&mut self) { self.selected.toggle(); }
-}
-
 impl Serialize for SelectableVector
 {
     #[inline]
@@ -173,14 +92,123 @@ impl SelectableVector
             selected: false
         }
     }
+}
 
-    /// Creates a new [`SelectableVertex`] with `selected` selection state.
-    #[inline]
-    pub const fn with_selected(vector: Vec2, selected: bool) -> Self
+//=======================================================================//
+// UI
+//
+//=======================================================================//
+
+#[cfg(feature = "ui")]
+pub(in crate::map) mod ui_only
+{
+    //=======================================================================//
+    // IMPORTS
+    //
+    //=======================================================================//
+
+    use crate::utils::{containers::HvVec, misc::Toggle};
+
+    //=======================================================================//
+    // MACROS
+    //
+    //=======================================================================//
+
+    /// Deselects all [`SelectableVector`]s and returns their indexes, if any.
+    macro_rules! deselect_vectors {
+        ($value:expr) => {{
+            let mut idxs = crate::map::hv_vec![];
+
+            for (i, value) in $value.iter_mut().enumerate()
+            {
+                if *value.1
+                {
+                    idxs.push(i.try_into().unwrap());
+                    *value.1 = false;
+                }
+            }
+
+            idxs.none_if_empty()
+        }};
+    }
+
+    pub(in crate::map) use deselect_vectors;
+
+    //=======================================================================//
+
+    /// Selects the [`SelectableVector`]s in range of `$x_range` and `$y_range` and returns their
+    /// indexes, if any.
+    macro_rules! select_vectors_in_range {
+        ($value:expr, $range:ident) => {{
+            let mut idxs = crate::map::hv_vec![];
+
+            for (i, value) in $value.iter_mut().enumerate()
+            {
+                let selection = *value.1;
+
+                if $range.contains_point(value.0)
+                {
+                    *value.1 = true;
+                }
+
+                if *value.1 != selection
+                {
+                    idxs.push(i.try_into().unwrap());
+                }
+            }
+
+            idxs.none_if_empty()
+        }};
+    }
+
+    use glam::Vec2;
+    pub(in crate::map) use select_vectors_in_range;
+
+    use super::SelectableVector;
+
+    //=======================================================================//
+    // ENUMS
+    //
+    //=======================================================================//
+
+    /// The result of the selection process of one [`SelectableVector`].
+    #[must_use]
+    #[derive(Debug)]
+    pub(in crate::map) enum VectorSelectionResult
     {
-        Self {
-            vec: vector,
-            selected
+        /// The vector has been or was already selected.
+        Selected,
+        /// The vector was not selected, it was exclusively selected and n >= 0 other vectors were
+        /// deselected.
+        NotSelected(Vec2, HvVec<u8>),
+        /// Nothing occurred.
+        None
+    }
+
+    //=======================================================================//
+    // TYPES
+    //
+    //=======================================================================//
+
+    impl Toggle for SelectableVector
+    {
+        #[inline]
+        fn toggle(&mut self) { self.selected.toggle(); }
+    }
+
+    impl SelectableVector
+    {
+        /// Creates a new [`SelectableVertex`] with `selected` selection state.
+        #[inline]
+        pub const fn with_selected(vector: Vec2, selected: bool) -> Self
+        {
+            Self {
+                vec: vector,
+                selected
+            }
         }
     }
 }
+
+#[cfg(feature = "ui")]
+pub(in crate::map) use ui_only::*;

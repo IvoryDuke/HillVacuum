@@ -12,7 +12,7 @@ use hill_vacuum_shared::{match_or_panic, return_if_none};
 
 use crate::{
     map::{
-        drawer::{color::Color, EditDrawer},
+        drawer::{color::Color, drawers::EditDrawer},
         editor::state::edits_history::EditsHistory,
         path::{node_tooltip, FreeDrawNodeDeletionResult}
     },

@@ -21,7 +21,8 @@ use crate::{
     map::{
         drawer::{
             drawing_resources::{DrawingResources, TextureMaterials},
-            texture::{OverallTextureSettings, Texture, UiOverallTextureSettings}
+            overall_values::{OverallTextureSettings, UiOverallTextureSettings},
+            texture::Texture
         },
         editor::{
             state::{

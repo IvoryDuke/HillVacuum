@@ -10,7 +10,7 @@ use hill_vacuum_shared::return_if_none;
 
 use crate::{
     map::{
-        drawer::{color::Color, EditDrawer},
+        drawer::{color::Color, drawers::EditDrawer},
         editor::{cursor::Cursor, state::grid::Grid}
     },
     utils::{

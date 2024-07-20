@@ -11,7 +11,6 @@ use super::{tool::OngoingMultiframeChange, ActiveTool};
 use crate::{
     map::{
         brush::convex_polygon::{ConvexPolygon, ScaleInfo},
-        drawer::texture::TextureInterface,
         editor::{
             cursor::Cursor,
             state::{
@@ -32,7 +31,8 @@ use crate::{
         math::AroundEqual,
         misc::{Camera, TakeValue}
     },
-    HvVec
+    HvVec,
+    TextureInterface
 };
 
 //=======================================================================//

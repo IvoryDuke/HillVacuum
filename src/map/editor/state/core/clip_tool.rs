@@ -23,7 +23,7 @@ use super::{
 use crate::{
     map::{
         brush::convex_polygon::ConvexPolygon,
-        drawer::{color::Color, drawing_resources::DrawingResources, EditDrawer},
+        drawer::{color::Color, drawers::EditDrawer, drawing_resources::DrawingResources},
         editor::{
             cursor::Cursor,
             state::{

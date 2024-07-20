@@ -27,7 +27,7 @@ use super::{
 use crate::{
     map::{
         brush::Brush,
-        drawer::EditDrawer,
+        drawer::drawers::EditDrawer,
         editor::{
             cursor::Cursor,
             state::{

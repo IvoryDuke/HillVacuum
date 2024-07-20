@@ -38,14 +38,13 @@ use self::state::{
 use super::{
     drawer::{
         color::ColorResources,
+        drawers::{EditDrawer, MapPreviewDrawer},
         drawing_resources::DrawingResources,
         texture::Texture,
-        texture_loader::{TextureLoader, TextureLoadingProgress},
-        EditDrawer,
-        MapPreviewDrawer
+        texture_loader::{TextureLoader, TextureLoadingProgress}
     },
     properties::{BrushProperties, DefaultProperties, ThingProperties},
-    thing::catalog::ThingsCatalog
+    thing::{catalog::ThingsCatalog, HardcodedThings}
 };
 use crate::{
     config::{controls::BindsKeyCodes, Config},
@@ -57,7 +56,6 @@ use crate::{
     utils::{math::AroundEqual, misc::Camera},
     EditorState,
     HardcodedActions,
-    HardcodedThings,
     NAME
 };
 

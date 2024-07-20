@@ -19,15 +19,7 @@ use smallvec::SmallVec;
 use super::misc::AssertedInsertRemove;
 use crate::utils::{
     identifiers::Id,
-    iterators::{
-        PairIterator,
-        PairIteratorMut,
-        SlicePairIter,
-        SlicePairIterMut,
-        SliceTripletIter,
-        TripletIterator
-    },
-    misc::{NoneIfEmpty, ReplaceValues, TakeValue}
+    iterators::{SliceTripletIter, TripletIterator}
 };
 
 //=======================================================================//
@@ -132,24 +124,6 @@ macro_rules! hv_hash_set {
 }
 
 pub(crate) use hv_hash_set;
-
-//=======================================================================//
-
-/// Creates a new [`HvBox`].
-macro_rules! hv_box {
-    ($x:expr) => {{
-        #[cfg(feature = "arena_alloc")]
-        let b =
-            crate::utils::containers::HvBox::new_in($x, crate::utils::containers::blink_alloc());
-
-        #[cfg(not(feature = "arena_alloc"))]
-        let b = Box::new($x);
-
-        b
-    }};
-}
-
-pub(crate) use hv_box;
 
 //=======================================================================//
 // TYPES
@@ -284,48 +258,6 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for HvVec<T>
     }
 }
 
-impl<T> NoneIfEmpty for HvVec<T>
-{
-    #[inline]
-    #[must_use]
-    fn none_if_empty(self) -> Option<Self>
-    where
-        Self: Sized
-    {
-        (!self.is_empty()).then_some(self)
-    }
-}
-
-impl<T> ReplaceValues<T> for HvVec<T>
-{
-    #[inline]
-    fn replace_values<I: IntoIterator<Item = T>>(&mut self, iter: I)
-    {
-        self.clear();
-        self.extend(iter);
-    }
-}
-
-impl<T> TakeValue for HvVec<T>
-{
-    #[inline]
-    fn take_value(&mut self) -> Self { std::mem::replace(self, hv_vec![]) }
-}
-
-impl<'a, T: 'a> PairIterator<'a, &'a T, SlicePairIter<'a, T>> for HvVec<T>
-{
-    #[inline]
-    #[must_use]
-    fn pair_iter(&'a self) -> Option<SlicePairIter<'a, T>> { self.0.pair_iter() }
-}
-
-impl<'a, T: 'a> PairIteratorMut<'a, T, SlicePairIterMut<'a, T>> for HvVec<T>
-{
-    #[inline]
-    #[must_use]
-    fn pair_iter_mut(&'a mut self) -> Option<SlicePairIterMut<'a, T>> { self.0.pair_iter_mut() }
-}
-
 impl<'a, T: 'a> TripletIterator<'a, &'a T, SliceTripletIter<'a, T>> for HvVec<T>
 {
     #[inline]
@@ -361,20 +293,6 @@ impl<T> HvVec<T>
         Self(vec)
     }
 
-    /// Constructs an empty vector with enough capacity pre-allocated to store at least `n`
-    /// elements.
-    #[inline]
-    pub(crate) fn with_capacity(capacity: usize) -> Self
-    {
-        #[cfg(feature = "arena_alloc")]
-        let vec = Vec::with_capacity_in(capacity, blink_alloc());
-
-        #[cfg(not(feature = "arena_alloc"))]
-        let vec = SmallVec::with_capacity(capacity);
-
-        Self(vec)
-    }
-
     //==============================================================
     // Info
 
@@ -388,61 +306,12 @@ impl<T> HvVec<T>
     #[must_use]
     pub fn is_empty(&self) -> bool { self.0.is_empty() }
 
-    /// Returns the last element of the slice, or `None` if it is empty.
-    #[inline]
-    #[must_use]
-    pub(crate) fn last(&self) -> Option<&T> { self.0.last() }
-
     //==============================================================
     // Edit
-
-    /// Returns a mutable reference to the last item in the slice, or `None` if it is empty.
-    #[inline]
-    #[must_use]
-    pub(crate) fn last_mut(&mut self) -> Option<&mut T> { self.0.last_mut() }
 
     /// Append an item to the vector.
     #[inline]
     pub(crate) fn push(&mut self, value: T) { self.0.push(value); }
-
-    /// Insert an element at position `index`, shifting all elements after it to the right.
-    ///
-    /// Panics if `index > len`.
-    #[inline]
-    pub(crate) fn insert(&mut self, index: usize, element: T) { self.0.insert(index, element); }
-
-    /// Remove an item from the end of the vector and return it, or None if empty.
-    #[inline]
-    pub(crate) fn pop(&mut self) -> Option<T> { self.0.pop() }
-
-    /// Remove and return the element at position `index`, shifting all elements after it to the
-    /// left.
-    ///
-    /// Panics if `index` is out of bounds.
-    #[inline]
-    pub(crate) fn remove(&mut self, index: usize) -> T { self.0.remove(index) }
-
-    /// Remove the element at position `index`, replacing it with the last element.
-    ///
-    /// This does not preserve ordering, but is O(1).
-    ///
-    /// Panics if `index` is out of bounds.
-    #[inline]
-    pub(crate) fn swap_remove(&mut self, index: usize) -> T { self.0.swap_remove(index) }
-
-    /// Remove all elements from the vector.
-    #[inline]
-    pub(crate) fn clear(&mut self) { self.0.clear(); }
-
-    /// Shorten the vector, keeping the first `len` elements and dropping the rest.
-    ///
-    /// If `len` is greater than or equal to the vector's current length, this has no
-    /// effect.
-    ///
-    /// This does not re-allocate.  If you want the vector's capacity to shrink, call
-    /// `shrink_to_fit` after truncating.
-    #[inline]
-    pub(crate) fn truncate(&mut self, len: usize) { self.0.truncate(len); }
 
     /// Sorts the slice, but might not preserve the order of equal elements.
     ///
@@ -456,76 +325,6 @@ impl<T> HvVec<T>
         self.0.sort_unstable();
     }
 
-    /// Sorts the slice with a comparator function.
-    ///
-    /// This sort is stable (i.e., does not reorder equal elements) and *O*(*n* \* log(*n*))
-    /// worst-case.
-    #[inline]
-    pub(crate) fn sort_by<F>(&mut self, compare: F)
-    where
-        F: FnMut(&T, &T) -> std::cmp::Ordering
-    {
-        self.0.sort_by(compare);
-    }
-
-    /// Reverses the order of elements in the slice, in place.
-    #[inline]
-    pub(crate) fn reverse(&mut self) { self.0.reverse(); }
-
-    /// Retains only the elements specified by the predicate.
-    #[inline]
-    pub(crate) fn retain_mut<F>(&mut self, f: F)
-    where
-        F: FnMut(&mut T) -> bool
-    {
-        self.0.retain_mut(f);
-    }
-
-    #[cfg(feature = "arena_alloc")]
-    /// Creates a draining iterator that removes the specified range in the vector
-    /// and yields the removed items.
-    ///
-    /// Note 1: The element range is removed even if the iterator is only
-    /// partially consumed or not consumed at all.
-    ///
-    /// Note 2: It is unspecified how many elements are removed from the vector
-    /// if the `Drain` value is leaked.
-    #[inline]
-    pub(crate) fn drain<R>(&mut self, range: R) -> std::vec::Drain<T, &'static BlinkAlloc>
-    where
-        R: std::ops::RangeBounds<usize>
-    {
-        self.0.drain(range)
-    }
-
-    #[cfg(not(feature = "arena_alloc"))]
-    /// Creates a draining iterator that removes the specified range in the vector
-    /// and yields the removed items.
-    ///
-    /// Note 1: The element range is removed even if the iterator is only
-    /// partially consumed or not consumed at all.
-    ///
-    /// Note 2: It is unspecified how many elements are removed from the vector
-    /// if the `Drain` value is leaked.
-    #[inline]
-    pub(crate) fn drain<R>(&mut self, range: R) -> smallvec::Drain<[T; 1]>
-    where
-        R: std::ops::RangeBounds<usize>
-    {
-        self.0.drain(range)
-    }
-
-    /// Divides one mutable slice into two at an index.
-    ///
-    /// The first will contain all indices from `[0, mid)` (excluding
-    /// the index `mid` itself) and the second will contain all
-    /// indices from `[mid, len)` (excluding the index `len` itself).
-    #[inline]
-    pub(crate) fn split_at_mut(&mut self, mid: usize) -> (&mut [T], &mut [T])
-    {
-        self.0.split_at_mut(mid)
-    }
-
     //==============================================================
     // Iterators
 
@@ -535,12 +334,6 @@ impl<T> HvVec<T>
     #[inline]
     pub fn iter(&self) -> std::slice::Iter<T> { self.0.iter() }
 
-    /// Returns an iterator that allows modifying each value.
-    ///
-    /// The iterator yields all items from start to end.
-    #[inline]
-    pub(crate) fn iter_mut(&mut self) -> std::slice::IterMut<T> { self.0.iter_mut() }
-
     /// Returns an iterator over `chunk_size` elements of the slice at a time, starting at the
     /// beginning of the slice.
     ///
@@ -548,6 +341,12 @@ impl<T> HvVec<T>
     /// slice, then the last chunk will not have length `chunk_size`.
     #[inline]
     pub fn chunks(&self, chunk_size: usize) -> Chunks<T> { self.0.chunks(chunk_size) }
+
+    /// Returns an iterator that allows modifying each value.
+    ///
+    /// The iterator yields all items from start to end.
+    #[inline]
+    pub(crate) fn iter_mut(&mut self) -> std::slice::IterMut<T> { self.0.iter_mut() }
 }
 
 //=======================================================================//
@@ -646,24 +445,6 @@ where
     fn asserted_remove(&mut self, value: &K) -> V { self.remove(value).unwrap() }
 }
 
-impl<'a, K: std::hash::Hash + std::cmp::Eq + Copy, V: Copy> ReplaceValues<(&'a K, &'a V)>
-    for HvHashMap<K, V>
-{
-    #[inline]
-    fn replace_values<I: IntoIterator<Item = (&'a K, &'a V)>>(&mut self, iter: I)
-    {
-        self.0.clear();
-        self.0.extend(iter.into_iter().map(|(k, v)| (*k, *v)));
-    }
-}
-
-impl<K: std::hash::Hash + std::cmp::Eq, V> TakeValue for HvHashMap<K, V>
-{
-    #[inline]
-    #[must_use]
-    fn take_value(&mut self) -> Self { std::mem::replace(self, hv_hash_map![]) }
-}
-
 impl<K, V> HvHashMap<K, V>
 {
     /// Creates an empty `HashMap`.
@@ -682,22 +463,6 @@ impl<K, V> HvHashMap<K, V>
         Self(map)
     }
 
-    /// Creates an empty `HashMap` with the specified capacity.
-    ///
-    /// The hash map will be able to hold at least `capacity` elements without
-    /// reallocating. If `capacity` is 0, the hash map will not allocate.
-    #[inline]
-    pub(crate) fn with_capacity(capacity: usize) -> Self
-    {
-        #[cfg(feature = "arena_alloc")]
-        let map = hashbrown::HashMap::with_capacity_in(capacity, blink_alloc());
-
-        #[cfg(not(feature = "arena_alloc"))]
-        let map = hashbrown::HashMap::with_capacity(capacity);
-
-        Self(map)
-    }
-
     /// Returns the number of elements in the map.
     #[inline]
     #[must_use]
@@ -707,11 +472,6 @@ impl<K, V> HvHashMap<K, V>
     #[inline]
     #[must_use]
     pub fn is_empty(&self) -> bool { self.0.is_empty() }
-
-    /// Clears the map, removing all key-value pairs. Keeps the allocated memory
-    /// for reuse.
-    #[inline]
-    pub(crate) fn clear(&mut self) { self.0.clear() }
 
     /// An iterator visiting all key-value pairs in arbitrary order.
     /// The iterator element type is `(&'a K, &'a V)`.
@@ -809,28 +569,6 @@ impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
     {
         self.0.get_mut(k)
     }
-
-    /// Attempts to get mutable references to `N` values in the map at once.
-    ///
-    /// Returns an array of length `N` with the results of each query. For soundness, at most one
-    /// mutable reference will be returned to any value. `None` will be returned if any of the
-    /// keys are duplicates or missing.
-    #[inline]
-    pub(crate) fn get_many_mut<Q, const N: usize>(&mut self, ks: [&Q; N]) -> Option<[&'_ mut V; N]>
-    where
-        Q: ?Sized + Hash + Equivalent<K>
-    {
-        self.0.get_many_mut(ks)
-    }
-
-    /// Retains only the elements specified by the predicate.
-    #[inline]
-    pub(crate) fn retain<F>(&mut self, f: F)
-    where
-        F: FnMut(&K, &mut V) -> bool
-    {
-        self.0.retain(f);
-    }
 }
 
 //=======================================================================//
@@ -905,40 +643,6 @@ impl<'de, T: Deserialize<'de> + Eq + Hash> Deserialize<'de> for HvHashSet<T>
     }
 }
 
-impl<T: Eq + Hash> ReplaceValues<T> for HvHashSet<T>
-{
-    #[inline]
-    fn replace_values<I: IntoIterator<Item = T>>(&mut self, iter: I)
-    {
-        self.clear();
-        self.extend(iter);
-    }
-}
-
-impl<'a, T: 'a + Eq + Hash + Copy> ReplaceValues<&'a T> for HvHashSet<T>
-{
-    #[inline]
-    fn replace_values<I: IntoIterator<Item = &'a T>>(&mut self, iter: I)
-    {
-        self.clear();
-        self.extend(iter);
-    }
-}
-
-impl<T: Eq + Hash> NoneIfEmpty for HvHashSet<T>
-{
-    #[inline]
-    #[must_use]
-    fn none_if_empty(self) -> Option<Self> { (!self.is_empty()).then_some(self) }
-}
-
-impl<T: Hash + Eq> TakeValue for HvHashSet<T>
-{
-    #[inline]
-    #[must_use]
-    fn take_value(&mut self) -> Self { std::mem::replace(self, hv_hash_set![]) }
-}
-
 impl<T: Hash + Eq> AssertedInsertRemove<T, T, (), ()> for HvHashSet<T>
 {
     #[inline]
@@ -987,43 +691,6 @@ impl<T: Hash + Eq> HvHashSet<T>
 
         Self(set)
     }
-
-    /// Creates an empty `HashSet` with the specified capacity.
-    ///
-    /// The hash set will be able to hold at least `capacity` elements without
-    /// reallocating. If `capacity` is 0, the hash set will not allocate.
-    #[inline]
-    #[must_use]
-    pub(crate) fn with_capacity(capacity: usize) -> Self
-    {
-        #[cfg(feature = "arena_alloc")]
-        let set = HashSet::with_capacity_in(capacity, blink_alloc());
-
-        #[cfg(not(feature = "arena_alloc"))]
-        let set = HashSet::with_capacity(capacity);
-
-        Self(set)
-    }
-
-    //==============================================================
-    // Edit
-
-    /// Adds a value to the set.
-    ///
-    /// If the set did not have this value present, `true` is returned.
-    ///
-    /// If the set did have this value present, `false` is returned.
-    #[inline]
-    pub(crate) fn insert(&mut self, value: T) -> bool { self.0.insert(value) }
-
-    /// Removes a value from the set. Returns whether the value was
-    /// present in the set.
-    ///
-    /// The value may be any borrowed form of the set's value type, but
-    /// [`Hash`] and [`Eq`] on the borrowed form *must* match those for
-    /// the value type.
-    #[inline]
-    pub(crate) fn remove(&mut self, value: &T) -> bool { self.0.remove(value) }
 }
 
 impl<T> HvHashSet<T>
@@ -1042,24 +709,6 @@ impl<T> HvHashSet<T>
     pub fn len(&self) -> usize { self.0.len() }
 
     //==============================================================
-    // Edit
-
-    /// Clears the set, removing all values.
-    #[inline]
-    pub(crate) fn clear(&mut self) { self.0.clear(); }
-
-    /// Retains only the elements specified by the predicate.
-    ///
-    /// In other words, remove all elements `e` such that `f(&e)` returns `false`.
-    #[inline]
-    pub(crate) fn retain<F>(&mut self, f: F)
-    where
-        F: FnMut(&T) -> bool
-    {
-        self.0.retain(f);
-    }
-
-    //==============================================================
     // Iterators
 
     /// An iterator visiting all elements in arbitrary order.
@@ -1075,15 +724,6 @@ impl<T> HvHashSet<T>
 pub type Ids = HvHashSet<Id>;
 
 //=======================================================================//
-
-#[cfg(feature = "arena_alloc")]
-/// [`Box`] alias.
-pub(crate) type HvBox<T> = Box<T, &'static BlinkAlloc>;
-#[cfg(not(feature = "arena_alloc"))]
-/// [`Box`] alias.
-pub(crate) type HvBox<T> = Box<T>;
-
-//=======================================================================//
 // FUNCTIONS
 //
 //=======================================================================//
@@ -1093,3 +733,428 @@ pub(crate) type HvBox<T> = Box<T>;
 #[inline]
 #[must_use]
 pub(crate) fn blink_alloc() -> &'static BlinkAlloc { unsafe { &*core::ptr::addr_of!(ALLOCATOR) } }
+
+//=======================================================================//
+// UI
+//
+//=======================================================================//
+
+#[cfg(feature = "ui")]
+pub(crate) mod ui_only
+{
+    //=======================================================================//
+    // MACROS
+    //
+    //=======================================================================//
+
+    use std::hash::Hash;
+
+    use hashbrown::{Equivalent, HashSet};
+    use smallvec::SmallVec;
+
+    use crate::{
+        utils::{
+            iterators::{PairIterator, PairIteratorMut, SlicePairIter, SlicePairIterMut},
+            misc::{NoneIfEmpty, ReplaceValues, TakeValue}
+        },
+        HvHashMap,
+        HvHashSet,
+        HvVec
+    };
+
+    //=======================================================================//
+    // MACROS
+    //
+    //=======================================================================//
+
+    /// Creates a new [`HvBox`].
+    macro_rules! hv_box {
+        ($x:expr) => {{
+            #[cfg(feature = "arena_alloc")]
+            let b = crate::utils::containers::HvBox::new_in(
+                $x,
+                crate::utils::containers::blink_alloc()
+            );
+
+            #[cfg(not(feature = "arena_alloc"))]
+            let b = Box::new($x);
+
+            b
+        }};
+    }
+
+    pub(crate) use hv_box;
+
+    //=======================================================================//
+    // TYPES
+    //
+    //=======================================================================//
+
+    #[cfg(feature = "arena_alloc")]
+    /// [`Box`] alias.
+    pub(crate) type HvBox<T> = Box<T, &'static BlinkAlloc>;
+    #[cfg(not(feature = "arena_alloc"))]
+    /// [`Box`] alias.
+    pub(crate) type HvBox<T> = Box<T>;
+
+    //=======================================================================//
+
+    impl<T> NoneIfEmpty for HvVec<T>
+    {
+        #[inline]
+        #[must_use]
+        fn none_if_empty(self) -> Option<Self>
+        where
+            Self: Sized
+        {
+            (!self.is_empty()).then_some(self)
+        }
+    }
+
+    impl<T> ReplaceValues<T> for HvVec<T>
+    {
+        #[inline]
+        fn replace_values<I: IntoIterator<Item = T>>(&mut self, iter: I)
+        {
+            self.clear();
+            self.extend(iter);
+        }
+    }
+
+    impl<T> TakeValue for HvVec<T>
+    {
+        #[inline]
+        fn take_value(&mut self) -> Self { std::mem::replace(self, hv_vec![]) }
+    }
+
+    impl<'a, T: 'a> PairIterator<'a, &'a T, SlicePairIter<'a, T>> for HvVec<T>
+    {
+        #[inline]
+        #[must_use]
+        fn pair_iter(&'a self) -> Option<SlicePairIter<'a, T>> { self.0.pair_iter() }
+    }
+
+    impl<'a, T: 'a> PairIteratorMut<'a, T, SlicePairIterMut<'a, T>> for HvVec<T>
+    {
+        #[inline]
+        #[must_use]
+        fn pair_iter_mut(&'a mut self) -> Option<SlicePairIterMut<'a, T>> { self.0.pair_iter_mut() }
+    }
+
+    impl<T> HvVec<T>
+    {
+        /// Constructs an empty vector with enough capacity pre-allocated to store at least `n`
+        /// elements.
+        #[inline]
+        pub(crate) fn with_capacity(capacity: usize) -> Self
+        {
+            #[cfg(feature = "arena_alloc")]
+            let vec = Vec::with_capacity_in(capacity, blink_alloc());
+
+            #[cfg(not(feature = "arena_alloc"))]
+            let vec = SmallVec::with_capacity(capacity);
+
+            Self(vec)
+        }
+
+        //==============================================================
+        // Info
+
+        /// Returns the last element of the slice, or `None` if it is empty.
+        #[inline]
+        #[must_use]
+        pub(crate) fn last(&self) -> Option<&T> { self.0.last() }
+
+        //==============================================================
+        // Edit
+
+        /// Returns a mutable reference to the last item in the slice, or `None` if it is empty.
+        #[inline]
+        #[must_use]
+        pub(crate) fn last_mut(&mut self) -> Option<&mut T> { self.0.last_mut() }
+
+        /// Insert an element at position `index`, shifting all elements after it to the right.
+        ///
+        /// Panics if `index > len`.
+        #[inline]
+        pub(crate) fn insert(&mut self, index: usize, element: T) { self.0.insert(index, element); }
+
+        /// Remove an item from the end of the vector and return it, or None if empty.
+        #[inline]
+        pub(crate) fn pop(&mut self) -> Option<T> { self.0.pop() }
+
+        /// Remove and return the element at position `index`, shifting all elements after it to the
+        /// left.
+        ///
+        /// Panics if `index` is out of bounds.
+        #[inline]
+        pub(crate) fn remove(&mut self, index: usize) -> T { self.0.remove(index) }
+
+        /// Remove the element at position `index`, replacing it with the last element.
+        ///
+        /// This does not preserve ordering, but is O(1).
+        ///
+        /// Panics if `index` is out of bounds.
+        #[inline]
+        pub(crate) fn swap_remove(&mut self, index: usize) -> T { self.0.swap_remove(index) }
+
+        /// Remove all elements from the vector.
+        #[inline]
+        pub(crate) fn clear(&mut self) { self.0.clear(); }
+
+        /// Shorten the vector, keeping the first `len` elements and dropping the rest.
+        ///
+        /// If `len` is greater than or equal to the vector's current length, this has no
+        /// effect.
+        ///
+        /// This does not re-allocate.  If you want the vector's capacity to shrink, call
+        /// `shrink_to_fit` after truncating.
+        #[inline]
+        pub(crate) fn truncate(&mut self, len: usize) { self.0.truncate(len); }
+
+        /// Sorts the slice with a comparator function.
+        ///
+        /// This sort is stable (i.e., does not reorder equal elements) and *O*(*n* \* log(*n*))
+        /// worst-case.
+        #[inline]
+        pub(crate) fn sort_by<F>(&mut self, compare: F)
+        where
+            F: FnMut(&T, &T) -> std::cmp::Ordering
+        {
+            self.0.sort_by(compare);
+        }
+
+        /// Reverses the order of elements in the slice, in place.
+        #[inline]
+        pub(crate) fn reverse(&mut self) { self.0.reverse(); }
+
+        /// Retains only the elements specified by the predicate.
+        #[inline]
+        pub(crate) fn retain_mut<F>(&mut self, f: F)
+        where
+            F: FnMut(&mut T) -> bool
+        {
+            self.0.retain_mut(f);
+        }
+
+        #[cfg(feature = "arena_alloc")]
+        /// Creates a draining iterator that removes the specified range in the vector
+        /// and yields the removed items.
+        ///
+        /// Note 1: The element range is removed even if the iterator is only
+        /// partially consumed or not consumed at all.
+        ///
+        /// Note 2: It is unspecified how many elements are removed from the vector
+        /// if the `Drain` value is leaked.
+        #[inline]
+        pub(crate) fn drain<R>(&mut self, range: R) -> std::vec::Drain<T, &'static BlinkAlloc>
+        where
+            R: std::ops::RangeBounds<usize>
+        {
+            self.0.drain(range)
+        }
+
+        #[cfg(not(feature = "arena_alloc"))]
+        /// Creates a draining iterator that removes the specified range in the vector
+        /// and yields the removed items.
+        ///
+        /// Note 1: The element range is removed even if the iterator is only
+        /// partially consumed or not consumed at all.
+        ///
+        /// Note 2: It is unspecified how many elements are removed from the vector
+        /// if the `Drain` value is leaked.
+        #[inline]
+        pub(crate) fn drain<R>(&mut self, range: R) -> smallvec::Drain<[T; 1]>
+        where
+            R: std::ops::RangeBounds<usize>
+        {
+            self.0.drain(range)
+        }
+
+        /// Divides one mutable slice into two at an index.
+        ///
+        /// The first will contain all indices from `[0, mid)` (excluding
+        /// the index `mid` itself) and the second will contain all
+        /// indices from `[mid, len)` (excluding the index `len` itself).
+        #[inline]
+        pub(crate) fn split_at_mut(&mut self, mid: usize) -> (&mut [T], &mut [T])
+        {
+            self.0.split_at_mut(mid)
+        }
+    }
+
+    //=======================================================================//
+
+    impl<'a, K: std::hash::Hash + std::cmp::Eq + Copy, V: Copy> ReplaceValues<(&'a K, &'a V)>
+        for HvHashMap<K, V>
+    {
+        #[inline]
+        fn replace_values<I: IntoIterator<Item = (&'a K, &'a V)>>(&mut self, iter: I)
+        {
+            self.0.clear();
+            self.0.extend(iter.into_iter().map(|(k, v)| (*k, *v)));
+        }
+    }
+
+    impl<K: std::hash::Hash + std::cmp::Eq, V> TakeValue for HvHashMap<K, V>
+    {
+        #[inline]
+        #[must_use]
+        fn take_value(&mut self) -> Self { std::mem::replace(self, hv_hash_map![]) }
+    }
+
+    impl<K, V> HvHashMap<K, V>
+    {
+        /// Creates an empty `HashMap` with the specified capacity.
+        ///
+        /// The hash map will be able to hold at least `capacity` elements without
+        /// reallocating. If `capacity` is 0, the hash map will not allocate.
+        #[inline]
+        pub(crate) fn with_capacity(capacity: usize) -> Self
+        {
+            #[cfg(feature = "arena_alloc")]
+            let map = hashbrown::HashMap::with_capacity_in(capacity, blink_alloc());
+
+            #[cfg(not(feature = "arena_alloc"))]
+            let map = hashbrown::HashMap::with_capacity(capacity);
+
+            Self(map)
+        }
+
+        /// Clears the map, removing all key-value pairs. Keeps the allocated memory
+        /// for reuse.
+        #[inline]
+        pub(crate) fn clear(&mut self) { self.0.clear() }
+    }
+
+    impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
+    {
+        /// Attempts to get mutable references to `N` values in the map at once.
+        ///
+        /// Returns an array of length `N` with the results of each query. For soundness, at most
+        /// one mutable reference will be returned to any value. `None` will be returned if
+        /// any of the keys are duplicates or missing.
+        #[inline]
+        pub(crate) fn get_many_mut<Q, const N: usize>(
+            &mut self,
+            ks: [&Q; N]
+        ) -> Option<[&'_ mut V; N]>
+        where
+            Q: ?Sized + Hash + Equivalent<K>
+        {
+            self.0.get_many_mut(ks)
+        }
+
+        /// Retains only the elements specified by the predicate.
+        #[inline]
+        pub(crate) fn retain<F>(&mut self, f: F)
+        where
+            F: FnMut(&K, &mut V) -> bool
+        {
+            self.0.retain(f);
+        }
+    }
+
+    //=======================================================================//
+
+    impl<T: Eq + Hash> ReplaceValues<T> for HvHashSet<T>
+    {
+        #[inline]
+        fn replace_values<I: IntoIterator<Item = T>>(&mut self, iter: I)
+        {
+            self.clear();
+            self.extend(iter);
+        }
+    }
+
+    impl<'a, T: 'a + Eq + Hash + Copy> ReplaceValues<&'a T> for HvHashSet<T>
+    {
+        #[inline]
+        fn replace_values<I: IntoIterator<Item = &'a T>>(&mut self, iter: I)
+        {
+            self.clear();
+            self.extend(iter);
+        }
+    }
+
+    impl<T: Eq + Hash> NoneIfEmpty for HvHashSet<T>
+    {
+        #[inline]
+        #[must_use]
+        fn none_if_empty(self) -> Option<Self> { (!self.is_empty()).then_some(self) }
+    }
+
+    impl<T: Hash + Eq> TakeValue for HvHashSet<T>
+    {
+        #[inline]
+        #[must_use]
+        fn take_value(&mut self) -> Self { std::mem::replace(self, hv_hash_set![]) }
+    }
+
+    impl<T: Hash + Eq> HvHashSet<T>
+    {
+        //==============================================================
+        // New
+
+        /// Creates an empty `HashSet` with the specified capacity.
+        ///
+        /// The hash set will be able to hold at least `capacity` elements without
+        /// reallocating. If `capacity` is 0, the hash set will not allocate.
+        #[inline]
+        #[must_use]
+        pub(crate) fn with_capacity(capacity: usize) -> Self
+        {
+            #[cfg(feature = "arena_alloc")]
+            let set = HashSet::with_capacity_in(capacity, blink_alloc());
+
+            #[cfg(not(feature = "arena_alloc"))]
+            let set = HashSet::with_capacity(capacity);
+
+            Self(set)
+        }
+
+        //==============================================================
+        // Edit
+
+        /// Adds a value to the set.
+        ///
+        /// If the set did not have this value present, `true` is returned.
+        ///
+        /// If the set did have this value present, `false` is returned.
+        #[inline]
+        pub(crate) fn insert(&mut self, value: T) -> bool { self.0.insert(value) }
+
+        /// Removes a value from the set. Returns whether the value was
+        /// present in the set.
+        ///
+        /// The value may be any borrowed form of the set's value type, but
+        /// [`Hash`] and [`Eq`] on the borrowed form *must* match those for
+        /// the value type.
+        #[inline]
+        pub(crate) fn remove(&mut self, value: &T) -> bool { self.0.remove(value) }
+    }
+
+    impl<T> HvHashSet<T>
+    {
+        //==============================================================
+        // Edit
+
+        /// Clears the set, removing all values.
+        #[inline]
+        pub(crate) fn clear(&mut self) { self.0.clear(); }
+
+        /// Retains only the elements specified by the predicate.
+        ///
+        /// In other words, remove all elements `e` such that `f(&e)` returns `false`.
+        #[inline]
+        pub(crate) fn retain<F>(&mut self, f: F)
+        where
+            F: FnMut(&T) -> bool
+        {
+            self.0.retain(f);
+        }
+    }
+}
+
+#[cfg(feature = "ui")]
+pub(crate) use ui_only::*;

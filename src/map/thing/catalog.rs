@@ -6,14 +6,14 @@
 use std::path::Path;
 
 use bevy::{
-    ecs::system::{Res, Resource},
+    ecs::system::Res,
     math::{UVec2, Vec2}
 };
 use bevy_egui::egui;
 use configparser::ini::Ini;
 use hill_vacuum_shared::{continue_if_err, continue_if_none};
 
-use super::{Thing, ThingId, ThingInstance};
+use super::{HardcodedThings, Thing, ThingId, ThingInstance};
 use crate::{
     map::{
         drawer::drawing_resources::DrawingResources,
@@ -26,8 +26,7 @@ use crate::{
         misc::AssertedInsertRemove
     },
     HvHashMap,
-    HvVec,
-    MapThing
+    HvVec
 };
 
 //=======================================================================//
@@ -295,35 +294,4 @@ impl ThingsCatalog
                 })
             })
     }
-}
-
-//=======================================================================//
-
-/// A resource containing all the [`Thing`]s to be hardcoded into the editor.
-#[must_use]
-#[derive(Resource, Default)]
-pub struct HardcodedThings(Vec<Thing>);
-
-impl<'a> IntoIterator for &'a HardcodedThings
-{
-    type IntoIter = std::slice::Iter<'a, Thing>;
-    type Item = &'a Thing;
-
-    #[inline]
-    fn into_iter(self) -> Self::IntoIter { self.iter() }
-}
-
-impl HardcodedThings
-{
-    /// Returns a new empty [`HardcodedThings`].
-    #[inline]
-    pub fn new() -> Self { Self::default() }
-
-    /// Pushes a new [`Thing`] from an object that implements the [`MapThing`] trait.
-    #[inline]
-    pub fn push<T: MapThing>(&mut self) { self.0.push(T::thing()); }
-
-    /// Returns an iterator to the contained [`Thing`]s.
-    #[inline]
-    fn iter(&self) -> std::slice::Iter<Thing> { self.0.iter() }
 }

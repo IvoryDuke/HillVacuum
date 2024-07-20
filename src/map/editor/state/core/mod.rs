@@ -102,7 +102,7 @@ macro_rules! draw_selected_and_non_selected_things {
             things,
             $bundle,
             $manager,
-            |thing, _: &bevy::transform::components::Transform, drawer: &mut crate::map::drawer::EditDrawer, color| {
+            |thing, _: &bevy::transform::components::Transform, drawer: &mut crate::map::drawer::drawers::EditDrawer, color| {
                 drawer.thing($bundle.things_catalog, thing, color);
             }
             $(, $filters)?

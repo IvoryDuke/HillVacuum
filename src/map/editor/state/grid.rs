@@ -387,10 +387,10 @@ impl Grid
     #[must_use]
     pub fn transform_point(self, mut point: Vec2) -> Vec2
     {
-        #[inline(always)]
+        #[inline]
         fn skew(point: &mut Vec2, skew: i8) { point.x += skew.fast_tan() * point.y; }
 
-        #[inline(always)]
+        #[inline]
         fn rotate(point: &mut Vec2, angle: i16)
         {
             *point = fast_rotate_point_around_origin(*point, angle);
@@ -415,10 +415,10 @@ impl Grid
     #[must_use]
     pub fn point_projection(self, mut point: Vec2) -> Vec2
     {
-        #[inline(always)]
+        #[inline]
         fn skew(point: &mut Vec2, skew: i8) { point.x -= skew.fast_tan() * point.y; }
 
-        #[inline(always)]
+        #[inline]
         fn rotate(point: &mut Vec2, angle: i16)
         {
             *point = fast_rotate_point_around_origin(*point, -angle);

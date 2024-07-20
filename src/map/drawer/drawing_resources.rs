@@ -33,17 +33,16 @@ use hill_vacuum_shared::{continue_if_none, match_or_panic, return_if_none, NextV
 use super::{
     animation::{Animation, AtlasAnimator},
     color::Color,
-    texture::{DefaultAnimation, Texture, TextureInterface, TextureInterfaceExtra},
-    texture_loader::TextureLoader,
-    IntoArray3,
-    Uv,
-    VxColor,
-    VxPos
+    drawers::{Uv, VxColor, VxPos},
+    file_animations,
+    texture::{DefaultAnimation, TextureInterface, TextureInterfaceExtra},
+    texture_loader::TextureLoader
 };
 use crate::{
     embedded_assets::embedded_asset_path,
     map::{
         brush::convex_polygon::NEW_VX,
+        drawer::{drawers::IntoArray3, texture::Texture},
         editor::{
             state::{
                 clipboard::{PropCameras, PropCamerasMut},
@@ -416,27 +415,6 @@ impl DrawingResources
     #[must_use]
     pub fn animations_amount(&self) -> usize { self.animated_textures.len() }
 
-    /// Returns the vector of [`DefaultAnimation`]s contained in `file`.
-    #[inline]
-    pub fn file_animations(
-        amount: usize,
-        file: &mut BufReader<File>
-    ) -> Result<Vec<DefaultAnimation>, &'static str>
-    {
-        let mut animations = vec![];
-
-        for _ in 0..amount
-        {
-            match ciborium::from_reader::<DefaultAnimation, _>(&mut *file)
-            {
-                Ok(anim) => animations.push(anim),
-                Err(_) => return Err("Error loading animations")
-            }
-        }
-
-        Ok(animations)
-    }
-
     /// Imports the animations contained in `file`.
     #[inline]
     pub fn import_animations(
@@ -445,7 +423,7 @@ impl DrawingResources
         file: &mut BufReader<File>
     ) -> Result<(), &'static str>
     {
-        match Self::file_animations(amount, file)
+        match file_animations(amount, file)
         {
             Ok(animations) =>
             {

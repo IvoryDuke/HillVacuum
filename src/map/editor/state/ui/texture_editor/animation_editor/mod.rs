@@ -24,7 +24,8 @@ use crate::{
                 MoveUpDown
             },
             drawing_resources::DrawingResources,
-            texture::{Texture, UiOverallTextureSettings}
+            overall_values::UiOverallTextureSettings,
+            texture::Texture
         },
         editor::state::{
             clipboard::Clipboard,

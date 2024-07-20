@@ -17,7 +17,6 @@ use super::{
 use crate::{
     map::{
         brush::{convex_polygon::ConvexPolygon, RotateResult},
-        drawer::texture::TextureInterface,
         editor::{
             cursor::Cursor,
             state::{
@@ -43,7 +42,8 @@ use crate::{
         },
         misc::{Camera, PointInsideUiHighlight, TakeValue, Toggle}
     },
-    HvVec
+    HvVec,
+    TextureInterface
 };
 
 //=======================================================================//

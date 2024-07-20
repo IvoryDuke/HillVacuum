@@ -11,7 +11,9 @@
 // #![warn(clippy::missing_docs_in_private_items)]
 #![cfg_attr(feature = "arena_alloc", feature(allocator_api))]
 
+#[cfg(feature = "ui")]
 mod config;
+#[cfg(feature = "ui")]
 mod embedded_assets;
 mod map;
 mod utils;
@@ -22,25 +24,10 @@ mod utils;
 //=======================================================================//
 
 #[cfg(feature = "ui")]
-pub use bevy;
-#[cfg(feature = "ui")]
-use bevy::{
-    app::PluginGroup,
-    asset::{AssetMode, AssetPlugin},
-    diagnostic::DiagnosticsPlugin,
-    hierarchy::HierarchyPlugin,
-    input::keyboard::KeyCode,
-    log::LogPlugin,
-    render::view::Msaa,
-    state::{app::AppExtStates, state::States},
-    window::Cursor,
-    window::{CursorIcon, Window, WindowPlugin, WindowPosition, WindowResizeConstraints},
-    DefaultPlugins
+pub use crate::{
+    map::properties::{BrushProperties, ThingProperties},
+    HillVacuumPlugin
 };
-use config::ConfigPlugin;
-use embedded_assets::EmbeddedPlugin;
-use map::MapEditorPlugin;
-
 pub use crate::{
     map::{
         brush::{
@@ -48,15 +35,15 @@ pub use crate::{
             BrushViewer as Brush
         },
         drawer::{
-            animation::{Animation, Atlas, List},
+            animation::{Animation, Atlas, List, Timing},
             texture::{Sprite, TextureInterface, TextureSettings}
         },
         path::{
             nodes::{Movement, Node},
             Path
         },
-        properties::{BrushProperties, ThingProperties, ToValue, Value},
-        thing::{catalog::HardcodedThings, MapThing, Thing, ThingId, ThingViewer as ThingInstance},
+        properties::{ToValue, Value},
+        thing::{MapThing, Thing, ThingId, ThingViewer as ThingInstance},
         Exporter
     },
     utils::{
@@ -67,24 +54,9 @@ pub use crate::{
 };
 
 //=======================================================================//
-// CONSTANTS
-//
-//=======================================================================//
-
-/// The name of the application.
-const NAME: &str = "HillVacuum";
-/// The folder where the assets are stored.
-const ASSETS_PATH: &str = "assets/";
-hill_vacuum_proc_macros::str_array!(INDEXES, 128);
-/// The rows of cameras used to take screenshots of the props placed around the map area.
-const PROP_CAMERAS_ROWS: usize = 2;
-/// The amount of prop screenshot taking cameras placed around the map.
-const PROP_CAMERAS_AMOUNT: usize = 8 * (PROP_CAMERAS_ROWS * (PROP_CAMERAS_ROWS + 1)) / 2;
-
-//=======================================================================//
 // MACROS
 //
-//====================================================================
+//=======================================================================//
 
 /// Loads the desired [`Thing`]s as an available resource coded into the executable.
 /// # Example
@@ -151,205 +123,266 @@ macro_rules! thing_properties {
 }
 
 //=======================================================================//
-// ENUMS
+// UI
 //
 //=======================================================================//
 
-/// The overall state of the application.
-#[derive(States, Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-enum EditorState
-{
-    /// Boot.
-    #[default]
-    SplashScreen,
-    /// Program running.
-    Run,
-    /// Shutdown procedure.
-    ShutDown
-}
-
-//=======================================================================//
-
-/// Actions with hardcoded key binds.
-enum HardcodedActions
-{
-    /// New file.
-    New,
-    /// Save file.
-    Save,
-    /// Open file.
-    Open,
-    /// Export file.
-    Export,
-    /// Select all.
-    SelectAll,
-    /// Copy.
-    Copy,
-    /// Paste.
-    Paste,
-    /// Cut.
-    Cut,
-    /// Duplicate.
-    Duplicate,
-    /// Undo.
-    Undo,
-    /// Redo.
-    Redo,
-    /// Camera zoom in.
-    ZoomIn,
-    /// Camera zoom out.
-    ZoomOut,
-    /// Toggle fullscreen view.
-    Fullscreen,
-    /// Toggle the manual.
-    ToggleManual,
-    /// Quit.
-    Quit
-}
-
-impl HardcodedActions
-{
-    /// A string representation of the key presses required to initiate the action.
-    #[inline]
-    #[must_use]
-    pub const fn key_combo(self) -> &'static str
-    {
-        match self
-        {
-            Self::New => "Ctrl+N",
-            Self::Save => "Ctrl+S",
-            Self::Open => "Ctrl+O",
-            Self::Export => "Ctrl+E",
-            Self::SelectAll => "Ctrl+A",
-            Self::Copy => "Ctrl+C",
-            Self::Paste => "Ctrl+V",
-            Self::Cut => "Ctrl+X",
-            Self::Duplicate => "Ctrl+D",
-            Self::Undo => "Ctrl+Z",
-            Self::Redo => "Ctrl+Y",
-            Self::ZoomIn => "Ctrl+Plus",
-            Self::ZoomOut => "Ctrl+Minus",
-            Self::Fullscreen => "Alt+Enter",
-            Self::ToggleManual => "`",
-            Self::Quit => "Ctrl+Q"
-        }
-    }
-
-    /// Returns the [`Keycode`] associated to the action.
-    #[inline]
-    #[must_use]
-    pub const fn key(self) -> KeyCode
-    {
-        match self
-        {
-            Self::New => KeyCode::KeyN,
-            Self::Save => KeyCode::KeyS,
-            Self::Open => KeyCode::KeyO,
-            Self::Export => KeyCode::KeyE,
-            Self::Fullscreen => KeyCode::Enter,
-            Self::ToggleManual => KeyCode::Backquote,
-            Self::SelectAll => KeyCode::KeyA,
-            Self::Copy => KeyCode::KeyC,
-            Self::Paste => KeyCode::KeyV,
-            Self::Cut => KeyCode::KeyX,
-            Self::Duplicate => KeyCode::KeyD,
-            Self::Undo => KeyCode::KeyZ,
-            Self::Redo => KeyCode::KeyY,
-            Self::ZoomIn => KeyCode::NumpadAdd,
-            Self::ZoomOut => KeyCode::Minus,
-            Self::Quit => KeyCode::KeyQ
-        }
-    }
-
-    /// Whether the action's keys were pressed.
-    #[inline]
-    #[must_use]
-    pub fn pressed(self, key_inputs: &bevy::input::ButtonInput<KeyCode>) -> bool
-    {
-        match self
-        {
-            Self::Fullscreen =>
-            {
-                return (key_inputs.pressed(KeyCode::AltLeft) ||
-                    key_inputs.pressed(KeyCode::AltRight)) &&
-                    key_inputs.just_pressed(self.key())
-            },
-            Self::ToggleManual => return key_inputs.just_pressed(self.key()),
-            _ => ()
-        };
-
-        if !(key_inputs.pressed(KeyCode::ControlLeft) || key_inputs.pressed(KeyCode::ControlRight))
-        {
-            return false;
-        }
-
-        key_inputs.just_pressed(self.key())
-    }
-}
-
-//=======================================================================//
-// TYPES
-//
-//=======================================================================//
-
-/// The main plugin.
 #[cfg(feature = "ui")]
-pub struct HillVacuumPlugin;
+hill_vacuum_proc_macros::str_array!(INDEXES, 128);
 
-impl bevy::app::Plugin for HillVacuumPlugin
+#[cfg(feature = "ui")]
+pub(crate) mod ui_only
 {
-    #[inline]
-    fn build(&self, app: &mut bevy::app::App)
+    //=======================================================================//
+    // IMPORTS
+    //
+    //=======================================================================//
+
+    pub use bevy;
+    use bevy::{
+        app::PluginGroup,
+        asset::{AssetMode, AssetPlugin},
+        diagnostic::DiagnosticsPlugin,
+        hierarchy::HierarchyPlugin,
+        input::keyboard::KeyCode,
+        log::LogPlugin,
+        render::{texture::{ImageAddressMode, ImagePlugin, ImageSamplerDescriptor}, view::Msaa},
+        state::{app::AppExtStates, state::States},
+        window::{
+            Cursor,
+            CursorIcon,
+            Window,
+            WindowPlugin,
+            WindowPosition,
+            WindowResizeConstraints
+        },
+        DefaultPlugins
+    };
+
+    use crate::{config::ConfigPlugin, embedded_assets::EmbeddedPlugin, map::MapEditorPlugin};
+
+    //=======================================================================//
+    // CONSTANTS
+    //
+    //=======================================================================//
+
+    /// The name of the application.
+    pub(crate) const NAME: &str = "HillVacuum";
+    /// The folder where the assets are stored.
+    const ASSETS_PATH: &str = "assets/";
+
+    //=======================================================================//
+    // ENUMS
+    //
+    //=======================================================================//
+
+    /// The overall state of the application.
+    #[derive(States, Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+    pub(crate) enum EditorState
     {
-        app.add_plugins(
-            DefaultPlugins
-                .set(AssetPlugin {
-                    file_path: ASSETS_PATH.to_owned(),
-                    processed_file_path: "processed_assets/".to_owned(),
-                    watch_for_changes_override: false.into(),
-                    mode: AssetMode::Unprocessed,
-                    ..Default::default()
-                })
-                .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        cursor: Cursor {
-                            icon: CursorIcon::Pointer,
-                            ..Default::default()
-                        },
-                        title: NAME.into(),
-                        position: WindowPosition::At((0, 0).into()),
-                        resolution: (1920f32, 1080f32).into(),
-                        resize_constraints: WindowResizeConstraints {
-                            min_width: 640f32,
-                            min_height: 480f32,
-                            ..Default::default()
-                        },
+        /// Boot.
+        #[default]
+        SplashScreen,
+        /// Program running.
+        Run,
+        /// Shutdown procedure.
+        ShutDown
+    }
+
+    //=======================================================================//
+
+    /// Actions with hardcoded key binds.
+    pub(crate) enum HardcodedActions
+    {
+        /// New file.
+        New,
+        /// Save file.
+        Save,
+        /// Open file.
+        Open,
+        /// Export file.
+        Export,
+        /// Select all.
+        SelectAll,
+        /// Copy.
+        Copy,
+        /// Paste.
+        Paste,
+        /// Cut.
+        Cut,
+        /// Duplicate.
+        Duplicate,
+        /// Undo.
+        Undo,
+        /// Redo.
+        Redo,
+        /// Camera zoom in.
+        ZoomIn,
+        /// Camera zoom out.
+        ZoomOut,
+        /// Toggle fullscreen view.
+        Fullscreen,
+        /// Toggle the manual.
+        ToggleManual,
+        /// Quit.
+        Quit
+    }
+
+    impl HardcodedActions
+    {
+        /// A string representation of the key presses required to initiate the action.
+        #[inline]
+        #[must_use]
+        pub const fn key_combo(self) -> &'static str
+        {
+            match self
+            {
+                Self::New => "Ctrl+N",
+                Self::Save => "Ctrl+S",
+                Self::Open => "Ctrl+O",
+                Self::Export => "Ctrl+E",
+                Self::SelectAll => "Ctrl+A",
+                Self::Copy => "Ctrl+C",
+                Self::Paste => "Ctrl+V",
+                Self::Cut => "Ctrl+X",
+                Self::Duplicate => "Ctrl+D",
+                Self::Undo => "Ctrl+Z",
+                Self::Redo => "Ctrl+Y",
+                Self::ZoomIn => "Ctrl+Plus",
+                Self::ZoomOut => "Ctrl+Minus",
+                Self::Fullscreen => "Alt+Enter",
+                Self::ToggleManual => "`",
+                Self::Quit => "Ctrl+Q"
+            }
+        }
+
+        /// Returns the [`Keycode`] associated to the action.
+        #[inline]
+        #[must_use]
+        pub const fn key(self) -> KeyCode
+        {
+            match self
+            {
+                Self::New => KeyCode::KeyN,
+                Self::Save => KeyCode::KeyS,
+                Self::Open => KeyCode::KeyO,
+                Self::Export => KeyCode::KeyE,
+                Self::Fullscreen => KeyCode::Enter,
+                Self::ToggleManual => KeyCode::Backquote,
+                Self::SelectAll => KeyCode::KeyA,
+                Self::Copy => KeyCode::KeyC,
+                Self::Paste => KeyCode::KeyV,
+                Self::Cut => KeyCode::KeyX,
+                Self::Duplicate => KeyCode::KeyD,
+                Self::Undo => KeyCode::KeyZ,
+                Self::Redo => KeyCode::KeyY,
+                Self::ZoomIn => KeyCode::NumpadAdd,
+                Self::ZoomOut => KeyCode::Minus,
+                Self::Quit => KeyCode::KeyQ
+            }
+        }
+
+        /// Whether the action's keys were pressed.
+        #[inline]
+        #[must_use]
+        pub fn pressed(self, key_inputs: &bevy::input::ButtonInput<KeyCode>) -> bool
+        {
+            match self
+            {
+                Self::Fullscreen =>
+                {
+                    return (key_inputs.pressed(KeyCode::AltLeft) ||
+                        key_inputs.pressed(KeyCode::AltRight)) &&
+                        key_inputs.just_pressed(self.key())
+                },
+                Self::ToggleManual => return key_inputs.just_pressed(self.key()),
+                _ => ()
+            };
+
+            if !(key_inputs.pressed(KeyCode::ControlLeft) ||
+                key_inputs.pressed(KeyCode::ControlRight))
+            {
+                return false;
+            }
+
+            key_inputs.just_pressed(self.key())
+        }
+    }
+
+    //=======================================================================//
+    // TYPES
+    //
+    //=======================================================================//
+
+    /// The main plugin.
+    pub struct HillVacuumPlugin;
+
+    impl bevy::app::Plugin for HillVacuumPlugin
+    {
+        #[inline]
+        fn build(&self, app: &mut bevy::app::App)
+        {
+            app.add_plugins(
+                DefaultPlugins
+                    .set(AssetPlugin {
+                        file_path: ASSETS_PATH.to_owned(),
+                        processed_file_path: "processed_assets/".to_owned(),
+                        watch_for_changes_override: false.into(),
+                        mode: AssetMode::Unprocessed,
                         ..Default::default()
-                    }),
-                    ..Default::default()
-                })
-                .disable::<LogPlugin>()
-                .disable::<HierarchyPlugin>()
-                .disable::<DiagnosticsPlugin>()
-        )
-        .add_plugins((EmbeddedPlugin, ConfigPlugin, MapEditorPlugin))
-        .init_state::<EditorState>()
-        .insert_resource(Msaa::Sample4);
+                    })
+                    .set(ImagePlugin {
+                        default_sampler: ImageSamplerDescriptor {
+                            address_mode_u: ImageAddressMode::Repeat,
+                            address_mode_v: ImageAddressMode::Repeat,
+                            address_mode_w: ImageAddressMode::Repeat,
+                            ..Default::default()
+                        }
+                    })
+                    .set(WindowPlugin {
+                        primary_window: Some(Window {
+                            cursor: Cursor {
+                                icon: CursorIcon::Pointer,
+                                ..Default::default()
+                            },
+                            title: NAME.into(),
+                            position: WindowPosition::At((0, 0).into()),
+                            resolution: (1920f32, 1080f32).into(),
+                            resize_constraints: WindowResizeConstraints {
+                                min_width: 640f32,
+                                min_height: 480f32,
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    })
+                    .disable::<LogPlugin>()
+                    .disable::<HierarchyPlugin>()
+                    .disable::<DiagnosticsPlugin>()
+            )
+            .add_plugins((EmbeddedPlugin, ConfigPlugin, MapEditorPlugin))
+            .init_state::<EditorState>()
+            .insert_resource(Msaa::Sample4);
+        }
+    }
+
+    //=======================================================================//
+    // FUNCTIONS
+    //
+    //=======================================================================//
+
+    /// The error message showed on screen when issues arise.
+    #[inline]
+    pub(crate) fn error_message(error: &str)
+    {
+        rfd::MessageDialog::new()
+            .set_title("ERROR")
+            .set_description(error)
+            .set_buttons(rfd::MessageButtons::Ok)
+            .show();
     }
 }
 
-//=======================================================================//
-// FUNCTIONS
-//
-//=======================================================================//
-
-/// The error message showed on screen when issues arise.
-#[inline]
-fn error_message(error: &str)
-{
-    rfd::MessageDialog::new()
-        .set_title("ERROR")
-        .set_description(error)
-        .set_buttons(rfd::MessageButtons::Ok)
-        .show();
-}
+#[cfg(feature = "ui")]
+pub use ui_only::*;
