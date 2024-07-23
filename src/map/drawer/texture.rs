@@ -275,7 +275,7 @@ pub(in crate::map) struct DefaultAnimation
 //=======================================================================//
 
 #[cfg(feature = "ui")]
-pub(in crate::map) mod ui_only
+pub(in crate::map) mod ui_mod
 {
     use arrayvec::ArrayVec;
     use bevy::{
@@ -1505,4 +1505,4 @@ pub(in crate::map) mod ui_only
 }
 
 #[cfg(feature = "ui")]
-pub(in crate::map) use ui_only::*;
+pub(in crate::map) use ui_mod::*;

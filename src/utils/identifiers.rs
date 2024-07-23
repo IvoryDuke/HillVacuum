@@ -28,7 +28,7 @@ impl Id
 //=======================================================================//
 
 #[cfg(feature = "ui")]
-pub(crate) mod ui_only
+pub(crate) mod ui_mod
 {
     use glam::Vec2;
 
@@ -127,4 +127,4 @@ pub(crate) mod ui_only
 }
 
 #[cfg(feature = "ui")]
-pub(crate) use ui_only::*;
+pub(crate) use ui_mod::*;

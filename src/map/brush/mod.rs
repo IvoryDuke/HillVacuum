@@ -119,7 +119,7 @@ impl BrushViewer
 //=======================================================================//
 
 #[cfg(feature = "ui")]
-pub(in crate::map) mod ui_only
+pub(in crate::map) mod ui_mod
 {
     //=======================================================================//
     // IMPORTS
@@ -2697,4 +2697,4 @@ pub(in crate::map) mod ui_only
 }
 
 #[cfg(feature = "ui")]
-pub(in crate::map) use ui_only::*;
+pub(in crate::map) use ui_mod::*;

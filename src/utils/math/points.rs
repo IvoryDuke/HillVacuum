@@ -80,7 +80,7 @@ pub fn are_vxs_ccw(vxs: &[Vec2; 3]) -> bool
 //=======================================================================//
 
 #[cfg(feature = "ui")]
-pub(crate) mod ui_only
+pub(crate) mod ui_mod
 {
     //=======================================================================//
     // IMPORTS
@@ -231,4 +231,4 @@ pub(crate) mod ui_only
 }
 
 #[cfg(feature = "ui")]
-pub(crate) use ui_only::*;
+pub(crate) use ui_mod::*;

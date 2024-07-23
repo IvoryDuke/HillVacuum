@@ -741,7 +741,7 @@ pub(crate) fn blink_alloc() -> &'static BlinkAlloc { unsafe { &*core::ptr::addr_
 //=======================================================================//
 
 #[cfg(feature = "ui")]
-pub(crate) mod ui_only
+pub(crate) mod ui_mod
 {
     //=======================================================================//
     // MACROS
@@ -1158,4 +1158,4 @@ pub(crate) mod ui_only
 }
 
 #[cfg(feature = "ui")]
-pub(crate) use ui_only::*;
+pub(crate) use ui_mod::*;

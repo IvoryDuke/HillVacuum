@@ -52,7 +52,7 @@ pub(in crate::map) fn file_animations(
 //=======================================================================//
 
 #[cfg(feature = "ui")]
-mod ui_only
+mod ui_mod
 {
     //=======================================================================//
     // IMPORTS
@@ -101,4 +101,4 @@ mod ui_only
 }
 
 #[cfg(feature = "ui")]
-pub(in crate::map::drawer) use ui_only::*;
+pub(in crate::map::drawer) use ui_mod::*;

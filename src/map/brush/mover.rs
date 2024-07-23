@@ -82,7 +82,7 @@ impl Motor
 }
 
 #[cfg(feature = "ui")]
-pub mod ui_only
+pub mod ui_mod
 {
     //=======================================================================//
     // IMPORTS

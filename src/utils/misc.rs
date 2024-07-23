@@ -21,7 +21,7 @@ pub(crate) trait AssertedInsertRemove<T, U, V, X>
 //=======================================================================//
 
 #[cfg(feature = "ui")]
-pub(crate) mod ui_only
+pub(crate) mod ui_mod
 {
     //=======================================================================//
     // IMPORTS
@@ -590,4 +590,4 @@ pub(crate) mod ui_only
 }
 
 #[cfg(feature = "ui")]
-pub use ui_only::*;
+pub use ui_mod::*;

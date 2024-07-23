@@ -280,7 +280,7 @@ impl Hull
 //=======================================================================//
 
 #[cfg(feature = "ui")]
-pub(crate) mod ui_only
+pub(crate) mod ui_mod
 {
     //=======================================================================//
     // ENUMS
@@ -1118,4 +1118,4 @@ pub(crate) mod ui_only
 }
 
 #[cfg(feature = "ui")]
-pub(crate) use ui_only::*;
+pub(crate) use ui_mod::*;
