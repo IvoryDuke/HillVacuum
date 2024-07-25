@@ -273,6 +273,11 @@ pub(in crate::map) struct DefaultAnimation
 #[cfg(feature = "ui")]
 pub(in crate::map) mod ui_mod
 {
+    //=======================================================================//
+    // IMPORTS
+    //
+    //=======================================================================//
+
     use arrayvec::ArrayVec;
     use bevy::{
         asset::{Assets, Handle},

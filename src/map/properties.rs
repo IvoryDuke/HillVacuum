@@ -7,9 +7,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{map::indexed_map::IndexedMap, HvHashMap};
-#[allow(unused_imports)]
-use crate::{Brush, ThingInstance};
+use super::indexed_map::IndexedMap;
+use crate::HvHashMap;
 
 //=======================================================================//
 // MACROS
@@ -246,6 +245,8 @@ pub(in crate::map) mod ui_mod
         ToValue,
         Value
     };
+    #[allow(unused_imports)]
+    use crate::{Brush, ThingInstance};
 
     //=======================================================================//
     // TRAITS
@@ -307,19 +308,19 @@ pub(in crate::map) mod ui_mod
             /// Implements the conversion of `string` to the [`Value`] variant of `self`, if
             /// possible.
             macro_rules! convert {
-            ($(($value:ident, $t:ty)),+) => {
-                match value
-                {
-                    $(Self::$value(_) =>
+                ($(($value:ident, $t:ty)),+) => {
+                    match value
                     {
-                        <$t>::from_str(string)
-                            .ok()
-                            .map(|value| Self::$value(value))
-                    },)+
-                    _ => unreachable!()
-                }
-            };
-        }
+                        $(Self::$value(_) =>
+                        {
+                            <$t>::from_str(string)
+                                .ok()
+                                .map(|value| Self::$value(value))
+                        },)+
+                        _ => unreachable!()
+                    }
+                };
+            }
 
             convert!(
                 (Bool, bool),

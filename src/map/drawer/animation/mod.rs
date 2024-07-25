@@ -85,11 +85,6 @@ impl Atlas
     #[must_use]
     pub const fn len(&self) -> usize { self.len }
 
-    /// The maximum possible amount of frames.
-    #[inline]
-    #[must_use]
-    pub const fn max_len(&self) -> usize { (self.x * self.y) as usize }
-
     /// The size of the area of the texture to draw.
     #[inline]
     #[must_use]
@@ -371,6 +366,11 @@ pub(in crate::map) mod ui_mod
                 timing: Timing::new()
             }
         }
+
+        /// The maximum possible amount of frames.
+        #[inline]
+        #[must_use]
+        pub(in crate::map) const fn max_len(&self) -> usize { (self.x * self.y) as usize }
 
         /// Whether the [`Timing`] is uniform.
         #[inline]
