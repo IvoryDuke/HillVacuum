@@ -865,7 +865,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         }
 
         mesh_generator.push_positions(hull.vertexes());
-        mesh_generator.set_sprite_uv(settings.name(), settings, self.elapsed_time);
+        mesh_generator.set_sprite_uv(settings.name(), settings);
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
         self.resources
@@ -1237,21 +1237,13 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
                             self.resources,
                             settings.overall_animation(self.resources).get_list_animation()
                         );
-                        mesh_generator.set_sprite_uv(
-                            materials.texture().name(),
-                            settings,
-                            self.elapsed_time
-                        );
+                        mesh_generator.set_sprite_uv(materials.texture().name(), settings);
 
                         materials
                     },
                     Animator::Atlas(animator) =>
                     {
-                        mesh_generator.set_animated_sprite_uv(
-                            settings,
-                            animator,
-                            self.elapsed_time
-                        );
+                        mesh_generator.set_animated_sprite_uv(settings, animator);
 
                         self.resources.texture_materials(settings.name())
                     }
@@ -1260,7 +1252,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
             None =>
             {
                 let texture = self.resources.texture_or_error(settings.name());
-                mesh_generator.set_sprite_uv(texture.name(), settings, self.elapsed_time);
+                mesh_generator.set_sprite_uv(texture.name(), settings);
                 self.resources.texture_materials(texture.name())
             }
         };

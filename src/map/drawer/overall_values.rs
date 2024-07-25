@@ -33,7 +33,11 @@ pub(in crate::map) enum OverallSprite
         /// The overall horizontal parallax.
         parallax_x: OverallValue<f32>,
         /// The overall vertical parallax.
-        parallax_y: OverallValue<f32>
+        parallax_y: OverallValue<f32>,
+        /// The overall horizontal scroll.
+        scroll_x:   OverallValue<f32>,
+        /// The overall vertical scroll.
+        scroll_y:   OverallValue<f32>
     }
 }
 
@@ -47,12 +51,16 @@ impl From<&Sprite> for OverallSprite
             Sprite::True { .. } => Self::True,
             Sprite::False {
                 parallax_x,
-                parallax_y
+                parallax_y,
+                scroll_x,
+                scroll_y
             } =>
             {
                 Self::False {
                     parallax_x: (*parallax_x).into(),
-                    parallax_y: (*parallax_y).into()
+                    parallax_y: (*parallax_y).into(),
+                    scroll_x:   (*scroll_x).into(),
+                    scroll_y:   (*scroll_y).into()
                 }
             },
         }
@@ -74,13 +82,17 @@ impl OverallValueInterface<Sprite> for OverallSprite
                 Self::None,
                 Sprite::False {
                     parallax_x,
-                    parallax_y
+                    parallax_y,
+                    scroll_x,
+                    scroll_y
                 }
             ) =>
             {
                 *self = Self::False {
                     parallax_x: (*parallax_x).into(),
-                    parallax_y: (*parallax_y).into()
+                    parallax_y: (*parallax_y).into(),
+                    scroll_x:   (*scroll_x).into(),
+                    scroll_y:   (*scroll_y).into()
                 };
             },
             (Self::True, Sprite::False { .. }) | (Self::False { .. }, Sprite::True { .. }) =>
@@ -112,16 +124,22 @@ impl OverallValueInterface<Sprite> for OverallSprite
             (
                 Self::False {
                     parallax_x: parallax_x_0,
-                    parallax_y: parallax_y_0
+                    parallax_y: parallax_y_0,
+                    scroll_x: scroll_x_0,
+                    scroll_y: scroll_y_0
                 },
                 Self::False {
                     parallax_x: parallax_x_1,
-                    parallax_y: parallax_y_1
+                    parallax_y: parallax_y_1,
+                    scroll_x: scroll_x_1,
+                    scroll_y: scroll_y_1
                 }
             ) =>
             {
                 _ = parallax_x_0.merge(parallax_x_1);
                 _ = parallax_y_0.merge(parallax_y_1);
+                _ = scroll_x_0.merge(scroll_x_1);
+                _ = scroll_y_0.merge(scroll_y_1);
             },
             _ => ()
         };
@@ -142,8 +160,6 @@ pub(in crate::map) struct OverallTextureSettings
     scale_y:   OverallValue<f32>,
     offset_x:  OverallValue<f32>,
     offset_y:  OverallValue<f32>,
-    scroll_x:  OverallValue<f32>,
-    scroll_y:  OverallValue<f32>,
     angle:     OverallValue<f32>,
     height:    OverallValue<i8>,
     sprite:    OverallSprite,
@@ -166,8 +182,6 @@ impl From<Option<&TextureSettings>> for OverallTextureSettings
                     scale_y:   value.scale_y().into(),
                     offset_x:  value.offset_x().into(),
                     offset_y:  value.offset_y().into(),
-                    scroll_x:  value.scroll_x.into(),
-                    scroll_y:  value.scroll_y.into(),
                     height:    value.height().into(),
                     angle:     value.angle().into(),
                     sprite:    value.sprite_struct().into(),
@@ -182,8 +196,6 @@ impl From<Option<&TextureSettings>> for OverallTextureSettings
                     scale_y:   OverallValue::None,
                     offset_x:  OverallValue::None,
                     offset_y:  OverallValue::None,
-                    scroll_x:  OverallValue::None,
-                    scroll_y:  OverallValue::None,
                     height:    OverallValue::None,
                     angle:     OverallValue::None,
                     sprite:    OverallSprite::None,
@@ -220,8 +232,6 @@ impl OverallValueInterface<Option<&TextureSettings>> for OverallTextureSettings
             (&mut self.scale_y, &other.scale_y),
             (&mut self.offset_x, &other.offset_x),
             (&mut self.offset_y, &other.offset_y),
-            (&mut self.scroll_x, &other.scroll_x),
-            (&mut self.scroll_y, &other.scroll_y),
             (&mut self.angle, &other.angle)
         ]
         {
@@ -243,8 +253,6 @@ impl OverallValueInterface<Option<&TextureSettings>> for OverallTextureSettings
             self.scale_y.is_not_uniform() &&
             self.offset_x.is_not_uniform() &&
             self.offset_y.is_not_uniform() &&
-            self.scroll_x.is_not_uniform() &&
-            self.scroll_y.is_not_uniform() &&
             self.height.is_not_uniform() &&
             self.angle.is_not_uniform() &&
             self.sprite.is_not_uniform() &&
@@ -272,8 +280,8 @@ pub(in crate::map) struct UiOverallTextureSettings
     pub scale_y:    UiOverallValue<f32>,
     pub offset_x:   UiOverallValue<f32>,
     pub offset_y:   UiOverallValue<f32>,
-    pub scroll_x:   UiOverallValue<f32>,
-    pub scroll_y:   UiOverallValue<f32>,
+    pub scroll_x:   Option<UiOverallValue<f32>>,
+    pub scroll_y:   Option<UiOverallValue<f32>>,
     pub height:     UiOverallValue<i8>,
     pub angle:      UiOverallValue<f32>,
     pub sprite:     OverallValue<bool>,
@@ -288,15 +296,26 @@ impl From<OverallTextureSettings> for UiOverallTextureSettings
     #[must_use]
     fn from(value: OverallTextureSettings) -> Self
     {
-        let (sprite, parallax_x, parallax_y) = match value.sprite
+        let (sprite, parallax_x, parallax_y, scroll_x, scroll_y) = match value.sprite
         {
-            OverallSprite::None => (OverallValue::None, None, None),
-            OverallSprite::NonUniform => (OverallValue::NonUniform, None, None),
-            OverallSprite::True => (true.into(), None, None),
+            OverallSprite::None => (OverallValue::None, None, None, None, None),
+            OverallSprite::NonUniform => (OverallValue::NonUniform, None, None, None, None),
+            OverallSprite::True => (true.into(), None, None, None, None),
             OverallSprite::False {
                 parallax_x,
-                parallax_y
-            } => (false.into(), Some(parallax_x.into()), Some(parallax_y.into()))
+                parallax_y,
+                scroll_x,
+                scroll_y
+            } =>
+            {
+                (
+                    false.into(),
+                    Some(parallax_x.into()),
+                    Some(parallax_y.into()),
+                    Some(scroll_x.into()),
+                    Some(scroll_y.into())
+                )
+            },
         };
 
         Self {
@@ -305,8 +324,8 @@ impl From<OverallTextureSettings> for UiOverallTextureSettings
             scale_y: value.scale_y.ui(),
             offset_x: value.offset_x.ui(),
             offset_y: value.offset_y.ui(),
-            scroll_x: value.scroll_x.ui(),
-            scroll_y: value.scroll_y.ui(),
+            scroll_x,
+            scroll_y,
             height: value.height.ui(),
             angle: value.angle.ui(),
             sprite,

@@ -609,7 +609,8 @@ impl Editor
         }
 
         // X Cap.
-        let right_dif = camera_pos.x + half_width - ui_right_space() * camera.scale() - MAP_HALF_SIZE;
+        let right_dif =
+            camera_pos.x + half_width - ui_right_space() * camera.scale() - MAP_HALF_SIZE;
 
         if right_dif > 0f32
         {
@@ -617,7 +618,8 @@ impl Editor
         }
         else
         {
-            let left_dif = camera_pos.x - half_width + ui_left_space() * camera.scale() + MAP_HALF_SIZE;
+            let left_dif =
+                camera_pos.x - half_width + ui_left_space() * camera.scale() + MAP_HALF_SIZE;
 
             if left_dif < 0f32
             {

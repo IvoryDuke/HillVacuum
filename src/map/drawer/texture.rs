@@ -10,6 +10,26 @@ use serde::{Deserialize, Serialize};
 use crate::{utils::hull::EntityHull, Animation, Hull};
 
 //=======================================================================//
+// MACROS
+//
+//=======================================================================//
+
+macro_rules! sprite_values {
+    ($($value:ident),+) => {$(
+        #[inline]
+        #[must_use]
+        pub const fn $value(&self) -> f32
+        {
+            match self
+            {
+                Sprite::True(_) => 0f32,
+                Sprite::False { $value, .. } => *$value
+            }
+        }
+    )+};
+}
+
+//=======================================================================//
 // TRAITS
 //
 //=======================================================================//
@@ -95,58 +115,49 @@ pub trait TextureInterface
 pub enum Sprite
 {
     /// Yes.
-    True
-    {
-        /// The vertexes of the sprite.
-        vxs:  [Vec2; 4],
-        /// The [`Hull`] describing the bounds of the sprite.
-        hull: Hull
-    },
+    True(Hull),
     /// No.
     False
     {
         /// The horizontal parallax of the texture.
         parallax_x: f32,
         /// The vertical parallax of the texture.
-        parallax_y: f32
+        parallax_y: f32,
+        /// The horizontal scrolling of the texture.
+        scroll_x:   f32,
+        /// The vertical scrolling of the texture.
+        scroll_y:   f32
+    }
+}
+
+impl Default for Sprite
+{
+    #[inline]
+    fn default() -> Self
+    {
+        Self::False {
+            parallax_x: 0f32,
+            parallax_y: 0f32,
+            scroll_x:   0f32,
+            scroll_y:   0f32
+        }
     }
 }
 
 impl EntityHull for Sprite
 {
-    fn hull(&self) -> Hull { match_or_panic!(self, Self::True { hull, .. }, *hull) }
+    #[inline]
+    fn hull(&self) -> Hull { match_or_panic!(self, Self::True(hull), *hull) }
 }
 
 impl Sprite
 {
+    sprite_values!(parallax_x, parallax_y, scroll_x, scroll_y);
+
     /// Whether `self` has value `Sprite::True`.
     #[inline]
     #[must_use]
     pub const fn enabled(&self) -> bool { matches!(self, Self::True { .. }) }
-
-    /// The horizontal parallax.
-    #[inline]
-    #[must_use]
-    pub const fn parallax_x(&self) -> f32
-    {
-        match self
-        {
-            Sprite::True { .. } => 0f32,
-            Sprite::False { parallax_x, .. } => *parallax_x
-        }
-    }
-
-    /// The vertical parallax.
-    #[inline]
-    #[must_use]
-    pub const fn parallax_y(&self) -> f32
-    {
-        match self
-        {
-            Sprite::True { .. } => 0f32,
-            Sprite::False { parallax_y, .. } => *parallax_y
-        }
-    }
 
     #[inline]
     #[must_use]
@@ -154,7 +165,7 @@ impl Sprite
     {
         match self
         {
-            Sprite::True { hull, .. } => Some(hull),
+            Sprite::True(hull) => Some(hull),
             Sprite::False { .. } => None
         }
     }
@@ -172,16 +183,14 @@ impl Sprite
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TextureSettings
 {
-    texture: String,
-    scale_x: f32,
-    scale_y: f32,
-    offset_x: f32,
-    offset_y: f32,
-    pub(in crate::map) scroll_x: f32,
-    pub(in crate::map) scroll_y: f32,
-    angle: f32,
-    height: i8,
-    sprite: Sprite,
+    texture:   String,
+    scale_x:   f32,
+    scale_y:   f32,
+    offset_x:  f32,
+    offset_y:  f32,
+    angle:     f32,
+    height:    i8,
+    sprite:    Sprite,
     animation: Animation
 }
 
@@ -204,16 +213,16 @@ impl TextureInterface for TextureSettings
     fn scale_y(&self) -> f32 { self.scale_y }
 
     #[inline]
-    fn scroll_x(&self) -> f32 { self.scroll_x }
+    fn scroll_x(&self) -> f32 { self.sprite.scroll_x() }
 
     #[inline]
-    fn scroll_y(&self) -> f32 { self.scroll_y }
+    fn scroll_y(&self) -> f32 { self.sprite.scroll_y() }
 
     #[inline]
-    fn draw_scroll_x(&self, elapsed_time: f32) -> f32 { self.scroll_x * elapsed_time }
+    fn draw_scroll_x(&self, elapsed_time: f32) -> f32 { self.scroll_x() * elapsed_time }
 
     #[inline]
-    fn draw_scroll_y(&self, elapsed_time: f32) -> f32 { self.scroll_y * elapsed_time }
+    fn draw_scroll_y(&self, elapsed_time: f32) -> f32 { self.scroll_y() * elapsed_time }
 
     #[inline]
     fn parallax_x(&self) -> f32 { self.sprite.parallax_x() }
@@ -274,7 +283,6 @@ pub(in crate::map) mod ui_mod
         match_or_panic,
         return_if_no_match,
         return_if_none,
-        NextValue,
         TEXTURE_HEIGHT_RANGE
     };
 
@@ -410,6 +418,21 @@ pub(in crate::map) mod ui_mod
 
             #[inline]
             #[must_use]
+            pub(in crate::map) fn [< set_scroll_ $xy >](&mut self, value: f32) -> Option<f32>
+            {
+                let prev = self.[< scroll_ $xy >]();
+
+                if value.around_equal_narrow(&prev)
+                {
+                    return None;
+                }
+
+                self.sprite.[< set_scroll_ $xy >](value);
+                prev.into()
+            }
+
+            #[inline]
+            #[must_use]
             pub(in crate::map) fn [< check_atlas_animation_ $xy _partition >](
                 &mut self,
                 drawing_resources: &DrawingResources,
@@ -456,6 +479,25 @@ pub(in crate::map) mod ui_mod
     }
 
     //=======================================================================//
+
+    macro_rules! sprite_values {
+        ($($value:ident),+) => { paste::paste!{ $(
+            #[inline]
+            fn [< set_ $value >](&mut self, value: f32) -> Option<f32>
+            {
+                let $value = match_or_panic!(self, Self::False { $value, .. }, $value);
+
+                if value.around_equal_narrow($value)
+                {
+                    return None;
+                }
+
+                std::mem::replace($value, value).into()
+            }
+        )+}};
+    }
+
+    //=======================================================================//
     // TRAITS
     //
     //=======================================================================//
@@ -486,44 +528,27 @@ pub(in crate::map) mod ui_mod
         {
             if value
             {
-                return Sprite::True {
-                    vxs:  [Vec2::ZERO; 4],
-                    hull: Hull::new(64f32, 0f32, 0f32, 64f32)
-                };
+                return Sprite::True(Hull::new(64f32, 0f32, 0f32, 64f32));
             }
 
             Sprite::False {
                 parallax_x: 0f32,
-                parallax_y: 0f32
+                parallax_y: 0f32,
+                scroll_x:   0f32,
+                scroll_y:   0f32
             }
         }
     }
 
     impl Sprite
     {
-        /// Sets the horizontal parallax.
-        #[inline]
-        fn set_parallax_x(&mut self, value: f32)
-        {
-            *match_or_panic!(self, Self::False { parallax_x, .. }, parallax_x) = value;
-        }
-
-        /// Sets the vertical parallax.
-        #[inline]
-        fn set_parallax_y(&mut self, value: f32)
-        {
-            *match_or_panic!(self, Self::False { parallax_y, .. }, parallax_y) = value;
-        }
+        sprite_values!(parallax_x, parallax_y, scroll_x, scroll_y);
 
         /// Updates the rendering bounds.
         #[inline]
         fn update_bounds(&mut self, hull: &Hull)
         {
-            let (vxs, old_hull) = match_or_panic!(self, Self::True { vxs, hull }, (vxs, hull));
-
-            let mut vertexes = hull.vertexes();
-            *vxs = std::array::from_fn::<_, 4, _>(|_| vertexes.next_value());
-            *old_hull = *hull;
+            *match_or_panic!(self, Self::True(hull), hull) = *hull;
         }
     }
 
@@ -768,13 +793,13 @@ pub(in crate::map) mod ui_mod
                 scale_y:   1f32,
                 offset_x:  0f32,
                 offset_y:  0f32,
-                scroll_x:  0f32,
-                scroll_y:  0f32,
                 angle:     0f32,
                 height:    0,
                 sprite:    Sprite::False {
                     parallax_x: 0f32,
-                    parallax_y: 0f32
+                    parallax_y: 0f32,
+                    scroll_x:   0f32,
+                    scroll_y:   0f32
                 },
                 animation: Animation::None
             }
@@ -1149,27 +1174,14 @@ pub(in crate::map) mod ui_mod
             center: Vec2
         ) -> bool
         {
-            if !value || value == self.sprite.enabled()
+            if !value || self.sprite.enabled()
             {
                 return true;
             }
 
             let prev_offset_x = std::mem::replace(&mut self.offset_x, 0f32);
             let prev_offset_y = std::mem::replace(&mut self.offset_y, 0f32);
-            let new = if value
-            {
-                Sprite::True {
-                    vxs:  [Vec2::ZERO; 4],
-                    hull: Hull::new(64f32, 0f32, 0f32, 64f32)
-                }
-            }
-            else
-            {
-                Sprite::False {
-                    parallax_x: 0f32,
-                    parallax_y: 0f32
-                }
-            };
+            let new = Sprite::from(true);
 
             let prev_sprite = std::mem::replace(&mut self.sprite, new);
             let result = self.check_sprite_hull(drawing_resources, center).is_ok();

@@ -1818,14 +1818,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map::brush) fn set_texture_scroll_x(&mut self, value: f32) -> Option<f32>
         {
-            let prev = &mut self.texture_settings_mut().scroll_x;
-
-            if value.around_equal_narrow(prev)
-            {
-                return None;
-            }
-
-            let result = std::mem::replace(prev, value).into();
+            let result = self.texture_settings_mut().set_scroll_x(value);
             self.set_texture_updated(result)
         }
 
@@ -1833,14 +1826,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map::brush) fn set_texture_scroll_y(&mut self, value: f32) -> Option<f32>
         {
-            let prev = &mut self.texture_settings_mut().scroll_y;
-
-            if value.around_equal_narrow(prev)
-            {
-                return None;
-            }
-
-            let result = std::mem::replace(prev, value).into();
+            let result = self.texture_settings_mut().set_scroll_y(value);
             self.set_texture_updated(result)
         }
 

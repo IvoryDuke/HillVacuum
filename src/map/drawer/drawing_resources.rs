@@ -1507,14 +1507,13 @@ impl<'a> MeshGenerator<'a>
     fn sprite_uv<T: TextureInterface + TextureInterfaceExtra>(
         &self,
         texture: &str,
-        settings: &T,
-        elapsed_time: f32
+        settings: &T
     ) -> [Uv; 4]
     {
         let size = self.4.texture_or_error(texture).size().as_vec2();
 
-        let mut left = settings.draw_scroll_x(elapsed_time) / (size.x * settings.scale_x());
-        let mut top = settings.draw_scroll_y(elapsed_time) / (size.y * settings.scale_y());
+        let mut left = 1f32 / (size.x * settings.scale_x());
+        let mut top = 1f32 / (size.y * settings.scale_y());
         let mut right = settings.scale_x().signum() + left;
         let mut bottom = settings.scale_y().signum() + top;
 
@@ -1542,11 +1541,10 @@ impl<'a> MeshGenerator<'a>
     pub fn set_sprite_uv<T: TextureInterface + TextureInterfaceExtra>(
         &mut self,
         texture: &str,
-        settings: &T,
-        elapsed_time: f32
+        settings: &T
     )
     {
-        self.3.extend(self.sprite_uv(texture, settings, elapsed_time));
+        self.3.extend(self.sprite_uv(texture, settings));
     }
 
     /// Sets the UV to the one of an animated sprite.
@@ -1554,12 +1552,11 @@ impl<'a> MeshGenerator<'a>
     pub fn set_animated_sprite_uv<T: TextureInterface + TextureInterfaceExtra>(
         &mut self,
         settings: &T,
-        animator: &AtlasAnimator,
-        elapsed_time: f32
+        animator: &AtlasAnimator
     )
     {
         let pivot = animator.pivot();
-        let mut uvs = self.sprite_uv(settings.name(), settings, elapsed_time);
+        let mut uvs = self.sprite_uv(settings.name(), settings);
 
         for uv in &mut uvs
         {

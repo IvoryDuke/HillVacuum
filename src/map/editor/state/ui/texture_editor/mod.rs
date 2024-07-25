@@ -352,7 +352,7 @@ impl Innards
             drawing_resources
         ),
         (offset, "Offset", 1f32, no_clamp, drawing_resources),
-        (scroll, "Scroll", 1f32, no_clamp),
+        (scroll, "Scroll", 1f32, no_clamp, 0),
         (parallax, "Parallax", 0.05, no_clamp, 0)
     );
 
