@@ -38,7 +38,6 @@ use bevy_egui::{
     egui::{
         self,
         text::{CCursor, CCursorRange, CursorRange},
-        text_edit::TextEditOutput,
         TextBuffer
     },
     EguiUserTextures
@@ -53,7 +52,12 @@ use hill_vacuum_shared::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{editor_state::InputsPresses, edits_history::EditsHistory, manager::EntitiesManager};
+use super::{
+    editor_state::InputsPresses,
+    edits_history::EditsHistory,
+    manager::EntitiesManager,
+    ui::singleline_textedit
+};
 use crate::{
     error_message,
     map::{
@@ -1308,11 +1312,12 @@ impl Clipboard
     pub fn copy_paste_text_editor(
         &mut self,
         inputs: &InputsPresses,
-        ui: &egui::Ui,
-        buffer: &mut String,
-        mut output: TextEditOutput
+        ui: &mut egui::Ui,
+        buffer: &mut String
     ) -> egui::Response
     {
+        let mut output = singleline_textedit(buffer).show(ui);
+
         if !output.response.has_focus()
         {
             return output.response;

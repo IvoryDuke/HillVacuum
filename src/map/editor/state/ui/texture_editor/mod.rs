@@ -12,7 +12,6 @@ use self::animation_editor::{AnimationEditor, Target};
 use super::{
     checkbox::CheckBox,
     overall_value_field::{MinusPlusOverallValueField, OverallValueField},
-    singleline_textedit,
     window::Window,
     WindowCloser,
     WindowCloserInfo
@@ -531,26 +530,33 @@ impl Innards
     fn show(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle) -> bool
     {
         #[inline]
-        fn top_section<F>(ui: &mut egui::Ui, f: F)
+        fn top_section<F, R>(ui: &mut egui::Ui, f: F) -> R
         where
-            F: FnOnce(&mut egui::Ui)
+            F: FnOnce(&mut egui::Ui) -> R
         {
             ui.vertical(|ui| {
                 ui.set_height(SETTING_HEIGHT);
-                f(ui);
+                let r = f(ui);
                 ui.separator();
-            });
+                r
+            })
+            .inner
         }
 
         top_section(ui, |ui| self.mode_selector(ui, bundle.manager));
-        top_section(ui, |ui| {
+
+        let mut response = top_section(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Filter");
-                ui.add(singleline_textedit(&mut self.filter));
-            });
+                bundle
+                    .clipboard
+                    .copy_paste_text_editor(bundle.inputs, ui, &mut self.filter)
+                    .has_focus()
+            })
+            .inner
         });
 
-        let response = ui
+        response |= ui
             .horizontal(|ui| {
                 ui.vertical(|ui| {
                     self.selected_texture(ui, bundle);

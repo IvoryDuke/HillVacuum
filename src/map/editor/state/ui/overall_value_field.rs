@@ -100,8 +100,7 @@ impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
         f: F
     ) -> Response
     {
-        let output = singleline_textedit(value.buffer_mut()).show(ui);
-        let response = clipboard.copy_paste_text_editor(inputs, ui, value.buffer_mut(), output);
+        let response = clipboard.copy_paste_text_editor(inputs, ui, value.buffer_mut());
         let lost_focus = response.actually_lost_focus();
 
         Response {

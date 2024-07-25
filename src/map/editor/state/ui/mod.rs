@@ -1220,7 +1220,7 @@ pub(in crate::map) fn map_view_center(window: &bevy::window::Window) -> egui::Po
 
 /// The text editor of the value.
 #[inline]
-fn singleline_textedit(buffer: &mut String) -> egui::TextEdit
+pub(in crate::map::editor::state) fn singleline_textedit(buffer: &mut String) -> egui::TextEdit
 {
     egui::TextEdit::singleline(buffer).desired_width(f32::INFINITY)
 }
