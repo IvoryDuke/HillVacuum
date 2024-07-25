@@ -139,6 +139,12 @@ impl Cursor
         space_pressed: bool
     )
     {
+        macro_rules! clamp_world_coordinate {
+            ($($xy:ident),+) => { $(
+                self.world.$xy = self.world.$xy.clamp(-MAP_HALF_SIZE, MAP_HALF_SIZE);
+            )+};
+        }
+
         self.delta_ui = ui - self.ui;
         self.ui = ui;
 
@@ -152,6 +158,8 @@ impl Cursor
         self.previous_world = self.world;
         self.previous_world_snapped = self.world_grid_snapped;
         self.world = camera.to_world_coordinates(window, grid, ui);
+        clamp_world_coordinate!(x, y);
+
         self.grid_square = grid.square(self.world);
         self.world_grid_snapped = self.grid_square.nearest_corner_to_point(self.world);
         let p = camera.to_egui_coordinates(window, grid, self.world_grid_snapped);

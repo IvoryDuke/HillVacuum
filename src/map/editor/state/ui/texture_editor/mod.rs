@@ -236,7 +236,7 @@ macro_rules! scale_offset_scroll_parallax {
 
 /// Creates the definition for the angle and height texture settings functions.
 macro_rules! angle_and_height {
-    ($(($value:ident, $label:literal, $t:ty, $bound:expr $(, $drawing_resources:ident)?)),+) => { paste::paste! { $(
+    ($(($value:ident, $label:literal, $t:ty, $clamp:expr $(, $drawing_resources:ident)?)),+) => { paste::paste! { $(
         #[inline]
         fn [< set_ $value >](
             &mut self,
@@ -264,7 +264,7 @@ macro_rules! angle_and_height {
                         $value,
                         ONE,
                         strip,
-                        $bound
+                        $clamp
                         $(, $drawing_resources)?
                     );
                 });

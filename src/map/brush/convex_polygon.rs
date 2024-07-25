@@ -1119,13 +1119,7 @@ pub(in crate::map) mod ui_mod
         fn sprite(&self) -> bool { self.texture.sprite() }
 
         #[inline]
-        fn sprite_vertexes(&self, center: Vec2) -> [Vec2; 4]
-        {
-            self.texture.sprite_vertexes(center + self.delta)
-        }
-
-        #[inline]
-        fn sprite_hull(&self, center: Vec2) -> Hull
+        fn sprite_hull(&self, center: Vec2) -> Option<Hull>
         {
             self.texture.sprite_hull(center + self.delta)
         }
@@ -1399,16 +1393,16 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map) fn sprite_hull(&self) -> Option<Hull>
         {
-            let tex = self.texture.as_ref()?;
-            (tex.sprite()).then(|| tex.sprite_hull(self.center))
+            self.texture.as_ref()?.sprite_hull(self.center)
         }
 
         #[inline]
         #[must_use]
         pub(in crate::map::brush) fn sprite_hull_out_of_bounds(&self, center: Vec2) -> bool
         {
-            let texture = return_if_none!(self.texture_settings(), false);
-            texture.sprite() && texture.sprite_hull(center).out_of_bounds()
+            return_if_none!(self.texture_settings(), false)
+                .sprite_hull(center)
+                .map_or(false, |hull| hull.out_of_bounds())
         }
 
         //============================================================
@@ -5115,8 +5109,7 @@ pub(in crate::map) mod ui_mod
             settings: &T
         )
         {
-            let hull = settings.sprite_hull(self.center);
-            let hull_center = hull.center();
+            let hull_center = settings.sprite_hull(self.center).unwrap().center();
 
             drawer.square_highlight(center, Color::SpriteAnchor);
             drawer.square_highlight(hull_center, Color::SpriteAnchor);

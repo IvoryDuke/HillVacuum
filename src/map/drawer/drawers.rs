@@ -857,7 +857,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(4);
 
-        let mut hull = settings.sprite_hull(self.grid.transform_point(brush_center));
+        let mut hull = settings.sprite_hull(self.grid.transform_point(brush_center)).unwrap();
 
         if self.grid.isometric()
         {

@@ -588,15 +588,11 @@ impl Editor
     #[inline]
     fn cap_map_size(window: &Window, camera: &mut Transform)
     {
-        /// A more constrained map size cap to avoid [`QuadTree`] crashes caused by an out of bounds
-        /// cursor position.
-        const CAP: f32 = MAP_HALF_SIZE - 64f32;
-
         let (half_width, half_height) = camera.scaled_window_half_sizes(window);
         let mut camera_pos = camera.pos();
 
         // Y Cap.
-        let top_dif = camera_pos.y + half_height - ui_top_space() * camera.scale() - CAP;
+        let top_dif = camera_pos.y + half_height - ui_top_space() * camera.scale() - MAP_HALF_SIZE;
 
         if top_dif > 0f32
         {
@@ -604,7 +600,7 @@ impl Editor
         }
         else
         {
-            let bottom_dif = camera_pos.y - half_height + CAP;
+            let bottom_dif = camera_pos.y - half_height + MAP_HALF_SIZE;
 
             if bottom_dif < 0f32
             {
@@ -613,7 +609,7 @@ impl Editor
         }
 
         // X Cap.
-        let right_dif = camera_pos.x + half_width - ui_right_space() * camera.scale() - CAP;
+        let right_dif = camera_pos.x + half_width - ui_right_space() * camera.scale() - MAP_HALF_SIZE;
 
         if right_dif > 0f32
         {
@@ -621,7 +617,7 @@ impl Editor
         }
         else
         {
-            let left_dif = camera_pos.x - half_width + ui_left_space() * camera.scale() + CAP;
+            let left_dif = camera_pos.x - half_width + ui_left_space() * camera.scale() + MAP_HALF_SIZE;
 
             if left_dif < 0f32
             {
