@@ -334,8 +334,8 @@ macro_rules! atlas {
         $move_down:expr
     ) => {{
         use crate::map::editor::state::ui::texture_editor::animation_editor::{
+            set_atlas_len,
             set_atlas_timing,
-            set_len,
             set_partition,
             set_single_atlas_time
         };
@@ -372,8 +372,14 @@ macro_rules! atlas {
                 });
 
                 strip.strip(|builder| {
-                    response |=
-                        set_len(builder, $clipboard, $inputs, &mut $atlas.len, $field_width, $len);
+                    response |= set_atlas_len(
+                        builder,
+                        $clipboard,
+                        $inputs,
+                        &mut $atlas.len,
+                        $field_width,
+                        $len
+                    );
                 });
             });
 
@@ -850,11 +856,13 @@ impl AnimationEditor
                             return false;
                         }
 
-                        let prev = texture
-                            .animation_mut_set_dirty()
-                            .get_atlas_animation_mut()
-                            .[< set_ $xy _partition >](value)
-                            .unwrap();
+                        let prev = return_if_none!(
+                            texture
+                                .animation_mut_set_dirty()
+                                .get_atlas_animation_mut()
+                                .[< set_ $xy _partition >](value),
+                            false
+                        );
                         edits_history.[< default_animation_atlas_ $xy >](texture, prev);
                         true
                     }
@@ -1283,7 +1291,7 @@ where
 
 /// UI element to set the amount of frames of an atlas animation.
 #[inline]
-fn set_len<F>(
+fn set_atlas_len<F>(
     builder: egui_extras::StripBuilder,
     clipboard: &mut Clipboard,
     inputs: &InputsPresses,
