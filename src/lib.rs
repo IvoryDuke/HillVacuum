@@ -144,14 +144,12 @@ pub(crate) mod ui_mod
         hierarchy::HierarchyPlugin,
         input::keyboard::KeyCode,
         log::LogPlugin,
-        render::{
-            texture::{ImageAddressMode, ImagePlugin, ImageSamplerDescriptor},
-            view::Msaa
-        },
+        render::texture::{ImageAddressMode, ImagePlugin, ImageSamplerDescriptor},
         state::{app::AppExtStates, state::States},
         window::{
             Cursor,
             CursorIcon,
+            PresentMode,
             Window,
             WindowPlugin,
             WindowPosition,
@@ -352,6 +350,7 @@ pub(crate) mod ui_mod
                                 min_height: 480f32,
                                 ..Default::default()
                             },
+                            present_mode: PresentMode::AutoNoVsync,
                             ..Default::default()
                         }),
                         ..Default::default()
@@ -361,8 +360,7 @@ pub(crate) mod ui_mod
                     .disable::<DiagnosticsPlugin>()
             )
             .add_plugins((EmbeddedPlugin, ConfigPlugin, MapEditorPlugin))
-            .init_state::<EditorState>()
-            .insert_resource(Msaa::Sample4);
+            .init_state::<EditorState>();
         }
     }
 

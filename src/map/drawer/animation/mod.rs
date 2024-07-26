@@ -412,10 +412,7 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        fn maximum_valid_len(&self) -> usize
-        {
-            self.len.min((self.x * self.y) as usize)
-        }
+        fn maximum_valid_len(&self) -> usize { self.len.min((self.x * self.y) as usize) }
 
         /// Sets the amount of rows in which the texture is partitioned. Returns the previous vale
         /// if different.
