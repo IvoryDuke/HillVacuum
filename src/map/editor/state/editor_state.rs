@@ -5,7 +5,7 @@
 
 use std::{
     fs::{File, OpenOptions},
-    io::{BufReader, BufWriter, Seek, SeekFrom, Write},
+    io::{BufReader, BufWriter, Write},
     path::{Path, PathBuf}
 };
 
@@ -60,7 +60,9 @@ use crate::{
         },
         properties::DefaultProperties,
         thing::{catalog::ThingsCatalog, Thing},
-        MapHeader
+        version_number,
+        MapHeader,
+        FILE_VERSION_NUMBER
     },
     utils::{
         hull::Hull,
@@ -86,7 +88,6 @@ const PROPS_FILTER_NAME: &str = "Props files (.prps)";
 const ANIMATIONS_EXTENSION: &str = "anms";
 /// The props file extension.
 const PROPS_EXTENSION: &str = "prps";
-const VERSION_NUMBER: &str = "0.4";
 
 //=======================================================================//
 // MACROS
@@ -1171,7 +1172,7 @@ impl State
 
         // Version number.
         test!(
-            ciborium::ser::into_writer(VERSION_NUMBER, &mut writer),
+            ciborium::ser::into_writer(FILE_VERSION_NUMBER, &mut writer),
             "Error saving version number."
         );
 
@@ -1271,24 +1272,6 @@ impl State
     //==============================================================
     // Open
 
-    /// Reads the version number from `file`.
-    #[inline]
-    #[must_use]
-    fn version_number(file: &mut BufReader<File>) -> String
-    {
-        let position = file.stream_position().unwrap();
-
-        match ciborium::from_reader(&mut *file)
-        {
-            Ok(version) => version,
-            Err(_) =>
-            {
-                file.seek(SeekFrom::Start(position)).ok();
-                "0.3".to_string()
-            }
-        }
-    }
-
     /// Returns new [`EntitiesManager`] and [`Clipboard`] loading the content of `file`.
     /// Returns `Err` if the file could not be properly read.
     #[inline]
@@ -1304,7 +1287,12 @@ impl State
     {
         let mut file = BufReader::new(file);
 
-        let version = Self::version_number(&mut file).as_str();
+        match version_number(&mut file).as_str()
+        {
+            "0.3" => todo!(),
+            FILE_VERSION_NUMBER => (),
+            _ => return Err("Error reading file version")
+        };
 
         let header = match ciborium::from_reader(&mut file)
         {
@@ -1598,7 +1586,7 @@ impl State
                 );
 
                 // Right now has no actual purpose.
-                _ = Self::version_number(&mut file);
+                _ = version_number(&mut file);
 
                 let len = match ciborium::from_reader(&mut file)
                 {
@@ -1634,14 +1622,14 @@ impl State
                 let mut data = Vec::<u8>::new();
                 let mut writer = BufWriter::new(&mut data);
 
-                // if ciborium::ser::into_writer(
-                //     VERSION_NUMBER,
-                //     &mut writer
-                // ).is_err()
-                // {
-                //     error_message(concat!("Error writing version number"));
-                //     return false;
-                // }
+                if ciborium::ser::into_writer(
+                    FILE_VERSION_NUMBER,
+                    &mut writer
+                ).is_err()
+                {
+                    error_message("Error writing version number");
+                    return false;
+                }
 
                 if ciborium::ser::into_writer(
                     &$source.[< $argument _amount >](),

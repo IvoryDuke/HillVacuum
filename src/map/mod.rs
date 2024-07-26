@@ -15,7 +15,11 @@ pub mod thing;
 //
 //=======================================================================//
 
-use std::{fs::File, io::BufReader, path::PathBuf};
+use std::{
+    fs::File,
+    io::{BufReader, Seek, SeekFrom},
+    path::PathBuf
+};
 
 use hill_vacuum_shared::return_if_none;
 use properties::DefaultProperties;
@@ -32,6 +36,14 @@ use crate::{
     Id,
     TextureInterface
 };
+
+//=======================================================================//
+// CONSTANTS
+//
+//=======================================================================//
+
+/// The version of the saved files.
+const FILE_VERSION_NUMBER: &str = "0.4";
 
 //=======================================================================//
 // TYPES
@@ -79,6 +91,12 @@ impl Exporter
         };
 
         let mut file = BufReader::new(file);
+
+        if version_number(&mut file) != FILE_VERSION_NUMBER
+        {
+            return Err("Cannot export previous map versions, save the file to upgrade it to the \
+                        latest version.");
+        }
 
         let header = match ciborium::from_reader::<MapHeader, _>(&mut file)
         {
@@ -169,6 +187,32 @@ impl Exporter
         }
 
         Ok(Self(brushes_map, things))
+    }
+}
+
+//=======================================================================//
+// FUNCTIONS
+//
+//=======================================================================//
+
+/// Reads the version number from `file`.
+#[inline]
+#[must_use]
+fn version_number(file: &mut BufReader<File>) -> String
+{
+    assert!(
+        file.stream_position().unwrap() == 0,
+        "Version number is stored at the start of the file."
+    );
+
+    match ciborium::from_reader(&mut *file)
+    {
+        Ok(version) => version,
+        Err(_) =>
+        {
+            file.seek(SeekFrom::Start(0)).ok();
+            "0.3".to_string()
+        }
     }
 }
 
