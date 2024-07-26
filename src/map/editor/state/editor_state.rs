@@ -5,7 +5,7 @@
 
 use std::{
     fs::{File, OpenOptions},
-    io::{BufReader, BufWriter, Write},
+    io::{BufReader, BufWriter, Seek, SeekFrom, Write},
     path::{Path, PathBuf}
 };
 
@@ -86,6 +86,7 @@ const PROPS_FILTER_NAME: &str = "Props files (.prps)";
 const ANIMATIONS_EXTENSION: &str = "anms";
 /// The props file extension.
 const PROPS_EXTENSION: &str = "prps";
+const VERSION_NUMBER: &str = "0.4";
 
 //=======================================================================//
 // MACROS
@@ -1168,6 +1169,12 @@ impl State
         let mut data = Vec::new();
         let mut writer = BufWriter::new(&mut data);
 
+        // Version number.
+        test!(
+            ciborium::ser::into_writer(VERSION_NUMBER, &mut writer),
+            "Error saving version number."
+        );
+
         // Header.
         test!(
             ciborium::ser::into_writer(
@@ -1264,6 +1271,24 @@ impl State
     //==============================================================
     // Open
 
+    /// Reads the version number from `file`.
+    #[inline]
+    #[must_use]
+    fn version_number(file: &mut BufReader<File>) -> String
+    {
+        let position = file.stream_position().unwrap();
+
+        match ciborium::from_reader(&mut *file)
+        {
+            Ok(version) => version,
+            Err(_) =>
+            {
+                file.seek(SeekFrom::Start(position)).ok();
+                "0.3".to_string()
+            }
+        }
+    }
+
     /// Returns new [`EntitiesManager`] and [`Clipboard`] loading the content of `file`.
     /// Returns `Err` if the file could not be properly read.
     #[inline]
@@ -1279,7 +1304,9 @@ impl State
     {
         let mut file = BufReader::new(file);
 
-        let header = match ciborium::from_reader::<MapHeader, _>(&mut file)
+        let version = Self::version_number(&mut file).as_str();
+
+        let header = match ciborium::from_reader(&mut file)
         {
             Ok(header) => header,
             Err(_) => return Err("Error reading file header")
@@ -1307,11 +1334,7 @@ impl State
         )?;
         clipboard.reset_props_changed();
 
-        Ok((
-            manager,
-            clipboard,
-            ciborium::from_reader::<GridSettings, _>(&mut file).unwrap_or_default()
-        ))
+        Ok((manager, clipboard, ciborium::from_reader(&mut file).unwrap_or_default()))
     }
 
     /// Opens a map file, unless the file cannot be properly read. If there are unsaved changes in
@@ -1374,11 +1397,11 @@ impl State
     // Export
 
     /// Initiates the map export procedure if an exporter executable is specified.
-    /// If there are unsaved changes inthe currently open map the save procedure is initiated.
+    /// If there are unsaved changes in the currently open map the save procedure is initiated.
     #[inline]
     fn export(&mut self, bundle: &mut StateUpdateBundle)
     {
-        match self.unsaved_changes(bundle, rfd::MessageButtons::YesNoCancel)
+        let file = match self.unsaved_changes(bundle, rfd::MessageButtons::YesNoCancel)
         {
             Ok(false) => return,
             Err(err) =>
@@ -1386,10 +1409,10 @@ impl State
                 error_message(err);
                 return;
             },
-            _ => ()
+            Ok(true) => return_if_none!(bundle.config.open_file.path())
         };
 
-        let exporter = bundle.config.exporter.as_ref().unwrap();
+        let exporter = return_if_none!(bundle.config.exporter.as_ref());
 
         if !exporter.exists() || !exporter.is_executable()
         {
@@ -1398,10 +1421,7 @@ impl State
             return;
         }
 
-        if std::process::Command::new(exporter)
-            .arg(bundle.config.open_file.path().unwrap())
-            .output()
-            .is_err()
+        if std::process::Command::new(exporter).arg(file).output().is_err()
         {
             error_message("Error exporting map");
         }
@@ -1562,8 +1582,43 @@ impl State
         ui_interaction: &Interaction
     ) -> bool
     {
+        /// Generates the procedure to read an export type file.
+        macro_rules! import {
+            ($extension:ident, $label:literal, $importer:expr) => {{ paste::paste! {
+                let mut file = BufReader::new(
+                    File::open(return_if_none!(
+                        rfd::FileDialog::new()
+                        .set_title(concat!("Export ", $label))
+                        .add_filter([< $extension _FILTER_NAME >], &[[< $extension _EXTENSION >]])
+                        .set_directory(std::env::current_dir().unwrap())
+                        .pick_file(),
+                        false
+                    ))
+                    .unwrap()
+                );
+
+                // Right now has no actual purpose.
+                _ = Self::version_number(&mut file);
+
+                let len = match ciborium::from_reader(&mut file)
+                {
+                    Ok(len) => len,
+                    Err(_) =>
+                    {
+                        error_message(concat!("Error reading ", $label, " file."));
+                        return false;
+                    }
+                };
+
+                if let Err(err) = ($importer)(&mut file, len)
+                {
+                    error_message(err);
+                }
+            }}};
+        }
+
         /// Generates the procedure to save an export type file.
-        macro_rules! save_export {
+        macro_rules! export {
             ($extension:ident, $label:literal, $argument:ident, $source:expr) => {{ paste::paste! {
                 let path = return_if_none!(
                     rfd::FileDialog::new()
@@ -1579,12 +1634,21 @@ impl State
                 let mut data = Vec::<u8>::new();
                 let mut writer = BufWriter::new(&mut data);
 
+                // if ciborium::ser::into_writer(
+                //     VERSION_NUMBER,
+                //     &mut writer
+                // ).is_err()
+                // {
+                //     error_message(concat!("Error writing version number"));
+                //     return false;
+                // }
+
                 if ciborium::ser::into_writer(
                     &$source.[< $argument _amount >](),
                     &mut writer
                 ).is_err()
                 {
-                    error_message(concat!("Error creating ", $label, " amount"));
+                    error_message(concat!("Error writing ", $label, " amount"));
                     return false;
                 }
 
@@ -1666,75 +1730,28 @@ impl State
             Command::Export => self.export(bundle),
             Command::ImportAnimations =>
             {
-                let mut file = BufReader::new(
-                    File::open(return_if_none!(
-                        rfd::FileDialog::new()
-                            .set_title("Import animations")
-                            .add_filter(ANIMATIONS_FILTER_NAME, &[ANIMATIONS_EXTENSION])
-                            .set_directory(std::env::current_dir().unwrap())
-                            .pick_file(),
-                        false
-                    ))
-                    .unwrap()
-                );
-
-                let anims_amount = match ciborium::from_reader(&mut file)
-                {
-                    Ok(len) => len,
-                    Err(_) =>
-                    {
-                        error_message("Error reading animations file.");
-                        return false;
-                    }
-                };
-
-                if let Err(err) =
-                    bundle.drawing_resources.import_animations(anims_amount, &mut file)
-                {
-                    error_message(err);
-                }
+                import!(ANIMATIONS, "animations", |file, len| {
+                    bundle.drawing_resources.import_animations(len, file)
+                });
             },
             Command::ExportAnimations =>
             {
-                save_export!(ANIMATIONS, "animations", animations, bundle.drawing_resources);
+                export!(ANIMATIONS, "animations", animations, bundle.drawing_resources);
             },
             Command::ImportProps =>
             {
-                let mut file = BufReader::new(
-                    File::open(return_if_none!(
-                        rfd::FileDialog::new()
-                            .set_title("Import props")
-                            .add_filter(PROPS_FILTER_NAME, &[PROPS_EXTENSION])
-                            .set_directory(std::env::current_dir().unwrap())
-                            .pick_file(),
-                        false
-                    ))
-                    .unwrap()
-                );
-
-                let props_amount = match ciborium::from_reader(&mut file)
-                {
-                    Ok(len) => len,
-                    Err(_) =>
-                    {
-                        error_message("Error reading props file.");
-                        return false;
-                    }
-                };
-
-                if let Err(err) = self.clipboard.import_props(
-                    bundle.images,
-                    bundle.prop_cameras,
-                    bundle.user_textures,
-                    bundle.things_catalog,
-                    props_amount,
-                    &mut file
-                )
-                {
-                    error_message(err);
-                }
+                import!(PROPS, "props", |file, len| {
+                    self.clipboard.import_props(
+                        bundle.images,
+                        bundle.prop_cameras,
+                        bundle.user_textures,
+                        bundle.things_catalog,
+                        len,
+                        file
+                    )
+                });
             },
-            Command::ExportProps => save_export!(PROPS, "props", props, self.clipboard),
+            Command::ExportProps => export!(PROPS, "props", props, self.clipboard),
             Command::SelectAll => self.select_all(),
             Command::Copy => self.copy(bundle),
             Command::Paste => self.paste(bundle),

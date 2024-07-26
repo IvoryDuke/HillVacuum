@@ -69,6 +69,8 @@ HV creates three types of files, all of which are relatively simple:
 - .hv is the regular map file;
 ```
 -------------------------------
+| Version number              |
+-------------------------------
 | Header                      |
 | brushes amount              |
 | things amount               |
@@ -93,6 +95,8 @@ HV creates three types of files, all of which are relatively simple:
 - .anms is the "animations only" file, which can be used to exchange animations between maps;
 ```
 -------------------------------
+| Version number              |
+-------------------------------
 | animations amount (usize)   |
 -------------------------------
 | Animations                  |
@@ -100,6 +104,8 @@ HV creates three types of files, all of which are relatively simple:
 ```
 - .prps is the "props only" file, which can be used to exchange props between maps.
 ```
+-------------------------------
+| Version number              |
 -------------------------------
 | props amount (usize)        |
 -------------------------------
