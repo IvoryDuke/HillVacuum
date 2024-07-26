@@ -384,6 +384,8 @@ pub(in crate::map) mod ui_mod
         #[inline]
         fn resize_frames(&mut self, new_len: usize)
         {
+            assert!(new_len <= self.max_len(), "New atlas length exceeds the maximum valid value.");
+
             let vec = match &mut self.timing
             {
                 Timing::Uniform(_) =>
@@ -408,6 +410,13 @@ pub(in crate::map) mod ui_mod
             self.len = new_len;
         }
 
+        #[inline]
+        #[must_use]
+        fn maximum_valid_len(&self) -> usize
+        {
+            self.len.min((self.x * self.y) as usize)
+        }
+
         /// Sets the amount of rows in which the texture is partitioned. Returns the previous vale
         /// if different.
         #[inline]
@@ -420,7 +429,7 @@ pub(in crate::map) mod ui_mod
             }
 
             let prev = std::mem::replace(&mut self.x, x);
-            self.resize_frames((self.x * self.y) as usize);
+            self.resize_frames(self.maximum_valid_len());
             prev.into()
         }
 
@@ -436,7 +445,7 @@ pub(in crate::map) mod ui_mod
             }
 
             let prev = std::mem::replace(&mut self.y, y);
-            self.resize_frames((self.x * self.y) as usize);
+            self.resize_frames(self.maximum_valid_len());
             prev.into()
         }
 
