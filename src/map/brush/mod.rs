@@ -40,10 +40,10 @@ pub(in crate::map) struct BrushData
 
 //=======================================================================//
 
-/// The entity representing one of the shapes that make the maps.
+/// The entity representing one of the shapes that make the maps, as saved in the .hv files.
 #[must_use]
 #[derive(Debug, Serialize, Deserialize)]
-pub(in crate::map) struct Brush
+pub struct Brush
 {
     // The id of the brush.
     id:   Id,
@@ -53,7 +53,7 @@ pub(in crate::map) struct Brush
 impl Brush
 {
     #[inline]
-    pub fn into_parts(self) -> (BrushData, Id) { (self.data, self.id) }
+    pub(in crate::map) fn into_parts(self) -> (BrushData, Id) { (self.data, self.id) }
 }
 
 //=======================================================================//
@@ -79,9 +79,9 @@ pub struct BrushViewer
 
 impl BrushViewer
 {
-    /// Returns a new [`BrushViewer`].
+    /// Returns a new [`crate::Brush`].
     #[inline]
-    pub(in crate::map) fn new(brush: Brush) -> Self
+    pub fn new(brush: Brush) -> Self
     {
         let (
             BrushData {
@@ -199,7 +199,7 @@ pub(in crate::map) mod ui_only
     ($($side:ident),+) => { paste::paste! { $(
         #[inline]
         #[must_use]
-        pub fn [< check_flip_ $side >](&mut self, drawing_resources: &DrawingResources, value: f32, flip_texture: bool) -> bool
+        pub(in crate::map) fn [< check_flip_ $side >](&mut self, drawing_resources: &DrawingResources, value: f32, flip_texture: bool) -> bool
         {
             match self.data.polygon.[< check_flip_ $side >](drawing_resources, value, flip_texture)
             {
@@ -209,7 +209,7 @@ pub(in crate::map) mod ui_only
         }
 
         #[inline]
-        pub fn [< flip_ $side >](&mut self, drawing_resources: &DrawingResources, value: f32, flip_texture: bool)
+        pub(in crate::map) fn [< flip_ $side >](&mut self, drawing_resources: &DrawingResources, value: f32, flip_texture: bool)
         {
             self.data.polygon.[< flip_ $side >](drawing_resources, value, flip_texture);
         }
@@ -845,7 +845,7 @@ pub(in crate::map) mod ui_only
         // New
 
         #[inline]
-        pub fn from_polygon<'a>(
+        pub(in crate::map) fn from_polygon<'a>(
             polygon: impl Into<Cow<'a, ConvexPolygon>>,
             identifier: Id,
             properties: Properties
@@ -879,7 +879,7 @@ pub(in crate::map) mod ui_only
         }
 
         #[inline]
-        pub fn from_parts(data: BrushData, identifier: Id) -> Self
+        pub(in crate::map) fn from_parts(data: BrushData, identifier: Id) -> Self
         {
             let BrushData {
                 polygon,
@@ -911,21 +911,21 @@ pub(in crate::map) mod ui_only
 
         /// Returns an iterator to the vertexes of the underlying `ConvexPolygon`.
         #[inline]
-        pub fn vertexes(&self) -> impl ExactSizeIterator<Item = Vec2> + Clone + '_
+        pub(in crate::map) fn vertexes(&self) -> impl ExactSizeIterator<Item = Vec2> + Clone + '_
         {
             self.data.polygon.vertexes()
         }
 
         /// Returns an iterator to the vertexes of the underlying `ConvexPolygon`.
         #[inline]
-        pub fn selected_vertexes(&self) -> Option<impl Iterator<Item = Vec2>>
+        pub(in crate::map) fn selected_vertexes(&self) -> Option<impl Iterator<Item = Vec2>>
         {
             self.data.polygon.selected_vertexes()
         }
 
         /// Returns an iterator to the vertexes of the underlying `ConvexPolygon`.
         #[inline]
-        pub fn selected_sides_vertexes(&self) -> Option<impl Iterator<Item = Vec2>>
+        pub(in crate::map) fn selected_sides_vertexes(&self) -> Option<impl Iterator<Item = Vec2>>
         {
             self.data.polygon.selected_sides_vertexes()
         }
@@ -934,21 +934,24 @@ pub(in crate::map) mod ui_only
         /// `ConvexPolygon`.
         #[inline]
         #[must_use]
-        pub fn center(&self) -> Vec2 { self.data.polygon.center() }
+        pub(in crate::map) fn center(&self) -> Vec2 { self.data.polygon.center() }
 
         /// Returns true if 'p' is in the area delimited by the underlying
         /// `ConvexPolygon`.
         #[inline]
         #[must_use]
-        pub fn contains_point(&self, p: Vec2) -> bool { self.data.polygon.point_in_polygon(p) }
+        pub(in crate::map) fn contains_point(&self, p: Vec2) -> bool
+        {
+            self.data.polygon.point_in_polygon(p)
+        }
 
         /// Returns a copy of the underlying `ConvexPolygon`.
         #[inline]
-        pub fn polygon(&self) -> ConvexPolygon { self.data.polygon.clone() }
+        pub(in crate::map) fn polygon(&self) -> ConvexPolygon { self.data.polygon.clone() }
 
         #[inline]
         #[must_use]
-        pub fn anchors_hull(&self, brushes: Brushes) -> Option<Hull>
+        pub(in crate::map) fn anchors_hull(&self, brushes: Brushes) -> Option<Hull>
         {
             if !self.data.mover.has_anchors()
             {
@@ -966,11 +969,11 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn sprite_hull(&self) -> Option<Hull> { self.data.polygon.sprite_hull() }
+        pub(in crate::map) fn sprite_hull(&self) -> Option<Hull> { self.data.polygon.sprite_hull() }
 
         #[inline]
         #[must_use]
-        pub fn sprite_anchor_hull(&self) -> Option<Hull>
+        pub(in crate::map) fn sprite_anchor_hull(&self) -> Option<Hull>
         {
             if !self.has_sprite()
             {
@@ -992,7 +995,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn sprite_and_anchor_hull(&self) -> Option<Hull>
+        pub(in crate::map) fn sprite_and_anchor_hull(&self) -> Option<Hull>
         {
             self.sprite_hull()
                 .map(|hull| hull.merged(&self.sprite_anchor_hull().unwrap()))
@@ -1000,7 +1003,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn global_hull(&self) -> Hull
+        pub(in crate::map) fn global_hull(&self) -> Hull
         {
             let mut hull = self.hull();
 
@@ -1022,21 +1025,21 @@ pub(in crate::map) mod ui_only
 
         /// Moves the `Brush` by the amount delta.
         #[inline]
-        pub fn check_move(&self, delta: Vec2, move_texture: bool) -> bool
+        pub(in crate::map) fn check_move(&self, delta: Vec2, move_texture: bool) -> bool
         {
             self.data.polygon.check_move(delta, move_texture) &&
                 !self.path_hull_out_of_bounds(self.center() + delta)
         }
 
         #[inline]
-        pub fn check_texture_move(&self, delta: Vec2) -> bool
+        pub(in crate::map) fn check_texture_move(&self, delta: Vec2) -> bool
         {
             !self.has_texture() || self.data.polygon.check_texture_move(delta)
         }
 
         /// Moves the `Brush` by the amount delta.
         #[inline]
-        pub fn move_by_delta(
+        pub(in crate::map) fn move_by_delta(
             &mut self,
             drawing_resources: &DrawingResources,
             delta: Vec2,
@@ -1049,14 +1052,18 @@ pub(in crate::map) mod ui_only
         }
 
         #[inline]
-        pub fn move_texture(&mut self, drawing_resources: &DrawingResources, delta: Vec2)
+        pub(in crate::map) fn move_texture(
+            &mut self,
+            drawing_resources: &DrawingResources,
+            delta: Vec2
+        )
         {
             self.data.polygon.move_texture(drawing_resources, delta);
         }
 
         /// Moves the `Brush` by the amount delta.
         #[inline]
-        pub fn move_polygon(
+        pub(in crate::map) fn move_polygon(
             &mut self,
             drawing_resources: &DrawingResources,
             delta: Vec2,
@@ -1070,7 +1077,7 @@ pub(in crate::map) mod ui_only
 
         /// Swaps the polygon of `self` and `other`.
         #[inline]
-        pub fn swap_polygon(&mut self, polygon: &mut ConvexPolygon)
+        pub(in crate::map) fn swap_polygon(&mut self, polygon: &mut ConvexPolygon)
         {
             std::mem::swap(&mut self.data.polygon, polygon);
         }
@@ -1094,7 +1101,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn snap_vertexes(
+        pub(in crate::map) fn snap_vertexes(
             &mut self,
             drawing_resources: &DrawingResources,
             grid: Grid
@@ -1105,7 +1112,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn snap_selected_vertexes(
+        pub(in crate::map) fn snap_selected_vertexes(
             &mut self,
             drawing_resources: &DrawingResources,
             grid: Grid
@@ -1116,7 +1123,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn snap_selected_sides(
+        pub(in crate::map) fn snap_selected_sides(
             &mut self,
             drawing_resources: &DrawingResources,
             grid: Grid
@@ -1130,59 +1137,61 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn has_anchors(&self) -> bool { self.data.mover.has_anchors() }
+        pub(in crate::map) fn has_anchors(&self) -> bool { self.data.mover.has_anchors() }
 
         #[inline]
         #[must_use]
-        pub fn anchorable(&self) -> bool { !(self.has_anchors() || self.has_path()) }
+        pub(in crate::map) fn anchorable(&self) -> bool { !(self.has_anchors() || self.has_path()) }
 
         #[inline]
-        pub fn anchors_iter(&self) -> Option<impl ExactSizeIterator<Item = &Id> + Clone>
+        pub(in crate::map) fn anchors_iter(
+            &self
+        ) -> Option<impl ExactSizeIterator<Item = &Id> + Clone>
         {
             self.data.mover.anchors_iter()
         }
 
         #[inline]
         #[must_use]
-        pub const fn anchored(&self) -> Option<Id> { self.data.mover.is_anchored() }
+        pub(in crate::map) const fn anchored(&self) -> Option<Id> { self.data.mover.is_anchored() }
 
         #[inline]
-        pub fn insert_anchor(&mut self, anchor: &Self)
+        pub(in crate::map) fn insert_anchor(&mut self, anchor: &Self)
         {
             assert!(self.id != anchor.id, "Brush ID {:?} is equal to the anchor's ID", self.id);
             self.data.mover.insert_anchor(anchor.id);
         }
 
         #[inline]
-        pub fn anchor(&mut self, anchor: &mut Self)
+        pub(in crate::map) fn anchor(&mut self, anchor: &mut Self)
         {
             self.insert_anchor(anchor);
             anchor.attach(self.id);
         }
 
         #[inline]
-        pub fn remove_anchor(&mut self, anchor: &Self)
+        pub(in crate::map) fn remove_anchor(&mut self, anchor: &Self)
         {
             assert!(self.id != anchor.id, "Brush ID {:?} is equal to the anchor's ID", self.id);
             self.data.mover.remove_anchor(anchor.id);
         }
 
         #[inline]
-        pub fn disanchor(&mut self, anchor: &mut Self)
+        pub(in crate::map) fn disanchor(&mut self, anchor: &mut Self)
         {
             self.remove_anchor(anchor);
             anchor.detach();
         }
 
         #[inline]
-        pub fn attach(&mut self, identifier: Id)
+        pub(in crate::map) fn attach(&mut self, identifier: Id)
         {
             assert!(matches!(self.data.mover, Mover::None), "Brush Mover is not None");
             self.data.mover = Mover::Anchored(identifier);
         }
 
         #[inline]
-        pub fn detach(&mut self)
+        pub(in crate::map) fn detach(&mut self)
         {
             assert!(matches!(self.data.mover, Mover::Anchored(_)), "Brush is not anchored.");
             self.data.mover = Mover::None;
@@ -1193,13 +1202,13 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub const fn no_motor_nor_anchored(&self) -> bool
+        pub(in crate::map) const fn no_motor_nor_anchored(&self) -> bool
         {
             matches!(self.data.mover, Mover::None | Mover::Anchors(_))
         }
 
         #[inline]
-        pub fn take_mover(&mut self) -> Option<Mover>
+        pub(in crate::map) fn take_mover(&mut self) -> Option<Mover>
         {
             if matches!(self.data.mover, Mover::None)
             {
@@ -1217,24 +1226,30 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub const fn has_texture(&self) -> bool { self.data.has_texture() }
+        pub(in crate::map) const fn has_texture(&self) -> bool { self.data.has_texture() }
 
         #[inline]
         #[must_use]
-        pub fn has_sprite(&self) -> bool { self.data.polygon.has_sprite() }
+        pub(in crate::map) fn has_sprite(&self) -> bool { self.data.polygon.has_sprite() }
 
         #[inline]
         #[must_use]
-        pub fn was_texture_edited(&mut self) -> bool { self.data.polygon.texture_edited() }
+        pub(in crate::map) fn was_texture_edited(&mut self) -> bool
+        {
+            self.data.polygon.texture_edited()
+        }
 
         #[inline]
-        pub const fn texture_settings(&self) -> Option<&TextureSettings>
+        pub(in crate::map) const fn texture_settings(&self) -> Option<&TextureSettings>
         {
             self.data.polygon.texture_settings()
         }
 
         #[inline]
-        pub fn animator(&self, drawing_resources: &DrawingResources) -> Option<Animator>
+        pub(in crate::map) fn animator(
+            &self,
+            drawing_resources: &DrawingResources
+        ) -> Option<Animator>
         {
             Animator::new(
                 self.texture_settings().unwrap().overall_animation(drawing_resources),
@@ -1244,7 +1259,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn check_texture_change(
+        pub(in crate::map) fn check_texture_change(
             &mut self,
             drawing_resources: &DrawingResources,
             texture: &str
@@ -1255,7 +1270,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn set_texture(
+        pub(in crate::map) fn set_texture(
             &mut self,
             drawing_resources: &DrawingResources,
             texture: &str
@@ -1265,17 +1280,20 @@ pub(in crate::map) mod ui_only
         }
 
         #[inline]
-        pub fn set_texture_settings(&mut self, texture: TextureSettings)
+        pub(in crate::map) fn set_texture_settings(&mut self, texture: TextureSettings)
         {
             self.data.polygon.set_texture_settings(texture);
         }
 
         #[inline]
-        pub fn remove_texture(&mut self) -> TextureSettings { self.data.polygon.remove_texture() }
+        pub(in crate::map) fn remove_texture(&mut self) -> TextureSettings
+        {
+            self.data.polygon.remove_texture()
+        }
 
         #[inline]
         #[must_use]
-        pub fn check_texture_offset_x(
+        pub(in crate::map) fn check_texture_offset_x(
             &mut self,
             drawing_resources: &DrawingResources,
             value: f32
@@ -1286,7 +1304,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn set_texture_offset_x(
+        pub(in crate::map) fn set_texture_offset_x(
             &mut self,
             drawing_resources: &DrawingResources,
             value: f32
@@ -1297,7 +1315,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn check_texture_offset_y(
+        pub(in crate::map) fn check_texture_offset_y(
             &mut self,
             drawing_resources: &DrawingResources,
             value: f32
@@ -1308,7 +1326,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn set_texture_offset_y(
+        pub(in crate::map) fn set_texture_offset_y(
             &mut self,
             drawing_resources: &DrawingResources,
             value: f32
@@ -1318,7 +1336,7 @@ pub(in crate::map) mod ui_only
         }
 
         #[inline]
-        pub fn check_texture_scale_x(
+        pub(in crate::map) fn check_texture_scale_x(
             &mut self,
             drawing_resources: &DrawingResources,
             value: f32
@@ -1329,7 +1347,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn set_texture_scale_x(
+        pub(in crate::map) fn set_texture_scale_x(
             &mut self,
             drawing_resources: &DrawingResources,
             value: f32
@@ -1339,13 +1357,13 @@ pub(in crate::map) mod ui_only
         }
 
         #[inline]
-        pub fn flip_texture_scale_x(&mut self, drawing_resources: &DrawingResources)
+        pub(in crate::map) fn flip_texture_scale_x(&mut self, drawing_resources: &DrawingResources)
         {
             self.data.polygon.flip_texture_scale_x(drawing_resources);
         }
 
         #[inline]
-        pub fn check_texture_scale_y(
+        pub(in crate::map) fn check_texture_scale_y(
             &mut self,
             drawing_resources: &DrawingResources,
             value: f32
@@ -1356,7 +1374,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn set_texture_scale_y(
+        pub(in crate::map) fn set_texture_scale_y(
             &mut self,
             drawing_resources: &DrawingResources,
             value: f32
@@ -1366,39 +1384,39 @@ pub(in crate::map) mod ui_only
         }
 
         #[inline]
-        pub fn flip_scale_y(&mut self, drawing_resources: &DrawingResources)
+        pub(in crate::map) fn flip_scale_y(&mut self, drawing_resources: &DrawingResources)
         {
             self.data.polygon.flip_texture_scale_y(drawing_resources);
         }
 
         #[inline]
-        pub fn set_texture_scroll_x(&mut self, value: f32) -> Option<f32>
+        pub(in crate::map) fn set_texture_scroll_x(&mut self, value: f32) -> Option<f32>
         {
             self.data.polygon.set_texture_scroll_x(value)
         }
 
         #[inline]
-        pub fn set_texture_scroll_y(&mut self, value: f32) -> Option<f32>
+        pub(in crate::map) fn set_texture_scroll_y(&mut self, value: f32) -> Option<f32>
         {
             self.data.polygon.set_texture_scroll_y(value)
         }
 
         #[inline]
         #[must_use]
-        pub fn set_texture_parallax_x(&mut self, value: f32) -> Option<f32>
+        pub(in crate::map) fn set_texture_parallax_x(&mut self, value: f32) -> Option<f32>
         {
             self.data.polygon.set_texture_parallax_x(value)
         }
 
         #[inline]
         #[must_use]
-        pub fn set_texture_parallax_y(&mut self, value: f32) -> Option<f32>
+        pub(in crate::map) fn set_texture_parallax_y(&mut self, value: f32) -> Option<f32>
         {
             self.data.polygon.set_texture_parallax_y(value)
         }
 
         #[inline]
-        pub fn check_texture_angle(
+        pub(in crate::map) fn check_texture_angle(
             &mut self,
             drawing_resources: &DrawingResources,
             value: f32
@@ -1409,7 +1427,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn set_texture_angle(
+        pub(in crate::map) fn set_texture_angle(
             &mut self,
             drawing_resources: &DrawingResources,
             value: f32
@@ -1420,13 +1438,13 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn set_texture_height(&mut self, value: i8) -> Option<i8>
+        pub(in crate::map) fn set_texture_height(&mut self, value: i8) -> Option<i8>
         {
             self.data.polygon.set_texture_height(value)
         }
 
         #[inline]
-        pub fn check_texture_sprite(
+        pub(in crate::map) fn check_texture_sprite(
             &mut self,
             drawing_resources: &DrawingResources,
             value: bool
@@ -1437,7 +1455,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn set_texture_sprite(
+        pub(in crate::map) fn set_texture_sprite(
             &mut self,
             drawing_resources: &DrawingResources,
             value: impl Into<Sprite>
@@ -1448,15 +1466,17 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn check_texture_within_bounds(&mut self, drawing_resources: &DrawingResources)
-            -> bool
+        pub(in crate::map) fn check_texture_within_bounds(
+            &mut self,
+            drawing_resources: &DrawingResources
+        ) -> bool
         {
             self.data.polygon.check_texture_within_bounds(drawing_resources)
         }
 
         #[inline]
         #[must_use]
-        pub fn check_texture_animation_change(
+        pub(in crate::map) fn check_texture_animation_change(
             &mut self,
             drawing_resources: &DrawingResources,
             animation: &Animation
@@ -1468,7 +1488,7 @@ pub(in crate::map) mod ui_only
         }
 
         #[inline]
-        pub fn set_texture_animation(
+        pub(in crate::map) fn set_texture_animation(
             &mut self,
             drawing_resources: &DrawingResources,
             animation: Animation
@@ -1478,7 +1498,7 @@ pub(in crate::map) mod ui_only
         }
 
         #[inline]
-        pub fn set_texture_list_animation(
+        pub(in crate::map) fn set_texture_list_animation(
             &mut self,
             drawing_resources: &DrawingResources,
             texture: &str
@@ -1490,15 +1510,17 @@ pub(in crate::map) mod ui_only
         }
 
         #[inline]
-        pub fn generate_list_animation(&mut self, drawing_resources: &DrawingResources)
-            -> Animation
+        pub(in crate::map) fn generate_list_animation(
+            &mut self,
+            drawing_resources: &DrawingResources
+        ) -> Animation
         {
             self.data.polygon.generate_list_animation(drawing_resources)
         }
 
         #[inline]
         #[must_use]
-        pub fn check_atlas_animation_x_partition(
+        pub(in crate::map) fn check_atlas_animation_x_partition(
             &mut self,
             drawing_resources: &DrawingResources,
             value: u32
@@ -1511,7 +1533,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn set_texture_atlas_animation_x_partition(
+        pub(in crate::map) fn set_texture_atlas_animation_x_partition(
             &mut self,
             drawing_resources: &DrawingResources,
             value: u32
@@ -1524,7 +1546,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn check_atlas_animation_y_partition(
+        pub(in crate::map) fn check_atlas_animation_y_partition(
             &mut self,
             drawing_resources: &DrawingResources,
             value: u32
@@ -1537,7 +1559,7 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn set_texture_atlas_animation_y_partition(
+        pub(in crate::map) fn set_texture_atlas_animation_y_partition(
             &mut self,
             drawing_resources: &DrawingResources,
             value: u32
@@ -1550,47 +1572,56 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn texture_atlas_animation_max_len(&self) -> usize
+        pub(in crate::map) fn texture_atlas_animation_max_len(&self) -> usize
         {
             self.data.polygon.atlas_animation_max_len()
         }
 
         #[inline]
         #[must_use]
-        pub fn set_texture_atlas_animation_len(&mut self, value: usize) -> Option<usize>
+        pub(in crate::map) fn set_texture_atlas_animation_len(
+            &mut self,
+            value: usize
+        ) -> Option<usize>
         {
             self.data.polygon.set_atlas_animation_len(value)
         }
 
         #[inline]
-        pub fn set_texture_atlas_animation_timing(&mut self, timing: Timing) -> Timing
+        pub(in crate::map) fn set_texture_atlas_animation_timing(
+            &mut self,
+            timing: Timing
+        ) -> Timing
         {
             self.data.polygon.set_atlas_animation_timing(timing)
         }
 
         #[inline]
-        pub fn set_atlas_animation_uniform_timing(&mut self) -> Option<Timing>
+        pub(in crate::map) fn set_atlas_animation_uniform_timing(&mut self) -> Option<Timing>
         {
             self.data.polygon.set_atlas_animation_uniform_timing()
         }
 
         #[inline]
         #[must_use]
-        pub fn set_atlas_animation_per_frame_timing(&mut self) -> Option<Timing>
+        pub(in crate::map) fn set_atlas_animation_per_frame_timing(&mut self) -> Option<Timing>
         {
             self.data.polygon.set_atlas_animation_per_frame_timing()
         }
 
         #[inline]
         #[must_use]
-        pub fn set_texture_atlas_animation_uniform_time(&mut self, value: f32) -> Option<f32>
+        pub(in crate::map) fn set_texture_atlas_animation_uniform_time(
+            &mut self,
+            value: f32
+        ) -> Option<f32>
         {
             self.data.polygon.set_atlas_animation_uniform_time(value)
         }
 
         #[inline]
         #[must_use]
-        pub fn set_texture_atlas_animation_frame_time(
+        pub(in crate::map) fn set_texture_atlas_animation_frame_time(
             &mut self,
             index: usize,
             value: f32
@@ -1600,68 +1631,83 @@ pub(in crate::map) mod ui_only
         }
 
         #[inline]
-        pub fn move_down_atlas_animation_frame_time(&mut self, index: usize)
+        pub(in crate::map) fn move_down_atlas_animation_frame_time(&mut self, index: usize)
         {
             self.data.polygon.move_down_atlas_animation_frame_time(index);
         }
 
         #[inline]
-        pub fn move_up_atlas_animation_frame_time(&mut self, index: usize)
+        pub(in crate::map) fn move_up_atlas_animation_frame_time(&mut self, index: usize)
         {
             self.data.polygon.move_up_atlas_animation_frame_time(index);
         }
 
         #[inline]
         #[must_use]
-        pub fn set_list_animation_texture(&mut self, index: usize, texture: &str)
-            -> Option<String>
+        pub(in crate::map) fn set_list_animation_texture(
+            &mut self,
+            index: usize,
+            texture: &str
+        ) -> Option<String>
         {
             self.data.polygon.set_list_animation_texture(index, texture)
         }
 
         #[inline]
         #[must_use]
-        pub fn texture_list_animation_frame(&self, index: usize) -> &(String, f32)
+        pub(in crate::map) fn texture_list_animation_frame(&self, index: usize) -> &(String, f32)
         {
             self.data.polygon.texture_list_animation_frame(index)
         }
 
         #[inline]
         #[must_use]
-        pub fn set_texture_list_animation_time(&mut self, index: usize, time: f32) -> Option<f32>
+        pub(in crate::map) fn set_texture_list_animation_time(
+            &mut self,
+            index: usize,
+            time: f32
+        ) -> Option<f32>
         {
             self.data.polygon.set_list_animation_time(index, time)
         }
 
         #[inline]
-        pub fn move_up_list_animation_frame(&mut self, index: usize)
+        pub(in crate::map) fn move_up_list_animation_frame(&mut self, index: usize)
         {
             self.data.polygon.move_up_list_animation_frame(index);
         }
 
         #[inline]
-        pub fn move_down_list_animation_frame(&mut self, index: usize)
+        pub(in crate::map) fn move_down_list_animation_frame(&mut self, index: usize)
         {
             self.data.polygon.move_down_list_animation_frame(index);
         }
 
         #[inline]
-        pub fn insert_list_animation_frame(&mut self, index: usize, texture: &str, time: f32)
+        pub(in crate::map) fn insert_list_animation_frame(
+            &mut self,
+            index: usize,
+            texture: &str,
+            time: f32
+        )
         {
             self.data.polygon.insert_list_animation_frame(index, texture, time);
         }
 
         #[inline]
-        pub fn pop_list_animation_frame(&mut self) { self.data.polygon.pop_list_animation_frame(); }
+        pub(in crate::map) fn pop_list_animation_frame(&mut self)
+        {
+            self.data.polygon.pop_list_animation_frame();
+        }
 
         #[inline]
-        pub fn remove_list_animation_frame(&mut self, index: usize)
+        pub(in crate::map) fn remove_list_animation_frame(&mut self, index: usize)
         {
             self.data.polygon.remove_list_animation_frame(index);
         }
 
         #[inline]
-        pub fn push_list_animation_frame(&mut self, texture: &str)
+        pub(in crate::map) fn push_list_animation_frame(&mut self, texture: &str)
         {
             self.data.polygon.push_list_animation_frame(texture);
         }
@@ -1671,29 +1717,32 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn set_collision(&mut self, value: bool) -> Option<bool>
+        pub(in crate::map) fn set_collision(&mut self, value: bool) -> Option<bool>
         {
             self.data.polygon.set_collision(value)
         }
 
         #[inline]
         #[must_use]
-        pub const fn collision(&self) -> bool { self.data.polygon.collision() }
+        pub(in crate::map) const fn collision(&self) -> bool { self.data.polygon.collision() }
 
         #[inline]
-        pub fn properties(&self) -> Properties { self.data.properties.clone() }
+        pub(in crate::map) fn properties(&self) -> Properties { self.data.properties.clone() }
 
         #[inline]
-        pub const fn properties_as_ref(&self) -> &Properties { &self.data.properties }
+        pub(in crate::map) const fn properties_as_ref(&self) -> &Properties
+        {
+            &self.data.properties
+        }
 
         #[inline]
-        pub fn set_property(&mut self, key: &str, value: &Value) -> Option<Value>
+        pub(in crate::map) fn set_property(&mut self, key: &str, value: &Value) -> Option<Value>
         {
             self.data.properties.set(key, value)
         }
 
         #[inline]
-        pub fn refactor_properties(&mut self, refactor: &PropertiesRefactor)
+        pub(in crate::map) fn refactor_properties(&mut self, refactor: &PropertiesRefactor)
         {
             self.data.properties.refactor(refactor);
         }
@@ -1703,25 +1752,32 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub const fn has_selected_vertexes(&self) -> bool
+        pub(in crate::map) const fn has_selected_vertexes(&self) -> bool
         {
             self.data.polygon.has_selected_vertexes()
         }
 
         #[inline]
         #[must_use]
-        pub const fn selected_vertexes_amount(&self) -> u8
+        pub(in crate::map) const fn selected_vertexes_amount(&self) -> u8
         {
             self.data.polygon.selected_vertexes_amount()
         }
 
         #[inline]
         #[must_use]
-        pub fn selected_sides_amount(&self) -> u8 { self.data.polygon.selected_sides_amount() }
+        pub(in crate::map) fn selected_sides_amount(&self) -> u8
+        {
+            self.data.polygon.selected_sides_amount()
+        }
 
         #[inline]
         #[must_use]
-        pub fn nearby_vertex(&self, cursor_pos: Vec2, camera_scale: f32) -> Option<Vec2>
+        pub(in crate::map) fn nearby_vertex(
+            &self,
+            cursor_pos: Vec2,
+            camera_scale: f32
+        ) -> Option<Vec2>
         {
             self.data
                 .polygon
@@ -1734,7 +1790,7 @@ pub(in crate::map) mod ui_only
         /// it is selected, but the function still returns
         /// `VertexSelectionResult::NotSelected`.
         #[inline]
-        pub fn check_vertex_proximity_and_exclusively_select(
+        pub(in crate::map) fn check_vertex_proximity_and_exclusively_select(
             &mut self,
             cursor_pos: Vec2,
             camera_scale: f32
@@ -1747,48 +1803,55 @@ pub(in crate::map) mod ui_only
 
         #[inline]
         #[must_use]
-        pub fn try_select_vertex(&mut self, pos: Vec2) -> Option<u8>
+        pub(in crate::map) fn try_select_vertex(&mut self, pos: Vec2) -> Option<u8>
         {
             self.data.polygon.try_select_vertex(pos)
         }
 
         #[inline]
         #[must_use]
-        pub fn vertex_at_index(&self, index: usize) -> Vec2
+        pub(in crate::map) fn vertex_at_index(&self, index: usize) -> Vec2
         {
             self.data.polygon.vertex_at_index(index)
         }
 
         #[inline]
-        pub fn toggle_vertex_at_index(&mut self, index: usize)
+        pub(in crate::map) fn toggle_vertex_at_index(&mut self, index: usize)
         {
             self.data.polygon.toggle_vertex_at_index(index);
         }
 
         #[inline]
         #[must_use]
-        pub fn try_exclusively_select_vertex(&mut self, pos: Vec2) -> Option<HvVec<u8>>
+        pub(in crate::map) fn try_exclusively_select_vertex(
+            &mut self,
+            pos: Vec2
+        ) -> Option<HvVec<u8>>
         {
             self.data.polygon.try_exclusively_select_vertex(pos)
         }
 
         #[inline]
         #[must_use]
-        pub fn select_vertexes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
+        pub(in crate::map) fn select_vertexes_in_range(&mut self, range: &Hull)
+            -> Option<HvVec<u8>>
         {
             self.data.polygon.select_vertexes_in_range(range)
         }
 
         #[inline]
         #[must_use]
-        pub fn exclusively_select_vertexes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
+        pub(in crate::map) fn exclusively_select_vertexes_in_range(
+            &mut self,
+            range: &Hull
+        ) -> Option<HvVec<u8>>
         {
             self.data.polygon.exclusively_select_vertexes_in_range(range)
         }
 
         #[inline]
         #[must_use]
-        pub fn select_all_vertexes(&mut self) -> Option<HvVec<u8>>
+        pub(in crate::map) fn select_all_vertexes(&mut self) -> Option<HvVec<u8>>
         {
             self.data.polygon.select_all_vertexes()
         }
@@ -1797,7 +1860,7 @@ pub(in crate::map) mod ui_only
         /// if any.
         #[inline]
         #[must_use]
-        pub fn toggle_vertex_at_pos(&mut self, pos: Vec2) -> Option<u8>
+        pub(in crate::map) fn toggle_vertex_at_pos(&mut self, pos: Vec2) -> Option<u8>
         {
             self.data.polygon.toggle_vertex_at_pos(pos)
         }
@@ -1806,7 +1869,7 @@ pub(in crate::map) mod ui_only
         /// to `cursor_pos`, if any.
         #[inline]
         #[must_use]
-        pub fn toggle_vertex_nearby_cursor_pos(
+        pub(in crate::map) fn toggle_vertex_nearby_cursor_pos(
             &mut self,
             cursor_pos: Vec2,
             camera_scale: f32
@@ -1820,14 +1883,14 @@ pub(in crate::map) mod ui_only
         /// Deselects all `SelectableVertex` of the underlying `ConvexPolygon`.
         #[inline]
         #[must_use]
-        pub fn deselect_vertexes(&mut self) -> Option<HvVec<u8>>
+        pub(in crate::map) fn deselect_vertexes(&mut self) -> Option<HvVec<u8>>
         {
             self.data.polygon.deselect_vertexes()
         }
 
         /// Deselects all selected vertexes.
         #[inline]
-        pub fn deselect_vertexes_no_indexes(&mut self)
+        pub(in crate::map) fn deselect_vertexes_no_indexes(&mut self)
         {
             self.data.polygon.deselect_vertexes_no_indexes();
         }
@@ -1836,7 +1899,7 @@ pub(in crate::map) mod ui_only
         /// returns whether it was possible to do so.
         #[inline]
         #[must_use]
-        pub fn try_vertex_insertion_at_index(
+        pub(in crate::map) fn try_vertex_insertion_at_index(
             &mut self,
             drawing_resources: &DrawingResources,
             pos: Vec2,
@@ -1851,7 +1914,7 @@ pub(in crate::map) mod ui_only
 
         /// Inserts a new vertex with position `pos` at `index`.
         #[inline]
-        pub fn insert_vertex_at_index(
+        pub(in crate::map) fn insert_vertex_at_index(
             &mut self,
             drawing_resources: &DrawingResources,
             pos: Vec2,
@@ -1868,7 +1931,10 @@ pub(in crate::map) mod ui_only
         /// the underlying `ConvexPolygon` would have if it were added to it.
         #[inline]
         #[must_use]
-        pub fn vx_projection_insertion_index(&self, cursor_pos: Vec2) -> Option<usize>
+        pub(in crate::map) fn vx_projection_insertion_index(
+            &self,
+            cursor_pos: Vec2
+        ) -> Option<usize>
         {
             self.data.polygon.vertex_insertion_index(cursor_pos)
         }
@@ -1877,14 +1943,22 @@ pub(in crate::map) mod ui_only
         /// index `index` generates a valid polygon.
         #[inline]
         #[must_use]
-        pub fn is_new_vertex_at_index_valid(&mut self, pos: Vec2, index: usize) -> bool
+        pub(in crate::map) fn is_new_vertex_at_index_valid(
+            &mut self,
+            pos: Vec2,
+            index: usize
+        ) -> bool
         {
             self.data.polygon.is_new_vertex_at_index_valid(pos, index)
         }
 
         /// Deletes the vertex at `index`.
         #[inline]
-        pub fn delete_vertex_at_index(&mut self, drawing_resources: &DrawingResources, index: usize)
+        pub(in crate::map) fn delete_vertex_at_index(
+            &mut self,
+            drawing_resources: &DrawingResources,
+            index: usize
+        )
         {
             self.data.polygon.delete_vertex_at_index(drawing_resources, index);
         }
@@ -1892,7 +1966,7 @@ pub(in crate::map) mod ui_only
         /// Returns a [`VertexesDeletionResult`] describing the outcome of the deletion of the
         /// selected vertexes.
         #[inline]
-        pub fn check_selected_vertexes_deletion(&self) -> VertexesDeletionResult
+        pub(in crate::map) fn check_selected_vertexes_deletion(&self) -> VertexesDeletionResult
         {
             self.data.polygon.check_selected_vertexes_deletion()
         }
@@ -1900,7 +1974,7 @@ pub(in crate::map) mod ui_only
         /// Tries to remove the selected `SelectableVertexes`, does nothing if the
         /// result `ConvexPolygon` would have less than 3 sides.
         #[inline]
-        pub fn delete_selected_vertexes(
+        pub(in crate::map) fn delete_selected_vertexes(
             &mut self,
             drawing_resources: &DrawingResources
         ) -> Option<HvVec<(Vec2, u8)>>
@@ -1910,7 +1984,10 @@ pub(in crate::map) mod ui_only
 
         /// Moves the selected `SelectableVertexes` by the amount `delta`.
         #[inline]
-        pub fn check_selected_vertexes_move(&mut self, delta: Vec2) -> VertexesMoveResult
+        pub(in crate::map) fn check_selected_vertexes_move(
+            &mut self,
+            delta: Vec2
+        ) -> VertexesMoveResult
         {
             VertexesMoveResult::from_result(
                 self.data.polygon.check_selected_vertexes_move(delta),
@@ -1920,7 +1997,7 @@ pub(in crate::map) mod ui_only
 
         /// Applies the vertexes move described by `payload`.
         #[inline]
-        pub fn apply_vertexes_move_result(
+        pub(in crate::map) fn apply_vertexes_move_result(
             &mut self,
             drawing_resources: &DrawingResources,
             payload: VertexesMovePayload
@@ -1936,7 +2013,7 @@ pub(in crate::map) mod ui_only
 
         /// Undoes a vertexes move.
         #[inline]
-        pub fn undo_vertexes_move(
+        pub(in crate::map) fn undo_vertexes_move(
             &mut self,
             drawing_resources: &DrawingResources,
             vxs_move: &VertexesMove
@@ -1956,7 +2033,7 @@ pub(in crate::map) mod ui_only
 
         /// Redoes a vertexes move.
         #[inline]
-        pub fn redo_vertexes_move(
+        pub(in crate::map) fn redo_vertexes_move(
             &mut self,
             drawing_resources: &DrawingResources,
             vxs_move: &VertexesMove
@@ -1978,14 +2055,14 @@ pub(in crate::map) mod ui_only
 
         /// Returns a [`SplitResult`] describing whether the polygon can be split.
         #[inline]
-        pub fn check_split(&self) -> SplitResult
+        pub(in crate::map) fn check_split(&self) -> SplitResult
         {
             (self.data.polygon.check_split(), self.id).into()
         }
 
         /// Splits the polygon in two halves based on the `payload`.
         #[inline]
-        pub fn split(
+        pub(in crate::map) fn split(
             &mut self,
             drawing_resources: &DrawingResources,
             payload: &SplitPayload
@@ -1997,7 +2074,7 @@ pub(in crate::map) mod ui_only
 
         /// Moves the vertexes at the indexes and by the deltas specified in the iterator.
         #[inline]
-        pub fn move_vertexes_at_indexes<'a, I: Iterator<Item = &'a u8>>(
+        pub(in crate::map) fn move_vertexes_at_indexes<'a, I: Iterator<Item = &'a u8>>(
             &mut self,
             idxs: impl Iterator<Item = (I, Vec2)>
         )
@@ -2011,8 +2088,11 @@ pub(in crate::map) mod ui_only
         /// Returns the coordinates and index of the side near the cursor, if any.
         #[inline]
         #[must_use]
-        pub fn nearby_side(&self, cursor_pos: Vec2, camera_scale: f32)
-            -> Option<([Vec2; 2], usize)>
+        pub(in crate::map) fn nearby_side(
+            &self,
+            cursor_pos: Vec2,
+            camera_scale: f32
+        ) -> Option<([Vec2; 2], usize)>
         {
             self.data.polygon.nearby_side(cursor_pos, camera_scale)
         }
@@ -2022,7 +2102,7 @@ pub(in crate::map) mod ui_only
         /// selected, it is selected, but the function stil  returns
         /// `VertexSelectionResult::NotSelected`.
         #[inline]
-        pub fn check_side_proximity_and_exclusively_select(
+        pub(in crate::map) fn check_side_proximity_and_exclusively_select(
             &mut self,
             cursor_pos: Vec2,
             camera_scale: f32
@@ -2036,7 +2116,7 @@ pub(in crate::map) mod ui_only
         /// The information required to start an xtrusion attempt based on the side near the cursor,
         /// if any.
         #[inline]
-        pub fn xtrusion_info(
+        pub(in crate::map) fn xtrusion_info(
             &self,
             cursor_pos: Vec2,
             camera_scale: f32
@@ -2050,7 +2130,7 @@ pub(in crate::map) mod ui_only
 
         /// Returns a [`XtrusionResult`] describing whether the xtrusion attempt can occur.
         #[inline]
-        pub fn matching_xtrusion_info(&self, normal: Vec2) -> XtrusionResult
+        pub(in crate::map) fn matching_xtrusion_info(&self, normal: Vec2) -> XtrusionResult
         {
             (self.data.polygon.matching_xtrusion_info(normal), self.id).into()
         }
@@ -2059,7 +2139,7 @@ pub(in crate::map) mod ui_only
         /// the selected side, if any.
         #[inline]
         #[must_use]
-        pub fn try_select_side(&mut self, side: &[Vec2; 2]) -> Option<u8>
+        pub(in crate::map) fn try_select_side(&mut self, side: &[Vec2; 2]) -> Option<u8>
         {
             self.data.polygon.try_select_side(side)
         }
@@ -2068,7 +2148,10 @@ pub(in crate::map) mod ui_only
         /// indexes of the sides whose selection has changed, if any.
         #[inline]
         #[must_use]
-        pub fn try_exclusively_select_side(&mut self, side: &[Vec2; 2]) -> Option<HvVec<u8>>
+        pub(in crate::map) fn try_exclusively_select_side(
+            &mut self,
+            side: &[Vec2; 2]
+        ) -> Option<HvVec<u8>>
         {
             self.data.polygon.try_exclusively_select_side(side)
         }
@@ -2077,7 +2160,7 @@ pub(in crate::map) mod ui_only
         /// any.
         #[inline]
         #[must_use]
-        pub fn select_sides_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
+        pub(in crate::map) fn select_sides_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
         {
             self.data.polygon.select_sides_in_range(range)
         }
@@ -2086,7 +2169,10 @@ pub(in crate::map) mod ui_only
         /// selection has changed, if any.
         #[inline]
         #[must_use]
-        pub fn exclusively_select_sides_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
+        pub(in crate::map) fn exclusively_select_sides_in_range(
+            &mut self,
+            range: &Hull
+        ) -> Option<HvVec<u8>>
         {
             self.data.polygon.exclusively_select_sides_in_range(range)
         }
@@ -2094,7 +2180,7 @@ pub(in crate::map) mod ui_only
         /// Selects the side with coordinates `l`, if any.
         #[inline]
         #[must_use]
-        pub fn toggle_side(&mut self, l: &[Vec2; 2]) -> Option<u8>
+        pub(in crate::map) fn toggle_side(&mut self, l: &[Vec2; 2]) -> Option<u8>
         {
             self.data.polygon.toggle_side_at_pos(l)
         }
@@ -2103,7 +2189,7 @@ pub(in crate::map) mod ui_only
         /// `cursor_pos`, if any.
         #[inline]
         #[must_use]
-        pub fn toggle_side_nearby_cursor_pos(
+        pub(in crate::map) fn toggle_side_nearby_cursor_pos(
             &mut self,
             cursor_pos: Vec2,
             camera_scale: f32
@@ -2117,7 +2203,7 @@ pub(in crate::map) mod ui_only
         /// Returns a [`SidesDeletionResult`] describing the outcome of the deletion of the selected
         /// sides.
         #[inline]
-        pub fn check_selected_sides_deletion(&self) -> SidesDeletionResult
+        pub(in crate::map) fn check_selected_sides_deletion(&self) -> SidesDeletionResult
         {
             SidesDeletionResult::from_result(
                 self.data.polygon.check_selected_sides_deletion(),
@@ -2128,7 +2214,7 @@ pub(in crate::map) mod ui_only
         /// Tries to remove the selected sides as long as the resulting
         /// `ConvexPolygon` has at least 3 sides.
         #[inline]
-        pub fn delete_selected_sides(
+        pub(in crate::map) fn delete_selected_sides(
             &mut self,
             drawing_resources: &DrawingResources,
             payload: SidesDeletionPayload
@@ -2147,7 +2233,10 @@ pub(in crate::map) mod ui_only
 
         /// Moves the selected lines by the amount `delta`.
         #[inline]
-        pub fn check_selected_sides_move(&mut self, delta: Vec2) -> VertexesMoveResult
+        pub(in crate::map) fn check_selected_sides_move(
+            &mut self,
+            delta: Vec2
+        ) -> VertexesMoveResult
         {
             VertexesMoveResult::from_result(
                 self.data.polygon.check_selected_sides_move(delta),
@@ -2162,7 +2251,7 @@ pub(in crate::map) mod ui_only
         /// shape. Returns the polygon generated by the clip, if any.
         #[inline]
         #[must_use]
-        pub fn clip(
+        pub(in crate::map) fn clip(
             &self,
             drawing_resources: &DrawingResources,
             clip_line: &[Vec2; 2]
@@ -2214,7 +2303,7 @@ pub(in crate::map) mod ui_only
         /// Shatters the underlying `ConvexPolygon` in triangles depending on the
         /// position of `cursor_pos` with respect to the polygon's shape.
         #[inline]
-        pub fn shatter(
+        pub(in crate::map) fn shatter(
             &self,
             drawing_resources: &DrawingResources,
             cursor_pos: Vec2,
@@ -2229,7 +2318,7 @@ pub(in crate::map) mod ui_only
 
         /// Returns the four wall brushes generated from the shape of `self`, if any.
         #[inline]
-        pub fn hollow(
+        pub(in crate::map) fn hollow(
             &self,
             drawing_resources: &DrawingResources,
             grid_size: f32
@@ -2244,7 +2333,7 @@ pub(in crate::map) mod ui_only
         /// Returns the intersection between the shapes of `self` and `other`, if any.
         #[inline]
         #[must_use]
-        pub fn intersection(&self, other: &Self) -> Option<ConvexPolygon>
+        pub(in crate::map) fn intersection(&self, other: &Self) -> Option<ConvexPolygon>
         {
             self.data.polygon.intersection(&other.data.polygon)
         }
@@ -2252,7 +2341,7 @@ pub(in crate::map) mod ui_only
         /// Sets the shape of `other` to the intersection between `self` and `other`.
         #[inline]
         #[must_use]
-        pub fn intersect(&self, other: &mut ConvexPolygon) -> bool
+        pub(in crate::map) fn intersect(&self, other: &mut ConvexPolygon) -> bool
         {
             if let Some(cp) = self.data.polygon.intersection(other)
             {
@@ -2269,8 +2358,11 @@ pub(in crate::map) mod ui_only
         /// Returns a [`SubtractResult`] describing the outcome of the subtraction of `other`'s
         /// shape from `self`'s.
         #[inline]
-        pub fn subtract(&self, drawing_resources: &DrawingResources, other: &Self)
-            -> SubtractResult
+        pub(in crate::map) fn subtract(
+            &self,
+            drawing_resources: &DrawingResources,
+            other: &Self
+        ) -> SubtractResult
         {
             self.data.polygon.subtract(drawing_resources, &other.data.polygon)
         }
@@ -2280,7 +2372,7 @@ pub(in crate::map) mod ui_only
 
         /// Returns a [`ScaleResult`] describing the validity of a scale.
         #[inline]
-        pub fn check_scale(
+        pub(in crate::map) fn check_scale(
             &mut self,
             drawing_resources: &DrawingResources,
             info: &ScaleInfo,
@@ -2295,7 +2387,7 @@ pub(in crate::map) mod ui_only
 
         /// Returns a [`ScaleResult`] describing the validity of a scale with flip.
         #[inline]
-        pub fn check_flip_scale(
+        pub(in crate::map) fn check_flip_scale(
             &mut self,
             drawing_resources: &DrawingResources,
             info: &ScaleInfo,
@@ -2316,7 +2408,7 @@ pub(in crate::map) mod ui_only
 
         /// Scales `self` based on `payload`.
         #[inline]
-        pub fn set_scale_coordinates(
+        pub(in crate::map) fn set_scale_coordinates(
             &mut self,
             drawing_resources: &DrawingResources,
             payload: ScalePayload
@@ -2349,14 +2441,14 @@ pub(in crate::map) mod ui_only
 
         /// Returns a [`ShearResult`] describing the validity of the vertical shear.
         #[inline]
-        pub fn check_horizontal_shear(&self, info: &ShearInfo) -> ShearResult
+        pub(in crate::map) fn check_horizontal_shear(&self, info: &ShearInfo) -> ShearResult
         {
             ShearResult::from_result(self.data.polygon.check_horizontal_shear(info), self)
         }
 
         /// Sets the x coordinates of the vertexes based on `payload`.
         #[inline]
-        pub fn set_x_coordinates(&mut self, payload: ShearPayload)
+        pub(in crate::map) fn set_x_coordinates(&mut self, payload: ShearPayload)
         {
             assert!(payload.id() == self.id, "ShearPayload's ID is not equal to the Brush's ID.");
             self.data.polygon.set_x_coordinates(payload.1);
@@ -2364,14 +2456,14 @@ pub(in crate::map) mod ui_only
 
         /// Returns a [`ShearResult`] describing the validity of the vertical shear.
         #[inline]
-        pub fn check_vertical_shear(&self, info: &ShearInfo) -> ShearResult
+        pub(in crate::map) fn check_vertical_shear(&self, info: &ShearInfo) -> ShearResult
         {
             ShearResult::from_result(self.data.polygon.check_vertical_shear(info), self)
         }
 
         /// Sets the y coordinates of the vertexes based on `payload`.
         #[inline]
-        pub fn set_y_coordinates(&mut self, payload: ShearPayload)
+        pub(in crate::map) fn set_y_coordinates(&mut self, payload: ShearPayload)
         {
             assert!(payload.id() == self.id, "ShearPayload's ID is not equal to the Brush's ID.");
             self.data.polygon.set_y_coordinates(payload.1);
@@ -2382,7 +2474,7 @@ pub(in crate::map) mod ui_only
 
         /// Returns a [`RotateResult`] describing the validity of the rotation.
         #[inline]
-        pub fn check_rotate(
+        pub(in crate::map) fn check_rotate(
             &mut self,
             drawing_resources: &DrawingResources,
             pivot: Vec2,
@@ -2400,7 +2492,7 @@ pub(in crate::map) mod ui_only
 
         /// Rotates `self` based on `payload`.
         #[inline]
-        pub fn set_rotation_coordinates(
+        pub(in crate::map) fn set_rotation_coordinates(
             &mut self,
             drawing_resources: &DrawingResources,
             payload: RotatePayload
@@ -2432,7 +2524,7 @@ pub(in crate::map) mod ui_only
 
         /// Draws the polygon for the map preview.
         #[inline]
-        pub fn draw_map_preview(
+        pub(in crate::map) fn draw_map_preview(
             &self,
             camera: &Transform,
             drawer: &mut MapPreviewDrawer,
@@ -2449,49 +2541,62 @@ pub(in crate::map) mod ui_only
 
         /// Draws the polygon with the desired `color`.
         #[inline]
-        pub fn draw_with_color(&self, camera: &Transform, drawer: &mut EditDrawer, color: Color)
+        pub(in crate::map) fn draw_with_color(
+            &self,
+            camera: &Transform,
+            drawer: &mut EditDrawer,
+            color: Color
+        )
         {
             self.data.polygon.draw(camera, drawer, color);
         }
 
         /// Draws the polygon not-selected.
         #[inline]
-        pub fn draw_non_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
+        pub(in crate::map) fn draw_non_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
         {
             self.draw_with_color(camera, drawer, Color::NonSelectedEntity);
         }
 
         /// Draws the polygon selected.
         #[inline]
-        pub fn draw_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
+        pub(in crate::map) fn draw_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
         {
             self.draw_with_color(camera, drawer, Color::SelectedEntity);
         }
 
         /// Draws the polygon highlighted selected.
         #[inline]
-        pub fn draw_highlighted_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
+        pub(in crate::map) fn draw_highlighted_selected(
+            &self,
+            camera: &Transform,
+            drawer: &mut EditDrawer
+        )
         {
             self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
         }
 
         /// Draws the polygon highlighted non selected.
         #[inline]
-        pub fn draw_highlighted_non_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
+        pub(in crate::map) fn draw_highlighted_non_selected(
+            &self,
+            camera: &Transform,
+            drawer: &mut EditDrawer
+        )
         {
             self.draw_with_color(camera, drawer, Color::HighlightedNonSelectedEntity);
         }
 
         /// Draws the polygon opaque.
         #[inline]
-        pub fn draw_opaque(&self, camera: &Transform, drawer: &mut EditDrawer)
+        pub(in crate::map) fn draw_opaque(&self, camera: &Transform, drawer: &mut EditDrawer)
         {
             self.draw_with_color(camera, drawer, Color::OpaqueEntity);
         }
 
         /// Draws the line passing through the side at `index`.
         #[inline]
-        pub fn draw_extended_side(
+        pub(in crate::map) fn draw_extended_side(
             &self,
             window: &Window,
             camera: &Transform,
@@ -2508,7 +2613,7 @@ pub(in crate::map) mod ui_only
         /// Draws the underlying `ConvexPolygon` with the special vertex highlight
         /// procedure.
         #[inline]
-        pub fn draw_with_vertex_highlights(
+        pub(in crate::map) fn draw_with_vertex_highlights(
             &self,
             window: &Window,
             camera: &Transform,
@@ -2530,7 +2635,7 @@ pub(in crate::map) mod ui_only
 
         /// Draws the polygon with a solid color.
         #[inline]
-        pub fn draw_wih_solid_color(&self, drawer: &mut EditDrawer, color: Color)
+        pub(in crate::map) fn draw_wih_solid_color(&self, drawer: &mut EditDrawer, color: Color)
         {
             drawer.polygon_with_solid_color(self.vertexes(), color);
         }
@@ -2538,7 +2643,7 @@ pub(in crate::map) mod ui_only
         /// Draws the anchors connecting the center of `self` to the centers of the anchored
         /// brushes.
         #[inline]
-        pub fn draw_anchors(&self, brushes: Brushes, drawer: &mut EditDrawer)
+        pub(in crate::map) fn draw_anchors(&self, brushes: Brushes, drawer: &mut EditDrawer)
         {
             let start = self.center();
             let anchors = return_if_none!(self.anchors_iter());
@@ -2572,7 +2677,7 @@ pub(in crate::map) mod ui_only
 
         /// Draws the sprite.
         #[inline]
-        pub fn draw_sprite(&self, drawer: &mut EditDrawer, color: Color)
+        pub(in crate::map) fn draw_sprite(&self, drawer: &mut EditDrawer, color: Color)
         {
             self.data.polygon.draw_sprite(drawer, color);
             self.data.polygon.draw_sprite_highlight(drawer);
@@ -2580,7 +2685,7 @@ pub(in crate::map) mod ui_only
 
         /// Draws the sprite for the map preview.
         #[inline]
-        pub fn draw_map_preview_sprite(
+        pub(in crate::map) fn draw_map_preview_sprite(
             &self,
             drawer: &mut MapPreviewDrawer,
             animator: Option<&Animator>

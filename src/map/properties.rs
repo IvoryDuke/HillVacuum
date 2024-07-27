@@ -7,8 +7,9 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::{map::indexed_map::IndexedMap, HvHashMap};
 #[allow(unused_imports)]
-use crate::{Brush, HvHashMap, ThingInstance};
+use crate::{Brush, ThingInstance};
 
 //=======================================================================//
 // MACROS
@@ -210,6 +211,13 @@ impl Properties
 }
 
 //=======================================================================//
+
+/// The default properties to be associated with certain entities.
+#[must_use]
+#[derive(Clone, Serialize, Deserialize)]
+pub(in crate::map) struct DefaultProperties(IndexedMap<String, Value>, Properties);
+
+//=======================================================================//
 // UI
 //
 //=======================================================================//
@@ -226,9 +234,8 @@ pub(in crate::map) mod ui_only
 
     use bevy::prelude::Resource;
     use hill_vacuum_shared::{match_or_panic, return_if_none, NextValue};
-    use serde::{Deserialize, Serialize};
 
-    use super::Properties;
+    use super::{DefaultProperties, Properties};
     use crate::{
         map::indexed_map::IndexedMap,
         utils::{
@@ -380,11 +387,6 @@ pub(in crate::map) mod ui_only
     }
 
     //=======================================================================//
-
-    /// The default properties to be associated with certain entities.
-    #[must_use]
-    #[derive(Clone, Serialize, Deserialize)]
-    pub(in crate::map) struct DefaultProperties(IndexedMap<String, Value>, Properties);
 
     impl Default for DefaultProperties
     {

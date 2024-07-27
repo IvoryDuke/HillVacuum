@@ -476,7 +476,7 @@ impl Innards
         header: &MapHeader,
         file: &mut BufReader<File>,
         things_catalog: &ThingsCatalog,
-        drawing_resources: &DrawingResources,
+        drawing_resources: &mut DrawingResources,
         default_properties: &mut AllDefaultProperties,
         quad_trees: &mut Trees
     ) -> Result<(), &'static str>
@@ -550,6 +550,9 @@ impl Innards
             ciborium::from_reader::<DefaultProperties, _>(&mut *file),
             "Error reading default things properties"
         );
+
+        drawing_resources.import_animations(header.animations, &mut *file)?;
+        drawing_resources.reset_default_animation_changed();
 
         let b_refactor = mismatching_properties(
             default_properties.brushes,
@@ -1689,7 +1692,7 @@ impl EntitiesManager
     pub fn from_file(
         header: &MapHeader,
         file: &mut BufReader<File>,
-        drawing_resources: &DrawingResources,
+        drawing_resources: &mut DrawingResources,
         things_catalog: &ThingsCatalog,
         default_properties: &mut AllDefaultProperties
     ) -> Result<Self, &'static str>

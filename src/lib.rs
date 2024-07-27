@@ -32,6 +32,7 @@ pub use crate::{
     map::{
         brush::{
             mover::{Motor, Mover},
+            Brush as BrushCompat,
             BrushViewer as Brush
         },
         drawer::{
@@ -146,7 +147,10 @@ pub(crate) mod ui_only
         hierarchy::HierarchyPlugin,
         input::keyboard::KeyCode,
         log::LogPlugin,
-        render::{texture::{ImageAddressMode, ImagePlugin, ImageSamplerDescriptor}, view::Msaa},
+        render::{
+            texture::{ImageAddressMode, ImagePlugin, ImageSamplerDescriptor},
+            view::Msaa
+        },
         state::{app::AppExtStates, state::States},
         window::{
             Cursor,

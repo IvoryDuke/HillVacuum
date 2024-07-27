@@ -4,7 +4,6 @@ mod camera;
 pub mod drawer;
 #[cfg(feature = "ui")]
 pub mod editor;
-#[cfg(feature = "ui")]
 mod indexed_map;
 pub mod path;
 pub mod properties;
@@ -19,6 +18,7 @@ pub mod thing;
 use std::{fs::File, io::BufReader, path::PathBuf};
 
 use hill_vacuum_shared::return_if_none;
+use properties::DefaultProperties;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -85,6 +85,16 @@ impl Exporter
             Ok(header) => header,
             Err(_) => return Err("Error reading file header")
         };
+
+        if ciborium::from_reader::<DefaultProperties, _>(&mut file).is_err()
+        {
+            return Err("Error reading default Brush properties");
+        }
+
+        if ciborium::from_reader::<DefaultProperties, _>(&mut file).is_err()
+        {
+            return Err("Error reading default Thing properties");
+        }
 
         let animations = match drawer::file_animations(header.animations, &mut file)
         {

@@ -1297,21 +1297,14 @@ impl State
             Err(err) => return Err(err)
         };
 
-        drawing_resources.import_animations(header.animations, &mut file)?;
-        drawing_resources.reset_default_animation_changed();
-
-        let mut clipboard = match Clipboard::from_file(
+        let mut clipboard = Clipboard::from_file(
             images,
             prop_cameras,
             user_textures,
             things_catalog,
             &header,
             &mut file
-        )
-        {
-            Ok(clip) => clip,
-            Err(err) => return Err(err)
-        };
+        )?;
         clipboard.reset_props_changed();
 
         Ok((
