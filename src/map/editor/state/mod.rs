@@ -8,6 +8,15 @@ pub(in crate::map) mod manager;
 pub(in crate::map) mod ui;
 
 //=======================================================================//
+// IMPORTS
+//
+//=======================================================================//
+
+use std::{fs::File, io::BufReader};
+
+use crate::map::properties::DefaultProperties;
+
+//=======================================================================//
 // MACROS
 //
 //=======================================================================//
@@ -49,3 +58,43 @@ macro_rules! format_texture_preview {
 }
 
 use format_texture_preview;
+
+//=======================================================================//
+
+/// Tests whether `$value` is an error and returns an [`Err`] wrapping the error message
+/// `$err` if it is.
+macro_rules! test_writer {
+    ($value:expr, $writer:expr, $err:literal) => {
+        if ciborium::ser::into_writer($value, $writer).is_err()
+        {
+            return Err($err);
+        }
+    };
+
+    ($value:expr, $err:literal) => {
+        if $value.is_err()
+        {
+            return Err($err);
+        }
+    };
+}
+
+use test_writer;
+
+//=======================================================================//
+// FUNCTIONS
+//
+//=======================================================================//
+
+#[inline]
+fn read_default_properties(
+    file: &mut BufReader<File>
+) -> Result<[DefaultProperties; 2], &'static str>
+{
+    Ok([
+        ciborium::from_reader::<DefaultProperties, _>(&mut *file)
+            .map_err(|_| "Error reading Brush default properties")?,
+        ciborium::from_reader::<DefaultProperties, _>(&mut *file)
+            .map_err(|_| "Error reading Thing default properties")?
+    ])
+}

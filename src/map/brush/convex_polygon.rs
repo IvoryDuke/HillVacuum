@@ -234,7 +234,7 @@ impl ConvexPolygon
     /// Returns the amount of sides the polygon has.
     #[inline]
     #[must_use]
-    pub(in crate::map) fn sides(&self) -> usize { self.vertexes.len() }
+    pub fn sides(&self) -> usize { self.vertexes.len() }
 
     /// Returns true if vxs represents a valid polygon.
     #[inline]
@@ -294,13 +294,23 @@ impl ConvexPolygon
 
     /// Returns an iterator to the vertexes of the polygon.
     #[inline]
-    pub(in crate::map) fn vertexes(&self) -> impl ExactSizeIterator<Item = Vec2> + Clone + '_
+    pub fn vertexes(&self) -> impl ExactSizeIterator<Item = Vec2> + Clone + '_
     {
         self.vertexes.iter().map(|svx| svx.vec)
     }
 
     #[inline]
-    pub(in crate::map) fn take_texture_settings(self) -> Option<TextureSettings> { self.texture }
+    #[must_use]
+    pub(in crate::map::brush) fn set_collision(&mut self, value: bool) -> Option<bool>
+    {
+        (self.collision != value).then(|| {
+            self.collision = value;
+            !value
+        })
+    }
+
+    #[inline]
+    pub fn take_texture_settings(self) -> Option<TextureSettings> { self.texture }
 }
 
 //=======================================================================//
@@ -1391,7 +1401,7 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub(in crate::map) fn sprite_hull(&self) -> Option<Hull>
+        pub fn sprite_hull(&self) -> Option<Hull>
         {
             self.texture.as_ref()?.sprite_hull(self.center)
         }
@@ -1418,17 +1428,14 @@ pub(in crate::map) mod ui_mod
 
         /// Moves the polygon by the amount delta.
         #[inline]
-        pub(in crate::map) fn update_center_hull(&mut self)
+        pub fn update_center_hull(&mut self)
         {
             self.center = vxs_center(self.vertexes());
             self.hull = Hull::from_points(self.vertexes()).unwrap();
         }
 
         #[inline]
-        pub(in crate::map) fn update_center_hull_vertexes(
-            &mut self,
-            drawing_resources: &DrawingResources
-        )
+        pub fn update_center_hull_vertexes(&mut self, drawing_resources: &DrawingResources)
         {
             let old_center = self.center;
             self.update_center_hull();
@@ -1447,7 +1454,7 @@ pub(in crate::map) mod ui_mod
 
         /// Moves the polygon by the amount delta.
         #[inline]
-        pub(in crate::map) fn update_fields(&mut self)
+        pub fn update_fields(&mut self)
         {
             self.update_center_hull();
             self.sort_vertexes_ccw();
@@ -1455,7 +1462,7 @@ pub(in crate::map) mod ui_mod
 
         /// Moves the polygon by the amount delta.
         #[inline]
-        pub(in crate::map) fn check_move(&self, delta: Vec2, move_texture: bool) -> bool
+        pub fn check_move(&self, delta: Vec2, move_texture: bool) -> bool
         {
             if (self.hull + delta).out_of_bounds()
             {
@@ -1472,7 +1479,7 @@ pub(in crate::map) mod ui_mod
 
         /// Moves the polygon by the amount delta.
         #[inline]
-        pub(in crate::map) fn move_by_delta(
+        pub fn move_by_delta(
             &mut self,
             drawing_resources: &DrawingResources,
             delta: Vec2,
@@ -1512,16 +1519,6 @@ pub(in crate::map) mod ui_mod
 
         //==============================================================
         // Collision
-
-        #[inline]
-        #[must_use]
-        pub(in crate::map::brush) fn set_collision(&mut self, value: bool) -> Option<bool>
-        {
-            (self.collision != value).then(|| {
-                self.collision = value;
-                !value
-            })
-        }
 
         #[inline]
         pub(in crate::map::brush) fn move_vertexes_at_indexes<'a, I: Iterator<Item = &'a u8>>(
@@ -1639,7 +1636,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub(in crate::map) fn set_texture_settings(&mut self, texture: TextureSettings)
+        pub fn set_texture_settings(&mut self, texture: TextureSettings)
         {
             self.texture = texture.into();
             self.texture_updated = true;
@@ -2734,7 +2731,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub(in crate::map) fn insert_vertex_at_index(
+        pub fn insert_vertex_at_index(
             &mut self,
             drawing_resources: &DrawingResources,
             pos: Vec2,
@@ -2923,11 +2920,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub(in crate::map) fn delete_vertex_at_index(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            index: usize
-        )
+        pub fn delete_vertex_at_index(&mut self, drawing_resources: &DrawingResources, index: usize)
         {
             if self.vertexes[index].selected
             {
@@ -5204,7 +5197,7 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[inline]
-    pub(in crate::map) fn vx_tooltip(
+    pub fn vx_tooltip(
         window: &Window,
         camera: &Transform,
         egui_context: &egui::Context,

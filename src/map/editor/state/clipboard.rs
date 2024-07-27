@@ -863,15 +863,10 @@ impl Clipboard
 
         for _ in 0..props_amount
         {
-            match ciborium::from_reader::<Prop, _>(&mut *file)
-            {
-                Ok(mut prop) =>
-                {
-                    _ = prop.reload_things(catalog);
-                    props.push(prop);
-                },
-                Err(_) => return Err("Error loading props")
-            };
+            let mut prop =
+                ciborium::from_reader::<Prop, _>(&mut *file).map_err(|_| "Error loading props")?;
+            _ = prop.reload_things(catalog);
+            props.push(prop);
         }
 
         self.props_changed = true;
@@ -1066,10 +1061,7 @@ impl Clipboard
     {
         for prop in &self.props
         {
-            if ciborium::ser::into_writer(prop, &mut *writer).is_err()
-            {
-                return Err("Error saving prop");
-            }
+            ciborium::ser::into_writer(prop, &mut *writer).map_err(|_| "Error saving prop")?;
         }
 
         Ok(())

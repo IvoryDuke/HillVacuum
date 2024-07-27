@@ -75,11 +75,11 @@ HV creates three types of files, all of which are relatively simple:
 | animations amount           |
 | props amount                |
 -------------------------------
+| Animations                  |
+-------------------------------
 | Brushes default properties  |
 -------------------------------
 | Things default properties   |
--------------------------------
-| Animations                  |
 -------------------------------
 | Brushes                     |
 -------------------------------

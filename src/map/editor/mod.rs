@@ -6,8 +6,6 @@ pub mod state;
 //
 //=======================================================================//
 
-use std::fs::File;
-
 use bevy::{
     asset::{AssetServer, Assets},
     ecs::{
@@ -235,7 +233,7 @@ impl Editor
         meshes: &mut Assets<Mesh>,
         materials: &mut Assets<ColorMaterial>,
         user_textures: &mut EguiUserTextures,
-        config: &Config,
+        config: &mut Config,
         texture_loader: &mut TextureLoader,
         hardcoded_things: Option<Res<HardcodedThings>>,
         brush_properties: Option<ResMut<BrushProperties>>,
@@ -251,20 +249,9 @@ impl Editor
             texture_loader
         );
         let things_catalog = ThingsCatalog::new(hardcoded_things);
-        let file = match config.open_file.path().cloned()
+        let path = match config.open_file.path()
         {
-            Some(path) =>
-            {
-                match File::open(&path)
-                {
-                    Ok(file) =>
-                    {
-                        window.title = window_title(path.file_stem().unwrap().to_str());
-                        file.into()
-                    },
-                    Err(_) => None
-                }
-            },
+            Some(path) => path.exists().then_some(path),
             None => None
         };
 
@@ -286,7 +273,7 @@ impl Editor
             map_things:  &mut map_things_default_properties
         };
 
-        let state = State::new(
+        let (state, loaded) = State::new(
             asset_server,
             images,
             prop_cameras,
@@ -294,8 +281,17 @@ impl Editor
             &mut drawing_resources,
             &things_catalog,
             &mut default_properties,
-            file
+            path
         );
+
+        if loaded
+        {
+            window.name = window_title(path.unwrap().file_stem().unwrap().to_str()).into();
+        }
+        else
+        {
+            config.open_file.clear();
+        }
 
         Self {
             state,

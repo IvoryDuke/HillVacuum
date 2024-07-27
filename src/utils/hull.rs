@@ -11,19 +11,6 @@ use serde::{Deserialize, Serialize};
 use crate::utils::math::AroundEqual;
 
 //=======================================================================//
-// TRAITS
-//
-//=======================================================================//
-
-/// A trait for entity which are characterized by a bidimensional size.
-pub trait EntityHull
-{
-    /// Returns the [`Hull`] representing the dimensions of the entity.
-    #[must_use]
-    fn hull(&self) -> Hull;
-}
-
-//=======================================================================//
 // TYPES
 //
 //=======================================================================//
@@ -282,6 +269,19 @@ impl Hull
 #[cfg(feature = "ui")]
 pub(crate) mod ui_mod
 {
+    //=======================================================================//
+    // TRAITS
+    //
+    //=======================================================================//
+
+    /// A trait for entity which are characterized by a bidimensional size.
+    pub trait EntityHull
+    {
+        /// Returns the [`Hull`] representing the dimensions of the entity.
+        #[must_use]
+        fn hull(&self) -> Hull;
+    }
+
     //=======================================================================//
     // ENUMS
     //

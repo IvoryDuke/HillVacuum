@@ -15,7 +15,6 @@ arena_alloc = [
     "hashbrown/nightly"
 ]
 ui = [
-    "dep:hill_vacuum_proc_macros",
     "dep:bevy",
     "dep:bevy_egui",
     "dep:configparser",
@@ -29,7 +28,7 @@ default = ["ui"]
 
 [dependencies.hill_vacuum_03]
 package = "hill_vacuum"
-version = "0.3.5"
+version = "0.3.6"
 default-features = false
 
 [dependencies.hill_vacuum_shared]
@@ -40,7 +39,6 @@ version = "0.3.6"
 
 [dependencies.hill_vacuum_proc_macros]
 version = "0.3.6"
-optional = true
 
 [dependencies.bevy]
 version = "0.14"

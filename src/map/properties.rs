@@ -7,8 +7,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use super::indexed_map::IndexedMap;
-use crate::HvHashMap;
+use crate::{map::indexed_map::IndexedMap, HvHashMap};
 
 //=======================================================================//
 // MACROS
@@ -192,6 +191,7 @@ impl std::fmt::Display for Value
 
 /// Key-value pairs associated to an entity.
 #[must_use]
+#[allow(clippy::unsafe_derive_deserialize)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 
 pub(in crate::map) struct Properties(HvHashMap<String, Value>);
@@ -207,6 +207,9 @@ impl Properties
     /// Consumes `self` and returns the underlying hashmap of values.
     #[inline]
     pub fn take(self) -> HvHashMap<String, Value> { self.0 }
+
+    #[inline]
+    pub const unsafe fn from_parts(value: HvHashMap<String, Value>) -> Self { Self(value) }
 }
 
 //=======================================================================//

@@ -21,7 +21,8 @@ use std::{
     path::PathBuf
 };
 
-use hill_vacuum_shared::return_if_none;
+use hill_vacuum_proc_macros::EnumIter;
+use hill_vacuum_shared::{return_if_none, NextValue};
 use properties::DefaultProperties;
 use serde::{Deserialize, Serialize};
 
@@ -44,6 +45,37 @@ use crate::{
 
 /// The version of the saved files.
 const FILE_VERSION_NUMBER: &str = "0.4";
+
+//=======================================================================//
+// ENUMS
+//
+//=======================================================================//
+
+#[must_use]
+#[derive(Clone, Copy, Debug, EnumIter, PartialEq)]
+enum FileStructure
+{
+    Version,
+    Header,
+    Animations,
+    Properties,
+    Brushes,
+    Things,
+    Props,
+    Grid
+}
+
+impl FileStructure
+{
+    #[inline]
+    pub fn assert(self, value: Self)
+    {
+        assert!(
+            self == value,
+            "Mismatching file structure step. Current: {self:?} Requested: {value:?}."
+        );
+    }
+}
 
 //=======================================================================//
 // TYPES
@@ -84,13 +116,14 @@ impl Exporter
     #[inline]
     pub fn new(path: impl Into<PathBuf>) -> Result<Self, &'static str>
     {
-        let file = match File::open(Into::<PathBuf>::into(path))
-        {
-            Ok(file) => file,
-            Err(_) => return Err("Could not open the file")
-        };
+        let file =
+            File::open(Into::<PathBuf>::into(path)).map_err(|_| "Could not open the file")?;
 
         let mut file = BufReader::new(file);
+        let mut steps = FileStructure::iter();
+
+        // Version.
+        steps.next_value().assert(FileStructure::Version);
 
         if version_number(&mut file) != FILE_VERSION_NUMBER
         {
@@ -98,39 +131,37 @@ impl Exporter
                         latest version.");
         }
 
-        let header = match ciborium::from_reader::<MapHeader, _>(&mut file)
-        {
-            Ok(header) => header,
-            Err(_) => return Err("Error reading file header")
-        };
+        // Header.
+        steps.next_value().assert(FileStructure::Header);
 
-        if ciborium::from_reader::<DefaultProperties, _>(&mut file).is_err()
-        {
-            return Err("Error reading default Brush properties");
-        }
+        let header = ciborium::from_reader::<MapHeader, _>(&mut file)
+            .map_err(|_| "Error reading file header")?;
 
-        if ciborium::from_reader::<DefaultProperties, _>(&mut file).is_err()
-        {
-            return Err("Error reading default Thing properties");
-        }
+        // Animations.
+        steps.next_value().assert(FileStructure::Animations);
 
-        let animations = match drawer::file_animations(header.animations, &mut file)
-        {
-            Ok(animations) => animations,
-            Err(_) => return Err("Error reading default animations")
-        };
+        let animations = drawer::file_animations(header.animations, &mut file)
+            .map_err(|_| "Error reading default animations")?;
+
+        // Properties.
+        steps.next_value().assert(FileStructure::Properties);
+
+        _ = ciborium::from_reader::<DefaultProperties, _>(&mut file)
+            .map_err(|_| "Error reading default Brush properties")?;
+        _ = ciborium::from_reader::<DefaultProperties, _>(&mut file)
+            .map_err(|_| "Error reading default Thing properties")?;
+
+        // Brushes.
+        steps.next_value().assert(FileStructure::Brushes);
 
         let mut brushes = hv_vec![];
 
         for _ in 0..header.brushes
         {
-            let brush = match ciborium::from_reader::<crate::map::brush::Brush, _>(&mut file)
-            {
-                Ok(brush) => brush,
-                Err(_) => return Err("Error reading Brush")
-            };
-
-            brushes.push(crate::Brush::new(brush));
+            brushes.push(crate::Brush::new(
+                ciborium::from_reader::<crate::map::brush::Brush, _>(&mut file)
+                    .map_err(|_| "Error reading Brush")?
+            ));
         }
 
         if !animations.is_empty()
@@ -165,17 +196,17 @@ impl Exporter
             }
         }
 
+        // Things.
+        steps.next_value().assert(FileStructure::Things);
+
         let mut things = hv_hash_map![];
 
         for _ in 0..header.things
         {
-            let thing =
-                match ciborium::from_reader::<crate::map::thing::ThingInstance, _>(&mut file)
-                {
-                    Ok(thing) => ThingViewer::new(thing),
-                    Err(_) => return Err("Error reading ThingInstance")
-                };
-
+            let thing = ThingViewer::new(
+                ciborium::from_reader::<crate::map::thing::ThingInstance, _>(&mut file)
+                    .map_err(|_| "Error reading ThingInstance")?
+            );
             things.asserted_insert((thing.id, thing));
         }
 
@@ -691,7 +722,7 @@ pub(in crate::map) mod ui_mod
         mut materials: ResMut<Assets<ColorMaterial>>,
         mut user_textures: ResMut<EguiUserTextures>,
         mut editor: NonSendMut<Editor>,
-        config: Res<Config>,
+        mut config: ResMut<Config>,
         mut texture_loader: ResMut<TextureLoader>,
         hardcoded_things: Option<Res<HardcodedThings>>,
         brush_properties: Option<ResMut<BrushProperties>>,
@@ -710,7 +741,7 @@ pub(in crate::map) mod ui_mod
                 &mut meshes,
                 &mut materials,
                 &mut user_textures,
-                &config,
+                &mut config,
                 &mut texture_loader,
                 hardcoded_things,
                 brush_properties,

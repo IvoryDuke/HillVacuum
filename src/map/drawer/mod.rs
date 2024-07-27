@@ -36,11 +36,7 @@ pub(in crate::map) fn file_animations(
 
     for _ in 0..amount
     {
-        match ciborium::from_reader::<DefaultAnimation, _>(&mut *file)
-        {
-            Ok(anim) => animations.push(anim),
-            Err(_) => return Err("Error loading animations")
-        }
+        animations.push(ciborium::from_reader(&mut *file).map_err(|_| "Error loading animations")?);
     }
 
     Ok(animations)

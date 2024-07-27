@@ -5,7 +5,7 @@
 
 use std::{
     fs::{File, OpenOptions},
-    io::{BufReader, BufWriter, Write},
+    io::{BufReader, BufWriter, Seek, SeekFrom, Write},
     path::{Path, PathBuf}
 };
 
@@ -18,7 +18,7 @@ use bevy::{
 use bevy_egui::{egui, EguiUserTextures};
 use glam::Vec2;
 use hill_vacuum_proc_macros::{EnumFromUsize, EnumIter, EnumSize};
-use hill_vacuum_shared::{return_if_none, FILE_EXTENSION};
+use hill_vacuum_shared::{return_if_none, NextValue, FILE_EXTENSION};
 use is_executable::IsExecutable;
 
 use super::{
@@ -40,15 +40,20 @@ use crate::{
     },
     error_message,
     map::{
+        brush::Brush,
         drawer::{
             color::Color,
             drawing_resources::DrawingResources,
+            file_animations,
             texture_loader::TextureLoadingProgress
         },
         editor::{
             state::{
+                clipboard::Prop,
                 core::{tool::ToolInterface, Core},
                 input_press::InputState,
+                read_default_properties,
+                test_writer,
                 ui::{Command, Ui}
             },
             AllDefaultProperties,
@@ -59,8 +64,9 @@ use crate::{
             ToolUpdateBundle
         },
         properties::DefaultProperties,
-        thing::{catalog::ThingsCatalog, Thing},
+        thing::{catalog::ThingsCatalog, Thing, ThingInstance},
         version_number,
+        FileStructure,
         MapHeader,
         FILE_VERSION_NUMBER
     },
@@ -718,8 +724,8 @@ impl State
         drawing_resources: &mut DrawingResources,
         things_catalog: &ThingsCatalog,
         default_properties: &mut AllDefaultProperties,
-        file: Option<File>
-    ) -> Self
+        file: Option<&PathBuf>
+    ) -> (Self, bool)
     {
         /// The [`State`] to default to in case of errors in the file load or if there is no file to
         /// load.
@@ -729,28 +735,31 @@ impl State
             user_textures: &mut EguiUserTextures,
             brushes_default_properties: &DefaultProperties,
             things_default_properties: &DefaultProperties
-        ) -> State
+        ) -> (State, bool)
         {
-            State {
-                core:               Core::default(),
-                manager:            EntitiesManager::new(),
-                clipboard:          Clipboard::new(),
-                edits_history:      EditsHistory::default(),
-                inputs:             InputsPresses::default(),
-                grid:               Grid::default(),
-                ui:                 Ui::new(
-                    asset_server,
-                    user_textures,
-                    brushes_default_properties,
-                    things_default_properties
-                ),
-                tools_settings:     ToolsSettings::default(),
-                show_tooltips:      true,
-                cursor_snap:        true,
-                show_cursor:        true,
-                show_collision:     true,
-                reloading_textures: false
-            }
+            (
+                State {
+                    core:               Core::default(),
+                    manager:            EntitiesManager::new(),
+                    clipboard:          Clipboard::new(),
+                    edits_history:      EditsHistory::default(),
+                    inputs:             InputsPresses::default(),
+                    grid:               Grid::default(),
+                    ui:                 Ui::new(
+                        asset_server,
+                        user_textures,
+                        brushes_default_properties,
+                        things_default_properties
+                    ),
+                    tools_settings:     ToolsSettings::default(),
+                    show_tooltips:      true,
+                    cursor_snap:        true,
+                    show_cursor:        true,
+                    show_collision:     true,
+                    reloading_textures: false
+                },
+                false
+            )
         }
 
         let file = return_if_none!(
@@ -799,7 +808,7 @@ impl State
                 state.manager.finish_things_reload(things_catalog);
                 state.manager.finish_textures_reload(drawing_resources);
 
-                state
+                (state, true)
             },
             Err(err) =>
             {
@@ -1021,12 +1030,10 @@ impl State
     #[inline]
     fn new_file(&mut self, bundle: &mut StateUpdateBundle) -> Result<(), &'static str>
     {
-        match self.unsaved_changes(bundle, rfd::MessageButtons::YesNoCancel)
+        if !self.unsaved_changes(bundle, rfd::MessageButtons::YesNoCancel)?
         {
-            Ok(false) => return Ok(()),
-            Err(err) => return Err(err),
-            _ => ()
-        };
+            return Ok(());
+        }
 
         self.core = Core::default();
         self.manager = EntitiesManager::new();
@@ -1092,17 +1099,6 @@ impl State
         save_as: Option<&'static str>
     ) -> Result<(), &'static str>
     {
-        /// Tests whether `$value` is an error and returns an [`Err`] wrapping the error message
-        /// `$err` if it is.
-        macro_rules! test {
-            ($value:expr, $err:literal) => {
-                if $value.is_err()
-                {
-                    return Err($err);
-                }
-            };
-        }
-
         /// The target of the file save process.
         enum SaveTarget
         {
@@ -1170,59 +1166,65 @@ impl State
         let mut data = Vec::new();
         let mut writer = BufWriter::new(&mut data);
 
-        // Version number.
-        test!(
-            ciborium::ser::into_writer(FILE_VERSION_NUMBER, &mut writer),
-            "Error saving version number."
-        );
-
-        // Header.
-        test!(
-            ciborium::ser::into_writer(
-                &MapHeader {
-                    brushes:    self.manager.brushes_amount(),
-                    things:     self.manager.things_amount(),
-                    animations: bundle.drawing_resources.animations_amount(),
-                    props:      self.clipboard.props_amount()
+        for step in FileStructure::iter()
+        {
+            match step
+            {
+                FileStructure::Version =>
+                {
+                    test_writer!(FILE_VERSION_NUMBER, &mut writer, "Error saving version number.");
                 },
-                &mut writer
-            ),
-            "Error saving file header"
-        );
-
-        // Default properties.
-        test!(
-            ciborium::ser::into_writer(bundle.default_properties.map_brushes, &mut writer),
-            "Error saving brushes default properties"
-        );
-        test!(
-            ciborium::ser::into_writer(bundle.default_properties.map_things, &mut writer),
-            "Error saving brushes default properties"
-        );
-
-        // Animations
-        bundle.drawing_resources.export_animations(&mut writer)?;
-
-        // Brushes.
-        for brush in self.manager.brushes().iter()
-        {
-            test!(ciborium::ser::into_writer(brush, &mut writer), "Error saving brushes");
+                FileStructure::Header =>
+                {
+                    test_writer!(
+                        &MapHeader {
+                            brushes:    self.manager.brushes_amount(),
+                            things:     self.manager.things_amount(),
+                            animations: bundle.drawing_resources.animations_amount(),
+                            props:      self.clipboard.props_amount()
+                        },
+                        &mut writer,
+                        "Error saving file header"
+                    );
+                },
+                FileStructure::Animations =>
+                {
+                    bundle.drawing_resources.export_animations(&mut writer)?;
+                },
+                FileStructure::Properties =>
+                {
+                    test_writer!(
+                        bundle.default_properties.map_brushes,
+                        &mut writer,
+                        "Error saving Brush default properties"
+                    );
+                    test_writer!(
+                        bundle.default_properties.map_things,
+                        &mut writer,
+                        "Error saving Thing default properties"
+                    );
+                },
+                FileStructure::Brushes =>
+                {
+                    for brush in self.manager.brushes().iter()
+                    {
+                        test_writer!(brush, &mut writer, "Error saving brushes");
+                    }
+                },
+                FileStructure::Things =>
+                {
+                    for thing in self.manager.things()
+                    {
+                        test_writer!(thing, &mut writer, "Error saving things");
+                    }
+                },
+                FileStructure::Props => self.clipboard.export_props(&mut writer)?,
+                FileStructure::Grid =>
+                {
+                    test_writer!(&self.grid.settings(), &mut writer, "Error saving grid settings");
+                }
+            }
         }
-
-        // Things.
-        for thing in self.manager.things()
-        {
-            test!(ciborium::ser::into_writer(thing, &mut writer), "Error saving things");
-        }
-
-        // Props.
-        self.clipboard.export_props(&mut writer)?;
-
-        // Grid settings.
-        test!(
-            ciborium::ser::into_writer(&self.grid.settings(), &mut writer),
-            "Error saving grid settings"
-        );
 
         drop(writer);
 
@@ -1253,7 +1255,8 @@ impl State
                 return Err("Error opening file");
             }
         };
-        test!(BufWriter::new(file).write_all(&data), "Error writing file");
+
+        test_writer!(BufWriter::new(file).write_all(&data), "Error writing file");
 
         if target.is_new()
         {
@@ -1279,39 +1282,167 @@ impl State
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
-        file: File,
+        path: &PathBuf,
         drawing_resources: &mut DrawingResources,
         things_catalog: &ThingsCatalog,
         default_properties: &mut AllDefaultProperties
     ) -> Result<(EntitiesManager, Clipboard, GridSettings), &'static str>
     {
-        let mut file = BufReader::new(file);
-
-        match version_number(&mut file).as_str()
+        #[inline]
+        fn read_header(file: &mut BufReader<File>) -> Result<MapHeader, &'static str>
         {
-            "0.3" => todo!(),
-            FILE_VERSION_NUMBER => (),
-            _ => return Err("Error reading file version")
+            match ciborium::from_reader(file)
+            {
+                Ok(header) => Ok(header),
+                Err(_) => Err("Error reading file header.")
+            }
+        }
+
+        #[inline]
+        fn convert_03(mut reader: BufReader<File>, path: &PathBuf) -> Result<(), &'static str>
+        {
+            let mut data = Vec::new();
+            let mut writer = BufWriter::new(&mut data);
+
+            // Version.
+            test_writer!(FILE_VERSION_NUMBER, &mut writer, "Error converting version number.");
+
+            // Header
+            let header = ciborium::from_reader::<MapHeader, _>(&mut reader)
+                .map_err(|_| "Error reading file header for conversion")?;
+            test_writer!(&header, &mut writer, "Error converting header.");
+
+            // Read properties.
+            let [default_brush_properties, default_thing_properties] =
+                read_default_properties(&mut reader)
+                    .map_err(|_| "Error reading default properties for conversion.")?;
+
+            // Animations.
+            let animations = file_animations(header.animations, &mut reader)
+                .map_err(|_| "Error reading animations for conversion")?;
+
+            for anim in animations
+            {
+                test_writer!(&anim, &mut writer, "Error converting animations.");
+            }
+
+            // Write properties.
+            test_writer!(
+                &default_brush_properties,
+                &mut writer,
+                "Error converting Brush default properties."
+            );
+            test_writer!(
+                &default_thing_properties,
+                &mut writer,
+                "Error converting Thing default properties."
+            );
+
+            for step in FileStructure::iter().skip(4)
+            {
+                match step
+                {
+                    FileStructure::Brushes =>
+                    {
+                        for _ in 0..header.brushes
+                        {
+                            test_writer!(
+                                &Brush::from(
+                                    ciborium::from_reader::<hill_vacuum_03::BrushCompat, _>(
+                                        &mut reader
+                                    )
+                                    .map_err(|_| "Error reading brushes for conversion.")?
+                                ),
+                                &mut writer,
+                                "Error converting brushes."
+                            );
+                        }
+                    },
+                    FileStructure::Things =>
+                    {
+                        for _ in 0..header.things
+                        {
+                            test_writer!(
+                                &ciborium::from_reader::<ThingInstance, _>(&mut reader)
+                                    .map_err(|_| "Error reading things for conversion.")?,
+                                &mut writer,
+                                "Error converting brushes."
+                            );
+                        }
+                    },
+                    FileStructure::Props =>
+                    {
+                        for _ in 0..header.props
+                        {
+                            test_writer!(
+                                &ciborium::from_reader::<Prop, _>(&mut reader)
+                                    .map_err(|_| "Error reading props for conversion.")?,
+                                &mut writer,
+                                "Error converting brushes."
+                            );
+                        }
+                    },
+                    FileStructure::Grid =>
+                    {
+                        test_writer!(
+                            &ciborium::from_reader::<GridSettings, _>(&mut reader)
+                                .unwrap_or_default(),
+                            &mut writer,
+                            "Error converting grid settings."
+                        );
+                    },
+                    _ => unreachable!()
+                };
+            }
+
+            drop(reader);
+            drop(writer);
+
+            // Write to file.
+            test_writer!(
+                BufWriter::new(OpenOptions::new().write(true).truncate(true).open(path).unwrap())
+                    .write_all(&data),
+                "Error converting file."
+            );
+
+            Ok(())
+        }
+
+        let mut reader = BufReader::new(File::open(path).unwrap());
+        let mut steps = FileStructure::iter();
+
+        steps.next_value().assert(FileStructure::Version);
+        let mut file = match version_number(&mut reader).as_str()
+        {
+            "0.3" =>
+            {
+                reader.seek(SeekFrom::Start(0)).ok();
+                convert_03(reader, path)?;
+                let mut file = BufReader::new(File::open(path).unwrap());
+                _ = version_number(&mut file).as_str();
+                file
+            },
+            FILE_VERSION_NUMBER => reader,
+            _ => unreachable!()
         };
 
-        let header = match ciborium::from_reader(&mut file)
-        {
-            Ok(header) => header,
-            Err(_) => return Err("Error reading file header")
-        };
+        steps.next_value().assert(FileStructure::Header);
+        let header = read_header(&mut file)?;
 
-        let manager = match EntitiesManager::from_file(
+        steps.next_value().assert(FileStructure::Animations);
+        drawing_resources.import_animations(header.animations, &mut file)?;
+        drawing_resources.reset_default_animation_changed();
+
+        let manager = EntitiesManager::from_file(
             &header,
             &mut file,
             drawing_resources,
             things_catalog,
-            default_properties
-        )
-        {
-            Ok(value) => value,
-            Err(err) => return Err(err)
-        };
+            default_properties,
+            &mut steps
+        )?;
 
+        steps.next_value().assert(FileStructure::Props);
         let mut clipboard = Clipboard::from_file(
             images,
             prop_cameras,
@@ -1321,6 +1452,8 @@ impl State
             &mut file
         )?;
         clipboard.reset_props_changed();
+
+        steps.next_value().assert(FileStructure::Grid);
 
         Ok((manager, clipboard, ciborium::from_reader(&mut file).unwrap_or_default()))
     }
@@ -1356,7 +1489,7 @@ impl State
             bundle.images,
             bundle.prop_cameras,
             bundle.user_textures,
-            File::open(bundle.config.open_file.path().unwrap()).unwrap(),
+            bundle.config.open_file.path().unwrap(),
             bundle.drawing_resources,
             bundle.things_catalog,
             bundle.default_properties
@@ -1370,6 +1503,7 @@ impl State
             },
             Err(err) =>
             {
+                bundle.config.open_file.clear();
                 error_message(err);
                 return;
             }

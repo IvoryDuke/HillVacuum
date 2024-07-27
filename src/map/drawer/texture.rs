@@ -4,10 +4,9 @@
 //=======================================================================//
 
 use glam::Vec2;
-use hill_vacuum_shared::match_or_panic;
 use serde::{Deserialize, Serialize};
 
-use crate::{utils::hull::EntityHull, Animation, Hull};
+use crate::{Animation, Hull};
 
 //=======================================================================//
 // MACROS
@@ -144,12 +143,6 @@ impl Default for Sprite
     }
 }
 
-impl EntityHull for Sprite
-{
-    #[inline]
-    fn hull(&self) -> Hull { match_or_panic!(self, Self::True(hull), *hull) }
-}
-
 impl Sprite
 {
     sprite_values!(parallax_x, parallax_y, scroll_x, scroll_y);
@@ -192,6 +185,45 @@ pub struct TextureSettings
     height:    i8,
     sprite:    Sprite,
     animation: Animation
+}
+
+impl From<hill_vacuum_03::TextureSettings> for TextureSettings
+{
+    #[inline]
+    fn from(value: hill_vacuum_03::TextureSettings) -> Self
+    {
+        use std::mem::transmute;
+
+        use hill_vacuum_03::TextureInterface;
+
+        unsafe {
+            let sprite = if value.sprite()
+            {
+                Sprite::True(transmute(value.sprite_hull(Vec2::ZERO)))
+            }
+            else
+            {
+                Sprite::False {
+                    parallax_x: value.parallax_x(),
+                    parallax_y: value.parallax_y(),
+                    scroll_x:   value.scroll_x(),
+                    scroll_y:   value.scroll_y()
+                }
+            };
+
+            Self {
+                texture: value.name().to_string(),
+                scale_x: value.scale_x(),
+                scale_y: value.scale_y(),
+                offset_x: value.offset_x(),
+                offset_y: value.offset_y(),
+                angle: value.angle(),
+                height: value.height(),
+                sprite,
+                animation: transmute(value.animation().clone())
+            }
+        }
+    }
 }
 
 impl TextureInterface for TextureSettings
@@ -250,6 +282,16 @@ impl TextureInterface for TextureSettings
 
     #[inline]
     fn animation(&self) -> &Animation { &self.animation }
+}
+
+impl TextureSettings
+{
+    /// Sets the [`Animation`] without checking the map bounds.
+    #[inline]
+    pub(in crate::map) unsafe fn unsafe_set_animation(&mut self, animation: Animation)
+    {
+        self.animation = animation;
+    }
 }
 
 //=======================================================================//
@@ -543,6 +585,12 @@ pub(in crate::map) mod ui_mod
                 scroll_y:   0f32
             }
         }
+    }
+
+    impl EntityHull for Sprite
+    {
+        #[inline]
+        fn hull(&self) -> Hull { match_or_panic!(self, Self::True(hull), *hull) }
     }
 
     impl Sprite
@@ -850,7 +898,7 @@ pub(in crate::map) mod ui_mod
         xy!(x, y);
 
         #[inline]
-        pub(in crate::map::drawer) fn sprite_struct(&self) -> &Sprite { &self.sprite }
+        pub(in crate::map::drawer) const fn sprite_struct(&self) -> &Sprite { &self.sprite }
 
         /// Returns the maximum possible frames of the atlas animation.
         #[inline]
@@ -1261,13 +1309,6 @@ pub(in crate::map) mod ui_mod
             let result = self.check_sprite_hull(drawing_resources, center).is_ok();
             self.animation = prev;
             result
-        }
-
-        /// Sets the [`Animation`] without checking the map bounds.
-        #[inline]
-        pub(in crate::map) unsafe fn unsafe_set_animation(&mut self, animation: Animation)
-        {
-            self.animation = animation;
         }
 
         /// Sets the [`Animation`].

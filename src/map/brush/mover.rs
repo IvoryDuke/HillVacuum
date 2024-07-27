@@ -113,8 +113,6 @@ pub mod ui_mod
         fn from(value: Motor) -> Self { Self::Motor(value) }
     }
 
-    //=======================================================================//
-
     impl Mover
     {
         #[inline]

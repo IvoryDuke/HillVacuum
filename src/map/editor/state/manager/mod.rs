@@ -57,7 +57,11 @@ use crate::{
             texture::{Sprite, TextureInterface, TextureInterfaceExtra, TextureSettings}
         },
         editor::{
-            state::{editor_state::TargetSwitch, manager::quad_tree::QuadTreeIds},
+            state::{
+                editor_state::TargetSwitch,
+                manager::quad_tree::QuadTreeIds,
+                read_default_properties
+            },
             AllDefaultProperties,
             DrawBundle,
             ToolUpdateBundle
@@ -67,6 +71,7 @@ use crate::{
         properties::{DefaultProperties, Properties, PropertiesRefactor},
         thing::{catalog::ThingsCatalog, ThingInstance, ThingInstanceData, ThingInterface},
         AssertedInsertRemove,
+        FileStructure,
         HvHashMap,
         MapHeader,
         OutOfBounds
@@ -471,27 +476,17 @@ impl Innards
     /// Reads the brushes and [`Thing`]s from `file`.
     /// Returns an error if it occurred.
     #[inline]
-    pub fn load(
+    pub fn load<I: Iterator<Item = FileStructure>>(
         &mut self,
         header: &MapHeader,
         file: &mut BufReader<File>,
+        drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,
-        drawing_resources: &mut DrawingResources,
         default_properties: &mut AllDefaultProperties,
+        steps: &mut I,
         quad_trees: &mut Trees
     ) -> Result<(), &'static str>
     {
-        /// Tests the validity of `value`.
-        macro_rules! test {
-            ($value:expr, $error:literal) => {
-                match $value
-                {
-                    Ok(value) => value,
-                    Err(_) => return Err($error)
-                }
-            };
-        }
-
         /// Stores in `map_default_properties` the desired properties and returns a
         /// [`PropertiesRefactor`] if the default and file properties do not match.
         #[inline]
@@ -542,18 +537,11 @@ impl Innards
         let mut brushes = hv_vec![];
         let mut with_anchors = hv_vec![];
 
-        let file_brushes_default_properties = test!(
-            ciborium::from_reader::<DefaultProperties, _>(&mut *file),
-            "Error reading default brushes properties"
-        );
-        let file_things_default_properties = test!(
-            ciborium::from_reader::<DefaultProperties, _>(&mut *file),
-            "Error reading default things properties"
-        );
+        steps.next_value().assert(FileStructure::Properties);
+        let [file_brushes_default_properties, file_things_default_properties] =
+            read_default_properties(file)?;
 
-        drawing_resources.import_animations(header.animations, &mut *file)?;
-        drawing_resources.reset_default_animation_changed();
-
+        steps.next_value().assert(FileStructure::Brushes);
         let b_refactor = mismatching_properties(
             default_properties.brushes,
             default_properties.map_brushes,
@@ -563,8 +551,8 @@ impl Innards
 
         for _ in 0..header.brushes
         {
-            let mut brush =
-                test!(ciborium::from_reader::<Brush, _>(&mut *file), "Error reading brushes");
+            let mut brush = ciborium::from_reader::<Brush, _>(&mut *file)
+                .map_err(|_| "Error reading brushes")?;
 
             if brush.has_sprite()
             {
@@ -608,6 +596,7 @@ impl Innards
             }
         }
 
+        steps.next_value().assert(FileStructure::Things);
         let mut things = hv_vec![];
         let t_refactor = mismatching_properties(
             default_properties.things,
@@ -618,10 +607,8 @@ impl Innards
 
         for _ in 0..header.things
         {
-            let mut thing_i = test!(
-                ciborium::from_reader::<ThingInstance, _>(&mut *file),
-                "Error reading things"
-            );
+            let mut thing_i = ciborium::from_reader::<ThingInstance, _>(&mut *file)
+                .map_err(|_| "Error reading things")?;
             let thing = things_catalog.thing_or_error(thing_i.thing());
 
             if !thing_i.check_thing_change(thing)
@@ -1689,12 +1676,13 @@ impl EntitiesManager
     /// Returns a new [`EntitiesManager`] along with the [`MapHeader`] read from `file` if the read
     /// process was successful.
     #[inline]
-    pub fn from_file(
+    pub fn from_file<I: Iterator<Item = FileStructure>>(
         header: &MapHeader,
         file: &mut BufReader<File>,
-        drawing_resources: &mut DrawingResources,
+        drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,
-        default_properties: &mut AllDefaultProperties
+        default_properties: &mut AllDefaultProperties,
+        steps: &mut I
     ) -> Result<Self, &'static str>
     {
         let mut manager = Self::new();
@@ -1702,9 +1690,10 @@ impl EntitiesManager
         match manager.innards.load(
             header,
             file,
-            things_catalog,
             drawing_resources,
+            things_catalog,
             default_properties,
+            steps,
             &mut manager.quad_trees
         )
         {
