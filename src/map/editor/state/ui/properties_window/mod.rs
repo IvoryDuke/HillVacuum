@@ -42,7 +42,7 @@ use crate::{
 //=======================================================================//
 
 /// The width of the columns of the grid.
-const COLUMN_WIDTH: f32 = 160f32;
+const COLUMN_WIDTH: f32 = 180f32;
 /// The height of the rows of the grid.
 const ROW_HEIGHT: f32 = 22f32;
 
@@ -565,7 +565,7 @@ impl PropertiesWindow
                     .collapsible(true)
                     .resizable(true)
                     .max_width(COLUMN_WIDTH * 2f32)
-                    .max_height(ROW_HEIGHT * (self.innards.max_rows as f32)),
+                    .default_height(280f32),
                 |ui| {
                     self.innards.show(
                         ui,
