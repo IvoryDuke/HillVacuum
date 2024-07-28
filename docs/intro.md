@@ -10,4 +10,7 @@ HillVacuum is a Doom Builder and TrenchBroom inspired editor that allows the cre
 For those who do not mind reading, HV features a built in manual which can be opened through the keyboard key `~`.  
 For the rest, there's this [video](https://youtu.be/c5lakP_V1n0).
 
+![hv_1](previews/hv_1.png)
+![hv_2](previews/hv_2.png)
+
 ## Keywords
