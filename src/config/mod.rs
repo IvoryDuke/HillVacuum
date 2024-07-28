@@ -138,7 +138,7 @@ impl FromWorld for IniConfig
     {
         if !Path::new(CONFIG_FILE_NAME).exists() && create_default_config_file().is_err()
         {
-            error_message("Error saving the default config file.");
+            error_message("Error saving the default config file");
         }
 
         let mut ini_config = Ini::new_cs();
@@ -239,7 +239,7 @@ fn save_config(
 
     if ini_config.0.write(CONFIG_FILE_NAME).is_err()
     {
-        error_message("Error while saving config file.");
+        error_message("Error while saving config file");
     }
 
     app_exit_events.send(AppExit::Success);

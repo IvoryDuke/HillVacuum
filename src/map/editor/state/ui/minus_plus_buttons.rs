@@ -21,6 +21,21 @@ pub(in crate::map::editor::state) enum Response
     MinusClicked
 }
 
+impl Response
+{
+    #[inline]
+    #[must_use]
+    pub fn step<T: std::ops::Neg<Output = T>>(self, step: T) -> Option<T>
+    {
+        match self
+        {
+            Response::None => None,
+            Response::PlusClicked => step.into(),
+            Response::MinusClicked => (-step).into()
+        }
+    }
+}
+
 //=======================================================================//
 // TYPES
 //

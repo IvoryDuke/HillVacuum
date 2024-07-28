@@ -286,7 +286,7 @@ impl Editor
 
         if loaded
         {
-            window.name = window_title(path.unwrap().file_stem().unwrap().to_str()).into();
+            window.title = window_title(path.unwrap().file_stem().unwrap().to_str());
         }
         else
         {

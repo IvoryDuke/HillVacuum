@@ -6,6 +6,7 @@
 use std::{marker::PhantomData, str::FromStr};
 
 use bevy_egui::egui;
+use hill_vacuum_shared::return_if_none;
 
 use super::{
     minus_plus_buttons::MinusPlusButtons,
@@ -83,7 +84,7 @@ impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
     {
         if value.is_none() || !enabled
         {
-            ui.add_enabled(false, singleline_textedit(value.buffer_mut()));
+            ui.add_enabled(false, singleline_textedit(value.buffer_mut(), f32::INFINITY));
             return Response::default();
         }
 
@@ -100,7 +101,8 @@ impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
         f: F
     ) -> Response
     {
-        let response = clipboard.copy_paste_text_editor(inputs, ui, value.buffer_mut());
+        let response =
+            clipboard.copy_paste_text_editor(inputs, ui, value.buffer_mut(), f32::INFINITY);
         let lost_focus = response.actually_lost_focus();
 
         Response {
@@ -176,14 +178,7 @@ where
         }
 
         strip.cell(|ui| {
-            use crate::map::editor::state::ui::minus_plus_buttons::Response;
-
-            let step = match self.minus_plus.show(ui, true)
-            {
-                Response::None => return,
-                Response::PlusClicked => step,
-                Response::MinusClicked => -step
-            };
+            let step = return_if_none!(self.minus_plus.show(ui, true).step(step));
 
             if let Some(v) = value.uniform_value()
             {

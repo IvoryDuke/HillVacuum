@@ -1305,10 +1305,11 @@ impl Clipboard
         &mut self,
         inputs: &InputsPresses,
         ui: &mut egui::Ui,
-        buffer: &mut String
+        buffer: &mut String,
+        width: f32
     ) -> egui::Response
     {
-        let mut output = singleline_textedit(buffer).show(ui);
+        let mut output = singleline_textedit(buffer, width).show(ui);
 
         if !output.response.has_focus()
         {

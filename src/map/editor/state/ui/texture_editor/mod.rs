@@ -13,6 +13,7 @@ use super::{
     checkbox::CheckBox,
     overall_value_field::{MinusPlusOverallValueField, OverallValueField},
     window::Window,
+    ActuallyLostFocus,
     WindowCloser,
     WindowCloserInfo
 };
@@ -30,7 +31,8 @@ use crate::{
                 editor_state::{InputsPresses, ToolsSettings},
                 edits_history::EditsHistory,
                 format_texture_preview,
-                manager::{EntitiesManager, TextureResult}
+                manager::{EntitiesManager, TextureResult},
+                ui::minus_plus_buttons::MinusPlusButtons
             },
             StateUpdateBundle
         }
@@ -309,6 +311,93 @@ macro_rules! toggle {
 //
 //=======================================================================//
 
+#[must_use]
+struct SizeFilter
+{
+    filter:  String,
+    value:   Option<u32>,
+    buttons: MinusPlusButtons
+}
+
+impl Default for SizeFilter
+{
+    #[inline]
+    fn default() -> Self
+    {
+        Self {
+            filter:  String::new(),
+            value:   None,
+            buttons: MinusPlusButtons::new(egui::Vec2::new(MINUS_PLUS_WIDTH, MINUS_PLUS_HEIGHT))
+        }
+    }
+}
+
+impl SizeFilter
+{
+    #[inline]
+    fn show(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle) -> bool
+    {
+        use super::minus_plus_buttons::Response;
+
+        let response =
+            bundle
+                .clipboard
+                .copy_paste_text_editor(bundle.inputs, ui, &mut self.filter, 60f32);
+
+        self.value = match self.filter.parse::<u32>().ok()
+        {
+            Some(v) =>
+            {
+                if v == 0
+                {
+                    self.filter.clear();
+                    None
+                }
+                else
+                {
+                    v.into()
+                }
+            },
+            None => None
+        };
+
+        match self.buttons.show(ui, true)
+        {
+            Response::None => (),
+            Response::PlusClicked =>
+            {
+                match &mut self.value
+                {
+                    Some(v) => *v = (*v + 1).min(u32::MAX),
+                    None => self.value = 1.into()
+                };
+
+                self.filter = self.value.unwrap().to_string();
+            },
+            Response::MinusClicked =>
+            {
+                if let Some(v) = &mut self.value
+                {
+                    if *v == 1
+                    {
+                        self.value = None;
+                        self.filter.clear();
+                    }
+                    else
+                    {
+                        *v -= 1;
+                        self.filter = v.to_string();
+                    }
+                }
+            }
+        };
+
+        response.has_focus() || response.actually_lost_focus()
+    }
+}
+
+//=======================================================================//
+
 /// A bundle of references to data necessary for the texture editor.
 #[allow(clippy::missing_docs_in_private_items)]
 struct Bundle<'a>
@@ -327,7 +416,9 @@ struct Bundle<'a>
 #[derive(Default)]
 struct Innards
 {
-    filter:           String,
+    name_filter:      String,
+    width_filter:     SizeFilter,
+    height_filter:    SizeFilter,
     /// The overall texture.
     overall_texture:  UiOverallTextureSettings,
     /// The editor of the texture animation.
@@ -547,11 +638,22 @@ impl Innards
 
         let mut response = top_section(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.label("Filter");
-                bundle
+                ui.label("Name filter");
+                let mut has_focus = bundle
                     .clipboard
-                    .copy_paste_text_editor(bundle.inputs, ui, &mut self.filter)
-                    .has_focus()
+                    .copy_paste_text_editor(
+                        bundle.inputs,
+                        ui,
+                        &mut self.name_filter,
+                        ui.available_width() - 382f32
+                    )
+                    .has_focus();
+
+                ui.label("Width filter");
+                has_focus |= self.width_filter.show(ui, bundle);
+
+                ui.label("Height filter");
+                has_focus | self.height_filter.show(ui, bundle)
             })
             .inner
         });
@@ -620,12 +722,71 @@ impl Innards
                 .inner
             }
 
+            #[inline]
+            #[must_use]
+            fn filter_textures(
+                texture: &TextureMaterials,
+                name_filter: Option<&str>,
+                width_filter: Option<u32>,
+                height_filter: Option<u32>
+            ) -> bool
+            {
+                match (name_filter, width_filter, height_filter)
+                {
+                    (None, None, None) => unreachable!(),
+                    (None, None, Some(h)) => texture.texture().size().y == h,
+                    (None, Some(w), None) => texture.texture().size().x == w,
+                    (None, Some(w), Some(h)) =>
+                    {
+                        let size = texture.texture().size();
+                        size.x == w && size.y == h
+                    },
+                    (Some(n), None, None) => texture.texture().name().contains(n),
+                    (Some(n), None, Some(h)) =>
+                    {
+                        let texture = texture.texture();
+                        texture.size().y == h && texture.name().contains(n)
+                    },
+                    (Some(n), Some(w), None) =>
+                    {
+                        let texture = texture.texture();
+                        texture.size().x == w && texture.name().contains(n)
+                    },
+                    (Some(n), Some(w), Some(h)) =>
+                    {
+                        let texture = texture.texture();
+                        texture.size().x == w && texture.size().y == h && texture.name().contains(n)
+                    }
+                }
+            }
+
             let Bundle {
                 drawing_resources,
                 manager,
                 edits_history,
                 ..
             } = bundle;
+
+            let name_filter = (!self.name_filter.is_empty()).then_some(self.name_filter.as_str());
+
+            let filter = if name_filter.is_none() &&
+                self.width_filter.value.is_none() &&
+                self.height_filter.value.is_none()
+            {
+                None
+            }
+            else
+            {
+                (|texture: &&TextureMaterials| {
+                    filter_textures(
+                        texture,
+                        name_filter,
+                        self.width_filter.value,
+                        self.height_filter.value
+                    )
+                })
+                .into()
+            };
 
             /// Draws the gallery of loaded textures.
             macro_rules! gallery {
@@ -634,11 +795,7 @@ impl Innards
                         ui,
                         TEXTURE_GALLERY_PREVIEW_FRAME_SIDE,
                         |textures_per_row| {
-                            drawing_resources.chunked_textures(
-                                &self.filter,
-                                &self.overall_texture.name,
-                                textures_per_row
-                            )
+                            drawing_resources.chunked_textures(textures_per_row, filter)
                         },
                         match self.overall_texture.name.uniform_value()
                         {

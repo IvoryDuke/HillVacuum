@@ -1172,7 +1172,7 @@ impl State
             {
                 FileStructure::Version =>
                 {
-                    test_writer!(FILE_VERSION_NUMBER, &mut writer, "Error saving version number.");
+                    test_writer!(FILE_VERSION_NUMBER, &mut writer, "Error saving version number");
                 },
                 FileStructure::Header =>
                 {
@@ -1196,12 +1196,12 @@ impl State
                     test_writer!(
                         bundle.default_properties.map_brushes,
                         &mut writer,
-                        "Error saving Brush default properties"
+                        "Error saving Brush default properties."
                     );
                     test_writer!(
                         bundle.default_properties.map_things,
                         &mut writer,
-                        "Error saving Thing default properties"
+                        "Error saving Thing default properties."
                     );
                 },
                 FileStructure::Brushes =>
@@ -1289,33 +1289,23 @@ impl State
     ) -> Result<(EntitiesManager, Clipboard, GridSettings), &'static str>
     {
         #[inline]
-        fn read_header(file: &mut BufReader<File>) -> Result<MapHeader, &'static str>
-        {
-            match ciborium::from_reader(file)
-            {
-                Ok(header) => Ok(header),
-                Err(_) => Err("Error reading file header.")
-            }
-        }
-
-        #[inline]
         fn convert_03(mut reader: BufReader<File>, path: &PathBuf) -> Result<(), &'static str>
         {
             let mut data = Vec::new();
             let mut writer = BufWriter::new(&mut data);
 
             // Version.
-            test_writer!(FILE_VERSION_NUMBER, &mut writer, "Error converting version number.");
+            test_writer!(FILE_VERSION_NUMBER, &mut writer, "Error converting version number");
 
             // Header
             let header = ciborium::from_reader::<MapHeader, _>(&mut reader)
                 .map_err(|_| "Error reading file header for conversion")?;
-            test_writer!(&header, &mut writer, "Error converting header.");
+            test_writer!(&header, &mut writer, "Error converting header");
 
             // Read properties.
             let [default_brush_properties, default_thing_properties] =
                 read_default_properties(&mut reader)
-                    .map_err(|_| "Error reading default properties for conversion.")?;
+                    .map_err(|_| "Error reading default properties for conversion")?;
 
             // Animations.
             let animations = file_animations(header.animations, &mut reader)
@@ -1323,7 +1313,7 @@ impl State
 
             for anim in animations
             {
-                test_writer!(&anim, &mut writer, "Error converting animations.");
+                test_writer!(&anim, &mut writer, "Error converting animations");
             }
 
             // Write properties.
@@ -1351,7 +1341,7 @@ impl State
                                     ciborium::from_reader::<hill_vacuum_03::BrushCompat, _>(
                                         &mut reader
                                     )
-                                    .map_err(|_| "Error reading brushes for conversion.")?
+                                    .map_err(|_| "Error reading brushes for conversion")?
                                 ),
                                 &mut writer,
                                 "Error converting brushes."
@@ -1364,7 +1354,7 @@ impl State
                         {
                             test_writer!(
                                 &ciborium::from_reader::<ThingInstance, _>(&mut reader)
-                                    .map_err(|_| "Error reading things for conversion.")?,
+                                    .map_err(|_| "Error reading things for conversion")?,
                                 &mut writer,
                                 "Error converting brushes."
                             );
@@ -1376,7 +1366,7 @@ impl State
                         {
                             test_writer!(
                                 &ciborium::from_reader::<Prop, _>(&mut reader)
-                                    .map_err(|_| "Error reading props for conversion.")?,
+                                    .map_err(|_| "Error reading props for conversion")?,
                                 &mut writer,
                                 "Error converting brushes."
                             );
@@ -1427,7 +1417,8 @@ impl State
         };
 
         steps.next_value().assert(FileStructure::Header);
-        let header = read_header(&mut file)?;
+        let header = ciborium::from_reader::<MapHeader, _>(&mut file)
+            .map_err(|_| "Error reading file header")?;
 
         steps.next_value().assert(FileStructure::Animations);
         drawing_resources.import_animations(header.animations, &mut file)?;
@@ -1455,7 +1446,11 @@ impl State
 
         steps.next_value().assert(FileStructure::Grid);
 
-        Ok((manager, clipboard, ciborium::from_reader(&mut file).unwrap_or_default()))
+        Ok((
+            manager,
+            clipboard,
+            ciborium::from_reader(&mut file).map_err(|_| "Error reading grid settings")?
+        ))
     }
 
     /// Opens a map file, unless the file cannot be properly read. If there are unsaved changes in

@@ -61,7 +61,6 @@ use crate::{
         hull::Hull,
         math::{points::rotate_point_around_origin, HashVec2},
         misc::{vertex_highlight_square, AssertedInsertRemove, Camera},
-        overall_value::UiOverallValue,
         tooltips::draw_tooltip
     },
     HvHashMap,
@@ -641,12 +640,13 @@ impl DrawingResources
 
     /// Returns a [`Chunks`] iterator with `chunk_size` to the [`TextureMaterials`].
     #[inline]
-    pub fn chunked_textures<'a>(
+    pub fn chunked_textures<'a, F>(
         &'a self,
-        filter: &'a str,
-        overall_texture: &'a UiOverallValue<String>,
-        chunk_size: usize
+        chunk_size: usize,
+        f: Option<F>
     ) -> impl Iterator<Item = &'a [&'a TextureMaterials]>
+    where
+        F: Fn(&&'a TextureMaterials) -> bool
     {
         type TextureRef<'a> = &'a TextureMaterials;
         type ReturnType<'a> = &'a [TextureRef<'a>];
@@ -727,21 +727,23 @@ impl DrawingResources
             }
         }
 
-        if filter.is_empty() ||
-            (overall_texture.uniform_value().map(String::as_str) == Some(filter))
+        match f
         {
-            return ChunkedTextures::Unfiltered(FilteredTextures::new(
-                self.textures.values(),
-                chunk_size
-            ));
+            Some(f) =>
+            {
+                ChunkedTextures::Filtered(FilteredTextures::new(
+                    self.textures.values().filter(f),
+                    chunk_size
+                ))
+            },
+            None =>
+            {
+                ChunkedTextures::Unfiltered(FilteredTextures::new(
+                    self.textures.values(),
+                    chunk_size
+                ))
+            },
         }
-
-        ChunkedTextures::Filtered(FilteredTextures::new(
-            self.textures
-                .values()
-                .filter(move |texture| texture.texture.name().contains(filter)),
-            chunk_size
-        ))
     }
 
     //==============================================================

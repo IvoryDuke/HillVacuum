@@ -23,11 +23,14 @@ use std::{
 
 use hill_vacuum_proc_macros::EnumIter;
 use hill_vacuum_shared::{return_if_none, NextValue};
-use properties::DefaultProperties;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    map::thing::ThingViewer,
+    map::{
+        brush::{Brush, BrushViewer},
+        properties::DefaultProperties,
+        thing::ThingViewer
+    },
     utils::{
         containers::{hv_hash_map, hv_vec},
         misc::AssertedInsertRemove
@@ -158,9 +161,8 @@ impl Exporter
 
         for _ in 0..header.brushes
         {
-            brushes.push(crate::Brush::new(
-                ciborium::from_reader::<crate::map::brush::Brush, _>(&mut file)
-                    .map_err(|_| "Error reading Brush")?
+            brushes.push(BrushViewer::new(
+                ciborium::from_reader::<Brush, _>(&mut file).map_err(|_| "Error reading Brush")?
             ));
         }
 

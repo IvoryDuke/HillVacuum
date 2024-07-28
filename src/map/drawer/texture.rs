@@ -189,6 +189,7 @@ pub struct TextureSettings
 
 impl From<hill_vacuum_03::TextureSettings> for TextureSettings
 {
+    #[allow(clippy::missing_transmute_annotations)]
     #[inline]
     fn from(value: hill_vacuum_03::TextureSettings) -> Self
     {
