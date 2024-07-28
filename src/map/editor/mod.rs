@@ -249,7 +249,7 @@ impl Editor
             texture_loader
         );
         let things_catalog = ThingsCatalog::new(hardcoded_things);
-        let path = match config.open_file.path()
+        let path = match config.open_file.path().cloned()
         {
             Some(path) => path.exists().then_some(path),
             None => None
@@ -273,7 +273,7 @@ impl Editor
             map_things:  &mut map_things_default_properties
         };
 
-        let (state, loaded) = State::new(
+        let (state, path) = State::new(
             asset_server,
             images,
             prop_cameras,
@@ -284,14 +284,11 @@ impl Editor
             path
         );
 
-        if loaded
+        match path
         {
-            window.title = window_title(path.unwrap().file_stem().unwrap().to_str());
-        }
-        else
-        {
-            config.open_file.clear();
-        }
+            Some(path) => window.title = window_title(path.file_stem().unwrap().to_str()),
+            None => config.open_file.clear()
+        };
 
         Self {
             state,
