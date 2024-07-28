@@ -12,7 +12,8 @@ keywords = ["gamedev", "mapeditor", "bevy"]
 [features]
 arena_alloc = [
     "dep:blink-alloc",
-    "hashbrown/nightly"
+    "hashbrown/nightly",
+    "hill_vacuum_03/arena_alloc"
 ]
 ui = [
     "dep:bevy",

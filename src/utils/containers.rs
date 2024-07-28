@@ -758,9 +758,14 @@ pub(crate) mod ui_mod
 
     use std::hash::Hash;
 
+    #[cfg(feature = "arena_alloc")]
+    use blink_alloc::BlinkAlloc;
     use hashbrown::{Equivalent, HashSet};
+    #[cfg(not(feature = "arena_alloc"))]
     use smallvec::SmallVec;
 
+    #[cfg(feature = "arena_alloc")]
+    use crate::utils::containers::blink_alloc;
     use crate::{
         utils::{
             iterators::{PairIterator, PairIteratorMut, SlicePairIter, SlicePairIterMut},
