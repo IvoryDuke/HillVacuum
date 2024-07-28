@@ -616,10 +616,214 @@ impl Innards
         });
     }
 
+    #[inline]
+    fn textures_gallery(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle)
+    {
+        /// Draws the button to be clicked to pick a texture.
+        #[inline]
+        fn texture_preview<F>(
+            ui: &mut egui::Ui,
+            texture_materials: &TextureMaterials,
+            f: F
+        ) -> egui::Response
+        where
+            F: FnOnce(&Texture, &egui::Response)
+        {
+            ui.vertical(|ui| {
+                ui.set_width(TEXTURE_GALLERY_PREVIEW_FRAME_SIDE);
+
+                let texture = texture_materials.texture();
+                let response = format_texture_preview!(
+                    ImageButton,
+                    ui,
+                    texture_materials.egui_id(),
+                    texture.size(),
+                    TEXTURE_GALLERY_PREVIEW_FRAME_SIDE
+                );
+
+                f(texture, &response);
+
+                ui.vertical_centered(|ui| {
+                    ui.add(egui::Label::new(texture.label()).wrap());
+                });
+                response
+            })
+            .inner
+        }
+
+        #[inline]
+        #[must_use]
+        fn name_filter(
+            texture: &TextureMaterials,
+            n: Option<&str>,
+            _: Option<u32>,
+            _: Option<u32>
+        ) -> bool
+        {
+            texture.texture().name().contains(n.unwrap())
+        }
+
+        #[inline]
+        #[must_use]
+        fn width_filter(
+            texture: &TextureMaterials,
+            _: Option<&str>,
+            w: Option<u32>,
+            _: Option<u32>
+        ) -> bool
+        {
+            texture.texture().size().x == w.unwrap()
+        }
+
+        #[inline]
+        #[must_use]
+        fn height_filter(
+            texture: &TextureMaterials,
+            _: Option<&str>,
+            _: Option<u32>,
+            h: Option<u32>
+        ) -> bool
+        {
+            texture.texture().size().y == h.unwrap()
+        }
+
+        macro_rules! filter_gen {
+            ($(($($f:ident),+)),+) => { paste::paste! {$(
+                #[inline]
+                #[must_use]
+                fn [< $($f)_+_filter >](
+                    texture: &TextureMaterials,
+                    n: Option<&str>,
+                    w: Option<u32>,
+                    h: Option<u32>
+                ) -> bool
+                {
+                    $([< $f _filter >](texture, n, w, h)) && +
+                }
+            )+}};
+        }
+
+        filter_gen!((width, height), (name, width), (name, height), (name, width, height));
+
+        let Bundle {
+            drawing_resources,
+            manager,
+            edits_history,
+            ..
+        } = bundle;
+
+        let n_filter = (!self.name_filter.is_empty()).then_some(self.name_filter.as_str());
+        let w_filter = self.width_filter.value;
+        let h_filter = self.height_filter.value;
+
+        let filter = if n_filter.is_none() && h_filter.is_none() && w_filter.is_none()
+        {
+            None
+        }
+        else
+        {
+            let filter = match (n_filter, w_filter, h_filter)
+            {
+                (None, None, None) => unreachable!(),
+                (None, None, Some(_)) => height_filter,
+                (None, Some(_), None) => width_filter,
+                (None, Some(_), Some(_)) => width_height_filter,
+                (Some(_), None, None) => name_filter,
+                (Some(_), None, Some(_)) => name_height_filter,
+                (Some(_), Some(_), None) => name_width_filter,
+                (Some(_), Some(_), Some(_)) => name_width_height_filter
+            };
+
+            (move |texture: &&TextureMaterials| filter(texture, n_filter, w_filter, h_filter))
+                .into()
+        };
+
+        /// Draws the gallery of loaded textures.
+        macro_rules! gallery {
+            ($f:expr) => {
+                crate::map::editor::state::ui::textures_gallery!(
+                    ui,
+                    TEXTURE_GALLERY_PREVIEW_FRAME_SIDE,
+                    |textures_per_row| {
+                        drawing_resources.chunked_textures(textures_per_row, filter)
+                    },
+                    match self.overall_texture.name.uniform_value()
+                    {
+                        Some(name) => drawing_resources.texture_index(name),
+                        None => None
+                    },
+                    |ui, texture| texture_preview(ui, texture, $f),
+                    |ui: &mut egui::Ui, textures| {
+                        let mut len = 0;
+
+                        ui.horizontal(|ui| {
+                            for texture_materials in textures
+                            {
+                                len += 1;
+                                texture_preview(ui, texture_materials as &&TextureMaterials, $f);
+                            }
+
+                            ui.add_space(ui.available_width());
+                        });
+
+                        len
+                    }
+                );
+            };
+        }
+
+        if self
+            .animation_editor
+            .can_add_textures_to_list(&self.overall_texture.animation)
+        {
+            let mut clicked_texture = None;
+
+            gallery!(|texture, response| {
+                if response.clicked()
+                {
+                    clicked_texture = texture.name().to_owned().into();
+                }
+                else if response.secondary_clicked()
+                {
+                    self.animation_editor.set_texture_override(texture);
+                }
+            });
+
+            self.animation_editor.push_list_animation_frame(
+                &mut drawing_resources
+                    .texture_mut(self.selected_texture_name().unwrap().as_str())
+                    .unwrap(),
+                manager,
+                edits_history,
+                return_if_none!(clicked_texture).as_str()
+            );
+
+            return;
+        }
+
+        gallery!(|texture, response| {
+            if response.clicked()
+            {
+                _ = Innards::assign_texture(
+                    drawing_resources,
+                    manager,
+                    edits_history,
+                    texture.name()
+                );
+            }
+            else if response.secondary_clicked()
+            {
+                self.animation_editor.set_texture_override(texture);
+            }
+        });
+    }
+
     /// Shows the texture editor.
     #[inline]
     fn show(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle) -> bool
     {
+        const X_SPACING: f32 = 2f32;
+
         #[inline]
         fn top_section<F, R>(ui: &mut egui::Ui, f: F) -> R
         where
@@ -638,7 +842,10 @@ impl Innards
 
         let mut response = top_section(ui, |ui| {
             ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = X_SPACING;
+
                 ui.label("Name filter");
+                ui.add_space(2f32);
                 let mut has_focus = bundle
                     .clipboard
                     .copy_paste_text_editor(
@@ -649,10 +856,14 @@ impl Innards
                     )
                     .has_focus();
 
+                ui.add_space(2f32);
                 ui.label("Width filter");
+                ui.add_space(2f32);
                 has_focus |= self.width_filter.show(ui, bundle);
 
+                ui.add_space(2f32);
                 ui.label("Height filter");
+                ui.add_space(2f32);
                 has_focus | self.height_filter.show(ui, bundle)
             })
             .inner
@@ -665,7 +876,7 @@ impl Innards
                 });
 
                 let spacing = ui.spacing_mut();
-                spacing.item_spacing.x = 2f32;
+                spacing.item_spacing.x = X_SPACING;
                 spacing.slider_width = SLIDER_WIDTH;
                 let available_width = ui.available_width();
 
@@ -689,188 +900,7 @@ impl Innards
 
         ui.separator();
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            /// Draws the button to be clicked to pick a texture.
-            #[inline]
-            fn texture_preview<F>(
-                ui: &mut egui::Ui,
-                texture_materials: &TextureMaterials,
-                f: F
-            ) -> egui::Response
-            where
-                F: FnOnce(&Texture, &egui::Response)
-            {
-                ui.vertical(|ui| {
-                    ui.set_width(TEXTURE_GALLERY_PREVIEW_FRAME_SIDE);
-
-                    let texture = texture_materials.texture();
-                    let response = format_texture_preview!(
-                        ImageButton,
-                        ui,
-                        texture_materials.egui_id(),
-                        texture.size(),
-                        TEXTURE_GALLERY_PREVIEW_FRAME_SIDE
-                    );
-
-                    f(texture, &response);
-
-                    ui.vertical_centered(|ui| {
-                        ui.add(egui::Label::new(texture.label()).wrap());
-                    });
-                    response
-                })
-                .inner
-            }
-
-            #[inline]
-            #[must_use]
-            fn filter_textures(
-                texture: &TextureMaterials,
-                name_filter: Option<&str>,
-                width_filter: Option<u32>,
-                height_filter: Option<u32>
-            ) -> bool
-            {
-                match (name_filter, width_filter, height_filter)
-                {
-                    (None, None, None) => unreachable!(),
-                    (None, None, Some(h)) => texture.texture().size().y == h,
-                    (None, Some(w), None) => texture.texture().size().x == w,
-                    (None, Some(w), Some(h)) =>
-                    {
-                        let size = texture.texture().size();
-                        size.x == w && size.y == h
-                    },
-                    (Some(n), None, None) => texture.texture().name().contains(n),
-                    (Some(n), None, Some(h)) =>
-                    {
-                        let texture = texture.texture();
-                        texture.size().y == h && texture.name().contains(n)
-                    },
-                    (Some(n), Some(w), None) =>
-                    {
-                        let texture = texture.texture();
-                        texture.size().x == w && texture.name().contains(n)
-                    },
-                    (Some(n), Some(w), Some(h)) =>
-                    {
-                        let texture = texture.texture();
-                        texture.size().x == w && texture.size().y == h && texture.name().contains(n)
-                    }
-                }
-            }
-
-            let Bundle {
-                drawing_resources,
-                manager,
-                edits_history,
-                ..
-            } = bundle;
-
-            let name_filter = (!self.name_filter.is_empty()).then_some(self.name_filter.as_str());
-
-            let filter = if name_filter.is_none() &&
-                self.width_filter.value.is_none() &&
-                self.height_filter.value.is_none()
-            {
-                None
-            }
-            else
-            {
-                (|texture: &&TextureMaterials| {
-                    filter_textures(
-                        texture,
-                        name_filter,
-                        self.width_filter.value,
-                        self.height_filter.value
-                    )
-                })
-                .into()
-            };
-
-            /// Draws the gallery of loaded textures.
-            macro_rules! gallery {
-                ($f:expr) => {
-                    crate::map::editor::state::ui::textures_gallery!(
-                        ui,
-                        TEXTURE_GALLERY_PREVIEW_FRAME_SIDE,
-                        |textures_per_row| {
-                            drawing_resources.chunked_textures(textures_per_row, filter)
-                        },
-                        match self.overall_texture.name.uniform_value()
-                        {
-                            Some(name) => drawing_resources.texture_index(name),
-                            None => None
-                        },
-                        |ui, texture| texture_preview(ui, texture, $f),
-                        |ui: &mut egui::Ui, textures| {
-                            let mut len = 0;
-
-                            ui.horizontal(|ui| {
-                                for texture_materials in textures
-                                {
-                                    len += 1;
-                                    texture_preview(
-                                        ui,
-                                        texture_materials as &&TextureMaterials,
-                                        $f
-                                    );
-                                }
-
-                                ui.add_space(ui.available_width());
-                            });
-
-                            len
-                        }
-                    );
-                };
-            }
-
-            if self
-                .animation_editor
-                .can_add_textures_to_list(&self.overall_texture.animation)
-            {
-                let mut clicked_texture = None;
-
-                gallery!(|texture, response| {
-                    if response.clicked()
-                    {
-                        clicked_texture = texture.name().to_owned().into();
-                    }
-                    else if response.secondary_clicked()
-                    {
-                        self.animation_editor.set_texture_override(texture);
-                    }
-                });
-
-                self.animation_editor.push_list_animation_frame(
-                    &mut drawing_resources
-                        .texture_mut(self.selected_texture_name().unwrap().as_str())
-                        .unwrap(),
-                    manager,
-                    edits_history,
-                    return_if_none!(clicked_texture).as_str()
-                );
-
-                return;
-            }
-
-            gallery!(|texture, response| {
-                if response.clicked()
-                {
-                    _ = Innards::assign_texture(
-                        drawing_resources,
-                        manager,
-                        edits_history,
-                        texture.name()
-                    );
-                }
-                else if response.secondary_clicked()
-                {
-                    self.animation_editor.set_texture_override(texture);
-                }
-            });
-        });
+        egui::ScrollArea::vertical().show(ui, |ui| self.textures_gallery(ui, bundle));
 
         response
     }

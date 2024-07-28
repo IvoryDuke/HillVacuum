@@ -105,7 +105,7 @@ macro_rules! textures_gallery {
 
             $ui.horizontal(|ui| {
                 let highlight_index_in_row = highlight_index % textures_per_row;
-                let mut textures = chunks.next().unwrap().into_iter();
+                let mut textures = return_if_none!(chunks.next()).into_iter();
 
                 for _ in 0..highlight_index_in_row
                 {
