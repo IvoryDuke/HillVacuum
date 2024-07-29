@@ -869,7 +869,7 @@ impl Innards
                         bundle,
                         &mut self.overall_texture,
                         available_width
-                    )
+                    );
                 });
                 return;
             }

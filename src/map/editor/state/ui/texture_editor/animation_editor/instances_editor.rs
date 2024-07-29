@@ -152,7 +152,7 @@ impl InstancesEditor
                     texture
                 );
             }
-        )
+        );
     }
 
     /// UI elements to edit an atlas animation.

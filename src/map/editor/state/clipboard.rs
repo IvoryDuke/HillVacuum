@@ -1475,10 +1475,10 @@ impl Clipboard
     /// Returns a [`Chunks`] iterator to the slotted [`Prop`]s with size `chunk_size`.
     #[inline]
     #[must_use]
-    pub fn chunked_props<'a>(
-        &'a self,
+    pub fn chunked_props(
+        &self,
         chunk_size: usize
-    ) -> impl ExactSizeIterator<Item = impl Iterator<Item = ChunkItem<'a>>>
+    ) -> impl ExactSizeIterator<Item = impl Iterator<Item = ChunkItem<'_>>>
     {
         self.props.chunks(chunk_size).enumerate().map(move |(index, props)| {
             let mut index = index * chunk_size;

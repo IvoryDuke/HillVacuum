@@ -1401,7 +1401,7 @@ impl State
                         .create(true)
                         .write(true)
                         .truncate(true)
-                        .open(&path)
+                        .open(path)
                         .unwrap()
                 )
                 .write_all(&data),

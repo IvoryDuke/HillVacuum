@@ -789,7 +789,7 @@ impl AnimationEditor
                     .get_list_animation_mut()
                     .push(new_texture);
             }
-        )
+        );
     }
 
     /// UI elements to edit an atlas animation.
