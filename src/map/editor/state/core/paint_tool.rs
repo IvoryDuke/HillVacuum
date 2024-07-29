@@ -317,8 +317,7 @@ impl PaintTool
     /// Draws the UI.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    #[must_use]
-    pub fn ui(&mut self, bundle: &mut StateUpdateBundle, clipboard: &mut Clipboard) -> bool
+    pub fn ui(&mut self, bundle: &mut StateUpdateBundle, clipboard: &mut Clipboard)
     {
         /// The size of the frame of the [`Prop`]s previews.
         const PREVIEW_SIZE: egui::Vec2 = egui::Vec2::new(
@@ -332,18 +331,14 @@ impl PaintTool
             ..
         } = bundle;
 
-        let focused = if let Status::PropCreationUi(prop) = &self.status
+        if let Status::PropCreationUi(prop) = &self.status
         {
-            self.prop_creation_window(window, egui_context, clipboard, prop.screenshot())
+            self.prop_creation_window(window, egui_context, clipboard, prop.screenshot());
         }
-        else
-        {
-            false
-        };
 
         if clipboard.props_amount() == 0
         {
-            return focused;
+            return;
         }
 
         if let Some(clicked) = bottom_area!(
@@ -366,21 +361,18 @@ impl PaintTool
         {
             clipboard.set_selected_prop_index(clicked);
         }
-
-        focused
     }
 
     /// Draws the prop creation window.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    #[must_use]
     fn prop_creation_window(
         &mut self,
         window: &Window,
         egui_context: &mut egui::Context,
         clipboard: &Clipboard,
         texture: egui::TextureId
-    ) -> bool
+    )
     {
         /// The size of the frame of the new [`Prop`] screenshot.
         const PROP_SNAPSHOT_FRAME: egui::Vec2 =
@@ -420,7 +412,6 @@ impl PaintTool
             .unwrap();
 
         egui_context.move_to_top(response.response.layer_id);
-        response.inner.unwrap()
     }
 
     /// Draws the tool.

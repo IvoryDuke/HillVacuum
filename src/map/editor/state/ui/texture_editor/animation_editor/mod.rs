@@ -33,7 +33,7 @@ use crate::{
             edits_history::EditsHistory,
             manager::EntitiesManager,
             ui::{
-                overall_value_field::{OverallValueField, Response},
+                overall_value_field::OverallValueField,
                 texture_editor::{
                     animation_editor::instances_editor::InstancesEditor,
                     delete_button,
@@ -78,16 +78,16 @@ macro_rules! list_texture {
         $texture_setter:expr,
         $time_setter:expr
     ) => {
-        $response |=
-            set_list_texture(
-                &mut $strip,
-                $drawing_resources,
-                $clipboard,
-                $inputs,
-                $texture,
-                $index,
-                $texture_setter
-            ) | set_list_time(&mut $strip, $clipboard, $inputs, $time, $index, $time_setter);
+        set_list_texture(
+            &mut $strip,
+            $drawing_resources,
+            $clipboard,
+            $inputs,
+            $texture,
+            $index,
+            $texture_setter
+        );
+        set_list_time(&mut $strip, $clipboard, $inputs, $time, $index, $time_setter);
     };
 }
 
@@ -117,8 +117,6 @@ macro_rules! edit_list_single_texture {
             INDEX_WIDTH
         };
 
-        let mut response = Response::default();
-
         $builder
             .size(egui_extras::Size::exact(INDEX_WIDTH))
             .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
@@ -139,8 +137,6 @@ macro_rules! edit_list_single_texture {
                     $time_setter
                 );
             });
-
-        response
     }};
 }
 
@@ -177,8 +173,6 @@ macro_rules! edit_list_texture {
             MINUS_PLUS_TOTAL_WIDTH,
             MINUS_PLUS_WIDTH
         };
-
-        let mut response = Response::default();
 
         $builder
             .size(egui_extras::Size::exact(INDEX_WIDTH))
@@ -218,8 +212,6 @@ macro_rules! edit_list_texture {
                         Response::PlusClicked => $move_up($index),
                         Response::MinusClicked => $move_down($index)
                     };
-
-                    response.value_changed = true;
                 });
 
                 strip.cell(|ui| {
@@ -227,14 +219,11 @@ macro_rules! edit_list_texture {
 
                     if delete_button(ui)
                     {
-                        response.value_changed = true;
                         #[allow(clippy::redundant_closure_call)]
                         $remove($index);
                     }
                 });
             });
-
-        response
     }};
 }
 
@@ -264,25 +253,16 @@ macro_rules! set_atlas_per_frame_time {
             MINUS_PLUS_WIDTH
         };
 
-        let mut response = Response::default();
-
         $builder
             .size(egui_extras::Size::exact(INDEX_WIDTH))
             .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
             .size(egui_extras::Size::exact($field_width))
             .size(egui_extras::Size::exact(MINUS_PLUS_TOTAL_WIDTH))
             .horizontal(|mut strip| {
-                response |= set_atlas_time(
-                    &mut strip,
-                    $clipboard,
-                    $inputs,
-                    $time,
-                    $index,
-                    |index, time| {
-                        #[allow(clippy::redundant_closure_call)]
-                        $frame_time(index, time);
-                    }
-                );
+                set_atlas_time(&mut strip, $clipboard, $inputs, $time, $index, |index, time| {
+                    #[allow(clippy::redundant_closure_call)]
+                    $frame_time(index, time);
+                });
 
                 strip.cell(|ui| {
                     use crate::map::editor::state::ui::minus_plus_buttons::{
@@ -300,12 +280,8 @@ macro_rules! set_atlas_per_frame_time {
                         Response::MinusClicked => $move_down($index),
                         Response::PlusClicked => $move_up($index)
                     };
-
-                    response.value_changed = true;
                 });
             });
-
-        response
     }};
 }
 
@@ -340,15 +316,13 @@ macro_rules! atlas {
             set_single_atlas_time
         };
 
-        let mut response = Response::default();
-
         egui_extras::StripBuilder::new($ui)
             .size(egui_extras::Size::exact(SETTING_HEIGHT))
             .size(egui_extras::Size::exact(SETTING_HEIGHT))
             .size(egui_extras::Size::exact(SETTING_HEIGHT))
             .vertical(|mut strip| {
                 strip.strip(|builder| {
-                    response |= set_partition(
+                    set_partition(
                         builder,
                         $clipboard,
                         $inputs,
@@ -360,7 +334,7 @@ macro_rules! atlas {
                 });
 
                 strip.strip(|builder| {
-                    response |= set_partition(
+                    set_partition(
                         builder,
                         $clipboard,
                         $inputs,
@@ -372,7 +346,7 @@ macro_rules! atlas {
                 });
 
                 strip.strip(|builder| {
-                    response |= set_atlas_len(
+                    set_atlas_len(
                         builder,
                         $clipboard,
                         $inputs,
@@ -387,7 +361,7 @@ macro_rules! atlas {
 
         $ui.vertical(|ui| {
             ui.set_height(SETTING_HEIGHT);
-            response.value_changed |= set_atlas_timing(ui, $timing);
+            set_atlas_timing(ui, $timing);
         });
 
         match &mut $atlas.timing
@@ -400,7 +374,7 @@ macro_rules! atlas {
                     .size(egui_extras::Size::exact(SETTING_HEIGHT))
                     .vertical(|mut strip| {
                         strip.strip(|builder| {
-                            response |= set_single_atlas_time(
+                            set_single_atlas_time(
                                 builder,
                                 $clipboard,
                                 $inputs,
@@ -420,7 +394,7 @@ macro_rules! atlas {
                         if vec.len() == 1
                         {
                             strip.strip(|builder| {
-                                response |= set_single_atlas_time(
+                                set_single_atlas_time(
                                     builder,
                                     $clipboard,
                                     $inputs,
@@ -437,7 +411,7 @@ macro_rules! atlas {
                         for (i, time) in vec.iter_mut().enumerate()
                         {
                             strip.strip(|builder| {
-                                response |= set_atlas_per_frame_time!(
+                                set_atlas_per_frame_time!(
                                     builder,
                                     $clipboard,
                                     $inputs,
@@ -453,8 +427,6 @@ macro_rules! atlas {
                     });
             }
         };
-
-        response
     }};
 }
 
@@ -478,7 +450,6 @@ macro_rules! list {
         $remove:expr,
         $push:expr
     ) => {{
-        let mut response = Response::default();
         let (vec, texture_slot) =
             match_or_panic!($animation, UiOverallListAnimation::Uniform(vec, slot), (vec, slot));
 
@@ -490,7 +461,7 @@ macro_rules! list {
                     let (texture, time) = &mut vec[0];
 
                     strip.strip(|builder| {
-                        response |= edit_list_single_texture!(
+                        edit_list_single_texture!(
                             builder,
                             $drawing_resources,
                             $clipboard,
@@ -509,7 +480,7 @@ macro_rules! list {
                     for (i, (name, time)) in vec.iter_mut().enumerate()
                     {
                         strip.strip(|builder| {
-                            response |= edit_list_texture!(
+                            edit_list_texture!(
                                 builder,
                                 $drawing_resources,
                                 $clipboard,
@@ -531,7 +502,7 @@ macro_rules! list {
                 strip.strip(|builder| {
                     use crate::map::editor::state::ui::texture_editor::animation_editor::new_list_texture;
 
-                    response |= new_list_texture(
+                    new_list_texture(
                         builder,
                         $drawing_resources,
                         $clipboard,
@@ -543,8 +514,6 @@ macro_rules! list {
                     );
                 });
             });
-
-        response
     }};
 }
 
@@ -756,7 +725,7 @@ impl AnimationEditor
         texture: &mut Texture,
         animation: &mut UiOverallListAnimation,
         field_width: f32
-    ) -> Response
+    )
     {
         let Bundle {
             drawing_resources,
@@ -831,7 +800,7 @@ impl AnimationEditor
         texture: &mut Texture,
         atlas: &mut UiOverallAtlasAnimation,
         field_width: f32
-    ) -> Response
+    )
     {
         let Bundle {
             drawing_resources,
@@ -962,7 +931,7 @@ impl AnimationEditor
             },
             move_up_down!(up),
             move_up_down!(down)
-        )
+        );
     }
 
     /// Shows the texture animation editor.
@@ -973,11 +942,11 @@ impl AnimationEditor
         bundle: &mut Bundle,
         overall_texture: &mut UiOverallTextureSettings,
         available_width: f32
-    ) -> bool
+    )
     {
         if !self.is_open()
         {
-            return false;
+            return;
         }
 
         let field_width = (available_width -
@@ -987,8 +956,6 @@ impl AnimationEditor
             MINUS_PLUS_TOTAL_WIDTH) /
             2f32 -
             10f32;
-
-        let mut response = Response::default();
 
         match &mut self.target
         {
@@ -1118,11 +1085,11 @@ impl AnimationEditor
                     UiOverallAnimation::NonUniform | UiOverallAnimation::None => (),
                     UiOverallAnimation::List(value) =>
                     {
-                        response |= Self::list(ui, bundle, selected_texture, value, field_width);
+                        Self::list(ui, bundle, selected_texture, value, field_width);
                     },
                     UiOverallAnimation::Atlas(atlas) =>
                     {
-                        response |= Self::atlas(ui, bundle, selected_texture, atlas, field_width);
+                        Self::atlas(ui, bundle, selected_texture, atlas, field_width);
                     }
                 };
 
@@ -1133,12 +1100,9 @@ impl AnimationEditor
             },
             Target::Brushes =>
             {
-                response |=
-                    InstancesEditor::show(ui, bundle, &mut overall_texture.animation, field_width);
+                InstancesEditor::show(ui, bundle, &mut overall_texture.animation, field_width);
             }
         };
-
-        response.has_focus
     }
 }
 
@@ -1182,12 +1146,9 @@ fn set_partition<F>(
     label: &str,
     field_width: f32,
     f: F
-) -> Response
-where
+) where
     F: FnOnce(u32) -> bool
 {
-    let mut response = Response::default();
-
     builder
         .size(egui_extras::Size::exact(LEFT_FIELD))
         .size(egui_extras::Size::exact(field_width))
@@ -1197,19 +1158,16 @@ where
             });
 
             strip.cell(|ui| {
-                response =
-                    OverallValueField::show_always_enabled(ui, clipboard, inputs, value, |value| {
-                        if value != 0 && f(value)
-                        {
-                            return value.into();
-                        }
+                OverallValueField::show_always_enabled(ui, clipboard, inputs, value, |value| {
+                    if value != 0 && f(value)
+                    {
+                        return value.into();
+                    }
 
-                        None
-                    });
+                    None
+                });
             });
         });
-
-    response
 }
 
 //=======================================================================//
@@ -1258,12 +1216,9 @@ fn set_atlas_time<F>(
     value: &mut UiOverallValue<f32>,
     index: usize,
     f: F
-) -> Response
-where
+) where
     F: FnOnce(usize, f32)
 {
-    let mut response = Response::default();
-
     strip.cell(|ui| {
         ui.label(INDEXES[index]);
     });
@@ -1273,7 +1228,7 @@ where
     });
 
     strip.cell(|ui| {
-        response = OverallValueField::show_always_enabled(ui, clipboard, inputs, value, |value| {
+        OverallValueField::show_always_enabled(ui, clipboard, inputs, value, |value| {
             if value > 0f32
             {
                 f(index, value);
@@ -1283,8 +1238,6 @@ where
             None
         });
     });
-
-    response
 }
 
 //=======================================================================//
@@ -1298,12 +1251,9 @@ fn set_atlas_len<F>(
     value: &mut UiOverallValue<usize>,
     field_width: f32,
     f: F
-) -> Response
-where
+) where
     F: FnOnce(usize) -> Option<usize>
 {
-    let mut response = Response::default();
-
     builder
         .size(egui_extras::Size::exact(LEFT_FIELD))
         .size(egui_extras::Size::exact(field_width))
@@ -1313,19 +1263,16 @@ where
             });
 
             strip.cell(|ui| {
-                response =
-                    OverallValueField::show_always_enabled(ui, clipboard, inputs, value, |value| {
-                        if value != 0
-                        {
-                            return f(value);
-                        }
+                OverallValueField::show_always_enabled(ui, clipboard, inputs, value, |value| {
+                    if value != 0
+                    {
+                        return f(value);
+                    }
 
-                        None
-                    });
+                    None
+                });
             });
         });
-
-    response
 }
 
 //=======================================================================//
@@ -1340,21 +1287,16 @@ fn set_single_atlas_time<F>(
     index: usize,
     field_width: f32,
     f: F
-) -> Response
-where
+) where
     F: FnOnce(usize, f32)
 {
-    let mut response = Response::default();
-
     builder
         .size(egui_extras::Size::exact(INDEX_WIDTH))
         .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
         .size(egui_extras::Size::exact(field_width))
         .horizontal(|mut strip| {
-            response |= set_atlas_time(&mut strip, clipboard, inputs, value, index, f);
+            set_atlas_time(&mut strip, clipboard, inputs, value, index, f);
         });
-
-    response
 }
 
 //=======================================================================//
@@ -1369,12 +1311,9 @@ fn set_list_texture<F>(
     texture: &mut UiOverallValue<String>,
     index: usize,
     f: F
-) -> Response
-where
+) where
     F: FnOnce(usize, &str)
 {
-    let mut response = Response::default();
-
     strip.cell(|ui| {
         ui.label(INDEXES[index]);
     });
@@ -1384,19 +1323,16 @@ where
     });
 
     strip.cell(|ui| {
-        response |=
-            OverallValueField::show_always_enabled(ui, clipboard, inputs, texture, |name| {
-                if let Some(texture) = drawing_resources.texture(&name)
-                {
-                    f(index, texture.name());
-                    return name.into();
-                }
+        OverallValueField::show_always_enabled(ui, clipboard, inputs, texture, |name| {
+            if let Some(texture) = drawing_resources.texture(&name)
+            {
+                f(index, texture.name());
+                return name.into();
+            }
 
-                None
-            });
+            None
+        });
     });
-
-    response
 }
 
 //=======================================================================//
@@ -1410,18 +1346,15 @@ fn set_list_time<F>(
     time: &mut UiOverallValue<f32>,
     index: usize,
     f: F
-) -> Response
-where
+) where
     F: FnOnce(usize, f32)
 {
-    let mut response = Response::default();
-
     strip.cell(|ui| {
         ui.label("Time");
     });
 
     strip.cell(|ui| {
-        response |= OverallValueField::show_always_enabled(ui, clipboard, inputs, time, |time| {
+        OverallValueField::show_always_enabled(ui, clipboard, inputs, time, |time| {
             if time > 0f32
             {
                 f(index, time);
@@ -1431,8 +1364,6 @@ where
             None
         });
     });
-
-    response
 }
 
 //=======================================================================//
@@ -1448,12 +1379,9 @@ fn new_list_texture<F>(
     index: usize,
     field_width: f32,
     f: F
-) -> Response
-where
+) where
     F: FnOnce(&str)
 {
-    let mut response = Response::default();
-
     builder
         .size(egui_extras::Size::exact(INDEX_WIDTH))
         .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
@@ -1468,7 +1396,7 @@ where
             });
 
             strip.cell(|ui| {
-                response |= OverallValueField::show_always_enabled(
+                OverallValueField::show_always_enabled(
                     ui,
                     clipboard,
                     inputs,
@@ -1485,6 +1413,4 @@ where
                 );
             });
         });
-
-    response
 }

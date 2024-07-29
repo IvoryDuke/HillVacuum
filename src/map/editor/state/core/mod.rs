@@ -1030,7 +1030,6 @@ impl Core
 
     /// Draws the bottom panel.
     #[inline]
-    #[must_use]
     pub fn bottom_panel(
         &mut self,
         bundle: &mut StateUpdateBundle,
@@ -1038,15 +1037,14 @@ impl Core
         inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard
-    ) -> bool
+    )
     {
         self.active_tool
-            .bottom_panel(bundle, manager, inputs, edits_history, clipboard)
+            .bottom_panel(bundle, manager, inputs, edits_history, clipboard);
     }
 
     /// Draws the UI of the tool.
     #[inline]
-    #[must_use]
     pub fn tool_ui(
         &mut self,
         manager: &mut EntitiesManager,
@@ -1055,10 +1053,10 @@ impl Core
         clipboard: &mut Clipboard,
         ui: &mut egui::Ui,
         settings: &mut ToolsSettings
-    ) -> bool
+    )
     {
         self.active_tool
-            .ui(manager, inputs, edits_history, clipboard, ui, settings)
+            .ui(manager, inputs, edits_history, clipboard, ui, settings);
     }
 
     /// Draws the subtools.

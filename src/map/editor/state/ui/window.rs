@@ -5,6 +5,7 @@
 
 use bevy_egui::egui;
 
+use super::IsFocused;
 use crate::utils::misc::Toggle;
 
 //=======================================================================//
@@ -101,18 +102,21 @@ impl Window
 
     /// If open, Shows the window and updates the [`LayerId`].
     #[inline]
-    pub fn show<F, R>(
+    pub fn show<F>(
         &mut self,
         egui_context: &egui::Context,
         window: egui::Window,
         f: F
-    ) -> Option<R>
+    ) -> Option<bool>
     where
-        F: FnOnce(&mut egui::Ui) -> R
+        F: FnOnce(&mut egui::Ui)
     {
         window
             .open(&mut self.open)
-            .show(egui_context, |ui| f(ui))
+            .show(egui_context, |ui| {
+                f(ui);
+                ui.is_focused()
+            })
             .and_then(|inner| {
                 self.id = inner.response.layer_id.into();
                 inner.inner

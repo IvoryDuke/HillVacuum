@@ -142,6 +142,18 @@ macro_rules! textures_gallery {
 pub(in crate::map::editor::state) use textures_gallery;
 
 //=======================================================================//
+
+macro_rules! is_focused {
+    ($($t:ty),+) => { $(
+        impl IsFocused for $t
+        {
+            #[inline]
+            fn is_focused(&self) -> bool { self.memory(|r| r.focused().is_some()) }
+        }
+    )+};
+}
+
+//=======================================================================//
 // TRAITS
 //
 //=======================================================================//
@@ -195,6 +207,17 @@ trait WindowCloserInfo
     /// Returns the info to close the window, if open.
     fn window_closer(&self) -> Option<WindowCloser>;
 }
+
+//=======================================================================//
+
+/// A trait to know whever a widget of an ui element is focused.
+trait IsFocused
+{
+    #[must_use]
+    fn is_focused(&self) -> bool;
+}
+
+is_focused!(egui::Ui, egui::Context);
 
 //=======================================================================//
 // ENUMS
@@ -659,8 +682,6 @@ impl Ui
             .layer_id;
 
         // Left Side Panel.
-        let mut focused = false;
-
         self.left_panel_layer_id = egui::SidePanel::left("tools")
             .resizable(false)
             .exact_width(LEFT_SIDE_PANEL_WIDTH)
@@ -681,13 +702,13 @@ impl Ui
                 Self::camera_info(bundle.camera, ui);
 
                 // Extra tool info.
-                focused |= core.tool_ui(manager, inputs, edits_history, clipboard, ui, settings);
+                core.tool_ui(manager, inputs, edits_history, clipboard, ui, settings);
             })
             .response
             .layer_id;
 
         // Bottom panel
-        focused |= core.bottom_panel(bundle, manager, inputs, edits_history, clipboard);
+        core.bottom_panel(bundle, manager, inputs, edits_history, clipboard);
 
         // Close windows.
         bundle.egui_context.memory(|mem| {
@@ -695,7 +716,7 @@ impl Ui
         });
 
         // If typing, clear stored inputs.
-        if focused
+        if bundle.egui_context.is_focused()
         {
             clear_inputs(bundle, inputs);
         }

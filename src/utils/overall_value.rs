@@ -252,12 +252,7 @@ impl<T: ToString + FromStr + PartialEq> UiOverallValue<T>
     /// Updates the value with what the user has typed if it can be properly parsed, executing `f`
     /// if it's the case. Otherwise the shown value is reset to what it originally was.
     #[inline]
-    pub fn update<F: FnOnce(T) -> Option<T>>(
-        &mut self,
-        gained_focus: bool,
-        lost_focus: bool,
-        f: F
-    ) -> bool
+    pub fn update<F: FnOnce(T) -> Option<T>>(&mut self, gained_focus: bool, lost_focus: bool, f: F)
     {
         match &mut self.0
         {
@@ -270,12 +265,12 @@ impl<T: ToString + FromStr + PartialEq> UiOverallValue<T>
                 if gained_focus
                 {
                     self.reset_buffer();
-                    return false;
+                    return;
                 }
 
                 if !lost_focus
                 {
-                    return false;
+                    return;
                 }
 
                 if let Ok(new_value) = buffer.parse::<T>()
@@ -286,7 +281,7 @@ impl<T: ToString + FromStr + PartialEq> UiOverallValue<T>
                         {
                             if v == *value
                             {
-                                return false;
+                                return;
                             }
 
                             v
@@ -294,13 +289,13 @@ impl<T: ToString + FromStr + PartialEq> UiOverallValue<T>
                         None =>
                         {
                             self.reset_buffer();
-                            return false;
+                            return;
                         }
                     };
 
                     *buffer = new_value.to_string();
                     value_str.replace_values(buffer.chars());
-                    return true;
+                    return;
                 }
 
                 self.reset_buffer();
@@ -309,7 +304,7 @@ impl<T: ToString + FromStr + PartialEq> UiOverallValue<T>
             {
                 if !lost_focus
                 {
-                    return false;
+                    return;
                 }
 
                 if let Ok(Some(value)) = self.buffer().parse::<T>().map(f)
@@ -321,14 +316,12 @@ impl<T: ToString + FromStr + PartialEq> UiOverallValue<T>
                         value_str: str.clone(),
                         buffer: str
                     };
-                    return true;
+                    return;
                 }
 
                 self.reset_buffer();
             }
         };
-
-        false
     }
 
     /// Resets the typable buffer to the original value.

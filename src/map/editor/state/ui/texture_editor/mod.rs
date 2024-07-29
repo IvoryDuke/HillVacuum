@@ -147,7 +147,7 @@ macro_rules! plus_minus_textedit {
                         $(, $drawing_resources)?
                     ).then_some(value)
                 }
-            ).has_focus
+            );
     }}};
 }
 
@@ -169,7 +169,7 @@ macro_rules! scale_offset_scroll_parallax {
             strip: egui_extras::StripBuilder,
             bundle: &mut Bundle,
             field_width: f32
-        ) -> bool
+        )
         {
             /// The label of the x value.
             const X_LABEL: &str = concat!($label, " X");
@@ -183,11 +183,9 @@ macro_rules! scale_offset_scroll_parallax {
 
                 if self.overall_texture.[< $value _x >].is_none()
                 {
-                    return false;
+                    return;
                 }
             )?
-
-            let mut has_focus = false;
 
             strip
                 .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
@@ -199,7 +197,7 @@ macro_rules! scale_offset_scroll_parallax {
                 .horizontal(|mut strip| {
                     strip.cell(|ui| { ui.label(X_LABEL); });
 
-                    has_focus = plus_minus_textedit!(
+                    plus_minus_textedit!(
                         self,
                         bundle,
                         f32,
@@ -216,7 +214,7 @@ macro_rules! scale_offset_scroll_parallax {
                         ui.label(Y_LABEL);
                     });
 
-                    has_focus |= plus_minus_textedit!(
+                    plus_minus_textedit!(
                         self,
                         bundle,
                         f32,
@@ -228,8 +226,6 @@ macro_rules! scale_offset_scroll_parallax {
                         $(, $return_if_none)?
                     );
                 });
-
-            has_focus
         }
     )+ }};
 }
@@ -245,10 +241,8 @@ macro_rules! angle_and_height {
             strip: egui_extras::StripBuilder,
             bundle: &mut Bundle,
             field_width: f32
-        ) -> bool
+        )
         {
-            let mut has_focus = false;
-
             strip
                 .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
                 .size(egui_extras::Size::exact(field_width))
@@ -259,7 +253,7 @@ macro_rules! angle_and_height {
 
                     strip.cell(|ui| { ui.label($label); });
 
-                    has_focus = plus_minus_textedit!(
+                    plus_minus_textedit!(
                         self,
                         bundle,
                         $t,
@@ -270,8 +264,6 @@ macro_rules! angle_and_height {
                         $(, $drawing_resources)?
                     );
                 });
-
-            has_focus
         }
     )+ }};
 }
@@ -519,15 +511,8 @@ impl Innards
 
     /// Draws the UI elements of the texture editor.
     #[inline]
-    fn texture_settings(
-        &mut self,
-        ui: &mut egui::Ui,
-        bundle: &mut Bundle,
-        available_width: f32
-    ) -> bool
+    fn texture_settings(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle, available_width: f32)
     {
-        let mut has_focus = false;
-
         egui_extras::StripBuilder::new(ui)
             .sizes(egui_extras::Size::exact(SETTING_HEIGHT), 10)
             .vertical(|mut strip| {
@@ -535,29 +520,29 @@ impl Innards
                     available_width / 2f32 - 11.5 - (FIELD_NAME_WIDTH + MINUS_PLUS_TOTAL_WIDTH);
 
                 strip.strip(|strip| {
-                    has_focus = self.set_texture(strip, bundle, available_width);
+                    self.set_texture(strip, bundle, available_width);
                 });
 
                 for func in [Self::set_offset, Self::set_scale]
                 {
                     strip.strip(|strip| {
-                        has_focus |= func(self, strip, bundle, plus_minus_field_width);
+                        func(self, strip, bundle, plus_minus_field_width);
                     });
                 }
 
                 strip.strip(|strip| {
-                    has_focus |= self.set_scroll(strip, bundle, plus_minus_field_width);
+                    self.set_scroll(strip, bundle, plus_minus_field_width);
                 });
                 strip.strip(|strip| {
                     self.toggle_scroll(strip, bundle.settings);
                 });
 
                 strip.strip(|strip| {
-                    has_focus |= self.set_angle(strip, bundle, plus_minus_field_width);
+                    self.set_angle(strip, bundle, plus_minus_field_width);
                 });
 
                 strip.strip(|strip| {
-                    has_focus |= self.set_height(strip, bundle, plus_minus_field_width);
+                    self.set_height(strip, bundle, plus_minus_field_width);
                 });
 
                 strip.strip(|strip| {
@@ -569,11 +554,9 @@ impl Innards
                 });
 
                 strip.strip(|strip| {
-                    has_focus |= self.set_parallax(strip, bundle, plus_minus_field_width);
+                    self.set_parallax(strip, bundle, plus_minus_field_width);
                 });
             });
-
-        has_focus
     }
 
     /// Selects the mode of the texture editor.
@@ -820,7 +803,7 @@ impl Innards
 
     /// Shows the texture editor.
     #[inline]
-    fn show(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle) -> bool
+    fn show(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle)
     {
         const X_SPACING: f32 = 2f32;
 
@@ -840,7 +823,7 @@ impl Innards
 
         top_section(ui, |ui| self.mode_selector(ui, bundle.manager));
 
-        let mut response = top_section(ui, |ui| {
+        top_section(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = X_SPACING;
 
@@ -866,43 +849,37 @@ impl Innards
                 ui.add_space(2f32);
                 has_focus | self.height_filter.show(ui, bundle)
             })
-            .inner
         });
 
-        response |= ui
-            .horizontal(|ui| {
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                self.selected_texture(ui, bundle);
+            });
+
+            let spacing = ui.spacing_mut();
+            spacing.item_spacing.x = X_SPACING;
+            spacing.slider_width = SLIDER_WIDTH;
+            let available_width = ui.available_width();
+
+            if self.animation_editor.is_open()
+            {
                 ui.vertical(|ui| {
-                    self.selected_texture(ui, bundle);
+                    self.animation_editor.show(
+                        ui,
+                        bundle,
+                        &mut self.overall_texture,
+                        available_width
+                    )
                 });
+                return;
+            }
 
-                let spacing = ui.spacing_mut();
-                spacing.item_spacing.x = X_SPACING;
-                spacing.slider_width = SLIDER_WIDTH;
-                let available_width = ui.available_width();
-
-                if self.animation_editor.is_open()
-                {
-                    return ui
-                        .vertical(|ui| {
-                            self.animation_editor.show(
-                                ui,
-                                bundle,
-                                &mut self.overall_texture,
-                                available_width
-                            )
-                        })
-                        .inner;
-                }
-
-                self.texture_settings(ui, bundle, available_width)
-            })
-            .inner;
+            self.texture_settings(ui, bundle, available_width);
+        });
 
         ui.separator();
 
         egui::ScrollArea::vertical().show(ui, |ui| self.textures_gallery(ui, bundle));
-
-        response
     }
 
     /// Sets the texture of the selected brushes.
@@ -912,9 +889,8 @@ impl Innards
         mut strip: egui_extras::StripBuilder,
         bundle: &mut Bundle,
         available_width: f32
-    ) -> bool
+    )
     {
-        let mut has_focus = false;
         let del = !self.overall_texture.name.is_none();
 
         if del
@@ -939,7 +915,7 @@ impl Innards
             });
 
             strip.cell(|ui| {
-                has_focus = OverallValueField::show_always_enabled(
+                OverallValueField::show_always_enabled(
                     ui,
                     bundle.clipboard,
                     bundle.inputs,
@@ -965,8 +941,7 @@ impl Innards
 
                         None
                     }
-                )
-                .has_focus;
+                );
             });
 
             if !del
@@ -982,8 +957,6 @@ impl Innards
                 }
             });
         });
-
-        has_focus
     }
 
     /// Sets the sprite value of the selected textures.
@@ -1156,9 +1129,11 @@ impl TextureEditor
                     .min_width(WINDOW_MIN_SIZE)
                     .min_height(300f32)
                     .default_height(WINDOW_MIN_SIZE),
-                |ui| self.innards.show(ui, &mut bundle)
+                |ui| {
+                    self.innards.show(ui, &mut bundle);
+                }
             )
-            .map_or(false, |response| response)
+            .unwrap_or_default()
     }
 }
 

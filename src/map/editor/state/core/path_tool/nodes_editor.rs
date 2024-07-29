@@ -13,7 +13,7 @@ use crate::{
             editor_state::InputsPresses,
             edits_history::EditsHistory,
             manager::EntitiesManager,
-            ui::overall_value_field::{OverallValueField, Response}
+            ui::overall_value_field::OverallValueField
         },
         path::overall_values::{OverallMovement, UiOverallMovement}
     },
@@ -53,7 +53,6 @@ macro_rules! movement_values {
 
 
         #[inline]
-        #[must_use]
         fn $value(
             &mut self,
             manager: &mut EntitiesManager,
@@ -61,12 +60,12 @@ macro_rules! movement_values {
             clipboard: &mut Clipboard,
             inputs: &InputsPresses,
             ui: &mut egui::Ui,
-            simulation_active: bool,
-        ) -> bool
+            simulation_active: bool
+        )
         {
             let mut overall = OverallMovement::new();
 
-            let response = Self::textedit(
+            let interacting = Self::textedit(
                 ui,
                 &mut self.selected_nodes_movement.$value,
                 clipboard,
@@ -85,8 +84,7 @@ macro_rules! movement_values {
                 }
             )?
 
-            self.interacting[$interacting] = response.interacting;
-            response.has_focus
+            self.interacting[$interacting] = interacting;
         }
     )+}};
 }
@@ -143,17 +141,17 @@ impl NodesEditor
         label: &str,
         simulation_active: bool,
         f: F
-    ) -> Response
+    ) -> bool
     {
         ui.label(label);
-        let response = OverallValueField::show(ui, clipboard, inputs, value, !simulation_active, f);
+        let interacting =
+            OverallValueField::show(ui, clipboard, inputs, value, !simulation_active, f);
         ui.end_row();
-        response
+        interacting
     }
 
     /// Shows the UI elements.
     #[inline]
-    #[must_use]
     pub fn show(
         &mut self,
         manager: &mut EntitiesManager,
@@ -162,7 +160,7 @@ impl NodesEditor
         inputs: &InputsPresses,
         ui: &mut egui::Ui,
         simulation_active: bool
-    ) -> bool
+    )
     {
         self.interacting = [false; 5];
         ui.label(egui::RichText::new("PLATFORM TOOL"));
@@ -172,41 +170,26 @@ impl NodesEditor
             .spacing([10f32, 4f32])
             .striped(true)
             .show(ui, |ui| {
-                self.standby_time(manager, edits_history, clipboard, inputs, ui, simulation_active)
-                    | self.max_speed(
-                        manager,
-                        edits_history,
-                        clipboard,
-                        inputs,
-                        ui,
-                        simulation_active,
-                    )
-                    | self.min_speed(
-                        manager,
-                        edits_history,
-                        clipboard,
-                        inputs,
-                        ui,
-                        simulation_active,
-                    )
-                    | self.accel_travel_percentage(
-                        manager,
-                        edits_history,
-                        clipboard,
-                        inputs,
-                        ui,
-                        simulation_active,
-                    )
-                    | self.decel_travel_percentage(
-                        manager,
-                        edits_history,
-                        clipboard,
-                        inputs,
-                        ui,
-                        simulation_active,
-                    )
-            })
-            .inner
+                self.standby_time(manager, edits_history, clipboard, inputs, ui, simulation_active);
+                self.max_speed(manager, edits_history, clipboard, inputs, ui, simulation_active);
+                self.min_speed(manager, edits_history, clipboard, inputs, ui, simulation_active);
+                self.accel_travel_percentage(
+                    manager,
+                    edits_history,
+                    clipboard,
+                    inputs,
+                    ui,
+                    simulation_active
+                );
+                self.decel_travel_percentage(
+                    manager,
+                    edits_history,
+                    clipboard,
+                    inputs,
+                    ui,
+                    simulation_active
+                );
+            });
     }
 
     /// Updates the overall [`Node`]s info.

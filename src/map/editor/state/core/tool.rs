@@ -1436,7 +1436,6 @@ impl ActiveTool
 
     /// Draws the UI bottom panel.
     #[inline]
-    #[must_use]
     pub fn bottom_panel(
         &mut self,
         bundle: &mut StateUpdateBundle,
@@ -1444,24 +1443,21 @@ impl ActiveTool
         inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard
-    ) -> bool
+    )
     {
         match self
         {
-            Self::Paint(t) => return t.ui(bundle, clipboard),
+            Self::Paint(t) => t.ui(bundle, clipboard),
             Self::Thing(t) =>
             {
                 t.bottom_panel(bundle, manager, inputs, edits_history);
             },
             _ => ()
         };
-
-        false
     }
 
     /// Draws the tool UI.
     #[inline]
-    #[must_use]
     pub fn ui(
         &mut self,
         manager: &mut EntitiesManager,
@@ -1470,11 +1466,10 @@ impl ActiveTool
         clipboard: &mut Clipboard,
         ui: &mut egui::Ui,
         settings: &mut ToolsSettings
-    ) -> bool
+    )
     {
         /// Same as above.
         #[inline]
-        #[must_use]
         fn draw_ui(
             tool: &mut ActiveTool,
             manager: &mut EntitiesManager,
@@ -1483,7 +1478,7 @@ impl ActiveTool
             clipboard: &mut Clipboard,
             ui: &mut egui::Ui,
             settings: &mut ToolsSettings
-        ) -> bool
+        )
         {
             match tool
             {
@@ -1495,10 +1490,10 @@ impl ActiveTool
                 ActiveTool::Scale(t) => t.ui(ui, settings),
                 ActiveTool::Shear(t) => t.ui(ui),
                 ActiveTool::Flip(_) => FlipTool::ui(ui, settings),
-                ActiveTool::Path(t) => return t.ui(manager, edits_history, clipboard, inputs, ui),
+                ActiveTool::Path(t) => t.ui(manager, edits_history, clipboard, inputs, ui),
                 ActiveTool::Zoom(tool) =>
                 {
-                    return draw_ui(
+                    draw_ui(
                         tool.previous_active_tool.as_mut(),
                         manager,
                         inputs,
@@ -1510,13 +1505,11 @@ impl ActiveTool
                 },
                 _ => ()
             };
-
-            false
         }
 
         ui.separator();
         ui.style_mut().spacing.slider_width = 60f32;
-        draw_ui(self, manager, inputs, edits_history, clipboard, ui, settings)
+        draw_ui(self, manager, inputs, edits_history, clipboard, ui, settings);
     }
 
     /// Draws the subtool.

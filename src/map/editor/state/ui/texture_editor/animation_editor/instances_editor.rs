@@ -23,7 +23,7 @@ use crate::{
             texture::Texture
         },
         editor::state::ui::{
-            overall_value_field::{OverallValueField, Response},
+            overall_value_field::OverallValueField,
             texture_editor::{
                 animation_editor::{
                     edit_list_single_texture,
@@ -55,7 +55,7 @@ impl InstancesEditor
         bundle: &mut Bundle,
         animation: &mut UiOverallListAnimation,
         field_width: f32
-    ) -> Response
+    )
     {
         let Bundle {
             drawing_resources,
@@ -162,7 +162,7 @@ impl InstancesEditor
         bundle: &mut Bundle,
         atlas: &mut UiOverallAtlasAnimation,
         field_width: f32
-    ) -> Response
+    )
     {
         let Bundle {
             drawing_resources,
@@ -310,7 +310,7 @@ impl InstancesEditor
             },
             move_up_down!(up),
             move_up_down!(down)
-        )
+        );
     }
 
     /// Shows the UI elements of the editor.
@@ -320,7 +320,7 @@ impl InstancesEditor
         bundle: &mut Bundle,
         overall_animation: &mut UiOverallAnimation,
         field_width: f32
-    ) -> Response
+    )
     {
         let Bundle {
             drawing_resources,
@@ -330,8 +330,6 @@ impl InstancesEditor
             inputs,
             ..
         } = bundle;
-
-        let mut response = Response::default();
 
         ui.vertical(|ui| {
             ui.set_height(SETTING_HEIGHT);
@@ -401,7 +399,7 @@ impl InstancesEditor
                 {
                     UiOverallListAnimation::NonUniform(slot) =>
                     {
-                        response |= OverallValueField::show_always_enabled(
+                        OverallValueField::show_always_enabled(
                             ui,
                             clipboard,
                             inputs,
@@ -430,16 +428,14 @@ impl InstancesEditor
                     },
                     list @ UiOverallListAnimation::Uniform(..) =>
                     {
-                        response |= Self::list(ui, bundle, list, field_width);
+                        Self::list(ui, bundle, list, field_width);
                     }
                 };
             },
             UiOverallAnimation::Atlas(atlas) =>
             {
-                response |= Self::atlas(ui, bundle, atlas, field_width);
+                Self::atlas(ui, bundle, atlas, field_width);
             }
         };
-
-        response
     }
 }

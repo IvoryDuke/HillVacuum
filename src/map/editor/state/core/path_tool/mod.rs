@@ -1318,7 +1318,6 @@ impl PathTool
 
     /// Draws the UI.
     #[inline]
-    #[must_use]
     pub fn ui(
         &mut self,
         manager: &mut EntitiesManager,
@@ -1326,7 +1325,7 @@ impl PathTool
         clipboard: &mut Clipboard,
         inputs: &InputsPresses,
         ui: &mut egui::Ui
-    ) -> bool
+    )
     {
         self.nodes_editor.show(
             manager,
@@ -1335,7 +1334,7 @@ impl PathTool
             inputs,
             ui,
             matches!(self.status, Status::Simulation(..))
-        )
+        );
     }
 
     /// Draws the subtools.

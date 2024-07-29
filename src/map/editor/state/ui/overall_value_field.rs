@@ -80,12 +80,12 @@ impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
         value: &mut UiOverallValue<T>,
         enabled: bool,
         f: F
-    ) -> Response
+    ) -> bool
     {
         if value.is_none() || !enabled
         {
             ui.add_enabled(false, singleline_textedit(value.buffer_mut(), f32::INFINITY));
-            return Response::default();
+            return false;
         }
 
         Self::show_always_enabled(ui, clipboard, inputs, value, f)
@@ -99,17 +99,12 @@ impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
         inputs: &InputsPresses,
         value: &mut UiOverallValue<T>,
         f: F
-    ) -> Response
+    ) -> bool
     {
         let response =
             clipboard.copy_paste_text_editor(inputs, ui, value.buffer_mut(), f32::INFINITY);
-        let lost_focus = response.actually_lost_focus();
-
-        Response {
-            has_focus:     response.has_focus() || lost_focus,
-            interacting:   response.interacting(),
-            value_changed: value.update(response.gained_focus(), lost_focus, f)
-        }
+        value.update(response.gained_focus(), response.actually_lost_focus(), f);
+        response.interacting()
     }
 }
 
@@ -158,12 +153,12 @@ where
         step: T,
         clamp: C,
         mut f: F
-    ) -> Response
+    ) -> bool
     {
-        let mut response = Response::default();
+        let mut interacting = false;
 
         strip.cell(|ui| {
-            response = OverallValueField::show(ui, clipboard, inputs, value, true, |value| {
+            interacting = OverallValueField::show(ui, clipboard, inputs, value, true, |value| {
                 f(clamp(value, step))
             });
         });
@@ -174,7 +169,7 @@ where
                 self.minus_plus.show(ui, false);
             });
 
-            return Response::default();
+            return false;
         }
 
         strip.cell(|ui| {
@@ -189,6 +184,6 @@ where
             value.update(false, true, f);
         });
 
-        response
+        interacting
     }
 }

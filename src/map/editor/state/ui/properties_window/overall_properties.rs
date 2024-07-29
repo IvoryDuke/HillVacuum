@@ -160,7 +160,6 @@ impl UiOverallProperties
 
     /// Shows the [`Properties`] fields.
     #[inline]
-    #[must_use]
     pub fn show<S: SetProperty>(
         &mut self,
         ui: &mut egui::Ui,
@@ -168,11 +167,9 @@ impl UiOverallProperties
         clipboard: &mut Clipboard,
         inputs: &InputsPresses,
         default_properties: &DefaultProperties
-    ) -> bool
+    )
     {
         assert!(default_properties.len() == self.0.len(), "Different lengths.");
-
-        let mut focused = false;
 
         for (k, o) in self.0.iter_mut()
         {
@@ -194,7 +191,7 @@ impl UiOverallProperties
             }
             else
             {
-                focused |= OverallValueField::show_always_enabled(
+                OverallValueField::show_always_enabled(
                     ui,
                     clipboard,
                     inputs,
@@ -204,13 +201,10 @@ impl UiOverallProperties
                         value_setter.set_property(k, &new_value);
                         new_value.into()
                     }
-                )
-                .has_focus;
+                );
             }
 
             ui.end_row();
         }
-
-        focused
     }
 }

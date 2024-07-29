@@ -105,7 +105,7 @@ impl Innards
         edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
         inputs: &InputsPresses
-    ) -> bool
+    )
     {
         ui.horizontal(|ui| {
             ui.label("Entities");
@@ -159,14 +159,12 @@ impl Innards
                     edits_history,
                     clipboard,
                     inputs
-                )
-            })
-            .inner
+                );
+            });
     }
 
     /// The grid of the properties.
     #[inline]
-    #[must_use]
     fn grid(
         &mut self,
         ui: &mut egui::Ui,
@@ -176,7 +174,7 @@ impl Innards
         edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
         inputs: &InputsPresses
-    ) -> bool
+    )
     {
         /// Sets a property.
         macro_rules! set_property {
@@ -238,11 +236,7 @@ impl Innards
 
         match self.target
         {
-            Target::None =>
-            {
-                filler(ui, self.max_rows);
-                false
-            },
+            Target::None => filler(ui, self.max_rows),
             Target::Brushes =>
             {
                 ui.label("Collision");
@@ -260,7 +254,7 @@ impl Innards
 
                 ui.end_row();
 
-                let focused = self.overall_brushes_properties.show(
+                self.overall_brushes_properties.show(
                     ui,
                     &mut BrushesPropertySetter {
                         manager,
@@ -272,8 +266,6 @@ impl Innards
                 );
 
                 filler(ui, self.brushes_filler);
-
-                focused
             },
             Target::Things =>
             {
@@ -283,7 +275,7 @@ impl Innards
                         paste::paste! {
                             ui.label($label);
 
-                            let focused = OverallValueField::show_always_enabled(
+                            OverallValueField::show_always_enabled(
                                 ui,
                                 clipboard,
                                 inputs,
@@ -303,36 +295,33 @@ impl Innards
 
                                     value.into()
                                 }
-                            )
-                            .has_focus;
+                            );
 
                             ui.end_row();
-
-                            focused
                         }
                     }};
                 }
 
-                let focused = angle_height!(
+                angle_height!(
                     "Draw height",
                     draw_height,
                     *TEXTURE_HEIGHT_RANGE.start(),
                     *TEXTURE_HEIGHT_RANGE.end()
-                ) | angle_height!("Angle", angle, 0f32, 359f32) |
-                    self.overall_things_properties.show(
-                        ui,
-                        &mut ThingsPropertySetter {
-                            manager,
-                            edits_history
-                        },
-                        clipboard,
-                        inputs,
-                        things_default_properties
-                    );
+                );
+                angle_height!("Angle", angle, 0f32, 359f32);
+
+                self.overall_things_properties.show(
+                    ui,
+                    &mut ThingsPropertySetter {
+                        manager,
+                        edits_history
+                    },
+                    clipboard,
+                    inputs,
+                    things_default_properties
+                );
 
                 filler(ui, self.things_filler);
-
-                focused
             }
         }
     }
@@ -575,7 +564,7 @@ impl PropertiesWindow
                         edits_history,
                         clipboard,
                         inputs
-                    )
+                    );
                 }
             )
             .unwrap_or(false)
