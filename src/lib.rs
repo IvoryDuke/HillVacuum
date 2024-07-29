@@ -248,7 +248,7 @@ pub(crate) mod ui_mod
                 Self::ZoomIn => "Ctrl+Plus",
                 Self::ZoomOut => "Ctrl+Minus",
                 Self::Fullscreen => "Alt+Enter",
-                Self::ToggleManual => "`",
+                Self::ToggleManual => "Ctrl+`",
                 Self::Quit => "Ctrl+Q"
             }
         }
@@ -284,25 +284,15 @@ pub(crate) mod ui_mod
         #[must_use]
         pub fn pressed(self, key_inputs: &bevy::input::ButtonInput<KeyCode>) -> bool
         {
-            match self
+            if matches!(self, Self::Fullscreen)
             {
-                Self::Fullscreen =>
-                {
-                    return (key_inputs.pressed(KeyCode::AltLeft) ||
-                        key_inputs.pressed(KeyCode::AltRight)) &&
-                        key_inputs.just_pressed(self.key())
-                },
-                Self::ToggleManual => return key_inputs.just_pressed(self.key()),
-                _ => ()
-            };
-
-            if !(key_inputs.pressed(KeyCode::ControlLeft) ||
-                key_inputs.pressed(KeyCode::ControlRight))
-            {
-                return false;
+                return (key_inputs.pressed(KeyCode::AltLeft) ||
+                    key_inputs.pressed(KeyCode::AltRight)) &&
+                    key_inputs.just_pressed(self.key());
             }
 
-            key_inputs.just_pressed(self.key())
+            (key_inputs.pressed(KeyCode::ControlLeft) || key_inputs.pressed(KeyCode::ControlRight)) &&
+                key_inputs.just_pressed(self.key())
         }
     }
 
