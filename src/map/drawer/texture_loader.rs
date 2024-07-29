@@ -103,7 +103,8 @@ pub(in crate::map) struct TextureLoader
     /// The frames required to read the files.
     file_reading_cycles: usize,
     /// The frames required to load the textures.
-    total_cycles:        f32
+    total_cycles:        f32,
+    first_load:          bool
 }
 
 impl Default for TextureLoader
@@ -121,7 +122,8 @@ impl Default for TextureLoader
             active_workers:      0,
             cycles:              0,
             file_reading_cycles: 0,
-            total_cycles:        0f32
+            total_cycles:        0f32,
+            first_load:          true
         }
     }
 }
@@ -145,6 +147,7 @@ impl TextureLoader
     #[must_use]
     pub fn loaded_textures(&mut self) -> Vec<(Texture, egui::TextureId)>
     {
+        assert!(matches!(self.images, LoadedImages::Empty), "Texture load in progress.");
         std::mem::take(&mut self.textures)
     }
 
@@ -297,10 +300,11 @@ impl TextureLoader
                 {
                     assert!(
                         self.cycles == self.total_cycles as usize,
-                        "Run cycles does not equal the projected total cycles."
+                        "Run cycles are not equal to the projected total cycles."
                     );
                     load_state.set(TextureLoadingProgress::Complete);
                     self.images = LoadedImages::Empty;
+                    self.first_load = false;
                 }
             }
         };
@@ -311,7 +315,14 @@ impl TextureLoader
     #[inline]
     pub fn ui(&self, window: &Window, egui_context: &mut egui::Context)
     {
-        let id = centered_window(window, "Loading textures...")
+        let mut ui_window = centered_window(window, "Loading textures...");
+
+        if self.first_load
+        {
+            ui_window = ui_window.fixed_pos(egui::pos2(window.width(), window.height()) / 2f32);
+        }
+
+        let id = ui_window
             .interactable(false)
             .default_width(400f32)
             .default_height(100f32)

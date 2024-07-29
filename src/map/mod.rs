@@ -469,7 +469,7 @@ pub(in crate::map) mod ui_mod
             app
             // UI
             .add_plugins(EguiPlugin)
-            .add_systems(PreUpdate, clean_egui_inputs.after(EguiSet::ProcessInput).before(EguiSet::BeginFrame))
+            .add_systems(PreUpdate, process_egui_inputs.after(EguiSet::ProcessInput).before(EguiSet::BeginFrame))
             // Init resources
             .insert_non_send_resource(unsafe { Editor::placeholder() })
             .init_state::<TextureLoadingProgress>()
@@ -637,10 +637,10 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    /// Removes tab from the egui inputs.
+    /// Processes the `egui` inputs for some custom behaviors.
     #[allow(clippy::needless_pass_by_value)]
     #[inline]
-    fn clean_egui_inputs(mut input: Query<&mut EguiInput>, editor: NonSend<Editor>)
+    fn process_egui_inputs(mut input: Query<&mut EguiInput>, editor: NonSend<Editor>)
     {
         let events = &mut input.get_single_mut().unwrap().0.events;
         let mut iter = events.iter_mut().enumerate();
