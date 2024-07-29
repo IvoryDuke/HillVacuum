@@ -319,6 +319,23 @@ pub(crate) mod ui_mod
         #[inline]
         fn build(&self, app: &mut bevy::app::App)
         {
+            let mut window = Window {
+                cursor: Cursor {
+                    icon: CursorIcon::Pointer,
+                    ..Default::default()
+                },
+                title: NAME.into(),
+                position: WindowPosition::At((0, 0).into()),
+                resize_constraints: WindowResizeConstraints {
+                    min_width: 640f32,
+                    min_height: 480f32,
+                    ..Default::default()
+                },
+                present_mode: PresentMode::AutoNoVsync,
+                ..Default::default()
+            };
+            window.set_maximized(true);
+
             app.add_plugins(
                 DefaultPlugins
                     .set(AssetPlugin {
@@ -337,22 +354,7 @@ pub(crate) mod ui_mod
                         }
                     })
                     .set(WindowPlugin {
-                        primary_window: Some(Window {
-                            cursor: Cursor {
-                                icon: CursorIcon::Pointer,
-                                ..Default::default()
-                            },
-                            title: NAME.into(),
-                            position: WindowPosition::At((0, 0).into()),
-                            resolution: (1920f32, 1080f32).into(),
-                            resize_constraints: WindowResizeConstraints {
-                                min_width: 640f32,
-                                min_height: 480f32,
-                                ..Default::default()
-                            },
-                            present_mode: PresentMode::AutoNoVsync,
-                            ..Default::default()
-                        }),
+                        primary_window: Some(window),
                         ..Default::default()
                     })
                     .disable::<LogPlugin>()

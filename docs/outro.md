@@ -83,8 +83,5 @@ The executable can be picked through Options->Exporter.
 [The only thing I know for real](https://youtu.be/T928kJvqTlo?si=2_YnB2pEuFSKKq-j), there will be bugs.  
 HV has been thoroughly tested but is still in its early releases, so there might be issues that lead to crashes due to unrecoverable errors. It is strongly recommended to save often.
 
-## Known issues
-On Windows, the things and props gallery of the Thing and Paint tools are incorretly drawn. This does not occur on Linux.
-
 ## Misc
 In order to close the in-editor windows through the keyboard the F4 key needs to be pressed (similar to pressing Alt+F4 to close OS windows).
