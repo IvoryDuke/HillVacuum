@@ -15,6 +15,7 @@ arena_alloc = [
     "hashbrown/nightly",
     "hill_vacuum_03/arena_alloc"
 ]
+dynamic_linking = ["bevy/dynamic_linking"]
 ui = [
     "dep:bevy",
     "dep:bevy_egui",
