@@ -25,7 +25,7 @@ use crate::{
     map::editor::{
         cursor::Cursor,
         state::{
-            clipboard::{Clipboard, Prop, PropScreenshotTimer, PROP_SCREENSHOT_SIZE},
+            clipboard::{ChunkItem, Clipboard, Prop, PropScreenshotTimer, PROP_SCREENSHOT_SIZE},
             core::tool::subtools_buttons,
             editor_state::InputsPresses,
             edits_history::EditsHistory,
@@ -354,10 +354,10 @@ impl PaintTool
             prop,
             PREVIEW_SIZE.y + 28f32,
             PREVIEW_SIZE,
-            |ui: &mut egui::Ui, texture: (usize, egui::TextureId), frame| {
+            |ui: &mut egui::Ui, texture: ChunkItem, frame| {
                 ui.vertical(|ui| {
-                    let response = ui.add(egui::ImageButton::new((texture.1, frame)));
-                    ui.label(INDEXES[texture.0]);
+                    let response = ui.add(egui::ImageButton::new((texture.tex_id, frame)));
+                    ui.label(INDEXES[texture.index]);
                     response
                 })
                 .inner

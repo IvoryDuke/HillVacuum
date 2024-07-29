@@ -8,6 +8,7 @@ use std::{
     fs::File,
     io::{BufReader, BufWriter},
     iter::Rev,
+    marker::PhantomData,
     ops::Range
 };
 
@@ -254,6 +255,16 @@ pub(in crate::map) type PropCamerasMut<'world, 'state, 'a> = Query<
     (Entity, &'a mut Camera, &'a mut Transform),
     (With<PropCamera>, Without<PaintToolPropCamera>)
 >;
+
+//=======================================================================//
+
+#[derive(Clone, Copy)]
+pub(in crate::map) struct ChunkItem<'a>
+{
+    pub index:  usize,
+    pub tex_id: egui::TextureId,
+    data:       PhantomData<&'a ()>
+}
 
 //=======================================================================//
 
@@ -1464,16 +1475,20 @@ impl Clipboard
     /// Returns a [`Chunks`] iterator to the slotted [`Prop`]s with size `chunk_size`.
     #[inline]
     #[must_use]
-    pub fn chunked_props(
-        &self,
+    pub fn chunked_props<'a>(
+        &'a self,
         chunk_size: usize
-    ) -> impl ExactSizeIterator<Item = impl Iterator<Item = (usize, egui::TextureId)> + '_>
+    ) -> impl ExactSizeIterator<Item = impl Iterator<Item = ChunkItem<'a>>>
     {
         self.props.chunks(chunk_size).enumerate().map(move |(index, props)| {
             let mut index = index * chunk_size;
 
             props.iter().map(move |prop| {
-                let value = (index, prop.screenshot());
+                let value = ChunkItem {
+                    index,
+                    tex_id: prop.screenshot(),
+                    data: PhantomData
+                };
                 index += 1;
                 value
             })

@@ -3,7 +3,6 @@
 //
 //=======================================================================//
 
-use bevy::math::UVec2;
 use bevy_egui::egui;
 use hill_vacuum_shared::return_if_none;
 
@@ -26,7 +25,8 @@ use crate::{
             DrawBundle,
             StateUpdateBundle,
             ToolUpdateBundle
-        }
+        },
+        thing::catalog::ChunkItem
     },
     utils::{
         containers::{hv_hash_set, Ids},
@@ -289,22 +289,24 @@ impl ThingTool
             thing,
             PREVIEW_SIZE.y + 28f32,
             PREVIEW_SIZE,
-            |ui: &mut egui::Ui,
-             texture: (usize, egui::TextureId, UVec2, &str),
-             frame: egui::Vec2| {
+            |ui: &mut egui::Ui, texture: ChunkItem, frame: egui::Vec2| {
                 ui.vertical(|ui| {
                     ui.set_width(frame.x);
 
-                    let response =
-                        format_texture_preview!(ImageButton, ui, texture.1, texture.2, frame.x);
+                    let response = format_texture_preview!(
+                        ImageButton,
+                        ui,
+                        texture.tex_id,
+                        texture.tex_size,
+                        frame.x
+                    );
                     ui.vertical_centered(|ui| {
-                        ui.label(texture.3);
+                        ui.label(texture.name);
                     });
                     response
                 })
                 .inner
             },
-            str,
             drawing_resources
         ));
 

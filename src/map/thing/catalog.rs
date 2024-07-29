@@ -34,6 +34,17 @@ use crate::{
 //
 //=======================================================================//
 
+#[derive(Clone, Copy)]
+pub(in crate::map) struct ChunkItem<'a>
+{
+    pub index:    usize,
+    pub name:     &'a str,
+    pub tex_id:   egui::TextureId,
+    pub tex_size: UVec2
+}
+
+//=======================================================================//
+
 /// The catalog of all the available [`Thing`]s.
 #[must_use]
 pub(in crate::map) struct ThingsCatalog
@@ -278,7 +289,7 @@ impl ThingsCatalog
         &'a self,
         chunk_size: usize,
         drawing_resources: &'a DrawingResources
-    ) -> impl ExactSizeIterator<Item = impl Iterator<Item = (usize, egui::TextureId, UVec2, &'a str)>>
+    ) -> impl ExactSizeIterator<Item = impl Iterator<Item = ChunkItem<'a>>>
     {
         self.things
             .chunks(chunk_size)
@@ -288,7 +299,12 @@ impl ThingsCatalog
 
                 things.iter().map(move |thing| {
                     let texture = drawing_resources.egui_texture(&thing.preview);
-                    let value = (index, texture.0, texture.1, thing.name.as_str());
+                    let value = ChunkItem {
+                        index,
+                        name: thing.name.as_str(),
+                        tex_id: texture.0,
+                        tex_size: texture.1
+                    };
                     index += 1;
                     value
                 })

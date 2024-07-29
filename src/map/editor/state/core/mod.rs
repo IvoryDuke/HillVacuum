@@ -177,11 +177,13 @@ macro_rules! bottom_area {
         $min_height:expr,
         $preview_frame:expr,
         $preview:expr
-        $(, $t:ty, $drawing_resources:ident)?
-    ) => {
+        $(, $drawing_resources:ident)?
+    ) => {{
+        const EXTRA_PADDING: f32 = 4f32;
+
         egui::TopBottomPanel::bottom($label)
             .resizable(true)
-            .min_height($min_height)
+            .min_height($min_height + EXTRA_PADDING)
             .max_height($self.max_bottom_panel_height)
             .show($egui_context, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
@@ -190,7 +192,7 @@ macro_rules! bottom_area {
                     #[inline]
                     fn draw_preview(
                         ui: &mut egui::Ui,
-                        texture: (usize, egui::TextureId $(, glam::UVec2, &$t)?),
+                        texture: ChunkItem,
                         clicked_prop: &mut Option<usize>
                     ) -> egui::Response
                     {
@@ -199,17 +201,16 @@ macro_rules! bottom_area {
 
                         if response.clicked()
                         {
-                            *clicked_prop = texture.0.into();
+                            *clicked_prop = texture.index.into();
                         }
 
                         response
                     }
 
-                    #[allow(clippy::extra_unused_lifetimes)]
                     #[inline]
                     fn row_without_highlight<'a>(
                         ui: &mut egui::Ui,
-                        chunk: impl Iterator<Item = (usize, egui::TextureId $(, glam::UVec2, &'a $t)?)>,
+                        chunk: impl Iterator<Item = ChunkItem<'a>>,
                         clicked_prop: &mut Option<usize>
                     ) -> usize
                     {
@@ -228,10 +229,10 @@ macro_rules! bottom_area {
                         len
                     }
 
-                    paste::paste! {
-                        let mut clicked = None;
+                    let mut clicked = None;
 
-                        let rows = crate::map::editor::state::ui::textures_gallery!(
+                    paste::paste! {
+                        crate::map::editor::state::ui::textures_gallery!(
                             ui,
                             PREVIEW_FRAME.x,
                             |textures_per_row| { $source.[< chunked_ $object s >](textures_per_row $(, $drawing_resources)?) },
@@ -239,14 +240,13 @@ macro_rules! bottom_area {
                             |ui, texture| { draw_preview(ui, texture, &mut clicked) },
                             |ui, chunk| { row_without_highlight(ui, chunk, &mut clicked) }
                         );
-
-                        let vertical_spacing = ui.spacing().item_spacing.y;
-                        $self.max_bottom_panel_height = rows as f32 * (PREVIEW_FRAME.y + 20f32 + 3f32 * vertical_spacing) + vertical_spacing;
-                        clicked
                     }
+
+                    $self.max_bottom_panel_height = ui.min_rect().height() + EXTRA_PADDING;
+                    clicked
                 }).inner
             }).inner
-    };
+    }};
 }
 
 use bottom_area;
