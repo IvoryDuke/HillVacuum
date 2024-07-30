@@ -858,6 +858,9 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
         let mut hull = settings.sprite_hull(self.grid.transform_point(brush_center)).unwrap();
 
+        let offset = Vec2::new(settings.offset_x(), settings.offset_y());
+        hull += self.grid.transform_point(offset) - offset;
+
         if self.grid.isometric()
         {
             hull += Vec2::new(0f32, hull.half_height());
@@ -1263,7 +1266,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
             hull += Vec2::new(0f32, hull.half_height());
         }
 
-        mesh_generator.push_positions(hull.vertexes());
+        mesh_generator.push_positions(hull.vertexes().map(|vx| self.grid.transform_point(vx)));
 
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
         resources.push_map_preview_sprite(self.meshes.add(mesh).into(), texture, settings);

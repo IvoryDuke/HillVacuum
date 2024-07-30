@@ -15,6 +15,7 @@ use crate::{Animation, Hull};
 
 macro_rules! sprite_values {
     ($($value:ident),+) => {$(
+        /// Returns the requested value. Value is 0 if `self` is [`Sprite::True`]
         #[inline]
         #[must_use]
         pub const fn $value(&self) -> f32
@@ -147,18 +148,20 @@ impl Sprite
 {
     sprite_values!(parallax_x, parallax_y, scroll_x, scroll_y);
 
-    /// Whether `self` has value `Sprite::True`.
+    /// Whether `self` has value [`Sprite::True`].
     #[inline]
     #[must_use]
     pub const fn enabled(&self) -> bool { matches!(self, Self::True { .. }) }
 
+    /// Returns the [`Hull`] representing the area covered by `self` if its center were `center`.
+    /// Returns [`None`] if `self` has value [`Sprite::False`].
     #[inline]
     #[must_use]
-    pub const fn hull(&self) -> Option<&Hull>
+    pub fn hull(&self, center: Vec2) -> Option<Hull>
     {
         match self
         {
-            Sprite::True(hull) => Some(hull),
+            Sprite::True(hull) => Some(*hull + center),
             Sprite::False { .. } => None
         }
     }
@@ -276,10 +279,7 @@ impl TextureInterface for TextureSettings
     fn sprite(&self) -> bool { self.sprite.enabled() }
 
     #[inline]
-    fn sprite_hull(&self, center: Vec2) -> Option<Hull>
-    {
-        self.sprite.hull().map(|hull| *hull + center)
-    }
+    fn sprite_hull(&self, center: Vec2) -> Option<Hull> { self.sprite.hull(center) }
 
     #[inline]
     fn animation(&self) -> &Animation { &self.animation }

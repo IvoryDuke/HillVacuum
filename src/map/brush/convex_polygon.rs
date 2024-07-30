@@ -4990,6 +4990,25 @@ pub(in crate::map) mod ui_mod
             movement_vec: Vec2
         )
         {
+            #[inline]
+            fn moving_brush<T: TextureInterface>(
+                polygon: &ConvexPolygon,
+                camera: &Transform,
+                drawer: &mut EditDrawer,
+                texture: Option<&T>,
+                movement_vec: Vec2
+            )
+            {
+                drawer.brush(
+                    camera,
+                    polygon.vertexes().map(|vx| vx + movement_vec),
+                    polygon.center,
+                    Color::SelectedEntity,
+                    texture,
+                    polygon.collision
+                );
+            }
+
             if let Some(settings) = self.texture_settings()
             {
                 let settings = MovingTextureSettings {
@@ -4999,32 +5018,19 @@ pub(in crate::map) mod ui_mod
 
                 if settings.sprite()
                 {
+                    moving_brush(self, camera, drawer, None::<&TextureSettings>, movement_vec);
                     drawer.sprite(self.center, &settings, Color::SelectedEntity);
                     self.sprite_highlight(drawer, self.center + movement_vec, &settings);
                 }
                 else
                 {
-                    drawer.brush(
-                        camera,
-                        self.vertexes().map(|vx| vx + movement_vec),
-                        self.center,
-                        Color::SelectedEntity,
-                        Some(&settings),
-                        self.collision
-                    );
+                    moving_brush(self, camera, drawer, Some(&settings), movement_vec);
                 }
 
                 return;
             }
 
-            drawer.brush(
-                camera,
-                self.vertexes().map(|vx| vx + movement_vec),
-                self.center,
-                Color::SelectedEntity,
-                None::<&TextureSettings>,
-                self.collision
-            );
+            moving_brush(self, camera, drawer, None::<&TextureSettings>, movement_vec);
         }
 
         #[inline]
