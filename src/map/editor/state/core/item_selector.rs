@@ -230,17 +230,25 @@ where
                 }
                 else if inputs.tab.just_pressed()
                 {
+                    macro_rules! next {
+                        ($idx:ident, $current:ident, $other:ident, $new:ident) => {
+                            if self.items.$other.is_empty() ||
+                                *$idx != (self.items.$current.len() - 1)
+                            {
+                                *$idx = next(*$idx, self.items.$current.len());
+                            }
+                            else
+                            {
+                                self.depth = Position::$new(0);
+                            }
+                        };
+                    }
+
                     match &mut self.depth
                     {
                         Position::None => panic!(),
-                        Position::Selected(idx) =>
-                        {
-                            *idx = next(*idx, self.items.selected.len());
-                        },
-                        Position::NonSelected(idx) =>
-                        {
-                            *idx = next(*idx, self.items.non_selected.len());
-                        }
+                        Position::Selected(idx) => next!(idx, selected, non_selected, NonSelected),
+                        Position::NonSelected(idx) => next!(idx, non_selected, selected, Selected)
                     };
                 }
             },
