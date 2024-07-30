@@ -377,7 +377,6 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         );
 
         let mesh = mesh.mesh(PrimitiveTopology::LineStrip);
-
         self.push_mesh(mesh, self.color_resources.line_material(color), color.line_height());
     }
 
