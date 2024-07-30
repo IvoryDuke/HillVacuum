@@ -568,11 +568,13 @@ impl Innards
 
             let settings = ui.button("Texture settings");
             let texture_atlas = ui.add_enabled(
-                !self.overall_texture.name.is_none() || self.animation_editor.has_override(),
+                self.overall_texture.name.uniform_value().is_some() ||
+                    self.animation_editor.has_override(),
                 egui::Button::new("Texture animation")
             );
+            let selected_textured = manager.selected_textured_amount();
             let brushes_atlas = ui.add_enabled(
-                manager.selected_textured_amount() != 0,
+                selected_textured != 0 && selected_textured == manager.selected_brushes_amount(),
                 egui::Button::new("Selected brushes animation")
             );
 
@@ -1061,15 +1063,19 @@ impl TextureEditor
     )
     {
         let mut brushes = manager.selected_brushes();
-        let mut overall_texture = match brushes.next()
+
+        self.innards.overall_texture = match brushes.next()
         {
-            Some(brush) => OverallTextureSettings::from(brush.texture_settings()),
+            Some(brush) =>
+            {
+                let mut t = OverallTextureSettings::from(brush.texture_settings());
+                _ = brushes.any(|brush| t.stack(&brush.texture_settings()));
+                t
+            },
             None => OverallTextureSettings::none()
-        };
+        }
+        .ui();
 
-        _ = brushes.any(|brush| overall_texture.stack(&brush.texture_settings()));
-
-        self.innards.overall_texture = overall_texture.ui();
         self.innards
             .animation_editor
             .update_from_overall_texture(drawing_resources, &self.innards.overall_texture);

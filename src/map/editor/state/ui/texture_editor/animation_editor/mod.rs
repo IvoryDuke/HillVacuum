@@ -43,7 +43,10 @@ use crate::{
             }
         }
     },
-    utils::{identifiers::EntityId, overall_value::UiOverallValue},
+    utils::{
+        identifiers::EntityId,
+        overall_value::{OverallValueToUi, UiOverallValue}
+    },
     INDEXES
 };
 
@@ -690,7 +693,7 @@ impl AnimationEditor
         {
             Some(name) =>
             {
-                OverallAnimation::from(drawing_resources.texture_or_error(name).animation()).into()
+                OverallAnimation::from(drawing_resources.texture_or_error(name).animation()).ui()
             },
             None =>
             {
@@ -1004,6 +1007,9 @@ impl AnimationEditor
                     update_animation(over, &mut self.animation, selected_texture);
                 }
 
+                let ui_animation =
+                    over.as_mut().map(|(_, anim)| anim).unwrap_or(&mut self.animation);
+
                 ui.vertical(|ui| {
                     ui.set_height(SETTING_HEIGHT);
 
@@ -1015,6 +1021,7 @@ impl AnimationEditor
                             manager: &mut EntitiesManager,
                             edits_history: &mut EditsHistory,
                             texture: &mut Texture,
+                            ui_animation: &mut UiOverallAnimation,
                             new_animation: Animation
                         )
                         {
@@ -1027,6 +1034,7 @@ impl AnimationEditor
                             )
                             {
                                 _ = texture.animation_mut_set_dirty();
+                                *ui_animation = OverallAnimation::from(texture.animation()).ui();
                                 edits_history.default_animation(texture, prev);
                                 return;
                             }
@@ -1041,6 +1049,7 @@ impl AnimationEditor
                                 manager,
                                 edits_history,
                                 selected_texture,
+                                ui_animation,
                                 Animation::None
                             );
                         }
@@ -1053,6 +1062,7 @@ impl AnimationEditor
                                 manager,
                                 edits_history,
                                 selected_texture,
+                                ui_animation,
                                 new_animation
                             );
                         }
@@ -1063,6 +1073,7 @@ impl AnimationEditor
                                 manager,
                                 edits_history,
                                 selected_texture,
+                                ui_animation,
                                 Animation::atlas_animation()
                             );
                         };
@@ -1079,7 +1090,7 @@ impl AnimationEditor
 
                 ui.separator();
 
-                match over.as_mut().map(|(_, anim)| anim).unwrap_or(&mut self.animation)
+                match ui_animation
                 {
                     UiOverallAnimation::NoSelection => unreachable!(),
                     UiOverallAnimation::NonUniform | UiOverallAnimation::None => (),

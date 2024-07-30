@@ -93,6 +93,9 @@ impl OpenFile
         Self(path.into())
     }
 
+    #[inline]
+    pub fn from_path(path: PathBuf) -> Self { Self(path.into()) }
+
     /// Clears the file path.
     #[inline]
     pub fn clear(&mut self) { self.0 = None; }

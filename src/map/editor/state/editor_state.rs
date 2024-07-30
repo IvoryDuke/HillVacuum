@@ -1670,6 +1670,15 @@ impl State
             self.quit(bundle, rfd::MessageButtons::YesNoCancel);
         }
 
+        // Reactive update to previous frame's changes.
+        self.manager.update_tool_and_overall_values(
+            bundle.drawing_resources,
+            &mut self.core,
+            &mut self.ui,
+            self.grid,
+            &mut self.tools_settings
+        );
+
         // Update inputs.
         self.inputs
             .update(bundle.mouse_buttons, bundle.key_inputs, &mut bundle.config.binds);
@@ -2062,14 +2071,6 @@ impl State
         {
             return;
         }
-
-        self.manager.update_tool_and_overall_values(
-            bundle.drawing_resources,
-            &mut self.core,
-            &mut self.ui,
-            self.grid,
-            &mut self.tools_settings
-        );
 
         self.core.update(
             bundle,

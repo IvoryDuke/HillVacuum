@@ -73,51 +73,16 @@ impl OverallValueInterface<Sprite> for OverallSprite
     fn is_not_uniform(&self) -> bool { matches!(self, Self::NonUniform) }
 
     #[inline]
-    fn stack(&mut self, value: &Sprite) -> bool
-    {
-        match (&mut *self, value)
-        {
-            (Self::None, Sprite::True { .. }) => *self = Self::True,
-            (
-                Self::None,
-                Sprite::False {
-                    parallax_x,
-                    parallax_y,
-                    scroll_x,
-                    scroll_y
-                }
-            ) =>
-            {
-                *self = Self::False {
-                    parallax_x: (*parallax_x).into(),
-                    parallax_y: (*parallax_y).into(),
-                    scroll_x:   (*scroll_x).into(),
-                    scroll_y:   (*scroll_y).into()
-                };
-            },
-            (Self::True, Sprite::False { .. }) | (Self::False { .. }, Sprite::True { .. }) =>
-            {
-                *self = Self::NonUniform;
-            },
-            _ => ()
-        };
-
-        self.is_not_uniform()
-    }
+    fn stack(&mut self, value: &Sprite) -> bool { self.merge(value.into()) }
 
     #[allow(clippy::similar_names)]
     #[inline]
     fn merge(&mut self, other: Self) -> bool
     {
-        if let Self::None = self
-        {
-            *self = other;
-            return self.is_not_uniform();
-        }
-
         match (&mut *self, other)
         {
-            (Self::None, _) => unreachable!(),
+            (Self::None, _) | (_, Self::None) => *self = Self::None,
+            (Self::NonUniform, _) |
             (_, Self::NonUniform) |
             (Self::True, Self::False { .. }) |
             (Self::False { .. }, Self::True) => *self = Self::NonUniform,
@@ -141,7 +106,7 @@ impl OverallValueInterface<Sprite> for OverallSprite
                 _ = scroll_x_0.merge(scroll_x_1);
                 _ = scroll_y_0.merge(scroll_y_1);
             },
-            _ => ()
+            (Self::True, Self::True) => ()
         };
 
         self.is_not_uniform()
@@ -215,6 +180,37 @@ impl OverallValueInterface<Option<&TextureSettings>> for OverallTextureSettings
     #[inline]
     fn merge(&mut self, other: Self) -> bool
     {
+        trait MergeOverride
+        {
+            fn merge_override(&mut self, other: Self) -> bool;
+        }
+
+        impl<T> MergeOverride for OverallValue<T>
+        where
+            T: PartialEq + Clone
+        {
+            fn merge_override(&mut self, other: Self) -> bool
+            {
+                *self = match (&*self, other)
+                {
+                    (Self::None, _) | (_, Self::None) => Self::None,
+                    (Self::Uniform(_), Self::NonUniform) => Self::NonUniform,
+                    (Self::NonUniform, Self::NonUniform | Self::Uniform(_)) => return true,
+                    (Self::Uniform(v0), Self::Uniform(v1)) =>
+                    {
+                        if *v0 == v1
+                        {
+                            return false;
+                        }
+
+                        Self::NonUniform
+                    }
+                };
+
+                true
+            }
+        }
+
         let mut uniform = false;
 
         match (&self.name, &other.name)
@@ -224,7 +220,7 @@ impl OverallValueInterface<Option<&TextureSettings>> for OverallTextureSettings
             {
                 self.name = OverallValue::NonUniform;
             },
-            _ => uniform |= self.name.merge(other.name)
+            _ => uniform |= !self.name.merge(other.name)
         };
 
         for (v_0, v_1) in [
@@ -235,10 +231,10 @@ impl OverallValueInterface<Option<&TextureSettings>> for OverallTextureSettings
             (&mut self.angle, &other.angle)
         ]
         {
-            uniform |= !v_0.merge(*v_1);
+            uniform |= !v_0.merge_override(*v_1);
         }
 
-        uniform |= !self.height.merge(other.height) |
+        uniform |= !self.height.merge_override(other.height) |
             !self.sprite.merge(other.sprite) |
             !self.animation.merge(other.animation);
 

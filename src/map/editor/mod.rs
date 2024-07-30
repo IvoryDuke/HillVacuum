@@ -45,7 +45,7 @@ use super::{
     thing::{catalog::ThingsCatalog, HardcodedThings}
 };
 use crate::{
-    config::{controls::BindsKeyCodes, Config},
+    config::{controls::BindsKeyCodes, Config, OpenFile},
     map::{
         editor::{cursor::Cursor, state::editor_state::State},
         hv_vec,
@@ -286,7 +286,11 @@ impl Editor
 
         match path
         {
-            Some(path) => window.title = window_title(path.file_stem().unwrap().to_str()),
+            Some(path) =>
+            {
+                window.title = window_title(path.file_stem().unwrap().to_str());
+                config.open_file = OpenFile::from_path(path);
+            },
             None => config.open_file.clear()
         };
 
