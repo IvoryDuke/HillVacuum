@@ -74,6 +74,7 @@ use crate::{
         hull::Hull,
         misc::{next, prev, Camera, Toggle}
     },
+    warning_message,
     EditorState,
     HardcodedActions,
     NAME
@@ -1424,7 +1425,7 @@ impl State
                 let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
                 file_name.push_str("_04.hv");
 
-                error_message(&format!(
+                warning_message(&format!(
                     "This file appears to have an old file structure, if it is valid it will now \
                      be converted to {file_name}."
                 ));

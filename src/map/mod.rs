@@ -312,6 +312,7 @@ pub(in crate::map) mod ui_mod
             hull::{EntityHull, Hull},
             misc::Toggle
         },
+        warning_message,
         EditorState
     };
 
@@ -735,6 +736,12 @@ pub(in crate::map) mod ui_mod
     {
         if *state.get() == EditorState::SplashScreen
         {
+            if !config.warning_displayed
+            {
+                warning_message("Please, if you find any bugs consider reporting them at\nhttps://github.com/IvoryDuke/HillVacuum");
+                config.warning_displayed = true;
+            }
+
             *editor = Editor::new(
                 window.single_mut().as_mut(),
                 &mut prop_cameras,

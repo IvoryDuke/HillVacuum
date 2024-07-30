@@ -371,6 +371,16 @@ pub(crate) mod ui_mod
             .set_buttons(rfd::MessageButtons::Ok)
             .show();
     }
+
+    #[inline]
+    pub(crate) fn warning_message(message: &str)
+    {
+        rfd::MessageDialog::new()
+            .set_title("WARNING")
+            .set_description(message)
+            .set_buttons(rfd::MessageButtons::Ok)
+            .show();
+    }
 }
 
 #[cfg(feature = "ui")]

@@ -40,6 +40,10 @@ use crate::{
 
 /// The name of the config file.
 const CONFIG_FILE_NAME: &str = "hill_vacuum.ini";
+/// The ini section of the first boot warning.
+const WARNING_SECTION: &str = "WARNING";
+/// The ini field of the first boot warning.
+const WARNING_FIELD: &str = "displayed";
 /// The ini section of the open file key.
 const OPEN_FILE_SECTION: &str = "OPEN_FILE";
 /// The open file ini key.
@@ -115,12 +119,15 @@ impl OpenFile
 pub(crate) struct Config
 {
     /// The keyboard binds.
-    pub binds:     BindsKeyCodes,
+    pub binds:             BindsKeyCodes,
     /// The file being edited.
-    pub open_file: OpenFile,
+    pub open_file:         OpenFile,
     /// The executable to export the map.
-    pub exporter:  Option<PathBuf>,
-    pub colors:    ColorResources
+    pub exporter:          Option<PathBuf>,
+    /// The user defined colors.
+    pub colors:            ColorResources,
+    /// Whever the first boot warning was displayed.
+    pub warning_displayed: bool
 }
 
 //=======================================================================//
@@ -146,6 +153,12 @@ impl FromWorld for IniConfig
 
         world.resource_scope(|world, mut materials: Mut<Assets<ColorMaterial>>| {
             let mut config = world.get_resource_mut::<Config>().unwrap();
+
+            config.warning_displayed = ini_config
+                .get(WARNING_SECTION, WARNING_FIELD)
+                .unwrap_or("false".to_string())
+                .parse()
+                .unwrap_or_default();
 
             config.binds.load(&ini_config);
 
@@ -196,7 +209,8 @@ fn create_default_config_file() -> std::io::Result<()>
     let mut file = File::create(CONFIG_FILE_NAME)?;
 
     let mut config = format!(
-        "[{OPEN_FILE_SECTION}]\n{OPEN_FILE_FIELD}\n[{EXPORTER_SECTION}]\n{EXPORTER_FIELD}\n"
+        "[{WARNING_SECTION}]\n{WARNING_FIELD}\n[{OPEN_FILE_SECTION}]\n{OPEN_FILE_FIELD}\\
+         n[{EXPORTER_SECTION}]\n{EXPORTER_FIELD}\n"
     );
     config.push_str(&Bind::default_binds());
     config.push_str(&Color::default_colors());
@@ -216,6 +230,10 @@ fn save_config(
     mut app_exit_events: EventWriter<AppExit>
 )
 {
+    ini_config
+        .0
+        .set(WARNING_SECTION, WARNING_FIELD, config.warning_displayed.to_string().into());
+
     ini_config.0.set(
         OPEN_FILE_SECTION,
         OPEN_FILE_FIELD,
