@@ -15,22 +15,42 @@ fn main()
 
     let mut f = return_if_err!(create("docs/crate_description.md"));
     let mut readme = String::new();
+    let mut description = String::new();
 
     macro_rules! include {
         ($file:literal) => {{
             let str = include_str!(concat!("docs/", $file, ".md"));
-            readme.push_str(str);
-            readme.push_str("\n");
+
+            for s in [&mut readme, &mut description]
+            {
+                s.push_str(str);
+                s.push_str("\n");
+            }
+
             println!(concat!("cargo::rerun-if-changed=docs/", $file, ".md"));
         }};
 
         ($(($tag:literal, $file:literal)),+) => { $(
-            readme.push_str(concat!("### ", $tag, "\n"));
+            let str = concat!("### ", $tag, "\n");
+
+            for s in [&mut readme, &mut description]
+            {
+                s.push_str(str);
+            }
+
             include!($file);
         )+};
     }
 
     include!("intro");
+
+    readme.push_str(include_str!("docs/previews.md"));
+    readme.push_str("\n");
+
+    for s in [&mut readme, &mut description]
+    {
+        s.push_str("## Keywords\n\n");
+    }
 
     include!(
         ("Brushes", "brushes"),
@@ -43,7 +63,7 @@ fn main()
 
     include!("outro");
 
-    write(&mut f, &readme);
+    write(&mut f, &description);
 
     include!("faq");
 
