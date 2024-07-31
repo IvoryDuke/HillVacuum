@@ -34,7 +34,7 @@ pub use crate::{
         },
         drawer::{
             animation::{Animation, Atlas, List, Timing},
-            texture::{Sprite, TextureInterface, TextureSettings}
+            texture::{TextureInterface, TextureSettings}
         },
         path::{
             nodes::{Movement, Node},

@@ -343,7 +343,7 @@ pub(in crate::map) mod ui_mod
                 color::{Color, ColorResources},
                 drawers::{EditDrawer, MapPreviewDrawer},
                 drawing_resources::DrawingResources,
-                texture::{TextureInterfaceExtra, TextureRotation, TextureScale}
+                texture::{Sprite, TextureInterfaceExtra, TextureRotation, TextureScale}
             },
             editor::state::grid::Grid,
             selectable_vector::{
@@ -406,7 +406,6 @@ pub(in crate::map) mod ui_mod
         Animation,
         Hull,
         HvVec,
-        Sprite,
         TextureInterface,
         TextureSettings
     };

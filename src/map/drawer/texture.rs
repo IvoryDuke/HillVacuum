@@ -112,7 +112,7 @@ pub trait TextureInterface
 /// Whether the texture should be rendered as a sprite.
 #[must_use]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
-pub enum Sprite
+pub(in crate::map) enum Sprite
 {
     /// Yes.
     True(Hull),
@@ -334,6 +334,7 @@ pub(in crate::map) mod ui_mod
         TEXTURE_HEIGHT_RANGE
     };
 
+    use super::Sprite;
     use crate::{
         map::{
             brush::convex_polygon::ScaleInfo,
@@ -350,7 +351,6 @@ pub(in crate::map) mod ui_mod
         },
         Animation,
         Hull,
-        Sprite,
         TextureInterface,
         TextureSettings,
         Timing

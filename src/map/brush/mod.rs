@@ -198,7 +198,7 @@ pub(in crate::map) mod ui_mod
                 color::Color,
                 drawers::{EditDrawer, MapPreviewDrawer},
                 drawing_resources::DrawingResources,
-                texture::{TextureInterfaceExtra, TextureRotation, TextureScale}
+                texture::{Sprite, TextureInterfaceExtra, TextureRotation, TextureScale}
             },
             editor::state::{
                 clipboard::{ClipboardData, CopyToClipboard},
@@ -223,7 +223,6 @@ pub(in crate::map) mod ui_mod
         Id,
         Mover,
         Path,
-        Sprite,
         TextureInterface,
         TextureSettings,
         Timing,

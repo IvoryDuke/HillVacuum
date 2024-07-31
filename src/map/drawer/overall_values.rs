@@ -3,10 +3,12 @@
 //
 //=======================================================================//
 
-use super::animation::overall_values::{OverallAnimation, UiOverallAnimation};
+use super::{
+    animation::overall_values::{OverallAnimation, UiOverallAnimation},
+    texture::Sprite
+};
 use crate::{
     utils::overall_value::{OverallValue, OverallValueInterface, OverallValueToUi, UiOverallValue},
-    Sprite,
     TextureInterface,
     TextureSettings
 };
