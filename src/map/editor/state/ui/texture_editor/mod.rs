@@ -805,48 +805,18 @@ impl Innards
         const X_SPACING: f32 = 2f32;
 
         #[inline]
-        fn top_section<F, R>(ui: &mut egui::Ui, f: F) -> R
+        fn top_section<F>(ui: &mut egui::Ui, f: F)
         where
-            F: FnOnce(&mut egui::Ui) -> R
+            F: FnOnce(&mut egui::Ui)
         {
             ui.vertical(|ui| {
                 ui.set_height(SETTING_HEIGHT);
-                let r = f(ui);
-                ui.separator();
-                r
-            })
-            .inner
+                f(ui);
+            });
+            ui.separator();
         }
 
         top_section(ui, |ui| self.mode_selector(ui, bundle.manager));
-
-        top_section(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = X_SPACING;
-
-                ui.label("Name filter");
-                ui.add_space(2f32);
-                let mut has_focus = bundle
-                    .clipboard
-                    .copy_paste_text_editor(
-                        bundle.inputs,
-                        ui,
-                        &mut self.name_filter,
-                        ui.available_width() - 382f32
-                    )
-                    .has_focus();
-
-                ui.add_space(2f32);
-                ui.label("Width filter");
-                ui.add_space(2f32);
-                has_focus |= self.width_filter.show(ui, bundle);
-
-                ui.add_space(2f32);
-                ui.label("Height filter");
-                ui.add_space(2f32);
-                has_focus | self.height_filter.show(ui, bundle)
-            })
-        });
 
         ui.horizontal(|ui| {
             ui.vertical(|ui| {
@@ -875,6 +845,34 @@ impl Innards
         });
 
         ui.separator();
+
+        top_section(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = X_SPACING;
+
+                ui.label("Name filter");
+                ui.add_space(2f32);
+                let mut has_focus = bundle
+                    .clipboard
+                    .copy_paste_text_editor(
+                        bundle.inputs,
+                        ui,
+                        &mut self.name_filter,
+                        ui.available_width() - 382f32
+                    )
+                    .has_focus();
+
+                ui.add_space(2f32);
+                ui.label("Width filter");
+                ui.add_space(2f32);
+                has_focus |= self.width_filter.show(ui, bundle);
+
+                ui.add_space(2f32);
+                ui.label("Height filter");
+                ui.add_space(2f32);
+                has_focus | self.height_filter.show(ui, bundle)
+            });
+        });
 
         egui::ScrollArea::vertical().show(ui, |ui| self.textures_gallery(ui, bundle));
     }
