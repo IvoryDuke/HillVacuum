@@ -300,16 +300,6 @@ impl ConvexPolygon
     }
 
     #[inline]
-    #[must_use]
-    pub(in crate::map::brush) fn set_collision(&mut self, value: bool) -> Option<bool>
-    {
-        (self.collision != value).then(|| {
-            self.collision = value;
-            !value
-        })
-    }
-
-    #[inline]
     pub fn take_texture_settings(self) -> Option<TextureSettings> { self.texture }
 }
 
@@ -1516,9 +1506,6 @@ pub(in crate::map) mod ui_mod
             }
         }
 
-        //==============================================================
-        // Collision
-
         #[inline]
         pub(in crate::map::brush) fn move_vertexes_at_indexes<'a, I: Iterator<Item = &'a u8>>(
             &mut self,
@@ -1535,6 +1522,19 @@ pub(in crate::map) mod ui_mod
 
             self.update_center_hull();
             assert!(self.valid(), "move_vertexes_at_indexes generated an invalid polygon.");
+        }
+
+        //==============================================================
+        // Collision
+
+        #[inline]
+        #[must_use]
+        pub(in crate::map::brush) fn set_collision(&mut self, value: bool) -> Option<bool>
+        {
+            (self.collision != value).then(|| {
+                self.collision = value;
+                !value
+            })
         }
 
         //==============================================================

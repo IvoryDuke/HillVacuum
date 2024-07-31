@@ -50,46 +50,6 @@ pub struct Brush
     data: BrushData
 }
 
-impl From<hill_vacuum_03::BrushCompat> for Brush
-{
-    #[allow(clippy::missing_transmute_annotations)]
-    #[inline]
-    fn from(value: hill_vacuum_03::BrushCompat) -> Self
-    {
-        use hill_vacuum_03::Brush as Brush03;
-
-        let Brush03 {
-            id,
-            vertexes,
-            texture,
-            mover,
-            collision,
-            properties
-        } = Brush03::new(value);
-
-        unsafe {
-            use std::mem::transmute;
-
-            let mut polygon = ConvexPolygon::from(transmute::<_, HvVec<Vec2>>(vertexes));
-            _ = polygon.set_collision(collision);
-
-            if let Some(tex) = texture
-            {
-                polygon.set_texture_settings(TextureSettings::from(tex));
-            }
-
-            Self {
-                data: BrushData {
-                    polygon,
-                    mover: transmute(mover),
-                    properties: Properties::from_parts(transmute(properties))
-                },
-                id:   transmute(id)
-            }
-        }
-    }
-}
-
 impl Brush
 {
     #[inline]
@@ -655,6 +615,46 @@ pub(in crate::map) mod ui_mod
     }
 
     //=======================================================================//
+
+    impl From<hill_vacuum_03::BrushCompat> for Brush
+    {
+        #[allow(clippy::missing_transmute_annotations)]
+        #[inline]
+        fn from(value: hill_vacuum_03::BrushCompat) -> Self
+        {
+            use hill_vacuum_03::Brush as Brush03;
+
+            let Brush03 {
+                id,
+                vertexes,
+                texture,
+                mover,
+                collision,
+                properties
+            } = Brush03::new(value);
+
+            unsafe {
+                use std::mem::transmute;
+
+                let mut polygon = ConvexPolygon::from(transmute::<_, HvVec<Vec2>>(vertexes));
+                _ = polygon.set_collision(collision);
+
+                if let Some(tex) = texture
+                {
+                    polygon.set_texture_settings(TextureSettings::from(tex));
+                }
+
+                Self {
+                    data: BrushData {
+                        polygon,
+                        mover: transmute(mover),
+                        properties: Properties::from_parts(transmute(properties))
+                    },
+                    id:   transmute(id)
+                }
+            }
+        }
+    }
 
     impl CopyToClipboard for Brush
     {

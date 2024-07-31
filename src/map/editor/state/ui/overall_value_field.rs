@@ -24,47 +24,6 @@ use crate::{
 //
 //=======================================================================//
 
-/// The response of the UI element.
-#[must_use]
-#[derive(Default, Clone, Copy)]
-pub(in crate::map::editor::state) struct Response
-{
-    /// Whether the UI element has focus.
-    pub has_focus:     bool,
-    /// Whether the UI element is being interacted with.
-    pub interacting:   bool,
-    /// Whether the value was changed.
-    pub value_changed: bool
-}
-
-impl std::ops::BitOr for Response
-{
-    type Output = Self;
-
-    #[inline]
-    fn bitor(self, rhs: Self) -> Self::Output
-    {
-        Self {
-            has_focus:     self.has_focus | rhs.has_focus,
-            interacting:   self.interacting | rhs.interacting,
-            value_changed: self.value_changed | rhs.value_changed
-        }
-    }
-}
-
-impl std::ops::BitOrAssign for Response
-{
-    #[inline]
-    fn bitor_assign(&mut self, rhs: Self)
-    {
-        self.has_focus |= rhs.has_focus;
-        self.interacting |= rhs.interacting;
-        self.value_changed |= rhs.value_changed;
-    }
-}
-
-//=======================================================================//
-
 /// A field where to edit an overall value and update the value itself in the entities.
 #[must_use]
 pub(in crate::map) struct OverallValueField<T: ToString + FromStr>(PhantomData<T>);
