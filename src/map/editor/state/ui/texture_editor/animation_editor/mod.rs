@@ -297,7 +297,6 @@ macro_rules! atlas {
     (
         $ui:ident,
         $atlas:ident,
-        $drawing_resources:ident,
         $manager:ident,
         $clipboard:ident,
         $inputs:ident,
@@ -857,7 +856,6 @@ impl AnimationEditor
         atlas!(
             ui,
             atlas,
-            drawing_resources,
             manager,
             clipboard,
             inputs,

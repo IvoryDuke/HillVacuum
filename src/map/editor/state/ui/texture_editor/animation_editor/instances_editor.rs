@@ -230,7 +230,6 @@ impl InstancesEditor
         super::atlas!(
             ui,
             atlas,
-            drawing_resources,
             manager,
             clipboard,
             inputs,
