@@ -90,7 +90,6 @@ macro_rules! textures_gallery {
 
         #[allow(clippy::redundant_closure_call)]
         let mut chunks = $chunker(textures_per_row);
-        let mut len = 0;
 
         if let Some(highlight_index) = $highlight_index
         {
@@ -99,8 +98,7 @@ macro_rules! textures_gallery {
             for _ in 0..row_with_highlight
             {
                 #[allow(clippy::redundant_closure_call)]
-                let add = $row_without_highlight($ui, chunks.next().unwrap());
-                len += add;
+                $row_without_highlight($ui, chunks.next().unwrap());
             }
 
             $ui.horizontal(|ui| {
@@ -109,18 +107,15 @@ macro_rules! textures_gallery {
 
                 for _ in 0..highlight_index_in_row
                 {
-                    len += 1;
                     #[allow(clippy::redundant_closure_call)]
                     $draw_texture(ui, textures.next().unwrap());
                 }
 
-                len += 1;
                 #[allow(clippy::redundant_closure_call)]
                 $draw_texture(ui, textures.next().unwrap()).highlight();
 
                 for texture in textures
                 {
-                    len += 1;
                     #[allow(clippy::redundant_closure_call)]
                     $draw_texture(ui, texture);
                 }
@@ -134,8 +129,6 @@ macro_rules! textures_gallery {
             #[allow(clippy::redundant_closure_call)]
             $row_without_highlight($ui, chunk);
         }
-
-        len
     }};
 }
 

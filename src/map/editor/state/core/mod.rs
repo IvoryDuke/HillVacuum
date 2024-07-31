@@ -212,21 +212,16 @@ macro_rules! bottom_area {
                         ui: &mut egui::Ui,
                         chunk: impl Iterator<Item = ChunkItem<'a>>,
                         clicked_prop: &mut Option<usize>
-                    ) -> usize
+                    )
                     {
-                        let mut len = 0;
-
                         ui.horizontal(|ui| {
                             for texture in chunk
                             {
-                                len += 1;
                                 draw_preview(ui, texture, clicked_prop);
                             }
 
                             ui.add_space(ui.available_width());
                         });
-
-                        len
                     }
 
                     let mut clicked = None;
@@ -238,7 +233,7 @@ macro_rules! bottom_area {
                             |textures_per_row| { $source.[< chunked_ $object s >](textures_per_row $(, $drawing_resources)?) },
                             $source.[< selected_ $object _index>](),
                             |ui, texture| { draw_preview(ui, texture, &mut clicked) },
-                            |ui, chunk| { row_without_highlight(ui, chunk, &mut clicked) }
+                            |ui, chunk| row_without_highlight(ui, chunk, &mut clicked)
                         );
                     }
 

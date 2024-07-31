@@ -739,19 +739,14 @@ impl Innards
                     },
                     |ui, texture| texture_preview(ui, texture, $f),
                     |ui: &mut egui::Ui, textures| {
-                        let mut len = 0;
-
                         ui.horizontal(|ui| {
                             for texture_materials in textures
                             {
-                                len += 1;
                                 texture_preview(ui, texture_materials as &&TextureMaterials, $f);
                             }
 
                             ui.add_space(ui.available_width());
                         });
-
-                        len
                     }
                 );
             };
