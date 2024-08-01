@@ -37,16 +37,6 @@ use crate::{
 };
 
 //=======================================================================//
-// CONSTANTS
-//
-//=======================================================================//
-
-/// The width of the columns of the grid.
-const COLUMN_WIDTH: f32 = 180f32;
-/// The height of the rows of the grid.
-const ROW_HEIGHT: f32 = 22f32;
-
-//=======================================================================//
 // ENUMS
 //
 //=======================================================================//
@@ -107,6 +97,9 @@ impl Innards
         inputs: &InputsPresses
     )
     {
+        /// The height of the rows of the grid.
+        const ROW_HEIGHT: f32 = 22f32;
+
         ui.horizontal(|ui| {
             ui.label("Entities");
 
@@ -147,8 +140,7 @@ impl Innards
             .num_columns(2)
             .spacing([0f32, 4f32])
             .striped(true)
-            .min_col_width(COLUMN_WIDTH)
-            .max_col_width(COLUMN_WIDTH)
+            .min_col_width(ui.available_width() / 2f32)
             .min_row_height(ROW_HEIGHT)
             .show(ui, |ui| {
                 self.grid(
@@ -553,7 +545,6 @@ impl PropertiesWindow
                     .vscroll(true)
                     .collapsible(true)
                     .resizable(true)
-                    .max_width(COLUMN_WIDTH * 2f32)
                     .default_height(280f32),
                 |ui| {
                     self.innards.show(
