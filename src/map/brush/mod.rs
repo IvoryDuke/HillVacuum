@@ -2137,7 +2137,7 @@ pub(in crate::map) mod ui_mod
 
         /// Returns a `VertexSelectionResult` describing the state of the closest to
         /// `cursor_pos` side found, if any. If a side is found and it is not
-        /// selected, it is selected, but the function stil  returns
+        /// selected, it is selected, but the function still returns
         /// `VertexSelectionResult::NotSelected`.
         #[inline]
         pub(in crate::map) fn check_side_proximity_and_exclusively_select(
@@ -2673,7 +2673,7 @@ pub(in crate::map) mod ui_mod
 
         /// Draws the polygon with a solid color.
         #[inline]
-        pub(in crate::map) fn draw_wih_solid_color(&self, drawer: &mut EditDrawer, color: Color)
+        pub(in crate::map) fn draw_with_solid_color(&self, drawer: &mut EditDrawer, color: Color)
         {
             drawer.polygon_with_solid_color(self.vertexes(), color);
         }

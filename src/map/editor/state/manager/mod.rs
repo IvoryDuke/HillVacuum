@@ -233,7 +233,7 @@ impl AuxiliaryIds
 #[must_use]
 struct ErrorHighlight
 {
-    /// The latest occured error.
+    /// The latest occurred error.
     error:   Option<Id>,
     /// The timer that makes to entity who caused the error blink on screen.
     blinker: Blinker,
@@ -1173,7 +1173,7 @@ impl Innards
     /// Removes the brush with [`Id`] `identifier` from the map and returns it.
     /// # Panics
     /// Panics if there are discrepancies between the brush properties and the stored
-    /// informations.
+    /// information.
     #[inline]
     fn remove_brush(&mut self, quad_trees: &mut Trees, identifier: Id, selected: bool) -> Brush
     {
@@ -1705,7 +1705,7 @@ impl EntitiesManager
     //==============================================================
     // General
 
-    /// Whever the entities properties have been refactored on file load.
+    /// Whether the entities properties have been refactored on file load.
     #[inline]
     #[must_use]
     pub const fn refactored_properties(&self) -> bool { self.innards.refactored_properties }
@@ -3302,7 +3302,7 @@ impl EntitiesManager
         }
 
         self.brush(error)
-            .draw_wih_solid_color(&mut bundle.drawer, Color::ErrorHighlight);
+            .draw_with_solid_color(&mut bundle.drawer, Color::ErrorHighlight);
     }
 }
 

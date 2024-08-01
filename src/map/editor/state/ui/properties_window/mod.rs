@@ -180,7 +180,7 @@ impl Innards
             };
         }
 
-        /// Filld the grid in case of few or unuven properties.
+        /// Fills the grid in case of few or unuven properties.
         #[inline]
         fn filler(ui: &mut egui::Ui, length: usize)
         {

@@ -784,7 +784,7 @@ pub(in crate::map) mod ui_mod
             &mut self.animation
         }
 
-        /// Whever the texture was edited.
+        /// Whether the texture was edited.
         #[inline]
         #[must_use]
         pub const fn dirty(&self) -> bool { self.dirty }
@@ -1396,7 +1396,7 @@ pub(in crate::map) mod ui_mod
             self.animation.get_atlas_animation_mut().set_uniform_time(value)
         }
 
-        /// Sets the frame time of atlas animation frame at `index` and returns the previou value if
+        /// Sets the frame time of atlas animation frame at `index` and returns the previous value if
         /// different.
         #[inline]
         #[must_use]

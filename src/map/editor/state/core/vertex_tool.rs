@@ -141,7 +141,7 @@ struct BrushesWithSelectedVertexes
 {
     /// The [`Id`]s of the brushes with selected vertexes.
     ids:            Ids,
-    /// The seleted vertexes.
+    /// The selected vertexes.
     selected_vxs:   SelectedVertexes,
     /// The [`Id`]s of the brushes that can be split.
     splittable_ids: HvHashMap<Id, SplitPayload>,

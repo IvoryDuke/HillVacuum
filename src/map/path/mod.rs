@@ -718,7 +718,7 @@ pub(in crate::map) mod ui_mod
         /// Panics if the entity has no [`Path`].
         fn toggle_path_node_at_index(&mut self, index: usize) -> bool;
 
-        /// Only selectes the [`Node`] at `index` and returns a [`NodeSelectionResult`] describing
+        /// Only selects the [`Node`] at `index` and returns a [`NodeSelectionResult`] describing
         /// what occurred.
         /// # Panics
         /// Panics if the entity has no [`Path`].
@@ -755,7 +755,7 @@ pub(in crate::map) mod ui_mod
         fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>;
 
         /// Tries to insert a [`Node`] with position `cursor_pos` at `index`, returns whether the
-        /// operation was successfull.
+        /// operation was successful.
         /// # Panics
         /// Panics if the entity has no [`Path`].
         #[must_use]
@@ -826,7 +826,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         fn snap_selected_path_nodes(&mut self, grid: Grid) -> Option<HvVec<(HvVec<u8>, Vec2)>>;
 
-        /// Sets the standy time of the selected [`Path`]'s [`Node`]s to `value`, returns a
+        /// Sets the standby time of the selected [`Path`]'s [`Node`]s to `value`, returns a
         /// [`StandbyValueEdit`] describing the outcome.
         /// # Panics
         /// Panics if the entity has no [`Path`].
@@ -1539,7 +1539,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub fn update<T: Moving + ?Sized>(&mut self, moving: &T, mut delta_time: f32)
         {
-            /// Executs the post acceleration update.
+            /// Executes the post acceleration update.
             macro_rules! post_acceleration {
                 ($info:ident) => {
                     if line_point_product(&$info.start, self.pos) > 0f32

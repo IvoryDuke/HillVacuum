@@ -4,7 +4,7 @@
 //=======================================================================//
 
 /// A trait for collections that allows to insert and remove a value but causes the application to
-/// panic if the insert or remove was unsuccesful.
+/// panic if the insert or remove was unsuccessful.
 pub(crate) trait AssertedInsertRemove<T, U, V, X>
 {
     /// Insert `value` in the collection. Panics if the collection already contains `value`.
@@ -144,7 +144,7 @@ pub(crate) mod ui_mod
             grid.point_projection(Vec2::new(p.x + camera_pos.x, -(p.y - camera_pos.y)))
         }
 
-        /// Converts 'p' to UI coorinates.
+        /// Converts 'p' to UI coordinates.
         #[inline]
         #[must_use]
         fn to_egui_coordinates(&self, window: &Window, grid: Grid, p: Vec2) -> egui::Pos2
@@ -404,7 +404,7 @@ pub(crate) mod ui_mod
 
     //=======================================================================//
 
-    /// A trait to determine whever a point is inside the UI rectangle highlight of a point.
+    /// A trait to determine whether a point is inside the UI rectangle highlight of a point.
     pub(crate) trait PointInsideUiHighlight
     {
         /// Whether `p` is inside the area of `self` while accounting for `camera_scale`.

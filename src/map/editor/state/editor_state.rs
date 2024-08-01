@@ -667,7 +667,7 @@ pub(in crate::map::editor) struct State
     ui:                 Ui,
     /// Whether tooltips should be shown (ex. coordinates of the vertexes).
     show_tooltips:      bool,
-    /// Whether the cursor shuld be snapped to the grid.
+    /// Whether the cursor should be snapped to the grid.
     cursor_snap:        bool,
     /// Whether a grey semitransparent rectangle should be drawn on the map beneath the cursor.
     show_cursor:        bool,
@@ -846,7 +846,7 @@ impl State
     #[inline]
     pub const fn grid(&self) -> Grid { self.grid }
 
-    /// Whether the cursor shuld be snapped to the grid.
+    /// Whether the cursor should be snapped to the grid.
     #[inline]
     #[must_use]
     pub const fn cursor_snap(&self) -> bool { self.cursor_snap }
@@ -870,7 +870,7 @@ impl State
     /// code. Returns true if that was the case.
     #[inline]
     #[must_use]
-    fn harcoded_key_inputs(&mut self, bundle: &mut StateUpdateBundle) -> bool
+    fn hardcoded_key_inputs(&mut self, bundle: &mut StateUpdateBundle) -> bool
     {
         if HardcodedActions::New.pressed(bundle.key_inputs)
         {
@@ -1915,7 +1915,7 @@ impl State
             Command::ToggleGrid => self.toggle_grid(),
             Command::IncreaseGridSize => self.increase_grid_size(),
             Command::DecreaseGridSize => self.decrease_grid_size(),
-            Command::ShifGrid => self.shift_grid(),
+            Command::ShiftGrid => self.shift_grid(),
             Command::ToggleTooltips => self.toggle_tooltips(),
             Command::ToggleCursorSnap => self.toggle_cursor_snap(),
             Command::ToggleMapPreview => self.toggle_map_preview(bundle.drawing_resources),
@@ -1942,7 +1942,7 @@ impl State
             }
         };
 
-        if !(ui_interaction.command.world_edit() || self.harcoded_key_inputs(bundle))
+        if !(ui_interaction.command.world_edit() || self.hardcoded_key_inputs(bundle))
         {
             if Bind::ToggleGrid.just_pressed(bundle.key_inputs, &bundle.config.binds)
             {
@@ -2152,7 +2152,7 @@ impl State
             .set_title("WARNING")
             .set_description(
                 "Reloading the things will erase the history of all things edits and will set all \
-                 things that will result out of bound to errors. Are you sure you wish to procede?"
+                 things that will result out of bound to errors. Are you sure you wish to proceed?"
             )
             .show()
         {
@@ -2227,7 +2227,7 @@ impl State
             .set_description(
                 "Reloading the textures will erase the history of all texture edits and will set \
                  all the textures of brushes with associated sprites that will result out of \
-                 bound to errors. Are you sure you wish to procede?"
+                 bound to errors. Are you sure you wish to proceed?"
             )
             .show()
         {

@@ -971,7 +971,7 @@ impl DrawingResources
         });
     }
 
-    /// Queues a new anchor hightlight [`Mesh`] to be drawn at the end of the frame.
+    /// Queues a new anchor highlight [`Mesh`] to be drawn at the end of the frame.
     #[inline]
     pub(in crate::map::drawer) fn push_anchor_highlight_mesh(
         &mut self,
@@ -1804,7 +1804,7 @@ impl<'a> Drop for TextureMut<'a>
 
 impl<'a> TextureMut<'a>
 {
-    /// Returns a new [`TextureMut`] if thre is a texture named `name`.
+    /// Returns a new [`TextureMut`] if three is a texture named `name`.
     #[inline]
     fn new(resources: &'a mut DrawingResources, name: &str) -> Option<Self>
     {

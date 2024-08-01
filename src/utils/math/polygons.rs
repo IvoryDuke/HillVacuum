@@ -51,7 +51,7 @@ pub fn convex_hull(vertexes: HvHashSet<HashVec2>) -> Option<impl Iterator<Item =
     // Make the pivot the first element.
     convex_hull.swap(pivot.1, 0);
 
-    // If there are  multiple vertexes that are at the same angle from `pivot`
+    // If there are multiple vertexes that are at the same angle from `pivot`
     // remove the ones that are closer to it. Also cache the value of the
     // angle's cosine for the sorting.
     let mut i = 1;

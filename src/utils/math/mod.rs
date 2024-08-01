@@ -20,7 +20,7 @@ use glam::Vec2;
 //
 //=======================================================================//
 
-/// A trait to determine whever two objects are equal within a certain error margin.
+/// A trait to determine whether two objects are equal within a certain error margin.
 pub(crate) trait AroundEqual
 {
     /// Whether `self` and `other` are equal within a somewhat loose margin.

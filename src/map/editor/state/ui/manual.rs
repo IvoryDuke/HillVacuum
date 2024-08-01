@@ -150,7 +150,7 @@ impl Manual
                 (
                     "Cursor",
                     "A semitransparent square is shown on screen to represent the world position \
-                     of the cursor. This is usefull to show where the camera will zoom in/out \
+                     of the cursor. This is useful to show where the camera will zoom in/out \
                      when pressing Ctrl + Mouse wheel."
                 ),
                 (
@@ -435,7 +435,7 @@ impl Manual
                 (
                     VertexInsert,
                     "Vertex insertion subtool. Selecting it and then left clicking on the side of \
-                     a selected brush will enabled vertex insertion.  *"
+                     a selected brush will enabled vertex insertion."
                 ),
                 (
                     VertexMerge,

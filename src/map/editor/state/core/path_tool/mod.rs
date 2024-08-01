@@ -324,7 +324,7 @@ impl PathTool
     #[inline]
     pub fn tool(drag_selection: Rect) -> ActiveTool { ActiveTool::Path(Self::new(drag_selection)) }
 
-    /// Returns an [`ActiveTool`] in its path tool variant in its [`Path`] attachement state.
+    /// Returns an [`ActiveTool`] in its path tool variant in its [`Path`] attachment state.
     #[inline]
     pub fn path_connection(
         bundle: &ToolUpdateBundle,

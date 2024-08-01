@@ -921,7 +921,7 @@ pub(crate) mod ui_mod
         /// If `len` is greater than or equal to the vector's current length, this has no
         /// effect.
         ///
-        /// This does not re-allocate.  If you want the vector's capacity to shrink, call
+        /// This does not re-allocate. If you want the vector's capacity to shrink, call
         /// `shrink_to_fit` after truncating.
         #[inline]
         pub(crate) fn truncate(&mut self, len: usize) { self.0.truncate(len); }

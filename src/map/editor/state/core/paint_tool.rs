@@ -60,7 +60,7 @@ enum Status
     PropCreationUi(Prop),
     /// Preparing to spawn the quick [`Prop`].
     QuickPropSetup,
-    /// Spawing copies of a [`Prop`].
+    /// Spawning copies of a [`Prop`].
     Paint(PaintingProp, CursorDelta)
 }
 

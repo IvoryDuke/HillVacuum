@@ -182,7 +182,7 @@ pub(crate) struct Grid
     /// The size of the grid's squares.
     size:        i16,
     settings:    GridSettings,
-    /// Whever the grid should be drawn on screen.
+    /// Whether the grid should be drawn on screen.
     pub visible: bool,
     /// When true, the position of the grid squares is shifted by half of its size, both
     /// horizontally and vertically.
@@ -369,7 +369,7 @@ impl Grid
         self.settings.set_angle(value);
     }
 
-    /// Toggles whever the grid is shifted or not.
+    /// Toggles whether the grid is shifted or not.
     #[inline]
     pub(in crate::map::editor::state) fn toggle_shift(&mut self, manager: &mut EntitiesManager)
     {

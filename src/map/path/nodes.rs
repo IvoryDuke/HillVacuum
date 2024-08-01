@@ -258,7 +258,7 @@ pub(in crate::map) mod ui_mod
             .into()
         }
 
-        /// Returns the percetage of the travel to the next [`Node`] dedicated to going from the
+        /// Returns the percentage of the travel to the next [`Node`] dedicated to going from the
         /// minimum to the maximum speed. If needed, adjusts the acceleration value to make
         /// sure that the sum of acceleration and deceleration is at most 1.
         /// # Panics

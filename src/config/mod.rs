@@ -129,7 +129,7 @@ pub(crate) struct Config
     pub exporter:          Option<PathBuf>,
     /// The user defined colors.
     pub colors:            ColorResources,
-    /// Whever the first boot warning was displayed.
+    /// Whether the first boot warning was displayed.
     pub warning_displayed: bool
 }
 

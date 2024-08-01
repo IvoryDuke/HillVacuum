@@ -1085,7 +1085,7 @@ impl Core
 //
 //=======================================================================//
 
-/// Deselects all the selecte vertexes.
+/// Deselects all the selected vertexes.
 #[inline]
 fn deselect_vertexes(manager: &mut EntitiesManager, edits_history: &mut EditsHistory)
 {

@@ -196,7 +196,7 @@ trait WindowCloserInfo
 
 //=======================================================================//
 
-/// A trait to know whever a widget of an ui element is focused.
+/// A trait to know whether a widget of an ui element is focused.
 trait IsFocused
 {
     #[must_use]
@@ -233,7 +233,7 @@ pub(in crate::map::editor::state) enum Command
     ExportAnimations,
     /// Import an .anms file.
     ImportAnimations,
-    /// Export the map's props  to a .prps file.
+    /// Export the map's props to a .prps file.
     ExportProps,
     /// Import a .prps file.
     ImportProps,
@@ -258,7 +258,7 @@ pub(in crate::map::editor::state) enum Command
     /// Decrease the grid size.
     DecreaseGridSize,
     /// Shift the grid.
-    ShifGrid,
+    ShiftGrid,
     /// Toggle the tooltips.
     ToggleTooltips,
     /// Toggle the cursor grid snap.
@@ -978,7 +978,7 @@ impl Ui
                             command = Command::DecreaseGridSize;
                         }, Bind::DecreaseGridSize.keycode_str(binds)),
                         ("Shift grid", {
-                            command = Command::ShifGrid;
+                            command = Command::ShiftGrid;
                         }, Bind::ShiftGrid.keycode_str(binds)),
                         ("Toggle tooltips", {
                             command = Command::ToggleTooltips;

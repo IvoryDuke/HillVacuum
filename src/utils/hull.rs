@@ -615,7 +615,7 @@ pub(crate) mod ui_mod
             )
         }
 
-        /// Extends the horizonal and vertical dimensions by `2f32 * bump` while maintaining the
+        /// Extends the horizontal and vertical dimensions by `2f32 * bump` while maintaining the
         /// same center.
         #[inline]
         #[must_use]
@@ -640,7 +640,7 @@ pub(crate) mod ui_mod
             let (b_1, t_1) = (self.bottom, self.top);
             let mut overlap_vector = None;
 
-            /// Checkes the overlap between the hulls at the coordinates.
+            /// Checks the overlap between the hulls at the coordinates.
             macro_rules! overlap {
                 ($vx:expr, $x:ident, $y:expr) => {
                     let vx = $vx;

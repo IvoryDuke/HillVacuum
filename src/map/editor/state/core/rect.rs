@@ -72,7 +72,7 @@ pub(crate) trait RectTrait
     where
         Self: Sized;
 
-    /// Whever `self` represents an uninitiated drag area.
+    /// Whether `self` represents an uninitiated drag area.
     #[must_use]
     fn none(&self) -> bool;
 

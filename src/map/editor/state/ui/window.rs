@@ -65,7 +65,7 @@ impl Window
         }
     }
 
-    /// Whever the window is open.
+    /// Whether the window is open.
     #[inline]
     #[must_use]
     pub const fn is_open(&self) -> bool { self.open }
