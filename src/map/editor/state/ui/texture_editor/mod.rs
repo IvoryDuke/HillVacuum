@@ -32,16 +32,18 @@ use crate::{
                 edits_history::EditsHistory,
                 format_texture_preview,
                 manager::{EntitiesManager, TextureResult},
-                ui::minus_plus_buttons::MinusPlusButtons
+                ui::{minus_plus_buttons::MinusPlusButtons, texture_per_row}
             },
             StateUpdateBundle
         }
     },
     utils::{
+        containers::hv_vec,
         identifiers::EntityId,
         misc::Toggle,
         overall_value::{OverallValue, OverallValueInterface, OverallValueToUi}
-    }
+    },
+    HvVec
 };
 
 //=======================================================================//
@@ -602,7 +604,12 @@ impl Innards
     }
 
     #[inline]
-    fn textures_gallery(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle)
+    fn textures_gallery(
+        &mut self,
+        ui: &mut egui::Ui,
+        bundle: &mut Bundle,
+        chunked_textures_container: &mut HvVec<&'static TextureMaterials>
+    )
     {
         /// Draws the button to be clicked to pick a texture.
         #[inline]
@@ -723,15 +730,19 @@ impl Innards
                 .into()
         };
 
+        let textures_per_row = texture_per_row(ui, TEXTURE_GALLERY_PREVIEW_FRAME_SIDE);
+
         /// Draws the gallery of loaded textures.
         macro_rules! gallery {
-            ($f:expr) => {
+            ($f:expr) => {{
                 crate::map::editor::state::ui::textures_gallery!(
                     ui,
-                    TEXTURE_GALLERY_PREVIEW_FRAME_SIDE,
-                    |textures_per_row| {
-                        drawing_resources.chunked_textures(textures_per_row, filter)
-                    },
+                    textures_per_row,
+                    drawing_resources.chunked_textures(
+                        textures_per_row,
+                        chunked_textures_container,
+                        filter
+                    ),
                     match self.overall_texture.name.uniform_value()
                     {
                         Some(name) => drawing_resources.texture_index(name),
@@ -749,7 +760,7 @@ impl Innards
                         });
                     }
                 );
-            };
+            }};
         }
 
         if self
@@ -800,12 +811,17 @@ impl Innards
 
     /// Shows the texture editor.
     #[inline]
-    fn show(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle)
+    fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        bundle: &mut Bundle,
+        chunked_textures_container: &mut HvVec<&'static TextureMaterials>
+    )
     {
         const X_SPACING: f32 = 2f32;
 
         #[inline]
-        fn top_section<F>(ui: &mut egui::Ui, f: F)
+        fn line_section<F>(ui: &mut egui::Ui, f: F)
         where
             F: FnOnce(&mut egui::Ui)
         {
@@ -816,7 +832,7 @@ impl Innards
             ui.separator();
         }
 
-        top_section(ui, |ui| self.mode_selector(ui, bundle.manager));
+        line_section(ui, |ui| self.mode_selector(ui, bundle.manager));
 
         ui.horizontal(|ui| {
             ui.vertical(|ui| {
@@ -846,7 +862,7 @@ impl Innards
 
         ui.separator();
 
-        top_section(ui, |ui| {
+        line_section(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = X_SPACING;
 
@@ -874,7 +890,10 @@ impl Innards
             });
         });
 
-        egui::ScrollArea::vertical().show(ui, |ui| self.textures_gallery(ui, bundle));
+        ui.vertical(|ui| {
+            egui::ScrollArea::vertical()
+            .show(ui, |ui| self.textures_gallery(ui, bundle, chunked_textures_container));
+        });
     }
 
     /// Sets the texture of the selected brushes.
@@ -997,9 +1016,10 @@ impl Innards
 pub(in crate::map::editor::state::ui) struct TextureEditor
 {
     /// The data of the window.
-    window:  Window,
+    window:                     Window,
     /// The core of the editor.
-    innards: Innards
+    innards:                    Innards,
+    chunked_textures_container: HvVec<&'static TextureMaterials>
 }
 
 impl Default for TextureEditor
@@ -1009,8 +1029,9 @@ impl Default for TextureEditor
     fn default() -> Self
     {
         Self {
-            window:  Window::new(),
-            innards: Innards::default()
+            window:                     Window::new(),
+            innards:                    Innards::default(),
+            chunked_textures_container: hv_vec![]
         }
     }
 }
@@ -1129,7 +1150,8 @@ impl TextureEditor
                     .min_height(300f32)
                     .default_height(WINDOW_MIN_SIZE),
                 |ui| {
-                    self.innards.show(ui, &mut bundle);
+                    self.innards
+                        .show(ui, &mut bundle, &mut self.chunked_textures_container);
                 }
             )
             .unwrap_or_default()

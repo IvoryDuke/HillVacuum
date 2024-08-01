@@ -225,12 +225,13 @@ macro_rules! bottom_area {
                     }
 
                     let mut clicked = None;
+                    let textures_per_row = crate::map::editor::state::ui::texture_per_row(ui, PREVIEW_FRAME.x);
 
                     paste::paste! {
                         crate::map::editor::state::ui::textures_gallery!(
                             ui,
-                            PREVIEW_FRAME.x,
-                            |textures_per_row| { $source.[< chunked_ $object s >](textures_per_row $(, $drawing_resources)?) },
+                            textures_per_row,
+                            $source.[< chunked_ $object s >](textures_per_row $(, $drawing_resources)?),
                             $source.[< selected_ $object _index>](),
                             |ui, texture| { draw_preview(ui, texture, &mut clicked) },
                             |ui, chunk| row_without_highlight(ui, chunk, &mut clicked)

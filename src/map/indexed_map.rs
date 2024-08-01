@@ -150,7 +150,7 @@ pub(in crate::map) mod ui_only
 
         /// Returns an iterator to the references of the contained values.
         #[inline]
-        pub fn values(&self) -> impl Iterator<Item = &T> { self.vec.iter() }
+        pub fn values(&self) -> std::slice::Iter<T> { self.vec.iter() }
 
         /// Returns an iterator returning the keys and the mutable references of the values
         /// associated to them.

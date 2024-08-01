@@ -643,106 +643,22 @@ impl DrawingResources
     pub fn chunked_textures<'a, F>(
         &'a self,
         chunk_size: usize,
+        chunks_container: &'a mut HvVec<&'static TextureMaterials>,
         f: Option<F>
-    ) -> impl Iterator<Item = &'a [&'a TextureMaterials]>
+    ) -> ChunkedTextures<'a, F>
     where
         F: Fn(&&'a TextureMaterials) -> bool
     {
-        type TextureRef<'a> = &'a TextureMaterials;
-        type ReturnType<'a> = &'a [TextureRef<'a>];
-
-        //=======================================================================//
-
-        #[must_use]
-        struct FilteredTextures<'a, I>(I, usize, HvVec<TextureRef<'a>>)
-        where
-            I: Iterator<Item = TextureRef<'a>>;
-
-        impl<'a, I> Iterator for FilteredTextures<'a, I>
-        where
-            I: Iterator<Item = TextureRef<'a>>
+        let iter = match f
         {
-            type Item = ReturnType<'a>;
+            Some(f) => TexturesIter::Filtered(self.textures.values().filter(f)),
+            None => TexturesIter::Unfiltered(self.textures.values())
+        };
 
-            fn next(&mut self) -> Option<Self::Item>
-            {
-                self.2.clear();
-
-                for _ in 0..self.1
-                {
-                    match self.0.next()
-                    {
-                        Some(e) => self.2.push(e),
-                        None =>
-                        {
-                            if self.2.is_empty()
-                            {
-                                return None;
-                            }
-
-                            break;
-                        }
-                    };
-                }
-
-                Some(unsafe { std::ptr::from_ref(&self.2).as_ref().unwrap() })
-            }
-        }
-
-        impl<'a, I> FilteredTextures<'a, I>
-        where
-            I: Iterator<Item = TextureRef<'a>>
-        {
-            #[inline]
-            fn new(iter: I, chunk_size: usize) -> Self { Self(iter, chunk_size, hv_vec![]) }
-        }
-
-        //=======================================================================//
-
-        #[must_use]
-        enum ChunkedTextures<'a, I, J>
-        where
-            I: Iterator<Item = ReturnType<'a>>,
-            J: Iterator<Item = ReturnType<'a>>
-        {
-            Unfiltered(I),
-            Filtered(J)
-        }
-
-        impl<'a, I, J> Iterator for ChunkedTextures<'a, I, J>
-        where
-            I: Iterator<Item = ReturnType<'a>>,
-            J: Iterator<Item = ReturnType<'a>>
-        {
-            type Item = ReturnType<'a>;
-
-            #[inline]
-            fn next(&mut self) -> Option<Self::Item>
-            {
-                match self
-                {
-                    ChunkedTextures::Unfiltered(i) => i.next(),
-                    ChunkedTextures::Filtered(i) => i.next()
-                }
-            }
-        }
-
-        match f
-        {
-            Some(f) =>
-            {
-                ChunkedTextures::Filtered(FilteredTextures::new(
-                    self.textures.values().filter(f),
-                    chunk_size
-                ))
-            },
-            None =>
-            {
-                ChunkedTextures::Unfiltered(FilteredTextures::new(
-                    self.textures.values(),
-                    chunk_size
-                ))
-            },
+        ChunkedTextures {
+            iter,
+            chunk_size,
+            container: chunks_container
         }
     }
 
@@ -1900,5 +1816,75 @@ impl<'a> TextureMut<'a>
             was_anim_none
         }
         .into()
+    }
+}
+
+//=======================================================================//
+
+#[must_use]
+pub(in crate::map) struct ChunkedTextures<'a, F>
+where
+    F: Fn(&&'a TextureMaterials) -> bool
+{
+    iter:       TexturesIter<'a, F>,
+    chunk_size: usize,
+    container:  &'a mut HvVec<&'static TextureMaterials>
+}
+
+impl<'a, F> ChunkedTextures<'a, F>
+where
+    F: Fn(&&'a TextureMaterials) -> bool
+{
+    #[inline]
+    pub fn next(&mut self) -> Option<&[&'static TextureMaterials]>
+    {
+        self.container.clear();
+
+        for _ in 0..self.chunk_size
+        {
+            match self.iter.next()
+            {
+                Some(e) => self.container.push(unsafe { std::mem::transmute(e) }),
+                None =>
+                {
+                    if self.container.is_empty()
+                    {
+                        return None;
+                    }
+
+                    break;
+                }
+            };
+        }
+
+        Some(self.container)
+    }
+}
+
+//=======================================================================//
+
+#[must_use]
+enum TexturesIter<'a, F>
+where
+    F: Fn(&&'a TextureMaterials) -> bool
+{
+    Unfiltered(std::slice::Iter<'a, TextureMaterials>),
+    Filtered(std::iter::Filter<std::slice::Iter<'a, TextureMaterials>, F>)
+}
+
+impl<'a, F> Iterator for TexturesIter<'a, F>
+where
+    F: Fn(&&'a TextureMaterials) -> bool
+{
+    type Item = &'a TextureMaterials;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item>
+    {
+        match self
+        {
+            Self::Unfiltered(i) => i.next(),
+            Self::Filtered(i) => i.next()
+        }
     }
 }

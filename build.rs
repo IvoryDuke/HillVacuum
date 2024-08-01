@@ -45,7 +45,7 @@ fn main()
     include!("intro");
 
     readme.push_str(include_str!("docs/previews.md"));
-    readme.push_str("\n");
+    readme.push('\n');
 
     for s in [&mut readme, &mut description]
     {

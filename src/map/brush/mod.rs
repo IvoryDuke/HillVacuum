@@ -618,7 +618,6 @@ pub(in crate::map) mod ui_mod
 
     impl From<hill_vacuum_03::BrushCompat> for Brush
     {
-        #[allow(clippy::missing_transmute_annotations)]
         #[inline]
         fn from(value: hill_vacuum_03::BrushCompat) -> Self
         {

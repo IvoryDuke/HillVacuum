@@ -76,24 +76,17 @@ const ICONS_PADDING: egui::Vec2 = egui::Vec2::new(8f32, 4f32);
 macro_rules! textures_gallery {
     (
         $ui:ident,
-        $frame_size:expr,
-        $chunker:expr,
+        $textures_per_row:expr,
+        $chunks:expr,
         $highlight_index:expr,
         $draw_texture:expr,
         $row_without_highlight:expr
     ) => {{
-        #[allow(clippy::cast_possible_truncation)]
-        #[allow(clippy::cast_sign_loss)]
-        let textures_per_row = ($ui.available_width() /
-            ($frame_size + 2f32 * $ui.spacing().item_spacing.x))
-            .floor() as usize;
-
-        #[allow(clippy::redundant_closure_call)]
-        let mut chunks = $chunker(textures_per_row);
+        let mut chunks = $chunks;
 
         if let Some(highlight_index) = $highlight_index
         {
-            let row_with_highlight = highlight_index / textures_per_row;
+            let row_with_highlight = highlight_index / $textures_per_row;
 
             for _ in 0..row_with_highlight
             {
@@ -102,7 +95,7 @@ macro_rules! textures_gallery {
             }
 
             $ui.horizontal(|ui| {
-                let highlight_index_in_row = highlight_index % textures_per_row;
+                let highlight_index_in_row = highlight_index % $textures_per_row;
                 let mut textures = return_if_none!(chunks.next()).into_iter();
 
                 for _ in 0..highlight_index_in_row
@@ -124,7 +117,7 @@ macro_rules! textures_gallery {
             });
         }
 
-        for chunk in chunks
+        while let Some(chunk) = chunks.next()
         {
             #[allow(clippy::redundant_closure_call)]
             $row_without_highlight($ui, chunk);
@@ -1240,4 +1233,19 @@ pub(in crate::map::editor::state) fn singleline_textedit(
 ) -> egui::TextEdit
 {
     egui::TextEdit::singleline(buffer).desired_width(width)
+}
+
+//=======================================================================//
+
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_sign_loss)]
+#[inline]
+#[must_use]
+pub(in crate::map::editor::state) fn texture_per_row(
+    ui: &egui::Ui,
+    texture_frame_side: f32
+) -> usize
+{
+    (ui.available_width() / (texture_frame_side + 2f32 * ui.spacing().item_spacing.x)).floor()
+        as usize
 }

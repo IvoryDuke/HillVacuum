@@ -3,6 +3,7 @@
 #![allow(clippy::single_match_else)]
 #![allow(clippy::manual_let_else)]
 #![allow(clippy::module_name_repetitions)]
+#![allow(clippy::missing_transmute_annotations)]
 #![warn(clippy::missing_assert_message)]
 #![warn(clippy::missing_const_for_fn)]
 #![warn(clippy::missing_errors_doc)]
