@@ -1,6 +1,6 @@
 [package]
 name = "hill_vacuum"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "A bevy-based 2D map editor"
@@ -34,13 +34,13 @@ version = "0.3.6"
 default-features = false
 
 [dependencies.hill_vacuum_shared]
-version = "0.4.1"
+version = "0.4.2"
 
 [build-dependencies.hill_vacuum_shared]
-version = "0.4.1"
+version = "0.4.2"
 
 [dependencies.hill_vacuum_proc_macros]
-version = "0.4.1"
+version = "0.4.2"
 
 [dependencies.bevy]
 version = "0.14"
