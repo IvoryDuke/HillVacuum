@@ -892,7 +892,7 @@ impl Innards
 
         ui.vertical(|ui| {
             egui::ScrollArea::vertical()
-            .show(ui, |ui| self.textures_gallery(ui, bundle, chunked_textures_container));
+                .show(ui, |ui| self.textures_gallery(ui, bundle, chunked_textures_container));
         });
     }
 

@@ -866,7 +866,7 @@ impl ActiveTool
             Tool::Scale => ScaleTool::tool(manager, grid, settings),
             Tool::Shear => ShearTool::tool(manager, grid),
             Tool::Rotate => RotateTool::tool(manager, settings),
-            Tool::Flip => FlipTool::tool(manager),
+            Tool::Flip => FlipTool::tool(manager, grid),
             Tool::Intersection =>
             {
                 self.intersection_tool(

@@ -1396,8 +1396,8 @@ pub(in crate::map) mod ui_mod
             self.animation.get_atlas_animation_mut().set_uniform_time(value)
         }
 
-        /// Sets the frame time of atlas animation frame at `index` and returns the previous value if
-        /// different.
+        /// Sets the frame time of atlas animation frame at `index` and returns the previous value
+        /// if different.
         #[inline]
         #[must_use]
         pub(in crate::map) fn set_atlas_animation_frame_time(

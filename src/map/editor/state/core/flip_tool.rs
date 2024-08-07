@@ -41,9 +41,9 @@ impl FlipTool
 {
     /// Returns an [`ActiveTool`] in its flip tool variant.
     #[inline]
-    pub fn tool(manager: &EntitiesManager) -> ActiveTool
+    pub fn tool(manager: &EntitiesManager, grid: Grid) -> ActiveTool
     {
-        ActiveTool::Flip(Self(manager.selected_brushes_hull().unwrap()))
+        ActiveTool::Flip(Self(Self::outline(manager, grid)))
     }
 
     /// Updates the tool.
@@ -134,9 +134,17 @@ impl FlipTool
 
     /// Updates the brushes outline.
     #[inline]
+    #[must_use]
+    fn outline(manager: &EntitiesManager, grid: Grid) -> Hull
+    {
+        grid.snap_hull(&manager.selected_brushes_hull().unwrap())
+    }
+
+    /// Updates the brushes outline.
+    #[inline]
     pub fn update_outline(&mut self, manager: &EntitiesManager, grid: Grid)
     {
-        self.0 = grid.snap_hull(&manager.selected_brushes_hull().unwrap());
+        self.0 = Self::outline(manager, grid);
     }
 
     /// Draws the tool.
