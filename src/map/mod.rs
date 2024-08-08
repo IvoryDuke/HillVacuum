@@ -21,6 +21,7 @@ use std::{
     path::PathBuf
 };
 
+use editor::state::grid::GridSettings;
 use hill_vacuum_proc_macros::EnumIter;
 use hill_vacuum_shared::{return_if_none, NextValue};
 use serde::{Deserialize, Serialize};
@@ -47,7 +48,7 @@ use crate::{
 //=======================================================================//
 
 /// The version of the saved files.
-const FILE_VERSION_NUMBER: &str = "0.4";
+const FILE_VERSION_NUMBER: &str = "0.5";
 
 //=======================================================================//
 // ENUMS
@@ -60,12 +61,12 @@ enum FileStructure
 {
     Version,
     Header,
+    Grid,
     Animations,
     Properties,
     Brushes,
     Things,
-    Props,
-    Grid
+    Props
 }
 
 impl FileStructure
@@ -139,6 +140,11 @@ impl Exporter
 
         let header = ciborium::from_reader::<MapHeader, _>(&mut file)
             .map_err(|_| "Error reading file header")?;
+
+        // Grid.
+        steps.next_value().assert(FileStructure::Grid);
+        _ = ciborium::from_reader::<GridSettings, _>(&mut file)
+            .map_err(|_| "Error reading grid")?;
 
         // Animations.
         steps.next_value().assert(FileStructure::Animations);

@@ -1310,6 +1310,7 @@ impl ActiveTool
         &self,
         bundle: &mut DrawBundle,
         manager: &EntitiesManager,
+        grid: Grid,
         settings: &ToolsSettings,
         show_tooltips: bool
     )
@@ -1320,6 +1321,7 @@ impl ActiveTool
             tool: &ActiveTool,
             bundle: &mut DrawBundle,
             manager: &EntitiesManager,
+            grid: Grid,
             settings: &ToolsSettings,
             show_tooltips: bool
         )
@@ -1400,7 +1402,7 @@ impl ActiveTool
                     t.draw(bundle, manager, show_tooltips);
                     return;
                 },
-                ActiveTool::Paint(t) => t.draw(bundle, manager),
+                ActiveTool::Paint(t) => t.draw(bundle, manager, grid),
                 ActiveTool::Thing(t) => t.draw(bundle, manager),
                 _ => unreachable!()
             };
@@ -1421,9 +1423,9 @@ impl ActiveTool
             Self::Zoom(t) =>
             {
                 t.draw(bundle);
-                draw_tool(&t.previous_active_tool, bundle, manager, settings, show_tooltips);
+                draw_tool(&t.previous_active_tool, bundle, manager, grid, settings, show_tooltips);
             },
-            _ => draw_tool(self, bundle, manager, settings, show_tooltips)
+            _ => draw_tool(self, bundle, manager, grid, settings, show_tooltips)
         };
     }
 

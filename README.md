@@ -80,6 +80,8 @@ HV creates three types of files, all of which are relatively simple:
 | animations amount           |
 | props amount                |
 -------------------------------
+| Grid settings (skew, angle) |
+-------------------------------
 | Animations                  |
 -------------------------------
 | Brushes default properties  |
@@ -91,8 +93,6 @@ HV creates three types of files, all of which are relatively simple:
 | Things                      |
 -------------------------------
 | Props                       |
--------------------------------
-| Grid settings (skew, angle) |
 -------------------------------
 ```
 - .anms is the "animations only" file, which can be used to exchange animations between maps;

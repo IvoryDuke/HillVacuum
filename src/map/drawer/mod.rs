@@ -20,6 +20,8 @@ use std::{fs::File, io::BufReader};
 
 use texture::DefaultAnimation;
 
+use crate::{utils::containers::hv_vec, HvVec};
+
 //=======================================================================//
 // TYPES
 //
@@ -37,9 +39,9 @@ type BevyColor = bevy::color::Color;
 pub(in crate::map) fn file_animations(
     amount: usize,
     file: &mut BufReader<File>
-) -> Result<Vec<DefaultAnimation>, &'static str>
+) -> Result<HvVec<DefaultAnimation>, &'static str>
 {
-    let mut animations = vec![];
+    let mut animations = hv_vec![];
 
     for _ in 0..amount
     {

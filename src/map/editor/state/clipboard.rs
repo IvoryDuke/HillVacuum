@@ -56,6 +56,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     editor_state::InputsPresses,
     edits_history::EditsHistory,
+    grid::Grid,
     manager::EntitiesManager,
     ui::singleline_textedit
 };
@@ -706,10 +707,12 @@ impl Prop
     pub(in crate::map::editor::state) fn draw(
         &self,
         bundle: &mut DrawBundle,
+        grid: Grid,
         camera_id: Option<Entity>
     )
     {
-        let delta = draw_camera!(bundle, camera_id).translation.truncate() - self.data_center;
+        let delta = grid.point_projection(draw_camera!(bundle, camera_id).translation.truncate()) -
+            self.data_center;
 
         for item in &self.data
         {
@@ -795,7 +798,8 @@ pub(in crate::map::editor::state) struct Clipboard
     /// The frames that must pass before the [`Prop`] screenshots can be taken.
     props_import_wait_frames: usize,
     /// The function used to run the frame update.
-    update_func: fn(&mut Self, &mut Assets<Image>, &mut PropCamerasMut, &mut EguiUserTextures)
+    update_func:
+        fn(&mut Self, &mut Assets<Image>, &mut PropCamerasMut, &mut EguiUserTextures, Grid)
 }
 
 impl Clipboard
@@ -833,6 +837,7 @@ impl Clipboard
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
         catalog: &ThingsCatalog,
+        grid: Grid,
         header: &MapHeader,
         file: &mut BufReader<File>
     ) -> Result<Self, &'static str>
@@ -851,7 +856,15 @@ impl Clipboard
             update_func: Self::delay_update
         };
 
-        match clip.import_props(images, prop_cameras, user_textures, catalog, header.props, file)
+        match clip.import_props(
+            images,
+            prop_cameras,
+            user_textures,
+            catalog,
+            grid,
+            header.props,
+            file
+        )
         {
             Ok(()) => Ok(clip),
             Err(err) => Err(err)
@@ -866,6 +879,7 @@ impl Clipboard
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
         catalog: &ThingsCatalog,
+        grid: Grid,
         props_amount: usize,
         file: &mut BufReader<File>
     ) -> Result<(), &'static str>
@@ -888,7 +902,7 @@ impl Clipboard
         {
             let index = self.props.len();
             self.props.push(prop);
-            self.queue_prop_screenshot(images, user_textures, prop_cameras.next(), index);
+            self.queue_prop_screenshot(images, user_textures, prop_cameras.next(), grid, index);
         }
 
         Ok(())
@@ -901,6 +915,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         user_textures: &mut EguiUserTextures,
         camera: Option<(Entity, Mut<Camera>, Mut<Transform>)>,
+        grid: Grid,
         index: usize
     )
     {
@@ -920,6 +935,7 @@ impl Clipboard
             images,
             &mut (&mut camera.1, &mut camera.2),
             user_textures,
+            grid,
             &mut self.props[index]
         );
         self.props_with_assigned_camera
@@ -969,7 +985,8 @@ impl Clipboard
         &mut self,
         _: &mut Assets<Image>,
         _: &mut PropCamerasMut,
-        _: &mut EguiUserTextures
+        _: &mut EguiUserTextures,
+        _: Grid
     )
     {
         if self.props_import_wait_frames != 0
@@ -987,7 +1004,8 @@ impl Clipboard
         &mut self,
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
-        user_textures: &mut EguiUserTextures
+        user_textures: &mut EguiUserTextures,
+        grid: Grid
     )
     {
         let mut i = 0;
@@ -1017,6 +1035,7 @@ impl Clipboard
                 images,
                 &mut (&mut camera.1, &mut camera.2),
                 user_textures,
+                grid,
                 &mut self.props[index]
             );
 
@@ -1031,10 +1050,11 @@ impl Clipboard
         &mut self,
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
-        user_textures: &mut EguiUserTextures
+        user_textures: &mut EguiUserTextures,
+        grid: Grid
     )
     {
-        (self.update_func)(self, images, prop_cameras, user_textures);
+        (self.update_func)(self, images, prop_cameras, user_textures, grid);
     }
 
     /// Assigns a camera to a [`Prop`] to take its screenshot.
@@ -1044,6 +1064,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         prop_camera: &mut (&mut Camera, &mut Transform),
         user_textures: &mut EguiUserTextures,
+        grid: Grid,
         prop: &mut Prop
     )
     {
@@ -1052,12 +1073,10 @@ impl Clipboard
             "Tried to assign a prop screenshot to an active camera."
         );
 
-        let hull = prop.hull();
-
         scale_viewport(
             prop_camera.1,
             (PROP_SCREENSHOT_SIZE.x as f32, PROP_SCREENSHOT_SIZE.y as f32),
-            &hull,
+            &prop.hull().transformed(|vx| grid.transform_point(vx)),
             32f32
         );
 
@@ -1080,7 +1099,7 @@ impl Clipboard
 
     /// Queues the screenshots of the [`Prop`]s that must be retaken after a things reload.
     #[inline]
-    pub fn reload_things(&mut self, bundle: &mut StateUpdateBundle)
+    pub fn reload_things(&mut self, bundle: &mut StateUpdateBundle, grid: Grid)
     {
         let mut prop_cameras = bundle.prop_cameras.iter_mut();
 
@@ -1094,6 +1113,7 @@ impl Clipboard
                     bundle.images,
                     bundle.user_textures,
                     prop_cameras.next(),
+                    grid,
                     i
                 );
             }
@@ -1107,7 +1127,8 @@ impl Clipboard
         images: &mut Assets<Image>,
         user_textures: &mut EguiUserTextures,
         prop_cameras: &mut PropCamerasMut,
-        drawing_resources: &DrawingResources
+        drawing_resources: &DrawingResources,
+        grid: Grid
     )
     {
         let mut prop_cameras = prop_cameras.iter_mut();
@@ -1118,7 +1139,7 @@ impl Clipboard
 
             if prop.reload_textures(drawing_resources)
             {
-                self.queue_prop_screenshot(images, user_textures, prop_cameras.next(), i);
+                self.queue_prop_screenshot(images, user_textures, prop_cameras.next(), grid, i);
             }
         }
     }
@@ -1497,11 +1518,11 @@ impl Clipboard
 
     /// Draws the [`Prop`]s to photograph for the preview.
     #[inline]
-    pub fn draw_props_to_photograph(&self, bundle: &mut DrawBundle)
+    pub fn draw_props_to_photograph(&self, bundle: &mut DrawBundle, grid: Grid)
     {
         for (timer, idx) in &self.props_with_assigned_camera
         {
-            self.props[*idx].draw(bundle, (timer.id()).into());
+            self.props[*idx].draw(bundle, grid, (timer.id()).into());
         }
     }
 }

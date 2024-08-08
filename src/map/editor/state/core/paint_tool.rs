@@ -231,6 +231,7 @@ impl PaintTool
                     images,
                     paint_tool_camera,
                     user_textures,
+                    grid,
                     &mut prop
                 );
 
@@ -416,7 +417,7 @@ impl PaintTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
+    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager, grid: Grid)
     {
         draw_selected_and_non_selected_brushes!(bundle, manager);
         bundle
@@ -426,7 +427,7 @@ impl PaintTool
         match &self.status
         {
             Status::SetPivot(hull) => bundle.drawer.hull(hull, Color::Hull),
-            Status::PropCreationScreenshot(_, prop) => prop.draw(bundle, None),
+            Status::PropCreationScreenshot(_, prop) => prop.draw(bundle, grid, None),
             _ => ()
         };
     }
