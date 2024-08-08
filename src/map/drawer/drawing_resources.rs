@@ -153,7 +153,7 @@ impl Materials
 
         let mut iter = std::array::from_fn::<_, LEN, _>(|i| {
             materials.add(ColorMaterial {
-                color: COLORS[i],
+                color:   COLORS[i],
                 texture: handle.clone_weak().into()
             })
         })

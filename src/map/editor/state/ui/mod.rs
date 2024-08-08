@@ -685,7 +685,7 @@ impl Ui
                 Self::grid_info(*grid, ui);
 
                 // Camera info.
-                Self::camera_info(bundle.camera, ui);
+                Self::camera_info(bundle.camera, *grid, ui);
 
                 // Extra tool info.
                 core.tool_ui(manager, inputs, edits_history, clipboard, ui, settings);
@@ -1130,12 +1130,12 @@ impl Ui
 
     /// The info concerning the camera.
     #[inline]
-    fn camera_info(camera: &Transform, ui: &mut egui::Ui)
+    fn camera_info(camera: &Transform, grid: Grid, ui: &mut egui::Ui)
     {
         ui.separator();
 
         let ui_vector = ui_camera_displacement() * camera.scale();
-        let pos = camera.pos() + ui_vector;
+        let pos = grid.point_projection(camera.pos() + ui_vector);
 
         ui.label(egui::RichText::new(format!(
             "CAMERA\nX: {:.2}\nY: {:.2}\nScale: {:.2}",
