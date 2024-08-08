@@ -636,7 +636,7 @@ impl Ui
         };
 
         self.window_focused |= show_and_clear_inputs(bundle, inputs, |bundle, inputs| {
-            self.settings_window.show(bundle, inputs, grid)
+            self.settings_window.show(bundle, clipboard, inputs, grid)
         }) | show_and_clear_inputs(bundle, inputs, |bundle, inputs| {
             self.properties_window
                 .show(bundle, manager, edits_history, clipboard, inputs)

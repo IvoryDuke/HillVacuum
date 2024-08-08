@@ -12,7 +12,7 @@ use super::{window::Window, WindowCloserInfo};
 use crate::{
     config::{controls::bind::Bind, Config},
     map::editor::{
-        state::{editor_state::InputsPresses, grid::Grid, ui::WindowCloser},
+        state::{clipboard::Clipboard, editor_state::InputsPresses, grid::Grid, ui::WindowCloser},
         StateUpdateBundle
     },
     utils::misc::{Blinker, Toggle}
@@ -77,9 +77,10 @@ impl BindEdit
 pub(in crate::map::editor::state::ui) struct SettingsWindow
 {
     /// The window data.
-    window:    Window,
+    window:       Window,
     /// Data concerning the bind being edited.
-    bind_edit: BindEdit
+    bind_edit:    BindEdit,
+    grid_changed: bool
 }
 
 impl Toggle for SettingsWindow
@@ -123,14 +124,18 @@ impl SettingsWindow
     pub fn show(
         &mut self,
         bundle: &mut StateUpdateBundle,
+        clipboard: &mut Clipboard,
         inputs: &mut InputsPresses,
         grid: &mut Grid
     ) -> bool
     {
         let StateUpdateBundle {
+            images,
+            prop_cameras,
             delta_time,
             key_inputs,
             egui_context,
+            user_textures,
             config:
                 Config {
                     binds,
@@ -140,6 +145,12 @@ impl SettingsWindow
                 },
             ..
         } = bundle;
+
+        if self.grid_changed && (!inputs.left_mouse.pressed() || !self.window.is_open())
+        {
+            self.grid_changed = false;
+            clipboard.queue_all_props_screenshots(images, prop_cameras, user_textures, *grid);
+        }
 
         if !self.window.check_open(Bind::Settings.just_pressed(key_inputs, binds))
         {
@@ -187,14 +198,24 @@ impl SettingsWindow
 
                         ui.label("Skew");
                         let mut skew = grid.skew();
-                        ui.add(egui::Slider::new(&mut skew, Grid::SKEW_RANGE));
-                        grid.set_skew(skew);
+
+                        if ui.add(egui::Slider::new(&mut skew, Grid::SKEW_RANGE)).changed()
+                        {
+                            self.grid_changed = true;
+                            grid.set_skew(skew);
+                        }
+
                         ui.end_row();
 
                         ui.label("Angle");
                         let mut angle = grid.angle();
-                        ui.add(egui::Slider::new(&mut angle, Grid::ANGLE_RANGE));
-                        grid.set_angle(angle);
+
+                        if ui.add(egui::Slider::new(&mut angle, Grid::ANGLE_RANGE)).changed()
+                        {
+                            self.grid_changed = true;
+                            grid.set_angle(angle);
+                        }
+
                         ui.end_row();
 
                         // Keyboard binds.

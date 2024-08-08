@@ -942,6 +942,23 @@ impl Clipboard
             .push((PropScreenshotTimer::new(camera.0.into()), index));
     }
 
+    #[inline]
+    pub fn queue_all_props_screenshots(
+        &mut self,
+        images: &mut Assets<Image>,
+        prop_cameras: &mut PropCamerasMut,
+        user_textures: &mut EguiUserTextures,
+        grid: Grid
+    )
+    {
+        let mut prop_cameras = prop_cameras.iter_mut().filter(|camera| !camera.1.is_active);
+
+        for i in 0..self.props.len()
+        {
+            self.queue_prop_screenshot(images, user_textures, prop_cameras.next(), grid, i);
+        }
+    }
+
     //==============================================================
     // Info
 
@@ -1225,9 +1242,8 @@ impl Clipboard
     #[inline]
     pub fn delete_selected_prop(&mut self, prop_cameras: &mut PropCamerasMut)
     {
-        self.props_changed = true;
-
         let selected_prop = return_if_none!(self.selected_prop);
+        self.props_changed = true;
         let no_screenshot = self.props.remove(selected_prop).screenshot.is_none();
 
         self.selected_prop = if self.props.is_empty()
