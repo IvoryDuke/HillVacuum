@@ -11,7 +11,6 @@ use std::{
 
 use bevy::{
     asset::{AssetServer, Assets, Handle},
-    color::Alpha,
     ecs::{
         entity::Entity,
         query::With,
@@ -37,7 +36,8 @@ use super::{
     drawers::{Uv, VxColor, VxPos, HULL_HEIGHT_LABEL, HULL_WIDTH_LABEL},
     file_animations,
     texture::{DefaultAnimation, TextureInterface, TextureInterfaceExtra},
-    texture_loader::TextureLoader
+    texture_loader::TextureLoader,
+    BevyColor
 };
 use crate::{
     embedded_assets::embedded_asset_path,
@@ -73,6 +73,38 @@ use crate::{
 //
 //=======================================================================//
 
+macro_rules! handles {
+    ($($material:ident),+) => { paste::paste!{ $(
+        #[inline]
+        #[must_use]
+        fn $material(&self, color: Color) -> Handle<ColorMaterial>
+        {
+            let materials = &self.[< $material s >];
+
+            match color
+            {
+                Color::NonSelectedEntity => &materials.non_selected,
+                Color::SelectedEntity => &materials.selected,
+                Color::HighlightedNonSelectedEntity => &materials.selected,
+                Color::HighlightedSelectedEntity => &materials.selected,
+                Color::NonSelectedVertex => &materials.selected,
+                Color::ClippedPolygonsNotToSpawn => &materials.opaque,
+                Color::ClippedPolygonsToSpawn => &materials.selected,
+                Color::OpaqueEntity => &materials.opaque,
+                Color::SubtractorBrush => &materials.selected,
+                Color::SubtracteeBrush => &materials.selected,
+                _ => panic!("Color with no associated material: {color:?}.")
+            }
+            .clone_weak()
+        }
+    )+ }};
+}
+
+//=======================================================================//
+// CONSTANTS
+//
+//=======================================================================//
+
 meshes_indexes!(INDEXES, 128);
 
 //=======================================================================//
@@ -83,15 +115,10 @@ meshes_indexes!(INDEXES, 128);
 #[must_use]
 struct Materials
 {
-    pure:                     Handle<ColorMaterial>,
-    semi_transparent:         Handle<ColorMaterial>,
-    selected:                 Handle<ColorMaterial>,
-    highlighted_non_selected: Handle<ColorMaterial>,
-    highlighted_selected:     Handle<ColorMaterial>,
-    side_mode:                Handle<ColorMaterial>,
-    gold:                     Handle<ColorMaterial>,
-    clip_not_to_spawn:        Handle<ColorMaterial>,
-    opaque:                   Handle<ColorMaterial>
+    opaque:       Handle<ColorMaterial>,
+    non_selected: Handle<ColorMaterial>,
+    selected:     Handle<ColorMaterial>,
+    pure:         Handle<ColorMaterial>
 }
 
 impl Placeholder for Materials
@@ -100,15 +127,10 @@ impl Placeholder for Materials
     unsafe fn placeholder() -> Self
     {
         Self {
-            pure:                     Handle::default(),
-            semi_transparent:         Handle::default(),
-            selected:                 Handle::default(),
-            highlighted_non_selected: Handle::default(),
-            highlighted_selected:     Handle::default(),
-            side_mode:                Handle::default(),
-            gold:                     Handle::default(),
-            clip_not_to_spawn:        Handle::default(),
-            opaque:                   Handle::default()
+            opaque:       Handle::default(),
+            non_selected: Handle::default(),
+            selected:     Handle::default(),
+            pure:         Handle::default()
         }
     }
 }
@@ -121,45 +143,27 @@ impl Materials
     #[inline]
     fn new(handle: Handle<Image>, materials: &mut Assets<ColorMaterial>) -> Self
     {
-        /// The [`Color`]s used to draw entities.
-        const COLORS: [Color; 7] = [
-            Color::SelectedEntity,
-            Color::HighlightedNonSelectedEntity,
-            Color::HighlightedSelectedEntity,
-            Color::NonSelectedVertex,
-            Color::ClippedPolygonsToSpawn,
-            Color::OpaqueEntity,
-            Color::ClippedPolygonsNotToSpawn
-        ];
         /// The amount of materials to create.
+        const COLORS: [BevyColor; 3] = [
+            BevyColor::srgba(0.4, 0.4, 0.4, Materials::ALPHA),
+            BevyColor::srgba(0.6, 0.6, 0.6, Materials::ALPHA),
+            BevyColor::srgba(0.8, 0.8, 0.8, Materials::ALPHA)
+        ];
         const LEN: usize = COLORS.len();
 
-        let semi_transparent = materials.add(ColorMaterial {
-            color:   bevy::prelude::Color::srgba(1f32, 1f32, 1f32, Self::ALPHA),
-            texture: handle.clone_weak().into()
-        });
-        let mut iter = std::array::from_fn::<Handle<ColorMaterial>, LEN, _>(|i| {
-            let mut color = COLORS[i].default_bevy_color();
-            color.set_alpha(Self::ALPHA);
-
+        let mut iter = std::array::from_fn::<_, LEN, _>(|i| {
             materials.add(ColorMaterial {
-                color,
+                color: COLORS[i],
                 texture: handle.clone_weak().into()
             })
         })
         .into_iter();
-        let pure = materials.add(handle);
 
         Self {
-            pure,
-            semi_transparent,
-            selected: iter.next_value(),
-            highlighted_non_selected: iter.next_value(),
-            highlighted_selected: iter.next_value(),
-            side_mode: iter.next_value(),
-            gold: iter.next_value(),
-            opaque: iter.next_value(),
-            clip_not_to_spawn: iter.next_value()
+            opaque:       iter.next_value(),
+            non_selected: iter.next_value(),
+            selected:     iter.next_value(),
+            pure:         materials.add(handle)
         }
     }
 
@@ -170,18 +174,12 @@ impl Materials
             color:   bevy::prelude::Color::srgba(1f32, 1f32, 1f32, Self::ALPHA),
             texture: handle.clone_weak().into()
         });
-        let pure = materials.add(handle);
 
         Self {
-            pure:                     pure.clone(),
-            semi_transparent:         semi_transparent.clone(),
-            selected:                 semi_transparent.clone(),
-            highlighted_non_selected: semi_transparent.clone(),
-            highlighted_selected:     semi_transparent.clone(),
-            side_mode:                semi_transparent.clone(),
-            gold:                     semi_transparent.clone(),
-            opaque:                   semi_transparent.clone(),
-            clip_not_to_spawn:        semi_transparent
+            opaque:       semi_transparent.clone(),
+            non_selected: semi_transparent.clone(),
+            selected:     semi_transparent,
+            pure:         materials.add(handle)
         }
     }
 }
@@ -215,6 +213,22 @@ impl Placeholder for TextureMaterials
 
 impl TextureMaterials
 {
+    /// The [`Color`]s used to draw entities.
+    pub const COLORS: [Color; 10] = [
+        Color::NonSelectedEntity,
+        Color::SelectedEntity,
+        Color::HighlightedNonSelectedEntity,
+        Color::HighlightedSelectedEntity,
+        Color::NonSelectedVertex,
+        Color::ClippedPolygonsNotToSpawn,
+        Color::ClippedPolygonsToSpawn,
+        Color::OpaqueEntity,
+        Color::SubtractorBrush,
+        Color::SubtracteeBrush
+    ];
+
+    handles!(repeat_material, clamp_material);
+
     /// Returns a new [`TextureMaterials`].
     #[inline]
     fn new(
@@ -249,26 +263,6 @@ impl TextureMaterials
             texture:          texture.0,
             egui_id:          texture.1
         }
-    }
-
-    /// Returns the [`Handle`] of the [`ColorMaterial`] associated with `color`.
-    #[inline]
-    #[must_use]
-    fn brush_material(&self, color: Color) -> Handle<ColorMaterial>
-    {
-        match color
-        {
-            Color::NonSelectedEntity => &self.repeat_materials.semi_transparent,
-            Color::SelectedEntity | Color::SubtractorBrush => &self.repeat_materials.selected,
-            Color::HighlightedNonSelectedEntity => &self.repeat_materials.highlighted_non_selected,
-            Color::HighlightedSelectedEntity => &self.repeat_materials.highlighted_selected,
-            Color::NonSelectedVertex => &self.repeat_materials.side_mode,
-            Color::ClippedPolygonsToSpawn | Color::SubtracteeBrush => &self.repeat_materials.gold,
-            Color::ClippedPolygonsNotToSpawn => &self.repeat_materials.clip_not_to_spawn,
-            Color::OpaqueEntity => &self.repeat_materials.opaque,
-            _ => panic!("Color with no associated color material.")
-        }
-        .clone_weak()
     }
 }
 
@@ -426,7 +420,7 @@ impl DrawingResources
             sprite_highlight_mesh: meshes.add(highlight_mesh!(sprite_highlight_vxs)).into(),
             tt_label_gen: TooltipLabelGenerator::default(),
             default_material: materials.add(ColorMaterial::default()),
-            textures: Self::sort_textures(texture_loader.loaded_textures(), materials),
+            textures: Self::sort_textures(materials, texture_loader.loaded_textures()),
             error_texture: TextureMaterials::clean((err_tex, err_id), materials),
             clip_texture: materials
                 .add(asset_server.load(embedded_asset_path(CLIP_OVERLAY_TEXTURE_NAME))),
@@ -668,8 +662,8 @@ impl DrawingResources
     /// Sort the textures.
     #[inline]
     fn sort_textures(
-        mut textures: Vec<(Texture, egui::TextureId)>,
-        materials: &mut Assets<ColorMaterial>
+        materials: &mut Assets<ColorMaterial>,
+        mut textures: Vec<(Texture, egui::TextureId)>
     ) -> IndexedMap<String, TextureMaterials>
     {
         textures.sort_by(|a, b| a.0.name().cmp(b.0.name()));
@@ -688,7 +682,7 @@ impl DrawingResources
         textures: Vec<(Texture, egui::TextureId)>
     )
     {
-        let mut textures = Self::sort_textures(textures, materials);
+        let mut textures = Self::sort_textures(materials, textures);
         let mut to_remove = hv_hash_set![];
 
         for t in &self.animated_textures
@@ -839,7 +833,7 @@ impl DrawingResources
     {
         self.push_mesh(
             mesh,
-            self.texture_materials(settings.name()).brush_material(color),
+            self.texture_materials(settings.name()).repeat_material(color),
             color.height() + settings.height_f32()
         );
     }
@@ -867,10 +861,7 @@ impl DrawingResources
     {
         self.push_mesh(
             mesh,
-            self.texture_materials(settings.name())
-                .clamp_materials
-                .semi_transparent
-                .clone_weak(),
+            self.texture_materials(settings.name()).clamp_material(color),
             color.height() + settings.height_f32()
         );
     }
@@ -900,7 +891,7 @@ impl DrawingResources
         self.push_mesh(
             mesh,
             self.texture_materials(self.texture_or_error(catalog.texture(thing.thing())).name())
-                .brush_material(color),
+                .repeat_material(color),
             color.height() + thing.draw_height_f32()
         );
     }

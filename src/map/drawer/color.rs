@@ -5,7 +5,7 @@
 
 use bevy::{
     asset::{Assets, Handle},
-    color::{Alpha, Color as BevyColor, Srgba},
+    color::{Alpha, Srgba},
     sprite::ColorMaterial
 };
 use bevy_egui::egui;
@@ -14,6 +14,7 @@ use hashbrown::HashMap;
 use hill_vacuum_proc_macros::{color_enum, EnumFromUsize, EnumIter, EnumSize};
 use hill_vacuum_shared::{match_or_panic, return_if_none};
 
+use super::BevyColor;
 use crate::{config::IniConfig, utils::containers::hv_vec};
 
 //=======================================================================//
@@ -419,14 +420,13 @@ impl ColorResources
         f: F
     ) -> ColorHandles
     {
-        match self
-            .0
+        self.0
             .iter()
             .find_map(|(color, slot)| f(*color, slot).then_some(*color))
-        {
-            Some(from_color) => self.get(from_color).handles.clone(),
-            None => ColorHandles::new(materials, color, bevy_color)
-        }
+            .map_or_else(
+                || ColorHandles::new(materials, color, bevy_color),
+                |from_color| self.get(from_color).handles.clone()
+            )
     }
 
     /// Returns the [`bevy::color::Color`] associated with `color`.
@@ -505,7 +505,7 @@ impl ColorResources
 
     /// Shows the color customization options.
     #[inline]
-    pub fn show(&mut self, materials: &mut Assets<ColorMaterial>, ui: &mut egui::Ui)
+    pub(in crate::map) fn show(&mut self, materials: &mut Assets<ColorMaterial>, ui: &mut egui::Ui)
     {
         let mut changed = None;
         let mut iter = Color::customizable_colors();
@@ -547,7 +547,7 @@ impl ColorResources
 
     /// Resets to the default colors.
     #[inline]
-    pub fn reset(&mut self, materials: &mut Assets<ColorMaterial>)
+    pub(in crate::map) fn reset(&mut self, materials: &mut Assets<ColorMaterial>)
     {
         for color in Color::customizable_colors()
         {
