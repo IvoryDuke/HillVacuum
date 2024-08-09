@@ -2832,7 +2832,7 @@ impl EntitiesManager
         self.auxiliary.replace_values(&self.innards.selected_brushes);
         let mut iter = self.auxiliary.iter();
 
-        for id in iter.by_ref()
+        for id in &mut iter
         {
             let brush = self.brush(*id);
 

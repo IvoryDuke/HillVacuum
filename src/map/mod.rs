@@ -649,7 +649,7 @@ pub(in crate::map) mod ui_mod
         let mut index = None;
         let mut add_escape = false;
 
-        for (i, ev) in iter.by_ref()
+        for (i, ev) in &mut iter
         {
             let (key, modifiers) = continue_if_no_match!(
                 ev,

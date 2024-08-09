@@ -189,7 +189,7 @@ impl ThingTool
         let things = manager.visible_things(window, camera, drawer.grid());
         let mut things = things.iter();
 
-        for thing in things.by_ref()
+        for thing in &mut things
         {
             let id = thing.id();
 

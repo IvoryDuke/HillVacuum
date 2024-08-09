@@ -510,7 +510,7 @@ impl ColorResources
         let mut changed = None;
         let mut iter = Color::customizable_colors();
 
-        for color in iter.by_ref()
+        for color in &mut iter
         {
             let slot = self.0.get_mut(&color).unwrap();
 

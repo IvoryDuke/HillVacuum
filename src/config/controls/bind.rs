@@ -30,7 +30,8 @@ bind_enum!(
     ToggleCollision,
     TextureEditor,
     PropertiesEditor,
-    Settings
+    Settings,
+    EditsHistory
 );
 
 impl Bind
@@ -79,7 +80,8 @@ impl Bind
             Self::Paint => KeyCode::KeyP,
             Self::Thing => KeyCode::KeyG,
             Self::PropertiesEditor => KeyCode::KeyO,
-            Self::Settings => KeyCode::Comma
+            Self::Settings => KeyCode::Comma,
+            Self::EditsHistory => KeyCode::Semicolon
         }
     }
 

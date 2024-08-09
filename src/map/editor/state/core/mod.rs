@@ -132,7 +132,7 @@ macro_rules! draw_selected_and_non_selected {
         let entities = $manager.[< visible_ $entities >](window, camera, drawer.grid());
         let mut entities = entities.iter()$(.filter_set_with_predicate($filters, |brush| brush.id()))?;
 
-        for entity in entities.by_ref()
+        for entity in &mut entities
         {
             let id = crate::utils::identifiers::EntityId::id(entity);
 
@@ -1116,7 +1116,7 @@ fn draw_non_selected_brushes(bundle: &mut DrawBundle, manager: &EntitiesManager)
     let brushes = manager.visible_brushes(window, camera, drawer.grid());
     let mut brushes = brushes.iter();
 
-    for brush in brushes.by_ref()
+    for brush in &mut brushes
     {
         let id = brush.id();
 

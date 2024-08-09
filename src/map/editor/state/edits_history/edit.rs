@@ -22,16 +22,25 @@ use crate::{
 
 /// A map edit which can be undone and redone, and be made of multiple sub-edits.
 #[derive(Debug)]
-pub(in crate::map::editor::state::edits_history) struct Edit(
-    HvVec<(HvVec<Id>, EditType)>,
-    Option<String>
-);
+pub(in crate::map::editor::state::edits_history) struct Edit
+{
+    edits:    HvVec<(HvVec<Id>, EditType)>,
+    property: Option<String>,
+    tag:      String
+}
 
 impl Default for Edit
 {
     #[inline]
     #[must_use]
-    fn default() -> Self { Self(hv_vec![], None) }
+    fn default() -> Self
+    {
+        Self {
+            edits:    hv_vec![],
+            property: None,
+            tag:      String::new()
+        }
+    }
 }
 
 impl Edit
@@ -42,7 +51,12 @@ impl Edit
     /// The amount of sub-edits the edit is made of.
     #[inline]
     #[must_use]
-    pub fn len(&self) -> usize { self.0.len() }
+    pub fn tag(&self) -> &str { &self.tag }
+
+    /// The amount of sub-edits the edit is made of.
+    #[inline]
+    #[must_use]
+    pub fn len(&self) -> usize { self.edits.len() }
 
     /// Whether `self` contains no sub-edits.
     #[inline]
@@ -53,24 +67,27 @@ impl Edit
     /// unchanged.
     #[inline]
     #[must_use]
-    pub fn contains_tool_edit(&self) -> bool { self.0.iter().any(|(_, et)| et.tool_edit()) }
+    pub fn contains_tool_edit(&self) -> bool { self.edits.iter().any(|(_, et)| et.tool_edit()) }
 
     /// Whether `self` contains a texture sub-edit.
     #[inline]
     #[must_use]
-    pub fn contains_texture_edit(&self) -> bool { self.0.iter().any(|(_, et)| et.texture_edit()) }
+    pub fn contains_texture_edit(&self) -> bool
+    {
+        self.edits.iter().any(|(_, et)| et.texture_edit())
+    }
 
     /// Whether `self` contains a thing edit.
     #[inline]
     #[must_use]
-    pub fn contains_thing_edit(&self) -> bool { self.0.iter().any(|(_, et)| et.thing_edit()) }
+    pub fn contains_thing_edit(&self) -> bool { self.edits.iter().any(|(_, et)| et.thing_edit()) }
 
     /// Whether `self` contains a free draw sub-edit.
     #[inline]
     #[must_use]
     pub fn contains_free_draw_edit(&self) -> bool
     {
-        self.0.iter().any(|(_, et)| {
+        self.edits.iter().any(|(_, et)| {
             matches!(et, EditType::FreeDrawPointInsertion(..) | EditType::FreeDrawPointDeletion(..))
         })
     }
@@ -85,7 +102,7 @@ impl Edit
             return false;
         }
 
-        self.0
+        self.edits
             .iter()
             .all(|(_, et)| matches!(et, EditType::EntitySelection | EditType::EntityDeselection))
     }
@@ -96,7 +113,7 @@ impl Edit
     pub fn only_contains_selection_edits(&self) -> bool
     {
         self.only_contains_entity_selection_edits() ||
-            self.0.iter().all(|(_, et)| {
+            self.edits.iter().all(|(_, et)| {
                 matches!(
                     et,
                     EditType::VertexesSelection(_) |
@@ -147,7 +164,7 @@ impl Edit
                 EditType::SubtracteeSelection |
                 EditType::SubtracteeDeselection |
                 EditType::BrushMove(..) |
-                EditType::Flip(..) |
+                EditType::BrushFlip(..) |
                 EditType::FreeDrawPointInsertion(..) |
                 EditType::FreeDrawPointDeletion(..) |
                 EditType::ThingMove(_) |
@@ -159,9 +176,9 @@ impl Edit
                 EditType::ListAnimationTexture(..) |
                 EditType::ListAnimationTime(..) |
                 EditType::ListAnimationFrameRemoval(..) |
-                EditType::AnimationMoveDown(..) |
-                EditType::AnimationMoveUp(..) |
-                EditType::Property(..)
+                EditType::ListAnimationFrameMoveDown(..) |
+                EditType::ListAnimationFrameMoveUp(..) |
+                EditType::PropertyChange(..)
         )
         {
             assert!(
@@ -177,13 +194,15 @@ impl Edit
             matches!(edit, EditType::BrushDespawn(..))
         };
 
+        self.push_tag(edit.tag());
+
         if !despawn
         {
-            self.0.push((identifiers, edit));
+            self.edits.push((identifiers, edit));
             return;
         }
 
-        self.0.insert(0, (identifiers, edit));
+        self.edits.insert(0, (identifiers, edit));
     }
 
     /// Pushes a property sub-edit.
@@ -191,33 +210,45 @@ impl Edit
     pub fn push_property(&mut self, key: &str, iter: impl Iterator<Item = (Id, Value)>)
     {
         assert!(
-            std::mem::replace(&mut self.1, key.to_owned().into()).is_none(),
+            std::mem::replace(&mut self.property, key.to_owned().into()).is_none(),
             "Property edit already stored."
         );
 
+        self.push_tag("Property Change");
+
         for (id, value) in iter
         {
-            self.0.push((hv_vec![id], EditType::Property(value)));
+            self.edits.push((hv_vec![id], EditType::PropertyChange(value)));
         }
+    }
+
+    fn push_tag(&mut self, tag: &str)
+    {
+        if !self.tag.is_empty()
+        {
+            self.tag.push('\n');
+        }
+
+        self.tag.push_str(tag);
     }
 
     /// Remove all contained sub-edits.
     #[inline]
-    pub fn clear(&mut self) { self.0.clear(); }
+    pub fn clear(&mut self) { self.edits.clear(); }
 
     /// Removes all free draw sub-edits.
     #[inline]
     #[must_use]
     pub fn purge_free_draw_edits(&mut self) -> bool
     {
-        self.0.retain_mut(|x| {
+        self.edits.retain_mut(|x| {
             !matches!(
                 x.1,
                 EditType::FreeDrawPointInsertion(..) | EditType::FreeDrawPointDeletion(..)
             )
         });
 
-        self.0.is_empty()
+        self.edits.is_empty()
     }
 
     /// Removes all the sub-edits that were only useful to the previously active tool.
@@ -225,7 +256,7 @@ impl Edit
     #[must_use]
     pub fn purge_tools_edits(&mut self) -> bool
     {
-        self.0.retain_mut(|x| {
+        self.edits.retain_mut(|x| {
             if matches!(
                 x.1,
                 EditType::VertexesSelection(_) |
@@ -239,7 +270,7 @@ impl Edit
 
             match &mut x.1
             {
-                EditType::BrushDraw(data) =>
+                EditType::DrawnBrush(data) =>
                 {
                     x.1 = EditType::BrushSpawn(std::mem::take(data), true);
                 },
@@ -248,7 +279,7 @@ impl Edit
                     x.1 = EditType::BrushDespawn(std::mem::take(data), true);
                 },
                 EditType::PolygonEdit(cp) => cp.deselect_vertexes_no_indexes(),
-                EditType::ThingDraw(thing) =>
+                EditType::DrawnThing(thing) =>
                 {
                     x.1 = EditType::ThingSpawn(std::mem::take(thing));
                 },
@@ -262,7 +293,7 @@ impl Edit
             true
         });
 
-        self.0.is_empty()
+        self.edits.is_empty()
     }
 
     /// Removes all the texture sub-edits.
@@ -270,8 +301,8 @@ impl Edit
     #[must_use]
     pub fn purge_texture_edits(&mut self) -> bool
     {
-        self.0.retain_mut(|x| !x.1.texture_edit());
-        self.0.is_empty()
+        self.edits.retain_mut(|x| !x.1.texture_edit());
+        self.edits.is_empty()
     }
 
     /// Purges all things edits.
@@ -279,8 +310,8 @@ impl Edit
     #[must_use]
     pub fn purge_thing_edits(&mut self) -> bool
     {
-        self.0.retain_mut(|x| !x.1.thing_edit());
-        self.0.is_empty()
+        self.edits.retain_mut(|x| !x.1.thing_edit());
+        self.edits.is_empty()
     }
 
     /// Triggers the undo procedures of the sub-edits in the reverse order they were stored.
@@ -292,9 +323,9 @@ impl Edit
         ui: &mut Ui
     )
     {
-        for (ids, ed_type) in self.0.iter_mut().rev()
+        for (ids, ed_type) in self.edits.iter_mut().rev()
         {
-            ed_type.undo(interface, drawing_resources, ui, ids, self.1.as_ref());
+            ed_type.undo(interface, drawing_resources, ui, ids, self.property.as_ref());
         }
     }
 
@@ -307,9 +338,9 @@ impl Edit
         ui: &mut Ui
     )
     {
-        for (ids, ed_type) in &mut self.0
+        for (ids, ed_type) in &mut self.edits
         {
-            ed_type.redo(interface, drawing_resources, ui, ids, self.1.as_ref());
+            ed_type.redo(interface, drawing_resources, ui, ids, self.property.as_ref());
         }
     }
 }

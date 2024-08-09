@@ -1270,7 +1270,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         fn next(&mut self) -> Option<Self::Item>
         {
-            for (i, node) in self.nodes.by_ref()
+            for (i, node) in &mut self.nodes
             {
                 if !node
                     .world_pos(self.center)

@@ -226,7 +226,7 @@ impl SettingsWindow
 
                         if let Some((b, blink)) = self.bind_edit.update(*delta_time)
                         {
-                            for bind in iter.by_ref()
+                            for bind in &mut iter
                             {
                                 if bind == b
                                 {

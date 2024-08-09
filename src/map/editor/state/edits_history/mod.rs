@@ -6,12 +6,13 @@ pub(in crate::map::editor::state) mod edit_type;
 //
 //=======================================================================//
 
+use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_shared::{continue_if_none, return_if_none};
 
 use self::{edit::Edit, edit_type::EditType};
 use super::{
-    core::{draw_tool::cursor_polygon::FreeDrawStatus, tool::EditingTarget},
+    core::{draw_tool::cursor_polygon::FreeDrawStatus, tool::EditingTarget, Core},
     manager::EntitiesManager,
     ui::Ui
 };
@@ -151,9 +152,9 @@ macro_rules! purge {
 
                 self.stack.remove(i);
 
-                if i < self.prev_states_amount
+                if i < self.index
                 {
-                    self.prev_states_amount -= 1;
+                    self.index -= 1;
                 }
 
                 for j in [&mut self.earliest_tool_edit, &mut self.[< earliest_ $other _edit >]].into_iter().flatten()
@@ -184,7 +185,7 @@ pub(in crate::map::editor::state) struct EditsHistory
     /// Whether an edit lasting more than a frame is happening.
     multiframe_edit: bool,
     /// The amount of states we can undo.
-    prev_states_amount: usize,
+    index: usize,
     /// The index of the earliest tool edit, if any.
     earliest_tool_edit: Option<usize>,
     /// The index of the earliest texture edit, if any.
@@ -207,7 +208,7 @@ impl Default for EditsHistory
             stack: hv_vec![capacity; 100],
             current_edit: Edit::default(),
             multiframe_edit: false,
-            prev_states_amount: 0,
+            index: 0,
             earliest_tool_edit: None,
             earliest_thing_edit: None,
             earliest_texture_edit: None,
@@ -224,7 +225,7 @@ impl EditsHistory
 
     #[rustfmt::skip]
     push_edit!(
-        (brush_draw, (identifier: Id), (hv_vec![identifier], EditType::BrushDraw(None))),
+        (brush_draw, (identifier: Id), (hv_vec![identifier], EditType::DrawnBrush(None))),
 		(brush_spawn, (identifier: Id, selected: bool), (hv_vec![identifier], EditType::BrushSpawn(None, selected))),
         (drawn_brush_despawn, (brush: Brush), (hv_vec![brush.id()], EditType::DrawnBrushDespawn(Some(brush.into_parts().0)))),
         (polygon_edit, (identifier: Id, polygon: ConvexPolygon), (hv_vec![identifier], EditType::PolygonEdit(polygon))),
@@ -246,18 +247,18 @@ impl EditsHistory
         (path_nodes_standby_time, (identifier: Id, edit: StandbyValueEdit), (hv_vec![identifier], EditType::PathNodeStandby(edit))),
         (path_nodes_max_speed, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeMaxSpeed(edit))),
         (path_nodes_min_speed, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeMinSpeed(edit))),
-        (path_nodes_accel_travel_percentage, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeAccel(edit))),
-        (path_nodes_decel_travel_percentage, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeDecel(edit))),
-        (anchor, (identifier: Id, anchor: Id), (hv_vec![identifier], EditType::Anchor(anchor))),
-        (disanchor, (identifier: Id, anchor: Id), (hv_vec![identifier], EditType::Disanchor(anchor))),
-        (thing_draw, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::ThingDraw(thing.into()))),
+        (path_nodes_accel_travel_percentage, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeAcceleration(edit))),
+        (path_nodes_decel_travel_percentage, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeDeceleration(edit))),
+        (anchor, (identifier: Id, anchor: Id), (hv_vec![identifier], EditType::BrushAnchor(anchor))),
+        (disanchor, (identifier: Id, anchor: Id), (hv_vec![identifier], EditType::BrushDisanchor(anchor))),
+        (thing_draw, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::DrawnThing(thing.into()))),
         (drawn_thing_despawn, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::DrawnThingDespawn(thing.into()))),
         (thing_spawn, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::ThingSpawn(thing.into()))),
         (thing_despawn, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::ThingDespawn(thing.into()))),
         (thing_change, (identifier: Id, thing: ThingId), (hv_vec![identifier], EditType::ThingChange(thing))),
         (thing_draw_height, (identifier: Id, height: i8), (hv_vec![identifier], EditType::ThingHeight(height))),
         (thing_angle, (identifier: Id, angle: f32), (hv_vec![identifier], EditType::ThingAngle(angle))),
-        (texture, (identifier: Id, texture: Option<String>), (hv_vec![identifier], EditType::Texture(texture))),
+        (texture, (identifier: Id, texture: Option<String>), (hv_vec![identifier], EditType::TextureChange(texture))),
         (texture_removal, (identifier: Id, texture: TextureSettings), (hv_vec![identifier], EditType::TextureRemoval(Some(texture)))),
         (texture_offset_x, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureOffsetX(value))),
         (texture_offset_y, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureOffsetY(value))),
@@ -270,15 +271,15 @@ impl EditsHistory
         (texture_parallax_y, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureParallaxY(value))),
         (texture_angle, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureAngle(value))),
         (texture_height, (identifier: Id, value: i8), (hv_vec![identifier], EditType::TextureHeight(value))),
-        (sprite, (identifier: Id, value: Sprite, offset_x: f32, offset_y: f32), (hv_vec![identifier], EditType::Sprite(value, offset_x, offset_y))),
-        (animation, (identifier: Id, animation: Animation), (hv_vec![identifier], EditType::Animation(animation))),
-        (atlas_x, (identifier: Id, x: u32), (hv_vec![identifier], EditType::AtlasAnimationX(x))),
-        (atlas_y, (identifier: Id, y: u32), (hv_vec![identifier], EditType::AtlasAnimationY(y))),
+        (sprite, (identifier: Id, value: Sprite, offset_x: f32, offset_y: f32), (hv_vec![identifier], EditType::SpriteToggle(value, offset_x, offset_y))),
+        (animation, (identifier: Id, animation: Animation), (hv_vec![identifier], EditType::AnimationChange(animation))),
+        (atlas_x, (identifier: Id, x: u32), (hv_vec![identifier], EditType::AtlasAnimationColumns(x))),
+        (atlas_y, (identifier: Id, y: u32), (hv_vec![identifier], EditType::AtlasAnimationRows(y))),
         (atlas_len, (identifier: Id, len: usize), (hv_vec![identifier], EditType::AtlasAnimationLen(len))),
         (atlas_timing, (identifier: Id, timing: Timing), (hv_vec![identifier], EditType::AtlasAnimationTiming(timing.into()))),
         (atlas_uniform_time, (identifier: Id, time: f32), (hv_vec![identifier], EditType::AtlasAnimationUniformTime(time))),
         (atlas_frame_time, (identifier: Id, value: (usize, f32)), (hv_vec![identifier], EditType::AtlasAnimationFrameTime(value.0, value.1))),
-        (collision, (identifier: Id, value: bool), (hv_vec![identifier], EditType::Collision(value)))
+        (collision, (identifier: Id, value: bool), (hv_vec![identifier], EditType::CollisionToggle(value)))
 	);
 
     #[rustfmt::skip]
@@ -327,12 +328,12 @@ impl EditsHistory
 
     #[rustfmt::skip]
     push_with_amount_assertion!(
-        (flip, (flip: Flip, flip_texture: bool), EditType::Flip(flip, flip_texture)),
+        (flip, (flip: Flip, flip_texture: bool), EditType::BrushFlip(flip, flip_texture)),
         (texture_angle_delta, (delta: f32), EditType::TextureAngleDelta(delta)),
         (texture_flip, (y: bool), EditType::TextureFlip(y)),
         (texture_scale_delta, (delta: Vec2), EditType::TextureScaleDelta(delta)),
-        (animation_move_up, (index: usize, atlas: bool), EditType::AnimationMoveUp(index, atlas)),
-        (animation_move_down, (index: usize, atlas: bool), EditType::AnimationMoveDown(index, atlas)),
+        (animation_move_up, (index: usize, atlas: bool), EditType::ListAnimationFrameMoveUp(index, atlas)),
+        (animation_move_down, (index: usize, atlas: bool), EditType::ListAnimationFrameMoveDown(index, atlas)),
         (list_animation_time, (index: usize, time: f32), EditType::ListAnimationTime(index, time)),
         (list_animation_new_frame, (texture: &str), EditType::ListAnimationNewFrame(texture.to_owned())),
         (list_animation_texture, (index: usize, texture: String), EditType::ListAnimationTexture(index, texture)),
@@ -566,13 +567,13 @@ impl EditsHistory
             self.selections_only_edit_halted
         );
 
-        if self.prev_states_amount != self.stack.len()
+        if self.index != self.stack.len()
         {
-            self.stack.truncate(self.prev_states_amount);
+            self.stack.truncate(self.index);
 
             if let Some(idx) = self.last_save_edit
             {
-                if idx > self.prev_states_amount
+                if idx > self.index
                 {
                     self.last_save_edit = None;
                 }
@@ -606,7 +607,7 @@ impl EditsHistory
         }
 
         self.stack.push(std::mem::take(&mut self.current_edit));
-        self.prev_states_amount += 1;
+        self.index += 1;
     }
 
     /// Pushes the current [`Edit`] on the history unless it is empty, or it is not concluded, or if
@@ -620,7 +621,7 @@ impl EditsHistory
         }
 
         if self.selections_only_edit_halted ||
-            (self.prev_states_amount != self.stack.len() &&
+            (self.index != self.stack.len() &&
                 self.current_edit.only_contains_entity_selection_edits())
         {
             self.selections_only_edit_halted = true;
@@ -686,9 +687,9 @@ impl EditsHistory
 
             self.stack.remove(i);
 
-            if i < self.prev_states_amount
+            if i < self.index
             {
-                self.prev_states_amount -= 1;
+                self.index -= 1;
             }
         }
     }
@@ -714,9 +715,9 @@ impl EditsHistory
 
             self.stack.remove(i);
 
-            if i < self.prev_states_amount
+            if i < self.index
             {
-                self.prev_states_amount -= 1;
+                self.index -= 1;
             }
         }
     }
@@ -751,7 +752,7 @@ impl EditsHistory
         {
             Some(idx) =>
             {
-                if idx == self.prev_states_amount
+                if idx == self.index
                 {
                     return true;
                 }
@@ -761,15 +762,19 @@ impl EditsHistory
             None => 0
         };
 
-        (idx..self.prev_states_amount).all(|i| self.stack[i].contains_free_draw_edit())
+        (idx..self.index).all(|i| self.stack[i].contains_free_draw_edit())
     }
 
     /// Sets the current edit to be the one of the last save.
     #[inline]
-    pub fn reset_last_save_edit(&mut self) { self.last_save_edit = self.prev_states_amount.into(); }
+    pub fn reset_last_save_edit(&mut self) { self.last_save_edit = self.index.into(); }
 
     //=======================================================================//
     // Info
+
+    #[inline]
+    #[must_use]
+    pub const fn index(&self) -> usize { self.index }
 
     /// Whether there is no ongoing edit.
     #[inline]
@@ -790,7 +795,7 @@ impl EditsHistory
     )
     {
         // Nothing to be undone.
-        if self.prev_states_amount == 0
+        if self.index == 0
         {
             return;
         }
@@ -800,9 +805,9 @@ impl EditsHistory
             self.force_push_frame_edit();
         }
 
-        self.prev_states_amount -= 1;
+        self.index -= 1;
 
-        let edit = &mut self.stack[self.prev_states_amount];
+        let edit = &mut self.stack[self.index];
         edit.undo(interface, drawing_resources, ui);
 
         if edit.only_contains_selection_edits()
@@ -823,7 +828,7 @@ impl EditsHistory
         ui: &mut Ui
     )
     {
-        if self.prev_states_amount == self.stack.len()
+        if self.index == self.stack.len()
         {
             return;
         }
@@ -835,7 +840,7 @@ impl EditsHistory
             self.selections_only_edit_halted = false;
         }
 
-        let edit = &mut self.stack[self.prev_states_amount];
+        let edit = &mut self.stack[self.index];
         edit.redo(interface, drawing_resources, ui);
 
         if edit.only_contains_selection_edits()
@@ -846,6 +851,97 @@ impl EditsHistory
             }
         }
 
-        self.prev_states_amount += 1;
+        self.index += 1;
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn show(&self, ui: &mut egui::Ui, core: &Core) -> Option<usize>
+    {
+        #[inline]
+        fn set_post_index_visuals(ui: &mut egui::Ui)
+        {
+            let visuals = &mut ui.visuals_mut().widgets.inactive;
+            visuals.weak_bg_fill = egui::Color32::from_gray(visuals.weak_bg_fill.r() - 20);
+        }
+
+        // Cannot undo/redo.
+        if !core.undo_redo_available()
+        {
+            ui.add_enabled(false, egui::Button::new("Opened Map"));
+
+            for ed in &self.stack
+            {
+                ui.add_enabled(false, egui::Button::new(ed.tag()));
+            }
+
+            return None;
+        }
+
+        // Clicked the first, no point in doing special handling.
+        if ui.add(egui::Button::new("Opened Map")).clicked()
+        {
+            set_post_index_visuals(ui);
+
+            for edit in &self.stack
+            {
+                _ = ui.button(edit.tag());
+            }
+
+            return 0.into();
+        }
+
+        let mut clicked = None;
+        let mut i = 0;
+
+        while i < self.index
+        {
+            if ui.button(self.stack[i].tag()).clicked()
+            {
+                clicked = (i + 1).into();
+                i += 1;
+                break;
+            }
+
+            i += 1;
+        }
+
+        while i < self.index
+        {
+            _ = ui.button(self.stack[i].tag());
+            i += 1;
+        }
+
+        set_post_index_visuals(ui);
+
+        // One button was clicked, quickly draw the others.
+        if clicked.is_some()
+        {
+            for ed in self.stack.iter().skip(self.index)
+            {
+                _ = ui.button(ed.tag());
+            }
+        }
+        else
+        {
+            // No button clicked, check the remaining ones.
+            let mut iter = self.stack.iter().enumerate().skip(self.index);
+
+            for (i, ed) in &mut iter
+            {
+                if ui.button(ed.tag()).clicked()
+                {
+                    clicked = (i + 1).into();
+                    break;
+                }
+            }
+
+            for (_, ed) in iter
+            {
+                _ = ui.button(ed.tag());
+            }
+        }
+
+        clicked
     }
 }

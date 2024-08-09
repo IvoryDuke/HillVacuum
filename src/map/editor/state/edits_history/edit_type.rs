@@ -101,7 +101,7 @@ impl BrushType
 pub(in crate::map::editor::state::edits_history) enum EditType
 {
     /// Drawn brush.
-    BrushDraw(Option<BrushData>),
+    DrawnBrush(Option<BrushData>),
     /// Drawn brush despawned.
     DrawnBrushDespawn(Option<BrushData>),
     /// Brush spawned.
@@ -137,10 +137,10 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     /// Vertexes snapped to grid.
     VertexesSnap(HvVec<(HvVec<u8>, Vec2)>),
     /// Polygons flipped.
-    Flip(Flip, bool),
-    /// Motor created.
+    BrushFlip(Flip, bool),
+    /// Path created.
     PathCreation(Option<Path>),
-    /// Motor deleted.
+    /// Path deleted.
     PathDeletion(Option<Path>),
     /// Path nodes selection.
     PathNodesSelection(HvVec<u8>),
@@ -155,19 +155,19 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     /// Changed path node standby time.
     PathNodeStandby(StandbyValueEdit),
     /// Changed path node acceleration percentage.
-    PathNodeAccel(MovementValueEdit),
+    PathNodeAcceleration(MovementValueEdit),
     /// Changed path node deceleration percentage.
-    PathNodeDecel(MovementValueEdit),
+    PathNodeDeceleration(MovementValueEdit),
     /// Changed path node max speed.
     PathNodeMaxSpeed(MovementValueEdit),
     /// Changed path node minimum speed.
     PathNodeMinSpeed(MovementValueEdit),
     /// Brush anchored.
-    Anchor(Id),
+    BrushAnchor(Id),
     /// Brush disachored.
-    Disanchor(Id),
+    BrushDisanchor(Id),
     /// Thing drawn on map.
-    ThingDraw(Option<ThingInstanceData>),
+    DrawnThing(Option<ThingInstanceData>),
     /// Drawn thing despawned.
     DrawnThingDespawn(Option<ThingInstanceData>),
     /// Thing spawned.
@@ -183,11 +183,11 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     /// Thing angle change.
     ThingAngle(f32),
     /// Brush texture change.
-    Texture(Option<String>),
+    TextureChange(Option<String>),
     /// Brush texture removed.
     TextureRemoval(Option<TextureSettings>),
     /// Toggled sprite setting of texture.
-    Sprite(Sprite, f32, f32),
+    SpriteToggle(Sprite, f32, f32),
     /// Texture flip, true -> vertical, false -> horizontal.
     TextureFlip(bool),
     /// Texture scaled with specified delta.
@@ -219,11 +219,11 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     /// Texture draw height change.
     TextureHeight(i8),
     /// Texture animation change.
-    Animation(Animation),
+    AnimationChange(Animation),
     /// Texture animation frame info moved up. true -> atlas, false -> list.
-    AnimationMoveUp(usize, bool),
+    ListAnimationFrameMoveUp(usize, bool),
     /// Texture animation frame info moved down. true -> atlas, false -> list.
-    AnimationMoveDown(usize, bool),
+    ListAnimationFrameMoveDown(usize, bool),
     /// List animation frame addition.
     ListAnimationNewFrame(String),
     /// List animation frame texture change.
@@ -233,9 +233,9 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     /// List animation frame removal.
     ListAnimationFrameRemoval(usize, String, f32),
     /// Atlas animation x partitioning change.
-    AtlasAnimationX(u32),
+    AtlasAnimationColumns(u32),
     /// Atlas animation y partitioning change.
-    AtlasAnimationY(u32),
+    AtlasAnimationRows(u32),
     /// Atlas animation frames length change.
     AtlasAnimationLen(usize),
     /// Atlas animation [`Timing`] change.
@@ -271,13 +271,115 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     /// Default atlas animation frame time change.
     TAtlasAnimationFrameTime(String, usize, f32),
     /// Brush collision change.
-    Collision(bool),
+    CollisionToggle(bool),
     /// Entity property change.
-    Property(Value)
+    PropertyChange(Value)
 }
 
 impl EditType
 {
+    #[inline]
+    #[must_use]
+    pub const fn tag(&self) -> &'static str
+    {
+        match self
+        {
+            EditType::DrawnBrush(..) => "Drawn Brush",
+            EditType::DrawnBrushDespawn(..) => "Drawn Brush Despawn",
+            EditType::BrushSpawn(..) => "Brush Spawn",
+            EditType::BrushDespawn(..) => "Brush Despawn",
+            EditType::EntitySelection => "Entity Selection",
+            EditType::EntityDeselection => "Entity Deselection",
+            EditType::SubtracteeSelection => "Subtractee Selection",
+            EditType::SubtracteeDeselection => "Subtractee Deselection",
+            EditType::PolygonEdit(..) => "Polygon Edit",
+            EditType::BrushMove(..) => "Brush Move",
+            EditType::FreeDrawPointInsertion(..) => "Free Draw Point Insertion",
+            EditType::FreeDrawPointDeletion(..) => "Free Draw Point Deletion",
+            EditType::VertexInsertion(..) => "Vertex Insertion",
+            EditType::VertexesDeletion(..) => "Vertexes Deletion",
+            EditType::VertexesMove(..) => "Vertexes Move",
+            EditType::SidesDeletion(..) => "Sides Deletion",
+            EditType::VertexesSelection(..) => "Vertexes Selection",
+            EditType::VertexesSnap(..) => "Vertexes Snap",
+            EditType::BrushFlip(..) => "Brush Flip",
+            EditType::PathCreation(..) => "Path Creation",
+            EditType::PathDeletion(..) => "Path Deletion",
+            EditType::PathNodesSelection(..) => "Path Nodes Selection",
+            EditType::PathNodeInsertion(..) => "Path Node Insertion",
+            EditType::PathNodesMove(..) => "Path Nodes Move",
+            EditType::PathNodesDeletion(..) => "Path Nodes Deletion",
+            EditType::PathNodesSnap(..) => "Path Nodes Snap",
+            EditType::PathNodeStandby(..) => "Path Node Standby",
+            EditType::PathNodeAcceleration(..) => "Path Node Acceleration",
+            EditType::PathNodeDeceleration(..) => "Path Node Deceleration",
+            EditType::PathNodeMaxSpeed(..) => "Path Node Max Speed",
+            EditType::PathNodeMinSpeed(..) => "Path Node Min Speed",
+            EditType::BrushAnchor(..) => "Brush Anchor",
+            EditType::BrushDisanchor(..) => "Brush Disanchor",
+            EditType::DrawnThing(..) => "Drawn Thing",
+            EditType::DrawnThingDespawn(..) => "Drawn Thing Despawn",
+            EditType::ThingSpawn(..) => "Thing Spawn",
+            EditType::ThingDespawn(..) => "Thing Despawn",
+            EditType::ThingMove(..) => "Thing Move",
+            EditType::ThingChange(..) => "Thing Change",
+            EditType::ThingHeight(..) => "Thing Height",
+            EditType::ThingAngle(..) => "Thing Angle",
+            EditType::TextureChange(..) => "Texture",
+            EditType::TextureRemoval(..) => "Texture Removal",
+            EditType::SpriteToggle(..) => "Sprite Toggle",
+            EditType::TextureFlip(..) => "Texture Flip",
+            EditType::TextureScaleDelta(..) => "Texture Scale",
+            EditType::TextureScaleX(..) => "Texture Scale X",
+            EditType::TextureScaleY(..) => "Texture Scale Y",
+            EditType::TextureScaleFlip(..) => "Texture Scale Flip",
+            EditType::TextureOffsetX(..) => "Texture Offset X",
+            EditType::TextureOffsetY(..) => "Texture Offset Y",
+            EditType::TextureScrollX(..) => "Texture Scroll X",
+            EditType::TextureScrollY(..) => "Texture Scroll Y",
+            EditType::TextureParallaxX(..) => "Texture Parallax X",
+            EditType::TextureParallaxY(..) => "Texture Parallax Y",
+            EditType::TextureMove(..) => "Texture Move",
+            EditType::TextureAngle(..) => "Texture Angle",
+            EditType::TextureAngleDelta(..) => "Texture Rotation",
+            EditType::TextureHeight(..) => "Texture Height",
+            EditType::AnimationChange(..) => "Animation Change",
+            EditType::ListAnimationFrameMoveUp(..) => "List Animation Frame Move Up",
+            EditType::ListAnimationFrameMoveDown(..) => "List Animation Frame Move Down",
+            EditType::ListAnimationNewFrame(..) => "List Animation New Frame",
+            EditType::ListAnimationTexture(..) => "List Animation Texture",
+            EditType::ListAnimationTime(..) => "List Animation Time",
+            EditType::ListAnimationFrameRemoval(..) => "List Animation Frame Removal",
+            EditType::AtlasAnimationColumns(..) => "Atlas Animation Columns",
+            EditType::AtlasAnimationRows(..) => "Atlas Animation Rows",
+            EditType::AtlasAnimationLen(..) => "Atlas Animation Length",
+            EditType::AtlasAnimationTiming(..) => "Atlas Animation Timing",
+            EditType::AtlasAnimationUniformTime(..) => "Atlas Animation Uniform Time",
+            EditType::AtlasAnimationFrameTime(..) => "Atlas Animation Frame Time",
+            EditType::TAnimation(..) => "Texture Default Animation",
+            EditType::TAnimationMoveUp(..) => "Texture Default Animation Move Up",
+            EditType::TAnimationMoveDown(..) => "Texture Default Animation Move Down",
+            EditType::TListAnimationNewFrame(..) => "Texture Default List Animation New Frame",
+            EditType::TListAnimationTexture(..) => "Texture Default List Animation Texture",
+            EditType::TListAnimationTime(..) => "Texture Default List Animation Time",
+            EditType::TListAnimationFrameRemoval(..) =>
+            {
+                "Texture Default List Animation Frame Removal"
+            },
+            EditType::TAtlasAnimationX(..) => "Texture Default Atlas Animation X",
+            EditType::TAtlasAnimationY(..) => "Texture Default Atlas Animation Y",
+            EditType::TAtlasAnimationLen(..) => "Texture Default Atlas Animation Len",
+            EditType::TAtlasAnimationTiming(..) => "Texture Default Atlas Animation Timing",
+            EditType::TAtlasAnimationUniformTime(..) =>
+            {
+                "Texture Default Atlas Animation Uniform Time"
+            },
+            EditType::TAtlasAnimationFrameTime(..) => "Texture Default Atlas Animation Frame Time",
+            EditType::CollisionToggle(..) => "Collision Toggle",
+            EditType::PropertyChange(..) => "Property Change"
+        }
+    }
+
     /// Whether `self` is an edit that is only useful as long as the current tool remains unchanged.
     #[inline]
     #[must_use]
@@ -285,9 +387,9 @@ impl EditType
     {
         matches!(
             self,
-            Self::BrushDraw(_) |
+            Self::DrawnBrush(_) |
                 Self::DrawnBrushDespawn(_) |
-                Self::ThingDraw(..) |
+                Self::DrawnThing(..) |
                 Self::DrawnThingDespawn(..) |
                 Self::VertexesSelection(_) |
                 Self::PathNodesSelection(_) |
@@ -305,9 +407,9 @@ impl EditType
     {
         matches!(
             self,
-            Self::Texture(_) |
+            Self::TextureChange(_) |
                 Self::TextureRemoval(_) |
-                Self::Sprite(..) |
+                Self::SpriteToggle(..) |
                 Self::TextureFlip(_) |
                 Self::TextureScaleDelta(_) |
                 Self::TextureScaleX(_) |
@@ -323,15 +425,15 @@ impl EditType
                 Self::TextureAngle(_) |
                 Self::TextureAngleDelta(_) |
                 Self::TextureHeight(_) |
-                Self::Animation(_) |
-                Self::AnimationMoveUp(..) |
-                Self::AnimationMoveDown(..) |
+                Self::AnimationChange(_) |
+                Self::ListAnimationFrameMoveUp(..) |
+                Self::ListAnimationFrameMoveDown(..) |
                 Self::ListAnimationNewFrame(_) |
                 Self::ListAnimationTexture(..) |
                 Self::ListAnimationTime(..) |
                 Self::ListAnimationFrameRemoval(..) |
-                Self::AtlasAnimationX(_) |
-                Self::AtlasAnimationY(_) |
+                Self::AtlasAnimationColumns(_) |
+                Self::AtlasAnimationRows(_) |
                 Self::AtlasAnimationLen(_) |
                 Self::AtlasAnimationTiming(_) |
                 Self::AtlasAnimationUniformTime(_) |
@@ -347,7 +449,7 @@ impl EditType
         matches!(
             self,
             Self::ThingChange(_) |
-                Self::ThingDraw(..) |
+                Self::DrawnThing(..) |
                 Self::ThingSpawn(..) |
                 Self::DrawnThingDespawn(..) |
                 Self::ThingDespawn(..) |
@@ -451,7 +553,7 @@ impl EditType
 
                 *time = value;
             },
-            Self::AnimationMoveUp(index, atlas) =>
+            Self::ListAnimationFrameMoveUp(index, atlas) =>
             {
                 let func = if *atlas
                 {
@@ -467,7 +569,7 @@ impl EditType
                     func(&mut interface.brush_mut(*id), *index);
                 }
             },
-            Self::AnimationMoveDown(index, atlas) =>
+            Self::ListAnimationFrameMoveDown(index, atlas) =>
             {
                 let func = if *atlas
                 {
@@ -536,7 +638,7 @@ impl EditType
                             set(&mut brush, drawing_resources, value);
                         }
                     },
-                    Self::Animation(value) =>
+                    Self::AnimationChange(value) =>
                     {
                         *value = brush.set_texture_animation(drawing_resources, std::mem::take(value));
                     },
@@ -548,7 +650,7 @@ impl EditType
                     {
                         *time = brush.set_texture_atlas_animation_frame_time(*index, *time).unwrap();
                     },
-                    Self::Collision(value) =>
+                    Self::CollisionToggle(value) =>
                     {
                         *value = brush.set_collision(*value).unwrap();
                         drop(brush);
@@ -570,8 +672,8 @@ impl EditType
             (TextureScaleY, scale_y, drawing_resources),
             (TextureAngle, angle, drawing_resources),
             (TextureHeight, height),
-            (AtlasAnimationX, atlas_animation_x_partition, drawing_resources),
-            (AtlasAnimationY, atlas_animation_y_partition, drawing_resources),
+            (AtlasAnimationColumns, atlas_animation_x_partition, drawing_resources),
+            (AtlasAnimationRows, atlas_animation_y_partition, drawing_resources),
             (AtlasAnimationLen, atlas_animation_len),
             (AtlasAnimationUniformTime, atlas_animation_uniform_time)
         );
@@ -700,7 +802,7 @@ impl EditType
         key: Option<&String>
     ) -> bool
     {
-        if let Self::Property(value) = self
+        if let Self::PropertyChange(value) = self
         {
             *value = interface.set_property(identifiers[0], key.unwrap(), value);
             return true;
@@ -776,7 +878,7 @@ impl EditType
 
         match_and_return!(
             self,
-            Self::BrushDraw(data) =>
+            Self::DrawnBrush(data) =>
             {
                 *data = interface.despawn_brush(single!(), BrushType::Drawn).into();
             },
@@ -844,7 +946,7 @@ impl EditType
             },
             Self::FreeDrawPointInsertion(p, idx) => interface.delete_free_draw_point(*p, *idx as usize),
             Self::FreeDrawPointDeletion(p, idx) => interface.insert_free_draw_point(*p, *idx as usize),
-            Self::Flip(flip, flip_texture) =>
+            Self::BrushFlip(flip, flip_texture) =>
             {
                 let func = match flip
                 {
@@ -865,8 +967,8 @@ impl EditType
                 }
             },
             Self::PathCreation(path) => *path = interface.remove_path(single!()).into(),
-            Self::Anchor(anchor) => interface.remove_anchor(single!(), *anchor),
-            Self::Disanchor(anchor) => interface.insert_anchor(single!(), *anchor),
+            Self::BrushAnchor(anchor) => interface.remove_anchor(single!(), *anchor),
+            Self::BrushDisanchor(anchor) => interface.insert_anchor(single!(), *anchor),
             Self::PathNodesSelection(idxs) =>
             {
                 interface.schedule_overall_node_update();
@@ -925,17 +1027,17 @@ impl EditType
                 interface.schedule_overall_node_update();
                 moving_mut!().undo_path_nodes_min_speed_edit(edit);
             },
-            Self::PathNodeAccel(edit) =>
+            Self::PathNodeAcceleration(edit) =>
             {
                 interface.schedule_overall_node_update();
                 moving_mut!().undo_path_nodes_accel_travel_percentage_edit(edit);
             },
-            Self::PathNodeDecel(edit) =>
+            Self::PathNodeDeceleration(edit) =>
             {
                 interface.schedule_overall_node_update();
                 moving_mut!().undo_path_nodes_decel_travel_percentage_edit(edit);
             },
-            Self::ThingDraw(thing) => *thing = interface.despawn_thing(single!(), true).into(),
+            Self::DrawnThing(thing) => *thing = interface.despawn_thing(single!(), true).into(),
             Self::DrawnThingDespawn(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), true),
             Self::ThingSpawn(thing) => *thing = interface.despawn_thing(single!(), false).into(),
             Self::ThingDespawn(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), false),
@@ -953,7 +1055,7 @@ impl EditType
                     interface.brush_mut(*id).move_texture(drawing_resources, -*delta);
                 }
             },
-            Self::Texture(texture) =>
+            Self::TextureChange(texture) =>
             {
                 match texture
                 {
@@ -1000,7 +1102,7 @@ impl EditType
                     _ = brush.set_texture_angle(drawing_resources, angle).unwrap();
                 }
             },
-            Self::Sprite(value, offset_x, offset_y) =>
+            Self::SpriteToggle(value, offset_x, offset_y) =>
             {
                 (*value, *offset_x, *offset_y) = interface.set_single_sprite(drawing_resources, single!(), value.enabled());
             },
@@ -1137,7 +1239,7 @@ impl EditType
 
         match_and_return!(
             self,
-            Self::BrushDraw(data) =>
+            Self::DrawnBrush(data) =>
             {
                 interface.spawn_brush(
                     single!(),
@@ -1200,7 +1302,7 @@ impl EditType
             },
             Self::FreeDrawPointInsertion(p, idx) => interface.insert_free_draw_point(*p, *idx as usize),
             Self::FreeDrawPointDeletion(p, idx) => interface.delete_free_draw_point(*p, *idx as usize),
-            Self::Flip(flip, flip_texture) =>
+            Self::BrushFlip(flip, flip_texture) =>
             {
                 let func = match flip
                 {
@@ -1226,8 +1328,8 @@ impl EditType
                 interface.schedule_overall_node_update();
                 *path = interface.remove_path(single!()).into();
             },
-            Self::Anchor(anchor) => interface.insert_anchor(single!(), *anchor),
-            Self::Disanchor(anchor) => interface.remove_anchor(single!(), *anchor),
+            Self::BrushAnchor(anchor) => interface.insert_anchor(single!(), *anchor),
+            Self::BrushDisanchor(anchor) => interface.remove_anchor(single!(), *anchor),
             Self::PathNodesSelection(idxs) =>
             {
                 interface.schedule_overall_node_update();
@@ -1276,17 +1378,17 @@ impl EditType
                 interface.schedule_overall_node_update();
                 moving_mut!().redo_path_nodes_min_speed_edit(edit);
             },
-            Self::PathNodeAccel(edit) =>
+            Self::PathNodeAcceleration(edit) =>
             {
                 interface.schedule_overall_node_update();
                 moving_mut!().redo_path_nodes_accel_travel_percentage_edit(edit);
             },
-            Self::PathNodeDecel(edit) =>
+            Self::PathNodeDeceleration(edit) =>
             {
                 interface.schedule_overall_node_update();
                 moving_mut!().redo_path_nodes_decel_travel_percentage_edit(edit);
             },
-            Self::ThingDraw(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), true),
+            Self::DrawnThing(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), true),
             Self::DrawnThingDespawn(thing) => *thing = interface.despawn_thing(single!(), true).into(),
             Self::ThingSpawn(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), false),
             Self::ThingDespawn(thing) => *thing = interface.despawn_thing(single!(), false).into(),
@@ -1304,7 +1406,7 @@ impl EditType
                     interface.brush_mut(*id).move_texture(drawing_resources, *delta);
                 }
             },
-            Self::Texture(texture) =>
+            Self::TextureChange(texture) =>
             {
                 *texture = match interface.set_texture(
                     drawing_resources,
@@ -1341,7 +1443,7 @@ impl EditType
                     _ = brush.set_texture_angle(drawing_resources, angle).unwrap();
                 }
             },
-            Self::Sprite(value, offset_x, offset_y) =>
+            Self::SpriteToggle(value, offset_x, offset_y) =>
             {
                 (*value, *offset_x, *offset_y) = interface.set_single_sprite(drawing_resources, single!(), value.enabled());
             },

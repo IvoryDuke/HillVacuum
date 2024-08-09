@@ -399,7 +399,7 @@ impl Node
             Content::Subnodes(subnodes, _) => subnodes.iter()
         };
 
-        for node_index in subnodes.by_ref()
+        for node_index in &mut subnodes
         {
             /// Tries to group the subtrees into one [`Node`].
             #[inline]

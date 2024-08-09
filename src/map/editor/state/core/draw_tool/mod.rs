@@ -303,7 +303,7 @@ impl DrawTool
         let brushes = manager.visible_brushes(window, camera, drawer.grid());
         let mut brushes = brushes.iter();
 
-        for brush in brushes.by_ref()
+        for brush in &mut brushes
         {
             let id = brush.id();
 

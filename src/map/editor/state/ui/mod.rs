@@ -1,4 +1,5 @@
 pub(in crate::map::editor) mod checkbox;
+mod edits_history_window;
 mod manual;
 mod minus_plus_buttons;
 pub(in crate::map::editor::state) mod overall_value_field;
@@ -18,6 +19,7 @@ use std::ops::Range;
 use arrayvec::ArrayVec;
 use bevy::{asset::AssetServer, transform::components::Transform};
 use bevy_egui::{egui, EguiUserTextures};
+use edits_history_window::EditsHistoryWindow;
 use glam::Vec2;
 use hill_vacuum_shared::{return_if_none, NextValue};
 
@@ -188,7 +190,7 @@ impl Interacting for egui::Response
 //=======================================================================//
 
 /// A trait to return the info to close a window.
-trait WindowCloserInfo
+pub(in crate::map::editor::state::ui) trait WindowCloserInfo
 {
     /// Returns the info to close the window, if open.
     fn window_closer(&self) -> Option<WindowCloser>;
@@ -305,7 +307,7 @@ impl Command
 #[allow(clippy::type_complexity)]
 #[must_use]
 #[derive(Clone, Copy)]
-enum WindowCloser
+pub(in crate::map::editor::state::ui) enum WindowCloser
 {
     /// Texture editor.
     TextureEditor(egui::LayerId, fn(&mut TextureEditor)),
@@ -313,6 +315,7 @@ enum WindowCloser
     Settings(egui::LayerId, fn(&mut SettingsWindow)),
     /// Properties window.
     Properties(egui::LayerId, fn(&mut PropertiesWindow)),
+    EditsHistory(egui::LayerId, fn(&mut EditsHistoryWindow)),
     /// Manual window.
     Manual(egui::LayerId, fn(&mut Manual))
 }
@@ -327,6 +330,7 @@ impl WindowCloser
         let (Self::TextureEditor(id, _) |
         Self::Settings(id, _) |
         Self::Properties(id, _) |
+        Self::EditsHistory(id, _) |
         Self::Manual(id, _)) = self;
         id
     }
@@ -348,6 +352,7 @@ impl WindowCloser
             ui.texture_editor.window_closer(),
             ui.settings_window.window_closer(),
             ui.properties_window.window_closer(),
+            ui.edits_history_window.window_closer(),
             ui.manual.window_closer()
         ]
         .into_iter()
@@ -389,6 +394,7 @@ impl WindowCloser
             Self::Settings(_, closer) => closer(&mut ui.settings_window),
             Self::TextureEditor(_, closer) => closer(&mut ui.texture_editor),
             Self::Properties(_, closer) => closer(&mut ui.properties_window),
+            Self::EditsHistory(_, closer) => closer(&mut ui.edits_history_window),
             Self::Manual(_, closer) => closer(&mut ui.manual)
         };
     }
@@ -510,6 +516,7 @@ pub(in crate::map::editor::state) struct Ui
     settings_window:      SettingsWindow,
     /// The parameters window.
     properties_window:    PropertiesWindow,
+    edits_history_window: EditsHistoryWindow,
     /// The texture editor.
     texture_editor:       TextureEditor,
     /// The manual.
@@ -531,6 +538,7 @@ impl Placeholder for Ui
             right_panel_layer_id: egui::LayerId::background(),
             settings_window:      SettingsWindow::default(),
             properties_window:    PropertiesWindow::placeholder(),
+            edits_history_window: EditsHistoryWindow::default(),
             texture_editor:       TextureEditor::default(),
             manual:               Manual::default(),
             window_focused:       false
@@ -559,6 +567,7 @@ impl Ui
                 brushes_default_properties,
                 things_default_properties
             ),
+            edits_history_window: EditsHistoryWindow::default(),
             texture_editor:       TextureEditor::default(),
             manual:               Manual::default(),
             window_focused:       false
@@ -641,6 +650,30 @@ impl Ui
             self.properties_window
                 .show(bundle, manager, edits_history, clipboard, inputs)
         });
+
+        if let Some(clicked) = self.edits_history_window.show(bundle, core, edits_history)
+        {
+            let index = edits_history.index();
+
+            match edits_history.index().cmp(&clicked)
+            {
+                std::cmp::Ordering::Less =>
+                {
+                    for _ in 0..clicked - index
+                    {
+                        core.redo(bundle, manager, edits_history, self);
+                    }
+                },
+                std::cmp::Ordering::Equal => (),
+                std::cmp::Ordering::Greater =>
+                {
+                    for _ in 0..index - clicked
+                    {
+                        core.undo(bundle, manager, edits_history, self);
+                    }
+                }
+            }
+        }
 
         // Panels.
         let us_context = unsafe { std::ptr::from_mut(bundle.egui_context).as_mut().unwrap() };
@@ -942,7 +975,10 @@ impl Ui
                         }, binds.get(Bind::TextureEditor).map_or("", FromToStr::to_str)),
                         ("Properties", {
                             self.properties_window.toggle();
-                        }, binds.get(Bind::PropertiesEditor).map_or("", FromToStr::to_str))
+                        }, binds.get(Bind::PropertiesEditor).map_or("", FromToStr::to_str)),
+                        ("Edits History", {
+                            self.edits_history_window.toggle();
+                        }, binds.get(Bind::EditsHistory).map_or("", FromToStr::to_str))
                     );
 
                     submenu!(
