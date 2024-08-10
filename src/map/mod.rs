@@ -27,7 +27,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     map::{
-        brush::{Brush, BrushViewer},
+        brush::BrushViewer,
         properties::DefaultProperties,
         thing::ThingViewer
     },
@@ -186,9 +186,10 @@ impl Exporter
 
         for _ in 0..header.brushes
         {
-            brushes.push(BrushViewer::new(
-                ciborium::from_reader::<Brush, _>(&mut file).map_err(|_| "Error reading Brush")?
-            ));
+            brushes.push(
+                ciborium::from_reader::<BrushViewer, _>(&mut file)
+                    .map_err(|_| "Error reading Brush")?
+            );
         }
 
         if !animations.is_empty()
@@ -230,10 +231,8 @@ impl Exporter
 
         for _ in 0..header.things
         {
-            let thing = ThingViewer::new(
-                ciborium::from_reader::<crate::map::thing::ThingInstance, _>(&mut file)
-                    .map_err(|_| "Error reading ThingInstance")?
-            );
+            let thing = ciborium::from_reader::<ThingViewer, _>(&mut file)
+                .map_err(|_| "Error reading ThingInstance")?;
             things.asserted_insert((thing.id, thing));
         }
 
