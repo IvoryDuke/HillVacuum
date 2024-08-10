@@ -28,13 +28,13 @@ ui = [
 default = ["ui"]
 
 [dependencies.hill_vacuum_shared]
-version = "0.5.0"
+version = "0.6.0"
 
 [build-dependencies.hill_vacuum_shared]
-version = "0.5.0"
+version = "0.6.0"
 
 [dependencies.hill_vacuum_proc_macros]
-version = "0.5.0"
+version = "0.6.0"
 
 [dependencies.bevy]
 version = "0.14"
