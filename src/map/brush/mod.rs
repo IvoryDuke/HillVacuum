@@ -293,18 +293,10 @@ macro_rules! impl_convex_polygon {
 
         /// Returns an iterator to the vertexes of the polygon.
         #[inline]
-        #[must_use]
-        pub(in crate::map) const fn collision(&self) -> bool { self.collision }
-
-        /// Returns an iterator to the vertexes of the polygon.
-        #[inline]
         pub fn vertexes(&self) -> impl ExactSizeIterator<Item = Vec2> + Clone + '_
         {
             self.vertexes.iter().map(|svx| svx.vec)
         }
-
-        #[inline]
-        pub fn take_texture_settings(self) -> Option<$tex> { self.texture }
     }
     };
 }
@@ -331,7 +323,7 @@ pub(in crate::map) struct BrushData
 
 /// The entity representing one of the shapes that make the maps, as saved in the .hv files.
 #[must_use]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Brush
 {
     // The id of the brush.
@@ -339,17 +331,13 @@ pub struct Brush
     data: BrushData
 }
 
-impl Brush
-{
-    #[inline]
-    pub(in crate::map) fn into_parts(self) -> (BrushData, Id) { (self.data, self.id) }
-}
-
 //=======================================================================//
 
 /// A convex polygon characterized by an optional [`Mover`], an optional texture, and certain
 /// properties.
+#[allow(clippy::unsafe_derive_deserialize)]
 #[must_use]
+#[derive(Serialize, Deserialize)]
 pub struct BrushViewer
 {
     /// The [`Id`].
@@ -372,14 +360,15 @@ impl BrushViewer
     #[inline]
     pub fn new(brush: Brush) -> Self
     {
-        let (
-            BrushData {
-                polygon,
-                mover,
-                properties
-            },
+        let Brush {
+            data:
+                BrushData {
+                    polygon,
+                    mover,
+                    properties
+                },
             id
-        ) = brush.into_parts();
+        } = brush;
         let collision = polygon.collision();
 
         Self {
@@ -423,25 +412,26 @@ pub(in crate::map) mod ui_mod
     use glam::Vec2;
     use hill_vacuum_shared::{return_if_no_match, return_if_none};
 
-    use super::{
-        convex_polygon::{
-            self,
-            ConvexPolygon,
-            ScaleInfo,
-            ShearInfo,
-            SideSelectionResult,
-            SubtractResult,
-            TextureSetResult,
-            VertexHighlightMode,
-            VertexesDeletionResult,
-            VertexesMove,
-            XtrusionInfo
-        },
-        Brush,
-        BrushData
-    };
     use crate::{
         map::{
+            brush::{
+                convex_polygon::{
+                    self,
+                    ConvexPolygon,
+                    ScaleInfo,
+                    ShearInfo,
+                    SideSelectionResult,
+                    SubtractResult,
+                    TextureSetResult,
+                    VertexHighlightMode,
+                    VertexesDeletionResult,
+                    VertexesMove,
+                    XtrusionInfo
+                },
+                Brush,
+                BrushData,
+                BrushViewer
+            },
             drawer::{
                 animation::Animator,
                 color::Color,
@@ -535,6 +525,32 @@ pub(in crate::map) mod ui_mod
             }
         )+};
     }
+
+    //=======================================================================//
+
+    macro_rules! impl_convex_polygon_ui {
+        () => {
+            #[cfg(feature = "ui")]
+            pub(in crate::map::brush) mod ui_mod
+            {
+                impl super::ConvexPolygon
+                {
+                    /// Returns an iterator to the vertexes of the polygon.
+                    #[inline]
+                    #[must_use]
+                    pub(in crate::map) const fn collision(&self) -> bool { self.collision }
+
+                    #[inline]
+                    pub fn take_texture_settings(self) -> Option<super::TextureSettings>
+                    {
+                        self.texture
+                    }
+                }
+            }
+        };
+    }
+
+    pub(in crate::map::brush) use impl_convex_polygon_ui;
 
     //=======================================================================//
     // TRAITS
@@ -942,6 +958,39 @@ pub(in crate::map) mod ui_mod
 
     from_compat!(_03, _04);
 
+    impl From<BrushViewer> for Brush
+    {
+        #[inline]
+        fn from(value: BrushViewer) -> Self
+        {
+            let BrushViewer {
+                id,
+                vertexes,
+                texture,
+                mover,
+                collision,
+                properties
+            } = value;
+
+            let mut polygon = ConvexPolygon::from(vertexes);
+
+            if let Some(tex) = texture
+            {
+                polygon.set_texture_settings(tex);
+            }
+            _ = polygon.set_collision(collision);
+
+            Self {
+                id,
+                data: BrushData {
+                    polygon,
+                    mover,
+                    properties: Properties::from_parts(properties)
+                }
+            }
+        }
+    }
+
     impl CopyToClipboard for Brush
     {
         #[inline]
@@ -1230,6 +1279,9 @@ pub(in crate::map) mod ui_mod
 
             brush
         }
+
+        #[inline]
+        pub(in crate::map) fn into_parts(self) -> (BrushData, Id) { (self.data, self.id) }
 
         //==============================================================
         // Info
@@ -2791,10 +2843,7 @@ pub(in crate::map) mod ui_mod
             _ = self.data.polygon.set_texture_offset_x(tex_rotate.offset.x);
             _ = self.data.polygon.set_texture_offset_y(tex_rotate.offset.y);
         }
-    }
 
-    impl Brush
-    {
         //==============================================================
         // Draw
 

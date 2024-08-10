@@ -487,6 +487,8 @@ impl Innards
         quad_trees: &mut Trees
     ) -> Result<(), &'static str>
     {
+        use crate::map::{brush::BrushViewer, thing::ThingViewer};
+
         /// Stores in `map_default_properties` the desired properties and returns a
         /// [`PropertiesRefactor`] if the default and file properties do not match.
         #[inline]
@@ -551,8 +553,10 @@ impl Innards
 
         for _ in 0..header.brushes
         {
-            let mut brush = ciborium::from_reader::<Brush, _>(&mut *file)
-                .map_err(|_| "Error reading brushes")?;
+            let mut brush = Brush::from(
+                ciborium::from_reader::<BrushViewer, _>(&mut *file)
+                    .map_err(|_| "Error reading brushes")?
+            );
 
             if brush.has_sprite()
             {
@@ -607,20 +611,19 @@ impl Innards
 
         for _ in 0..header.things
         {
-            let mut thing_i = ciborium::from_reader::<ThingInstance, _>(&mut *file)
-                .map_err(|_| "Error reading things")?;
-            let thing = things_catalog.thing_or_error(thing_i.thing());
+            let thing = ThingInstance::from((
+                ciborium::from_reader::<ThingViewer, _>(&mut *file)
+                    .map_err(|_| "Error reading things")?,
+                things_catalog
+            ));
 
-            if !thing_i.check_thing_change(thing)
+            if thing.out_of_bounds()
             {
                 continue;
             }
 
-            _ = thing_i.set_thing(thing);
-
-            max_id = max_id.max(thing_i.id());
-
-            things.push(thing_i);
+            max_id = max_id.max(thing.id());
+            things.push(thing);
         }
 
         if let Some(refactor) = &t_refactor

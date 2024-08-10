@@ -179,6 +179,9 @@ impl Hull
         Some(Hull::new(top, bottom, left, right))
     }
 
+    //==============================================================
+    // Info
+
     /// The y coordinate of the top side.
     #[inline]
     #[must_use]

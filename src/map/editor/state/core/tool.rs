@@ -1656,7 +1656,10 @@ impl Tool
     /// Returns the [`KeyCode`] to enable the tool, if any.
     #[inline]
     #[must_use]
-    pub fn keycode(self, binds: &BindsKeyCodes) -> Option<KeyCode> { self.bind().keycode(binds) }
+    pub const fn keycode(self, binds: &BindsKeyCodes) -> Option<KeyCode>
+    {
+        self.bind().keycode(binds)
+    }
 
     /// Returns a `str` representing this `Tool`'s associated `Keycode`.
     #[inline]

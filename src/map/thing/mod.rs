@@ -155,7 +155,6 @@ pub(in crate::map) struct ThingInstanceData
 /// An instance of a [`Thing`] which can be placed in a map.
 #[must_use]
 #[derive(Clone, Serialize, Deserialize)]
-
 pub(in crate::map) struct ThingInstance
 {
     /// The id.
@@ -182,6 +181,8 @@ impl ThingInterface for ThingInstance
 //=======================================================================//
 
 /// An instance of a [`Thing`] placed on the map.
+#[must_use]
+#[derive(Serialize, Deserialize)]
 pub struct ThingViewer
 {
     /// The unique id.
@@ -247,7 +248,13 @@ pub(in crate::map) mod ui_mod
     use glam::Vec2;
     use hill_vacuum_shared::{return_if_none, TEXTURE_HEIGHT_RANGE};
 
-    use super::{catalog::ThingsCatalog, ThingInstance, ThingInstanceData, ThingInterface};
+    use super::{
+        catalog::ThingsCatalog,
+        ThingInstance,
+        ThingInstanceData,
+        ThingInterface,
+        ThingViewer
+    };
     use crate::{
         map::{
             drawer::{
@@ -313,6 +320,39 @@ pub(in crate::map) mod ui_mod
     }
 
     //=======================================================================//
+
+    impl<'a> From<(ThingViewer, &'a ThingsCatalog)> for ThingInstance
+    {
+        #[allow(clippy::cast_possible_truncation)]
+        #[inline]
+        fn from(value: (ThingViewer, &'a ThingsCatalog)) -> Self
+        {
+            let (
+                ThingViewer {
+                    id,
+                    thing_id,
+                    pos,
+                    angle,
+                    draw_height,
+                    path,
+                    properties
+                },
+                catalog
+            ) = value;
+
+            let mut thing = ThingInstance::new(
+                id,
+                catalog.thing_or_error(thing_id),
+                pos,
+                Properties::from_parts(properties)
+            );
+            thing.data.angle = angle;
+            thing.data.draw_height = draw_height as i8;
+            thing.data.path = path;
+
+            thing
+        }
+    }
 
     impl EntityHull for ThingInstance
     {

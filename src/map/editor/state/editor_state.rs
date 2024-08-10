@@ -28,7 +28,7 @@ use super::{
         tool::{ChangeConditions, Tool}
     },
     edits_history::EditsHistory,
-    grid::{Grid, GridSettings},
+    grid::Grid,
     input_press::InputStateHardCoded,
     manager::EntitiesManager,
     ui::Interaction
@@ -68,13 +68,14 @@ use crate::{
         thing::{catalog::ThingsCatalog, Thing, ThingInstance},
         version_number,
         FileStructure,
+        GridSettings,
         MapHeader,
         FILE_VERSION_NUMBER
     },
     utils::{
         containers::hv_vec,
         hull::Hull,
-        misc::{next, prev, Camera, Toggle}
+        misc::{next, prev, Camera, TakeValue, Toggle}
     },
     warning_message,
     EditorState,
@@ -1122,6 +1123,8 @@ impl State
         save_as: Option<&'static str>
     ) -> Result<(), &'static str>
     {
+        use crate::map::{brush::BrushViewer, thing::ThingViewer};
+
         /// The target of the file save process.
         enum SaveTarget
         {
@@ -1235,14 +1238,22 @@ impl State
                 {
                     for brush in self.manager.brushes().iter()
                     {
-                        test_writer!(brush, &mut writer, "Error saving brushes.");
+                        test_writer!(
+                            &BrushViewer::new(brush.clone()),
+                            &mut writer,
+                            "Error saving brushes."
+                        );
                     }
                 },
                 FileStructure::Things =>
                 {
                     for thing in self.manager.things()
                     {
-                        test_writer!(thing, &mut writer, "Error saving things.");
+                        test_writer!(
+                            &ThingViewer::new(thing.clone()),
+                            &mut writer,
+                            "Error saving things."
+                        );
                     }
                 },
                 FileStructure::Props => self.clipboard.export_props(&mut writer)?
@@ -1311,6 +1322,8 @@ impl State
         default_properties: &mut AllDefaultProperties
     ) -> Result<(EntitiesManager, Clipboard, Grid, PathBuf), &'static str>
     {
+        use crate::map::{brush::BrushViewer, thing::ThingViewer};
+
         struct OldFileRead
         {
             header:             MapHeader,
@@ -1524,6 +1537,49 @@ impl State
         }
 
         #[inline]
+        fn convert_06(mut reader: BufReader<File>) -> Result<OldFileRead, &'static str>
+        {
+            // Header.
+            let header = ex_header(&mut reader)?;
+
+            // Grid.
+            let grid = ex_grid(&mut reader)?;
+
+            // Animations.
+            let animations = ex_animations(&mut reader, &header)?;
+
+            // Properties.
+            let default_properties = ex_default_properties(&mut reader)?;
+
+            // Brushes.
+            let mut brushes = hv_vec![];
+
+            for _ in 0..header.brushes
+            {
+                brushes.push(
+                    ciborium::from_reader::<Brush, _>(&mut reader)
+                        .map_err(|_| "Error reading brushes for conversion.")?
+                );
+            }
+
+            // Things.
+            let things = ex_things(&mut reader, &header)?;
+
+            // Props.
+            let props = ex_props(&mut reader, &header)?;
+
+            Ok(OldFileRead {
+                header,
+                grid,
+                animations,
+                default_properties,
+                brushes,
+                things,
+                props
+            })
+        }
+
+        #[inline]
         fn convert(
             path: &mut PathBuf,
             reader: BufReader<File>,
@@ -1531,7 +1587,7 @@ impl State
         ) -> Result<BufReader<File>, &'static str>
         {
             let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
-            file_name.push_str("_06.hv");
+            file_name.push_str("_061.hv");
 
             warning_message(&format!(
                 "This file appears to have an old file structure, if it is valid it will now be \
@@ -1543,8 +1599,8 @@ impl State
                 grid,
                 animations,
                 default_properties: [default_brush_properties, default_thing_properties],
-                brushes,
-                things,
+                mut brushes,
+                mut things,
                 props
             } = f(reader)?;
 
@@ -1594,16 +1650,16 @@ impl State
                     },
                     FileStructure::Brushes =>
                     {
-                        for brush in &brushes
+                        for brush in brushes.take_value().into_iter().map(BrushViewer::new)
                         {
-                            test_writer!(brush, &mut writer, "Error converting brushes.");
+                            test_writer!(&brush, &mut writer, "Error converting brushes.");
                         }
                     },
                     FileStructure::Things =>
                     {
-                        for thing in &things
+                        for thing in things.take_value().into_iter().map(ThingViewer::new)
                         {
-                            test_writer!(thing, &mut writer, "Error converting things.");
+                            test_writer!(&thing, &mut writer, "Error converting things.");
                         }
                     },
                     FileStructure::Props =>
@@ -1649,6 +1705,7 @@ impl State
             "0.3" => convert(&mut path, reader, convert_03)?,
             "0.4" => convert(&mut path, reader, convert_04)?,
             "0.5" => convert(&mut path, reader, convert_05)?,
+            "0.6" => convert(&mut path, reader, convert_06)?,
             FILE_VERSION_NUMBER => reader,
             _ => unreachable!()
         };

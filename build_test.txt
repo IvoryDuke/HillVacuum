@@ -1,0 +1,4 @@
+echo -e "COMPILING UI\n" &&                 cargo build &&                                                          cargo clean &&
+echo -e "\nCOMPILING NIGHTLY UI\n" &&       cargo +nightly build --features arena_alloc &&                          cargo clean &&
+echo -e "\nCOMPILING NO UI\n" &&            cargo build --no-default-features &&                                    cargo clean &&
+echo -e "\nCOMPILING NIGHTLY NO UI\n" &&    cargo +nightly build --no-default-features --features arena_alloc &&    cargo clean

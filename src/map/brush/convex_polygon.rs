@@ -5,14 +5,25 @@
 
 use glam::Vec2;
 
-use crate::Hull;
+use crate::{map::drawer::texture::TextureSettings, Hull};
 
 //=======================================================================//
 // TYPES
 //
 //=======================================================================//
 
-crate::map::brush::impl_convex_polygon!(crate::map::drawer::texture::TextureSettings);
+crate::map::brush::impl_convex_polygon!(TextureSettings);
+
+impl ConvexPolygon
+{
+    /// Returns an iterator to the vertexes of the polygon.
+    #[inline]
+    #[must_use]
+    pub(in crate::map) const fn collision(&self) -> bool { self.collision }
+
+    #[inline]
+    pub fn take_texture_settings(self) -> Option<TextureSettings> { self.texture }
+}
 
 //=======================================================================//
 // UI

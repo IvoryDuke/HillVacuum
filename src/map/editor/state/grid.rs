@@ -7,167 +7,16 @@ use std::ops::RangeInclusive;
 
 use bevy::{transform::components::Transform, window::Window};
 use glam::Vec2;
-use serde::{Deserialize, Serialize};
 
 use super::manager::EntitiesManager;
 use crate::{
-    map::drawer::color::Color,
+    map::{drawer::color::Color, GridSettings},
     utils::{
         hull::Hull,
         math::{angles::FastSinCosTan, points::fast_rotate_point_around_origin, AroundEqual},
         misc::Camera
     }
 };
-
-//=======================================================================//
-// ENUMS
-//
-//=======================================================================//
-
-/// The settings of the map grid saved into the map files.
-#[must_use]
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
-pub(crate) enum GridSettings
-{
-    #[default]
-    None,
-    Skew(i8),
-    Rotate(i16),
-    Isometric
-    {
-        /// How much the vertical lines are skewed.
-        skew:  i8,
-        /// The angle of rotation of the grid.
-        angle: i16
-    }
-}
-
-impl GridSettings
-{
-    #[inline]
-    #[must_use]
-    const fn skew(self) -> i8
-    {
-        match self
-        {
-            Self::Skew(skew) | Self::Isometric { skew, .. } => skew,
-            _ => 0
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    const fn angle(self) -> i16
-    {
-        match self
-        {
-            Self::Rotate(angle) | Self::Isometric { angle, .. } => angle,
-            _ => 0
-        }
-    }
-
-    #[inline]
-    fn set_skew(&mut self, value: i8)
-    {
-        let value = value.clamp(*Grid::SKEW_RANGE.start(), *Grid::SKEW_RANGE.end());
-
-        match self
-        {
-            Self::None =>
-            {
-                if value != 0
-                {
-                    *self = Self::Skew(value);
-                }
-            },
-            Self::Skew(skew) =>
-            {
-                if value == 0
-                {
-                    *self = Self::None;
-                }
-                else
-                {
-                    *skew = value;
-                }
-            },
-            Self::Rotate(angle) =>
-            {
-                if value == 0
-                {
-                    return;
-                }
-
-                *self = Self::Isometric {
-                    skew:  value,
-                    angle: *angle
-                }
-            },
-            Self::Isometric { skew, angle } =>
-            {
-                if value == 0
-                {
-                    *self = Self::Rotate(*angle);
-                }
-                else
-                {
-                    *skew = value;
-                }
-            }
-        };
-    }
-
-    #[inline]
-    fn set_angle(&mut self, value: i16)
-    {
-        let value = value.clamp(*Grid::ANGLE_RANGE.start(), *Grid::ANGLE_RANGE.end());
-
-        match self
-        {
-            Self::None =>
-            {
-                if value != 0
-                {
-                    *self = Self::Rotate(value);
-                }
-            },
-            Self::Skew(skew) =>
-            {
-                if value == 0
-                {
-                    return;
-                }
-
-                *self = Self::Isometric {
-                    skew:  *skew,
-                    angle: value
-                }
-            },
-            Self::Rotate(angle) =>
-            {
-                if value == 0
-                {
-                    *self = Self::None;
-                }
-                else
-                {
-                    *angle = value;
-                }
-            },
-            Self::Isometric { skew, angle } =>
-            {
-                if value == 0
-                {
-                    *self = Self::Skew(*skew);
-                }
-                else
-                {
-                    *angle = value;
-                }
-            }
-        };
-    }
-}
 
 //=======================================================================//
 // TYPES
@@ -259,7 +108,7 @@ impl Grid
     pub const fn angle(self) -> i16 { self.settings.angle() }
 
     #[inline]
-    pub const fn settings(self) -> GridSettings { self.settings }
+    pub(in crate::map) const fn settings(self) -> GridSettings { self.settings }
 
     #[inline]
     #[must_use]

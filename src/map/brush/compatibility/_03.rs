@@ -41,6 +41,8 @@ impl Sprite
 //=======================================================================//
 
 crate::map::brush::impl_convex_polygon!(TextureSettings);
+#[cfg(feature = "ui")]
+crate::map::brush::impl_convex_polygon_ui!();
 
 //=======================================================================//
 

@@ -21,7 +21,6 @@ use std::{
     path::PathBuf
 };
 
-use editor::state::grid::GridSettings;
 use hill_vacuum_proc_macros::EnumIter;
 use hill_vacuum_shared::{return_if_none, NextValue};
 use serde::{Deserialize, Serialize};
@@ -48,7 +47,7 @@ use crate::{
 //=======================================================================//
 
 /// The version of the saved files.
-const FILE_VERSION_NUMBER: &str = "0.6";
+const FILE_VERSION_NUMBER: &str = "0.6.1";
 
 //=======================================================================//
 // ENUMS
@@ -78,6 +77,26 @@ impl FileStructure
             self == value,
             "Mismatching file structure step. Current: {self:?} Requested: {value:?}."
         );
+    }
+}
+
+//=======================================================================//
+
+/// The settings of the map grid saved into the map files.
+#[must_use]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
+enum GridSettings
+{
+    #[default]
+    None,
+    Skew(i8),
+    Rotate(i16),
+    Isometric
+    {
+        /// How much the vertical lines are skewed.
+        skew:  i8,
+        /// The angle of rotation of the grid.
+        angle: i16
     }
 }
 
@@ -286,7 +305,7 @@ pub(in crate::map) mod ui_mod
     use glam::Vec2;
     use hill_vacuum_shared::{continue_if_no_match, return_if_err, return_if_none, NextValue};
 
-    use super::thing::HardcodedThings;
+    use super::{editor::state::grid::Grid, thing::HardcodedThings, GridSettings};
     use crate::{
         config::Config,
         map::{
@@ -436,6 +455,133 @@ pub(in crate::map) mod ui_mod
         Update,
         /// Draw visible entities.
         Draw
+    }
+
+    impl GridSettings
+    {
+        #[inline]
+        #[must_use]
+        pub const fn skew(self) -> i8
+        {
+            match self
+            {
+                Self::Skew(skew) | Self::Isometric { skew, .. } => skew,
+                _ => 0
+            }
+        }
+
+        #[inline]
+        #[must_use]
+        pub const fn angle(self) -> i16
+        {
+            match self
+            {
+                Self::Rotate(angle) | Self::Isometric { angle, .. } => angle,
+                _ => 0
+            }
+        }
+
+        #[inline]
+        pub fn set_skew(&mut self, value: i8)
+        {
+            let value = value.clamp(*Grid::SKEW_RANGE.start(), *Grid::SKEW_RANGE.end());
+
+            match self
+            {
+                Self::None =>
+                {
+                    if value != 0
+                    {
+                        *self = Self::Skew(value);
+                    }
+                },
+                Self::Skew(skew) =>
+                {
+                    if value == 0
+                    {
+                        *self = Self::None;
+                    }
+                    else
+                    {
+                        *skew = value;
+                    }
+                },
+                Self::Rotate(angle) =>
+                {
+                    if value == 0
+                    {
+                        return;
+                    }
+
+                    *self = Self::Isometric {
+                        skew:  value,
+                        angle: *angle
+                    }
+                },
+                Self::Isometric { skew, angle } =>
+                {
+                    if value == 0
+                    {
+                        *self = Self::Rotate(*angle);
+                    }
+                    else
+                    {
+                        *skew = value;
+                    }
+                }
+            };
+        }
+
+        #[inline]
+        pub fn set_angle(&mut self, value: i16)
+        {
+            let value = value.clamp(*Grid::ANGLE_RANGE.start(), *Grid::ANGLE_RANGE.end());
+
+            match self
+            {
+                Self::None =>
+                {
+                    if value != 0
+                    {
+                        *self = Self::Rotate(value);
+                    }
+                },
+                Self::Skew(skew) =>
+                {
+                    if value == 0
+                    {
+                        return;
+                    }
+
+                    *self = Self::Isometric {
+                        skew:  *skew,
+                        angle: value
+                    }
+                },
+                Self::Rotate(angle) =>
+                {
+                    if value == 0
+                    {
+                        *self = Self::None;
+                    }
+                    else
+                    {
+                        *angle = value;
+                    }
+                },
+                Self::Isometric { skew, angle } =>
+                {
+                    if value == 0
+                    {
+                        *self = Self::Skew(*skew);
+                    }
+                    else
+                    {
+                        *angle = value;
+                    }
+                }
+            };
+        }
     }
 
     //=======================================================================//
