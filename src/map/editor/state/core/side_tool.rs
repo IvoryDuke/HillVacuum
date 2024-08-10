@@ -1149,7 +1149,7 @@ impl SideTool
             manager.despawn_brush(drawing_resources, payload.id(), edits_history, true);
         }
 
-        edits_history.override_edit_tag("Brush Intrusion");
+        edits_history.override_edit_tag("Brushes Intrusion");
 
         self.0 = Status::default();
         self.1.clear();
@@ -1187,7 +1187,7 @@ impl SideTool
             manager.spawn_brush(drawing_resources, cp, edits_history, properties);
         }
 
-        edits_history.override_edit_tag("Brush Extrusion");
+        edits_history.override_edit_tag("Brushes Extrusion");
 
         self.0 = Status::default();
         self.1.clear();

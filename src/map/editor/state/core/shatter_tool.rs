@@ -144,7 +144,7 @@ impl ShatterTool
             properties
         );
         manager.despawn_selected_brush(bundle.drawing_resources, id, edits_history);
-        edits_history.override_edit_tag("Brush Shatter");
+        edits_history.override_edit_tag("Brushes Shatter");
 
         self.0 = None;
     }

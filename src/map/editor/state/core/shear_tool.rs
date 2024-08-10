@@ -200,7 +200,7 @@ impl ShearTool
             edits_history.polygon_edit(id, polygon);
         }
 
-        edits_history.override_edit_tag("Brush Shear");
+        edits_history.override_edit_tag("Brushes Shear");
     }
 
     /// Shears the brushes if possible.

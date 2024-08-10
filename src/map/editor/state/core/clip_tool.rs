@@ -441,7 +441,7 @@ impl ClipTool
             }
         };
 
-        edits_history.override_edit_tag("Brush Clip");
+        edits_history.override_edit_tag("Brushes Clip");
         edits_history.end_multiframe_edit();
         self.0 = Status::default();
     }

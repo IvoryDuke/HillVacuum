@@ -266,7 +266,7 @@ impl ScaleTool
                 if !backup_polygons.is_empty()
                 {
                     edits_history.polygon_edit_cluster(backup_polygons.take_value().into_iter());
-                    edits_history.override_edit_tag("Brush Rotation.");
+                    edits_history.override_edit_tag("Brushes Rotation.");
                 }
             },
             {
