@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.1
+
+### Changes
+- Further decreased `.hv` file size;
+- removed some unused code;
+- changed the name of some edits.
+
+### Fixes
+- Fixed menu bar edits history label;
+- fixed compilation errors.
+
 ## 0.6.0
 
 ### New
