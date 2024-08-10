@@ -284,10 +284,8 @@ impl EditType
     {
         match self
         {
-            Self::DrawnBrush(..) => "Drawn Brush",
-            Self::DrawnBrushDespawn(..) => "Drawn Brush Despawn",
-            Self::BrushSpawn(..) => "Brushes Spawn",
-            Self::BrushDespawn(..) => "Brushes Despawn",
+            Self::DrawnBrush(..) | Self::BrushSpawn(..) => "Brush Spawn",
+            Self::DrawnBrushDespawn(..) | Self::BrushDespawn(..) => "Brushes Despawn",
             Self::EntitySelection => "Entities Selection",
             Self::EntityDeselection => "Entities Deselection",
             Self::SubtracteeSelection => "Subtractees Selection",
@@ -317,10 +315,8 @@ impl EditType
             Self::PathNodeMinSpeed(..) => "Path Node Min Speed",
             Self::BrushAnchor(..) => "Brush Anchor",
             Self::BrushDisanchor(..) => "Brush Disanchor",
-            Self::DrawnThing(..) => "Drawn Thing",
-            Self::DrawnThingDespawn(..) => "Drawn Thing Despawn",
-            Self::ThingSpawn(..) => "Things Spawn",
-            Self::ThingDespawn(..) => "Things Despawn",
+            Self::DrawnThing(..) | Self::ThingSpawn(..) => "Thing Spawn",
+            Self::ThingDespawn(..) | Self::DrawnThingDespawn(..) => "Things Despawn",
             Self::ThingMove(..) => "Thing Move",
             Self::ThingChange(..) => "Things Change",
             Self::ThingHeight(..) => "Thing Height",

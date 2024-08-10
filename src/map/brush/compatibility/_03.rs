@@ -18,13 +18,11 @@ enum Sprite
 {
     True
     {
-        vxs:  [Vec2; 4],
-        hull: Hull
+        vxs: [Vec2; 4], hull: Hull
     },
     False
     {
-        parallax_x: f32,
-        parallax_y: f32
+        parallax_x: f32, parallax_y: f32
     }
 }
 
