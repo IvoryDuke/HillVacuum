@@ -21,12 +21,14 @@ macro_rules! sprite_values {
         {
             match self
             {
-                Sprite::True => 0f32,
+                Sprite::True { .. }=> 0f32,
                 Sprite::False { $value, .. } => *$value
             }
         }
     )+};
 }
+
+pub(in crate::map) use sprite_values;
 
 //=======================================================================//
 // TRAITS
@@ -459,7 +461,7 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    macro_rules! sprite_values {
+    macro_rules! set_sprite_values {
         ($($value:ident),+) => { paste::paste!{ $(
             #[inline]
             fn [< set_ $value >](&mut self, value: f32) -> Option<f32>
@@ -474,6 +476,45 @@ pub(in crate::map) mod ui_mod
                 std::mem::replace($value, value).into()
             }
         )+}};
+    }
+
+    //=======================================================================//
+
+    macro_rules! from_compat {
+        ($($v:ident),+) => { $(
+            impl From<crate::map::brush::compatibility::$v::TextureSettings> for TextureSettings
+            {
+                #[inline]
+                fn from(value: crate::map::brush::compatibility::$v::TextureSettings) -> Self
+                {
+                    let sprite = if value.sprite()
+                    {
+                        Sprite::True
+                    }
+                    else
+                    {
+                        Sprite::False {
+                            parallax_x: value.parallax_x(),
+                            parallax_y: value.parallax_y(),
+                            scroll_x:   value.scroll_x(),
+                            scroll_y:   value.scroll_y()
+                        }
+                    };
+
+                    Self {
+                        texture: value.name().to_string(),
+                        scale_x: value.scale_x(),
+                        scale_y: value.scale_y(),
+                        offset_x: value.offset_x(),
+                        offset_y: value.offset_y(),
+                        angle: value.angle(),
+                        height: value.height(),
+                        sprite,
+                        animation: value.animation().clone()
+                    }
+                }
+            }
+        )+};
     }
 
     //=======================================================================//
@@ -531,7 +572,7 @@ pub(in crate::map) mod ui_mod
 
     impl Sprite
     {
-        sprite_values!(parallax_x, parallax_y, scroll_x, scroll_y);
+        set_sprite_values!(parallax_x, parallax_y, scroll_x, scroll_y);
     }
 
     //=======================================================================//
@@ -764,44 +805,7 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    impl From<hill_vacuum_03::TextureSettings> for TextureSettings
-    {
-        #[inline]
-        fn from(value: hill_vacuum_03::TextureSettings) -> Self
-        {
-            use std::mem::transmute;
-
-            use hill_vacuum_03::TextureInterface;
-
-            unsafe {
-                let sprite = if value.sprite()
-                {
-                    Sprite::True
-                }
-                else
-                {
-                    Sprite::False {
-                        parallax_x: value.parallax_x(),
-                        parallax_y: value.parallax_y(),
-                        scroll_x:   value.scroll_x(),
-                        scroll_y:   value.scroll_y()
-                    }
-                };
-
-                Self {
-                    texture: value.name().to_string(),
-                    scale_x: value.scale_x(),
-                    scale_y: value.scale_y(),
-                    offset_x: value.offset_x(),
-                    offset_y: value.offset_y(),
-                    angle: value.angle(),
-                    height: value.height(),
-                    sprite,
-                    animation: transmute(value.animation().clone())
-                }
-            }
-        }
-    }
+    from_compat!(_03, _04);
 
     impl From<&Texture> for TextureSettings
     {

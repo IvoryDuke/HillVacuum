@@ -30,7 +30,6 @@ pub use crate::{
     map::{
         brush::{
             mover::{Motor, Mover},
-            Brush as BrushCompat,
             BrushViewer as Brush
         },
         drawer::{

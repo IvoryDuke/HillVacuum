@@ -1349,6 +1349,27 @@ impl State
         }
 
         #[inline]
+        fn ex_brushes_04(
+            reader: &mut BufReader<File>,
+            header: &MapHeader
+        ) -> Result<HvVec<Brush>, &'static str>
+        {
+            let mut brushes = hv_vec![];
+
+            for _ in 0..header.brushes
+            {
+                brushes.push(Brush::from(
+                    ciborium::from_reader::<crate::map::brush::compatibility::_04::Brush, _>(
+                        &mut *reader
+                    )
+                    .map_err(|_| "Error reading brushes for conversion.")?
+                ));
+            }
+
+            Ok(brushes)
+        }
+
+        #[inline]
         fn ex_things(
             reader: &mut BufReader<File>,
             header: &MapHeader
@@ -1387,6 +1408,13 @@ impl State
         }
 
         #[inline]
+        fn ex_grid(reader: &mut BufReader<File>) -> Result<GridSettings, &'static str>
+        {
+            ciborium::from_reader::<_, _>(reader)
+                .map_err(|_| "Error reading grid settings for conversion.")
+        }
+
+        #[inline]
         fn convert_03(mut reader: BufReader<File>) -> Result<OldFileRead, &'static str>
         {
             // Header
@@ -1404,8 +1432,10 @@ impl State
             for _ in 0..header.brushes
             {
                 brushes.push(Brush::from(
-                    ciborium::from_reader::<hill_vacuum_03::BrushCompat, _>(&mut reader)
-                        .map_err(|_| "Error reading brushes for conversion.")?
+                    ciborium::from_reader::<crate::map::brush::compatibility::_03::Brush, _>(
+                        &mut reader
+                    )
+                    .map_err(|_| "Error reading brushes for conversion.")?
                 ));
             }
 
@@ -1439,15 +1469,7 @@ impl State
             let default_properties = ex_default_properties(&mut reader)?;
 
             // Brushes.
-            let mut brushes = hv_vec![];
-
-            for _ in 0..header.brushes
-            {
-                brushes.push(
-                    ciborium::from_reader::<Brush, _>(&mut reader)
-                        .map_err(|_| "Error reading brushes for conversion.")?
-                );
-            }
+            let brushes = ex_brushes_04(&mut reader, &header)?;
 
             // Things.
             let things = ex_things(&mut reader, &header)?;
@@ -1457,8 +1479,42 @@ impl State
 
             Ok(OldFileRead {
                 header,
-                grid: ciborium::from_reader::<GridSettings, _>(&mut reader)
-                    .map_err(|_| "Error reading grid settings for conversion.")?,
+                grid: ex_grid(&mut reader)?,
+                animations,
+                default_properties,
+                brushes,
+                things,
+                props
+            })
+        }
+
+        #[inline]
+        fn convert_05(mut reader: BufReader<File>) -> Result<OldFileRead, &'static str>
+        {
+            // Header.
+            let header = ex_header(&mut reader)?;
+
+            // Grid.
+            let grid = ex_grid(&mut reader)?;
+
+            // Animations.
+            let animations = ex_animations(&mut reader, &header)?;
+
+            // Properties.
+            let default_properties = ex_default_properties(&mut reader)?;
+
+            // Brushes.
+            let brushes = ex_brushes_04(&mut reader, &header)?;
+
+            // Things.
+            let things = ex_things(&mut reader, &header)?;
+
+            // Props.
+            let props = ex_props(&mut reader, &header)?;
+
+            Ok(OldFileRead {
+                header,
+                grid,
                 animations,
                 default_properties,
                 brushes,
@@ -1475,7 +1531,7 @@ impl State
         ) -> Result<BufReader<File>, &'static str>
         {
             let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
-            file_name.push_str("_05.hv");
+            file_name.push_str("_06.hv");
 
             warning_message(&format!(
                 "This file appears to have an old file structure, if it is valid it will now be \
@@ -1592,6 +1648,7 @@ impl State
         {
             "0.3" => convert(&mut path, reader, convert_03)?,
             "0.4" => convert(&mut path, reader, convert_04)?,
+            "0.5" => convert(&mut path, reader, convert_05)?,
             FILE_VERSION_NUMBER => reader,
             _ => unreachable!()
         };
