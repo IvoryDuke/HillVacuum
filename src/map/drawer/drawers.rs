@@ -860,22 +860,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         color: Color
     )
     {
-        let brush_center = self.grid.transform_point(brush_center);
-        let mut vxs = settings.sprite_vxs(self.resources, brush_center).unwrap();
-
-        let offset = Vec2::new(settings.offset_x(), settings.offset_y());
-        vxs.translate(self.grid.transform_point(offset) - offset);
-
-        if self.grid.isometric()
-        {
-            vxs.translate(Vec2::new(
-                0f32,
-                settings
-                    .sprite_hull(self.resources, brush_center)
-                    .unwrap()
-                    .half_height()
-            ));
-        }
+        let vxs = sprite_vxs(self.resources, brush_center, settings, self.grid);
 
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(4);
@@ -1235,6 +1220,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
         settings: &T
     )
     {
+        let vxs = sprite_vxs(self.resources, brush_center, settings, self.grid);
         let resources = unsafe { std::ptr::from_mut(self.resources).as_mut().unwrap() };
 
         let mut mesh_generator = resources.mesh_generator();
@@ -1253,41 +1239,22 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
                             settings.overall_animation(self.resources).get_list_animation()
                         );
                         mesh_generator.set_sprite_uv(materials.texture().name(), settings);
-
                         materials
                     },
                     Animator::Atlas(animator) =>
                     {
                         mesh_generator.set_animated_sprite_uv(settings, animator);
-
                         self.resources.texture_materials(settings.name())
                     }
                 }
             },
             None =>
             {
-                let texture = self.resources.texture_or_error(settings.name());
-                mesh_generator.set_sprite_uv(texture.name(), settings);
-                self.resources.texture_materials(texture.name())
+                let texture = self.resources.texture_or_error(settings.name()).name();
+                mesh_generator.set_sprite_uv(texture, settings);
+                self.resources.texture_materials(texture)
             }
         };
-
-        let brush_center = self.grid.transform_point(brush_center);
-        let mut vxs = settings.sprite_vxs(self.resources, brush_center).unwrap();
-
-        let offset = Vec2::new(settings.offset_x(), settings.offset_y());
-        vxs.translate(self.grid.transform_point(offset) - offset);
-
-        if self.grid.isometric()
-        {
-            vxs.translate(Vec2::new(
-                0f32,
-                settings
-                    .sprite_hull(self.resources, brush_center)
-                    .unwrap()
-                    .half_height()
-            ));
-        }
 
         mesh_generator.push_positions(vxs);
 
@@ -1311,4 +1278,35 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
         self.resources
             .push_map_preview_thing(self.meshes.add(mesh).into(), catalog, thing);
     }
+}
+
+//=======================================================================//
+// FUNCTIONS
+//
+//=======================================================================//
+
+#[inline]
+#[must_use]
+fn sprite_vxs<T: TextureInterface + TextureInterfaceExtra>(
+    resources: &DrawingResources,
+    brush_center: Vec2,
+    settings: &T,
+    grid: Grid
+) -> [Vec2; 4]
+{
+    let brush_center = grid.transform_point(brush_center);
+    let mut vxs = settings.sprite_vxs(resources, brush_center).unwrap();
+
+    let offset = Vec2::new(settings.offset_x(), settings.offset_y());
+    vxs.translate(grid.transform_point(offset) - offset);
+
+    if grid.isometric()
+    {
+        vxs.translate(Vec2::new(
+            0f32,
+            settings.sprite_hull(resources, brush_center).unwrap().half_height()
+        ));
+    }
+
+    vxs
 }

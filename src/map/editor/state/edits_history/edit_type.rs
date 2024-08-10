@@ -328,9 +328,10 @@ impl EditType
             Self::TextureChange(..) => "Textures Change",
             Self::TextureRemoval(..) => "Textures Removal",
             Self::SpriteToggle(..) => "Sprites Toggle",
-            Self::TextureFlip(..) |
-            Self::TextureScaleDelta(..) |
-            Self::TextureScaleFlip(..) => "Textures Scale",
+            Self::TextureFlip(..) | Self::TextureScaleDelta(..) | Self::TextureScaleFlip(..) =>
+            {
+                "Textures Scale"
+            },
             Self::TextureScaleX(..) => "Textures Scale X",
             Self::TextureScaleY(..) => "Textures Scale Y",
             Self::TextureOffsetX(..) => "Textures Offset X",
@@ -362,18 +363,12 @@ impl EditType
             Self::TListAnimationNewFrame(..) => "Texture Default List Animation New Frame",
             Self::TListAnimationTexture(..) => "Texture Default List Animation Texture",
             Self::TListAnimationTime(..) => "Texture Default List Animation Time",
-            Self::TListAnimationFrameRemoval(..) =>
-            {
-                "Texture Default List Animation Frame Removal"
-            },
+            Self::TListAnimationFrameRemoval(..) => "Texture Default List Animation Frame Removal",
             Self::TAtlasAnimationX(..) => "Texture Default Atlas Animation X",
             Self::TAtlasAnimationY(..) => "Texture Default Atlas Animation Y",
             Self::TAtlasAnimationLen(..) => "Texture Default Atlas Animation Len",
             Self::TAtlasAnimationTiming(..) => "Texture Default Atlas Animation Timing",
-            Self::TAtlasAnimationUniformTime(..) =>
-            {
-                "Texture Default Atlas Animation Uniform Time"
-            },
+            Self::TAtlasAnimationUniformTime(..) => "Texture Default Atlas Animation Uniform Time",
             Self::TAtlasAnimationFrameTime(..) => "Texture Default Atlas Animation Frame Time",
             Self::CollisionToggle(..) => "Collision Toggle",
             Self::PropertyChange(..) => "Properties Change"

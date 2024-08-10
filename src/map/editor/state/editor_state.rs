@@ -159,7 +159,23 @@ macro_rules! input_presses {
             #[inline]
             pub fn clear(&mut self)
             {
-                $(self.$name.clear();)+
+                self.space.clear();
+                self.back.clear();
+                self.tab.clear();
+                self.enter.clear();
+                self.plus.clear();
+                self.minus.clear();
+                self.left_mouse.clear();
+                self.right_mouse.clear();
+                self.esc.clear();
+                self.f4.clear();
+                self.copy.clear();
+                self.paste.clear();
+                self.cut.clear();
+                self.left.clear();
+                self.right.clear();
+                self.up.clear();
+                self.down.clear();
             }
 		}
 	);
