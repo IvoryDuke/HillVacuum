@@ -277,6 +277,8 @@ impl SubtractTool
 
             manager.despawn_brush(id, edits_history, false);
         }
+
+        edits_history.override_edit_tag("Brush Subtraction");
     }
 
     /// Post undo/redo despawn.

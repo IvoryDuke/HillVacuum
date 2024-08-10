@@ -6,7 +6,7 @@
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{Animation, Hull};
+use crate::{map::Translate, Animation, Hull};
 
 //=======================================================================//
 // MACROS
@@ -96,10 +96,6 @@ pub trait TextureInterface
     #[must_use]
     fn sprite(&self) -> bool;
 
-    /// Returns the [`Hull`] describing the area of the sprite.
-    #[must_use]
-    fn sprite_hull(&self, center: Vec2) -> Option<Hull>;
-
     /// Returns a reference to the [`Animation`].
     fn animation(&self) -> &Animation;
 }
@@ -115,7 +111,7 @@ pub trait TextureInterface
 pub(in crate::map) enum Sprite
 {
     /// Yes.
-    True(Hull),
+    True([Vec2; 4]),
     /// No.
     False
     {
@@ -161,7 +157,26 @@ impl Sprite
     {
         match self
         {
-            Sprite::True(hull) => Some(*hull + center),
+            Sprite::True(vxs) =>
+            {
+                Some(Hull::from_points(vxs.into_iter().copied()).unwrap() + center)
+            },
+            Sprite::False { .. } => None
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn vxs(&self, center: Vec2) -> Option<[Vec2; 4]>
+    {
+        match self
+        {
+            Sprite::True(vxs) =>
+            {
+                let mut vxs = *vxs;
+                vxs.translate(center);
+                Some(vxs)
+            },
             Sprite::False { .. } => None
         }
     }
@@ -239,9 +254,6 @@ impl TextureInterface for TextureSettings
     fn sprite(&self) -> bool { self.sprite.enabled() }
 
     #[inline]
-    fn sprite_hull(&self, center: Vec2) -> Option<Hull> { self.sprite.hull(center) }
-
-    #[inline]
     fn animation(&self) -> &Animation { &self.animation }
 }
 
@@ -291,6 +303,7 @@ pub(in crate::map) mod ui_mod
         match_or_panic,
         return_if_no_match,
         return_if_none,
+        NextValue,
         TEXTURE_HEIGHT_RANGE
     };
 
@@ -334,7 +347,7 @@ pub(in crate::map) mod ui_mod
                 }
 
                 let prev = std::mem::replace(&mut self.[< offset_ $xy >], value);
-                let result = self.check_sprite_hull(drawing_resources, center);
+                let result = self.check_sprite_vxs(drawing_resources, center);
                 self.[< offset_ $xy >] = prev;
 
                 result.is_ok()
@@ -365,7 +378,7 @@ pub(in crate::map) mod ui_mod
                 }
 
                 let prev = std::mem::replace(&mut self.[< scale_ $xy >], value);
-                let result = self.check_sprite_hull(drawing_resources, center);
+                let result = self.check_sprite_vxs(drawing_resources, center);
                 self.[< scale_ $xy >] = prev;
 
                 result.is_ok()
@@ -393,7 +406,7 @@ pub(in crate::map) mod ui_mod
                 let sprite_center = return_if_none!(self.sprite_hull(old_center), true).center();
                 let [< new_offset_ $xy >] = mirror - sprite_center.$xy - new_center.$xy;
                 let [< prev_offset_ $xy >] = std::mem::replace(&mut self.[< offset_ $xy >], [< new_offset_ $xy >]);
-                let result = self.check_sprite_hull(drawing_resources, new_center);
+                let result = self.check_sprite_vxs(drawing_resources, new_center);
 
                 self.[< offset_ $xy >] = [< prev_offset_ $xy >];
 
@@ -461,7 +474,7 @@ pub(in crate::map) mod ui_mod
                     prev
                 };
 
-                let result = self.check_sprite_hull(drawing_resources, center).is_ok();
+                let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
                 _ = self.animation
                     .get_atlas_animation_mut()
                     .[< set _$xy _partition >](prev);
@@ -522,6 +535,12 @@ pub(in crate::map) mod ui_mod
         /// Returns the size the texture must be drawn.
         #[must_use]
         fn draw_size(&self, drawing_resources: &DrawingResources) -> UVec2;
+
+        #[must_use]
+        fn sprite_hull(&self, center: Vec2) -> Option<Hull>;
+
+        #[must_use]
+        fn sprite_vxs(&self, center: Vec2) -> Option<[Vec2; 4]>;
     }
 
     //=======================================================================//
@@ -536,7 +555,9 @@ pub(in crate::map) mod ui_mod
         {
             if value
             {
-                return Sprite::True(Hull::new(64f32, 0f32, 0f32, 64f32));
+                let vxs = Hull::new(64f32, 0f32, 0f32, 64f32);
+                let mut vxs = vxs.vertexes();
+                return Sprite::True(std::array::from_fn::<_, 4, _>(|_| vxs.next_value()));
             }
 
             Sprite::False {
@@ -551,7 +572,14 @@ pub(in crate::map) mod ui_mod
     impl EntityHull for Sprite
     {
         #[inline]
-        fn hull(&self) -> Hull { match_or_panic!(self, Self::True(hull), *hull) }
+        fn hull(&self) -> Hull
+        {
+            match_or_panic!(
+                self,
+                Self::True(vxs),
+                Hull::from_points(vxs.into_iter().copied()).unwrap()
+            )
+        }
     }
 
     impl Sprite
@@ -560,9 +588,9 @@ pub(in crate::map) mod ui_mod
 
         /// Updates the rendering bounds.
         #[inline]
-        fn update_bounds(&mut self, hull: &Hull)
+        fn update_bounds(&mut self, vxs: &[Vec2; 4])
         {
-            *match_or_panic!(self, Self::True(hull), hull) = *hull;
+            *match_or_panic!(self, Self::True(vxs), vxs) = *vxs;
         }
     }
 
@@ -808,7 +836,7 @@ pub(in crate::map) mod ui_mod
             unsafe {
                 let sprite = if value.sprite()
                 {
-                    Sprite::True(transmute(value.sprite_hull(Vec2::ZERO)))
+                    Sprite::True(transmute(value.sprite_vertexes(Vec2::ZERO)))
                 }
                 else
                 {
@@ -861,6 +889,12 @@ pub(in crate::map) mod ui_mod
 
     impl TextureInterfaceExtra for TextureSettings
     {
+        #[inline]
+        fn sprite_hull(&self, center: Vec2) -> Option<Hull> { self.sprite.hull(center) }
+
+        #[inline]
+        fn sprite_vxs(&self, center: Vec2) -> Option<[Vec2; 4]> { self.sprite.vxs(center) }
+
         #[inline]
         fn overall_animation<'a>(&'a self, drawing_resources: &'a DrawingResources)
             -> &'a Animation
@@ -952,7 +986,7 @@ pub(in crate::map) mod ui_mod
             let prev_scale_x = std::mem::replace(&mut self.scale_x, scale_x);
             let prev_scale_y = std::mem::replace(&mut self.scale_y, scale_y);
 
-            let result = self.check_sprite_hull(drawing_resources, new_center);
+            let result = self.check_sprite_vxs(drawing_resources, new_center);
 
             self.offset_x = prev_offset_x;
             self.offset_y = prev_offset_y;
@@ -1030,7 +1064,7 @@ pub(in crate::map) mod ui_mod
             let prev_scale_x = std::mem::replace(&mut self.scale_x, scale_x);
             let prev_scale_y = std::mem::replace(&mut self.scale_y, scale_y);
 
-            let result = self.check_sprite_hull(drawing_resources, new_center);
+            let result = self.check_sprite_vxs(drawing_resources, new_center);
 
             self.offset_x = prev_offset_x;
             self.offset_y = prev_offset_y;
@@ -1067,7 +1101,7 @@ pub(in crate::map) mod ui_mod
             }
 
             let prev = std::mem::replace(&mut self.texture, texture.to_owned());
-            let result = self.check_sprite_hull(drawing_resources, center).is_ok();
+            let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
             self.texture = prev;
             result
         }
@@ -1133,7 +1167,7 @@ pub(in crate::map) mod ui_mod
             center: Vec2
         ) -> bool
         {
-            assert!((0f32..360f32).contains(&value), "Invalid angle value.");
+            let value = value.rem_euclid(360f32);
 
             if !self.sprite.enabled() || value.around_equal_narrow(&self.angle)
             {
@@ -1141,7 +1175,7 @@ pub(in crate::map) mod ui_mod
             }
 
             let prev = std::mem::replace(&mut self.angle, value);
-            let result = self.check_sprite_hull(drawing_resources, center);
+            let result = self.check_sprite_vxs(drawing_resources, center);
             self.angle = prev;
 
             result.is_ok()
@@ -1175,7 +1209,7 @@ pub(in crate::map) mod ui_mod
             let prev_offset_y = std::mem::replace(&mut self.offset_y, new_offset.y);
             let prev_angle = std::mem::replace(&mut self.angle, end_angle);
 
-            let result = self.check_sprite_hull(drawing_resources, new_center);
+            let result = self.check_sprite_vxs(drawing_resources, new_center);
 
             self.offset_x = prev_offset_x;
             self.offset_y = prev_offset_y;
@@ -1205,7 +1239,7 @@ pub(in crate::map) mod ui_mod
             center: Vec2
         ) -> Option<f32>
         {
-            assert!((0f32..360f32).contains(&value), "Invalid angle value.");
+            let value = value.rem_euclid(360f32);
 
             if value.around_equal_narrow(&self.angle)
             {
@@ -1237,7 +1271,7 @@ pub(in crate::map) mod ui_mod
             let new = Sprite::from(true);
 
             let prev_sprite = std::mem::replace(&mut self.sprite, new);
-            let result = self.check_sprite_hull(drawing_resources, center).is_ok();
+            let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
 
             self.offset_x = prev_offset_x;
             self.offset_y = prev_offset_y;
@@ -1287,7 +1321,7 @@ pub(in crate::map) mod ui_mod
             center: Vec2
         ) -> bool
         {
-            self.check_sprite_hull(drawing_resources, center).is_ok()
+            self.check_sprite_vxs(drawing_resources, center).is_ok()
         }
 
         /// Checks whether changing animation makes the sprite, if any, go out of bounds.
@@ -1306,7 +1340,7 @@ pub(in crate::map) mod ui_mod
             }
 
             let prev = std::mem::replace(&mut self.animation, animation.clone());
-            let result = self.check_sprite_hull(drawing_resources, center).is_ok();
+            let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
             self.animation = prev;
             result
         }
@@ -1498,7 +1532,7 @@ pub(in crate::map) mod ui_mod
 
         /// Returns the new sprite vertexes if the texture is being rendered as a sprite.
         #[inline]
-        fn sprite_hull_at_origin(&self, drawing_resources: &DrawingResources) -> Option<Hull>
+        fn sprite_vxs_at_origin(&self, drawing_resources: &DrawingResources) -> Option<[Vec2; 4]>
         {
             if !self.sprite.enabled()
             {
@@ -1526,22 +1560,22 @@ pub(in crate::map) mod ui_mod
                 *vx += offset;
             }
 
-            Hull::from_points(rect.into_iter())
+            rect.into()
         }
 
         /// Checks whether the sprite, if any, fits within the map.
         #[inline]
-        fn check_sprite_hull(
+        fn check_sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
             center: Vec2
-        ) -> Result<Option<Hull>, ()>
+        ) -> Result<Option<[Vec2; 4]>, ()>
         {
-            match self.sprite_hull_at_origin(drawing_resources)
+            match self.sprite_vxs_at_origin(drawing_resources)
             {
                 Some(rect) =>
                 {
-                    if rect.vertexes().any(|vx| (vx + center).out_of_bounds())
+                    if rect.iter().any(|vx| (*vx + center).out_of_bounds())
                     {
                         Result::Err(())
                     }
@@ -1559,7 +1593,7 @@ pub(in crate::map) mod ui_mod
         fn update_sprite_vxs(&mut self, drawing_resources: &DrawingResources, center: Vec2)
         {
             self.sprite.update_bounds(&return_if_none!(self
-                .check_sprite_hull(drawing_resources, center)
+                .check_sprite_vxs(drawing_resources, center)
                 .unwrap()));
         }
     }

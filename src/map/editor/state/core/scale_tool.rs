@@ -187,6 +187,7 @@ impl ScaleTool
                 if !cursor_pos.around_equal_narrow(start_pos) && !backup_polygons.is_empty()
                 {
                     edits_history.polygon_edit_cluster(backup_polygons.take_value().into_iter());
+                    edits_history.override_edit_tag("Brushes Scale");
                 }
 
                 self.finalize_drag_scale(manager, grid, settings);
@@ -252,6 +253,7 @@ impl ScaleTool
                 if !backup_polygons.is_empty()
                 {
                     edits_history.polygon_edit_cluster(backup_polygons.take_value().into_iter());
+                    edits_history.override_edit_tag("Brush Rotation.");
                 }
             },
             {

@@ -36,7 +36,8 @@ use crate::{
             editor_state::ToolsSettings,
             grid::{Grid, GridLines}
         },
-        thing::{catalog::ThingsCatalog, ThingInterface}
+        thing::{catalog::ThingsCatalog, ThingInterface},
+        Translate
     },
     utils::{
         hull::{CircleIterator, Corner, EntityHull, Hull, Side},
@@ -856,17 +857,21 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(4);
 
-        let mut hull = settings.sprite_hull(self.grid.transform_point(brush_center)).unwrap();
+        let brush_center = self.grid.transform_point(brush_center);
+        let mut vxs = settings.sprite_vxs(brush_center).unwrap();
 
         let offset = Vec2::new(settings.offset_x(), settings.offset_y());
-        hull += self.grid.transform_point(offset) - offset;
+        vxs.translate(self.grid.transform_point(offset) - offset);
 
         if self.grid.isometric()
         {
-            hull += Vec2::new(0f32, hull.half_height());
+            vxs.translate(Vec2::new(
+                0f32,
+                settings.sprite_hull(brush_center).unwrap().half_height()
+            ));
         }
 
-        mesh_generator.push_positions(hull.vertexes());
+        mesh_generator.push_positions(vxs.into_iter());
         mesh_generator.set_sprite_uv(settings.name(), settings);
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
@@ -1259,7 +1264,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
             }
         };
 
-        let mut hull = texture.texture().hull() + self.grid.transform_point(brush_center);
+        let mut hull = settings.sprite_hull(self.grid.transform_point(brush_center)).unwrap();
 
         if self.grid.isometric()
         {

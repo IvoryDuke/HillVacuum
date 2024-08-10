@@ -389,6 +389,25 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
+    pub(in crate::map) trait Translate
+    {
+        fn translate(&mut self, delta: Vec2);
+    }
+
+    impl Translate for [Vec2; 4]
+    {
+        #[inline]
+        fn translate(&mut self, delta: Vec2)
+        {
+            for vx in self
+            {
+                *vx += delta;
+            }
+        }
+    }
+
+    //=======================================================================//
+
     impl Toggle for WindowMode
     {
         /// Switches the [`WindowMode`] from windowed to borderless fullscreen, and viceversa.

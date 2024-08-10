@@ -1046,7 +1046,7 @@ impl SideTool
         });
     }
 
-    /// Extraude the selected sides.
+    /// Extrude the selected sides.
     #[inline]
     fn extrude_sides(
         bundle: &ToolUpdateBundle,
@@ -1118,6 +1118,8 @@ impl SideTool
             manager.despawn_brush(payload.id(), edits_history, true);
         }
 
+        edits_history.override_edit_tag("Brush Intrusion");
+
         self.0 = Status::default();
         self.1.clear();
     }
@@ -1152,6 +1154,8 @@ impl SideTool
             let properties = manager.brush(id).properties();
             manager.spawn_brush(cp, edits_history, properties);
         }
+
+        edits_history.override_edit_tag("Brush Extrusion");
 
         self.0 = Status::default();
         self.1.clear();

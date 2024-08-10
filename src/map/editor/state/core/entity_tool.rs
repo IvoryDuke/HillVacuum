@@ -767,6 +767,7 @@ impl EntityTool
         if edits_history.multiframe_edit()
         {
             edits_history.end_multiframe_edit();
+            edits_history.override_edit_tag("Entities Drag Spawn");
         }
 
         self.0 = Status::default();

@@ -62,7 +62,7 @@ enum Status
     /// Moving the pivot through the UI.
     MovePivotUi,
     /// Dragging the mouse to rotate.
-    Drag(Vec2, Vec2, HvVec<(Id, ConvexPolygon)>)
+    Drag(Vec2, HvVec<(Id, ConvexPolygon)>, f32)
 }
 
 impl Default for Status
@@ -344,7 +344,7 @@ impl RotateTool
                         return;
                     }
 
-                    self.status = Status::Drag(cursor_pos, cursor_pos, hv_vec![]);
+                    self.status = Status::Drag(cursor_pos, hv_vec![], 0f32);
                 }
             },
             Status::MovePivot =>
@@ -368,7 +368,7 @@ impl RotateTool
                     self.pivot = self.cursor_pos(cursor);
                 }
             },
-            Status::Drag(last_pos, start_pos, backup_polygons) =>
+            Status::Drag(last_pos, backup_polygons, angle) =>
             {
                 Self::rotate_brushes_with_mouse(
                     bundle,
@@ -377,7 +377,8 @@ impl RotateTool
                     last_pos,
                     self.pivot,
                     cursor_pos,
-                    backup_polygons
+                    backup_polygons,
+                    angle
                 );
 
                 if inputs.left_mouse.pressed()
@@ -385,23 +386,20 @@ impl RotateTool
                     return;
                 }
 
-                let angle = settings.rotate_angle.snap_angle(
-                    vectors_angle_cosine(*start_pos - self.pivot, *last_pos - self.pivot).acos()
-                );
+                let angle = angle.to_degrees().rem_euclid(360f32);
 
-                if !angle.around_equal(&0f32) && !angle.around_equal(&std::f32::consts::TAU)
+                if angle != 0f32 && angle != 360f32
                 {
                     if settings.entity_editing()
                     {
                         edits_history
                             .polygon_edit_cluster(backup_polygons.take_value().into_iter());
+                        edits_history.override_edit_tag("Brush Rotation");
                     }
                     else
                     {
-                        edits_history.texture_angle_delta(
-                            manager.selected_textured_ids().copied(),
-                            angle.to_degrees()
-                        );
+                        edits_history
+                            .texture_angle_delta(manager.selected_textured_ids().copied(), angle);
                     }
                 }
 
@@ -443,6 +441,7 @@ impl RotateTool
                 )
                 {
                     edits_history.polygon_edit_cluster(backup_polygons.take_value().into_iter());
+                    edits_history.override_edit_tag("Brush rotation");
                 }
             },
             {
@@ -492,7 +491,8 @@ impl RotateTool
         pos: &mut Vec2,
         pivot: Vec2,
         cursor_pos: Vec2,
-        backup_polygons: &mut HvVec<(Id, ConvexPolygon)>
+        backup_polygons: &mut HvVec<(Id, ConvexPolygon)>,
+        cumulative_angle: &mut f32
     )
     {
         if cursor_pos.around_equal_narrow(&pivot) || cursor_pos.around_equal_narrow(pos)
@@ -521,6 +521,8 @@ impl RotateTool
         {
             angle.toggle();
         }
+
+        *cumulative_angle += angle;
 
         // Rotate.
         if edit_target!(
@@ -595,9 +597,8 @@ impl RotateTool
             manager.selected_brushes_with_sprite_mut().find_map(|mut brush| {
                 let prev_angle = brush.texture_settings().unwrap().angle();
 
-                (!brush
-                    .check_texture_angle(bundle.drawing_resources, prev_angle - angle.to_degrees()))
-                .then_some(brush.id())
+                (!brush.check_texture_angle(bundle.drawing_resources, prev_angle - angle))
+                    .then_some(brush.id())
             })
         });
 

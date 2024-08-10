@@ -142,6 +142,7 @@ impl ShatterTool
             properties
         );
         manager.despawn_selected_brush(id, edits_history);
+        edits_history.override_edit_tag("Brush Shatter");
 
         self.0 = None;
     }

@@ -222,13 +222,19 @@ impl Edit
         }
     }
 
+    #[inline]
     fn push_tag(&mut self, tag: &str)
     {
-        if !self.tag.is_empty()
+        if self.tag.is_empty()
         {
-            self.tag.push('\n');
+            self.tag.push_str(tag);
         }
+    }
 
+    #[inline]
+    pub fn override_tag(&mut self, tag: &str)
+    {
+        self.tag.clear();
         self.tag.push_str(tag);
     }
 

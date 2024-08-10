@@ -789,21 +789,23 @@ pub(in crate::map) mod ui_mod
         {
             polygon.vertexes[Self::EXTRUSION_SIDE_INDICES[0]].vec = payload.0;
 
-            if let Some(vx) = payload.1
+            match payload.1
             {
-                if polygon.sides() == 3
+                Some(vx) =>
                 {
-                    polygon.vertexes.push(SelectableVector::new(vx));
-                }
-                else
-                {
-                    polygon.vertexes[Self::EXTRUSION_SIDE_INDICES[1]].vec = vx;
-                }
+                    if polygon.sides() == 3
+                    {
+                        polygon.vertexes.push(SelectableVector::new(vx));
+                    }
+                    else
+                    {
+                        polygon.vertexes[Self::EXTRUSION_SIDE_INDICES[1]].vec = vx;
+                    }
+                },
+                None => polygon.vertexes.truncate(3)
+            };
 
-                return;
-            }
-
-            polygon.vertexes.truncate(3);
+            polygon.update_center_hull();
         }
 
         #[inline]
@@ -1118,17 +1120,23 @@ pub(in crate::map) mod ui_mod
         fn sprite(&self) -> bool { self.texture.sprite() }
 
         #[inline]
+        fn animation(&self) -> &Animation { self.texture.animation() }
+    }
+
+    impl<'b> TextureInterfaceExtra for MovingTextureSettings<'b>
+    {
+        #[inline]
         fn sprite_hull(&self, center: Vec2) -> Option<Hull>
         {
             self.texture.sprite_hull(center + self.delta)
         }
 
         #[inline]
-        fn animation(&self) -> &Animation { self.texture.animation() }
-    }
+        fn sprite_vxs(&self, center: Vec2) -> Option<[Vec2; 4]>
+        {
+            self.texture.sprite_vxs(center + self.delta)
+        }
 
-    impl<'b> TextureInterfaceExtra for MovingTextureSettings<'b>
-    {
         #[inline]
         fn overall_animation<'a>(&'a self, drawing_resources: &'a DrawingResources)
             -> &'a Animation
@@ -2256,7 +2264,7 @@ pub(in crate::map) mod ui_mod
             f: F
         ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
         where
-            F: Fn(&mut SelectableVector) -> bool
+            F: Fn(&SelectableVector) -> bool
         {
             #[inline]
             fn round<F, G>(
@@ -2265,16 +2273,11 @@ pub(in crate::map) mod ui_mod
                 f: &F,
                 g: G
             ) where
-                F: Fn(&mut SelectableVector) -> bool,
+                F: Fn(&SelectableVector) -> bool,
                 G: Fn(Vec2) -> Option<Vec2>
             {
-                'outer: for (i, svx) in vertexes.iter_mut().enumerate()
+                'outer: for (i, svx) in vertexes.iter_mut().enumerate().filter(|(_, svx)| f(svx))
                 {
-                    if f(svx)
-                    {
-                        continue;
-                    }
-
                     let delta = continue_if_none!(g(svx.vec)) - svx.vec;
                     svx.vec += delta;
 
@@ -5086,7 +5089,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        fn sprite_highlight<T: TextureInterface>(
+        fn sprite_highlight<T: TextureInterfaceExtra>(
             &self,
             drawer: &mut EditDrawer,
             center: Vec2,

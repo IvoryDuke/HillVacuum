@@ -769,6 +769,9 @@ impl EditsHistory
     #[inline]
     pub fn reset_last_save_edit(&mut self) { self.last_save_edit = self.index.into(); }
 
+    #[inline]
+    pub fn override_edit_tag(&mut self, tag: &str) { self.current_edit.override_tag(tag); }
+
     //=======================================================================//
     // Info
 

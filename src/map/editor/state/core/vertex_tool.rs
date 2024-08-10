@@ -284,6 +284,7 @@ impl BrushesWithSelectedVertexes
                 edits_history.polygon_edit(brush.id(), brush.polygon());
                 brush.split(drawing_resources, p)
             };
+            edits_history.override_edit_tag("Brush Split");
 
             let properties = manager.brush(p.id()).properties();
             self.ids
