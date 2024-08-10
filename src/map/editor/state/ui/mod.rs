@@ -984,7 +984,7 @@ impl Ui
                         ("Properties", {
                             self.properties_window.toggle();
                         }, binds.get(Bind::PropertiesEditor).map_or("", FromToStr::to_str)),
-                        ("Edits History", {
+                        ("Edits history", {
                             self.edits_history_window.toggle();
                         }, binds.get(Bind::EditsHistory).map_or("", FromToStr::to_str))
                     );

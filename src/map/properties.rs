@@ -241,7 +241,6 @@ pub(in crate::map) mod ui_mod
             containers::{hv_hash_map, hv_vec},
             misc::AssertedInsertRemove
         },
-        HvHashMap,
         HvVec,
         ToValue,
         Value
@@ -537,9 +536,6 @@ pub(in crate::map) mod ui_mod
 
     impl Properties
     {
-        #[inline]
-        pub const unsafe fn from_parts(value: HvHashMap<String, Value>) -> Self { Self(value) }
-
         /// Returns the amount of contained values.
         #[inline]
         #[must_use]

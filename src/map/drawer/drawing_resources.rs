@@ -213,20 +213,6 @@ impl Placeholder for TextureMaterials
 
 impl TextureMaterials
 {
-    /// The [`Color`]s used to draw entities.
-    pub const COLORS: [Color; 10] = [
-        Color::NonSelectedEntity,
-        Color::SelectedEntity,
-        Color::HighlightedNonSelectedEntity,
-        Color::HighlightedSelectedEntity,
-        Color::NonSelectedVertex,
-        Color::ClippedPolygonsNotToSpawn,
-        Color::ClippedPolygonsToSpawn,
-        Color::OpaqueEntity,
-        Color::SubtractorBrush,
-        Color::SubtracteeBrush
-    ];
-
     handles!(repeat_material, clamp_material);
 
     /// Returns a new [`TextureMaterials`].
