@@ -69,7 +69,7 @@ macro_rules! clip_brushes {
         // Until I figure out how to properly annotate the F lifetimes.
         for brush in $iter
         {
-            let [left, right] = continue_if_none!(brush.clip($drawing_resources, $clip_line));
+            let [left, right] = continue_if_none!(brush.clip($clip_line));
             left_polygons.push((left, brush.properties()));
             right_polygons.push((right, brush.properties()));
             clipped_brushes.push(brush.id());
@@ -85,7 +85,7 @@ macro_rules! clip_brushes {
 
         for id in clipped_brushes
         {
-            $manager.despawn_brush(id, $edits_history, true);
+            $manager.despawn_brush($drawing_resources, id, $edits_history, true);
         }
 
         $self.0 = Status::PostClip {
@@ -254,7 +254,7 @@ impl ClipTool
 
                 if inputs.alt_pressed() && manager.selected_brushes_amount() > 1
                 {
-                    Self::set_clip_side(manager, clip_side, bundle.cursor, bundle.camera.scale());
+                    Self::set_clip_side(bundle, manager, clip_side);
 
                     if !left_mouse_just_pressed
                     {
@@ -297,13 +297,13 @@ impl ClipTool
                 }
                 else if inputs.enter.just_pressed()
                 {
-                    self.spawn_clipped_brushes(manager, edits_history);
+                    self.spawn_clipped_brushes(bundle.drawing_resources, manager, edits_history);
                 }
             },
             Status::PickSideUi(clip_side) =>
             {
                 *clip_side = None;
-                Self::set_clip_side(manager, clip_side, bundle.cursor, bundle.camera.scale());
+                Self::set_clip_side(bundle, manager, clip_side);
 
                 if inputs.left_mouse.just_pressed()
                 {
@@ -316,13 +316,13 @@ impl ClipTool
     /// Uses the side beneath the cursor, if any, to generate the clip line.
     #[inline]
     fn set_clip_side(
+        bundle: &ToolUpdateBundle,
         manager: &EntitiesManager,
-        clip_side: &mut Option<ClipSide>,
-        cursor: &Cursor,
-        camera_scale: f32
+        clip_side: &mut Option<ClipSide>
     )
     {
-        let cursor_pos = cursor.world();
+        let cursor_pos = bundle.cursor.world();
+        let camera_scale = bundle.camera.scale();
 
         let (id, side) = return_if_none!(manager
             .selected_brushes_at_pos(cursor_pos, camera_scale)
@@ -393,6 +393,7 @@ impl ClipTool
     #[inline]
     fn spawn_clipped_brushes(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory
     )
@@ -421,21 +422,21 @@ impl ClipTool
 
                 for (poly, properties) in left_polygons.into_iter().chain(right_polygons)
                 {
-                    manager.spawn_brush(poly, edits_history, properties);
+                    manager.spawn_brush(drawing_resources, poly, edits_history, properties);
                 }
             },
             PickedPolygons::Left =>
             {
                 for (poly, properties) in left_polygons
                 {
-                    manager.spawn_brush(poly, edits_history, properties);
+                    manager.spawn_brush(drawing_resources, poly, edits_history, properties);
                 }
             },
             PickedPolygons::Right =>
             {
                 for (poly, properties) in right_polygons
                 {
-                    manager.spawn_brush(poly, edits_history, properties);
+                    manager.spawn_brush(drawing_resources, poly, edits_history, properties);
                 }
             }
         };

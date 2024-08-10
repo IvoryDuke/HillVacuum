@@ -635,9 +635,10 @@ impl AnimationEditor
     #[inline]
     pub fn push_list_animation_frame(
         &mut self,
-        texture: &mut Texture,
+        drawing_resources: &mut DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        overall_texture: &UiOverallTextureSettings,
         new_texture: &str
     )
     {
@@ -646,6 +647,15 @@ impl AnimationEditor
             Target::None => panic!("No list animation frame push target."),
             Target::Texture(over) =>
             {
+                let texture = &mut drawing_resources
+                    .texture_mut(
+                        over.as_ref()
+                            .map(|(name, _)| name)
+                            .or_else(|| overall_texture.name.uniform_value())
+                            .unwrap()
+                            .as_str()
+                    )
+                    .unwrap();
                 let animation = over
                     .as_mut()
                     .map(|(_, animation)| animation)
@@ -670,10 +680,12 @@ impl AnimationEditor
             Target::Brushes =>
             {
                 edits_history.list_animation_new_frame(
-                    manager.selected_textured_brushes_mut().map(|mut brush| {
-                        brush.push_list_animation_frame(new_texture);
-                        brush.id()
-                    }),
+                    manager
+                        .selected_textured_brushes_mut(drawing_resources)
+                        .map(|mut brush| {
+                            brush.push_list_animation_frame(new_texture);
+                            brush.id()
+                        }),
                     new_texture
                 );
             }
@@ -712,10 +724,13 @@ impl AnimationEditor
     ) -> bool
     {
         manager.test_operation_validity(|manager| {
-            return_if_none!(manager.selected_brushes_with_texture_sprite_mut(texture), None)
-                .find_map(|mut brush| {
-                    (!brush.check_texture_within_bounds(drawing_resources)).then_some(brush.id())
-                })
+            return_if_none!(
+                manager.selected_brushes_with_texture_sprite_mut(drawing_resources, texture),
+                None
+            )
+            .find_map(|mut brush| {
+                (!brush.check_texture_within_bounds(drawing_resources)).then_some(brush.id())
+            })
         })
     }
 
@@ -745,20 +760,18 @@ impl AnimationEditor
             inputs,
             field_width,
             |index, new_texture| {
-                let prev = texture
+                let prev = return_if_none!(texture
                     .animation_mut_set_dirty()
                     .get_list_animation_mut()
-                    .set_texture(index, new_texture)
-                    .unwrap();
+                    .set_texture(index, new_texture));
 
                 edits_history.default_animation_list_texture(texture, index, &prev);
             },
             |index, time| {
-                let prev = texture
+                let prev = return_if_none!(texture
                     .animation_mut_set_dirty()
                     .get_list_animation_mut()
-                    .set_time(index, time)
-                    .unwrap();
+                    .set_time(index, time));
 
                 edits_history.default_animation_list_time(texture, index, prev);
             },
@@ -913,20 +926,18 @@ impl AnimationEditor
                 .into()
             },
             |_, time| {
-                let prev = texture
+                let prev = return_if_none!(texture
                     .animation_mut_set_dirty()
                     .get_atlas_animation_mut()
-                    .set_uniform_time(time)
-                    .unwrap();
+                    .set_uniform_time(time));
 
                 edits_history.default_animation_atlas_uniform_time(texture, prev);
             },
             |index, time| {
-                let prev = texture
+                let prev = return_if_none!(texture
                     .animation_mut_set_dirty()
                     .get_atlas_animation_mut()
-                    .set_frame_time(index, time)
-                    .unwrap();
+                    .set_frame_time(index, time));
 
                 edits_history.default_animation_atlas_frame_time(texture, index, prev);
             },

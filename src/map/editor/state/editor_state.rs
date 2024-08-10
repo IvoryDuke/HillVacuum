@@ -149,12 +149,10 @@ macro_rules! input_presses {
 			#[inline]
 			fn update(
                 &mut self,
-                $mouse_buttons: &ButtonInput<MouseButton>,
-                $key_inputs: &ButtonInput<KeyCode>,
-                $binds_inputs: &mut BindsKeyCodes
+                bundle: &mut StateUpdateBundle
             )
 			{
-				$(self.$name.update($source $(, $binds)?);)+
+				$(self.$name.update(bundle.$source $(, &mut bundle.config.$binds)?);)+
 			}
 
             /// Forcefully resets the input presses to not pressed.
@@ -932,7 +930,7 @@ impl State
         if HardcodedActions::SelectAll.pressed(bundle.key_inputs) &&
             self.core.select_all_available()
         {
-            self.select_all();
+            self.select_all(bundle.drawing_resources);
             return true;
         }
 
@@ -977,7 +975,7 @@ impl State
         }
         else if HardcodedActions::Duplicate.pressed(bundle.key_inputs)
         {
-            self.duplicate(bundle);
+            self.duplicate(bundle.drawing_resources);
         }
         else
         {
@@ -1609,6 +1607,7 @@ impl State
             images,
             prop_cameras,
             user_textures,
+            drawing_resources,
             things_catalog,
             grid,
             &header,
@@ -1716,9 +1715,10 @@ impl State
 
     /// Initiated the select all procedure.
     #[inline]
-    fn select_all(&mut self)
+    fn select_all(&mut self, drawing_resources: &DrawingResources)
     {
         self.core.select_all(
+            drawing_resources,
             &mut self.manager,
             &mut self.edits_history,
             self.grid,
@@ -1784,14 +1784,14 @@ impl State
     /// # Panics
     /// Panics if the operation is not available.
     #[inline]
-    fn duplicate(&mut self, bundle: &StateUpdateBundle)
+    fn duplicate(&mut self, drawing_resources: &DrawingResources)
     {
         assert!(self.copy_paste_available(), "Duplicate cannot be enabled.");
 
         let delta = Vec2::new(self.grid_size_f32(), 0f32);
 
         _ = self.manager.duplicate_selected_entities(
-            bundle.drawing_resources,
+            drawing_resources,
             &mut self.edits_history,
             delta
         );
@@ -1820,8 +1820,7 @@ impl State
         );
 
         // Update inputs.
-        self.inputs
-            .update(bundle.mouse_buttons, bundle.key_inputs, &mut bundle.config.binds);
+        self.inputs.update(bundle);
 
         // Create UI.
         let tool_change_conditions = ChangeConditions::new(
@@ -1988,8 +1987,13 @@ impl State
             }}};
         }
 
-        self.clipboard
-            .update(bundle.images, bundle.prop_cameras, bundle.user_textures, self.grid);
+        self.clipboard.update(
+            bundle.images,
+            bundle.prop_cameras,
+            bundle.user_textures,
+            bundle.drawing_resources,
+            self.grid
+        );
 
         match ui_interaction.command
         {
@@ -2038,6 +2042,7 @@ impl State
                         bundle.images,
                         bundle.prop_cameras,
                         bundle.user_textures,
+                        bundle.drawing_resources,
                         bundle.things_catalog,
                         self.grid,
                         len,
@@ -2046,11 +2051,11 @@ impl State
                 });
             },
             Command::ExportProps => export!(PROPS, "props", props, self.clipboard),
-            Command::SelectAll => self.select_all(),
+            Command::SelectAll => self.select_all(bundle.drawing_resources),
             Command::Copy => self.copy(bundle),
             Command::Paste => self.paste(bundle),
             Command::Cut => self.cut(bundle),
-            Command::Duplicate => self.duplicate(bundle),
+            Command::Duplicate => self.duplicate(bundle.drawing_resources),
             Command::Undo => self.undo(bundle),
             Command::Redo => self.redo(bundle),
             Command::ToggleGrid => self.toggle_grid(),
@@ -2154,8 +2159,12 @@ impl State
             }
         }
 
-        self.core
-            .frame_start_update(&mut self.manager, &mut self.edits_history, &self.clipboard);
+        self.core.frame_start_update(
+            bundle.drawing_resources,
+            &mut self.manager,
+            &mut self.edits_history,
+            &self.clipboard
+        );
         self.tools_settings.update(&self.core, &mut self.manager);
         let starts_with_star = bundle.window.title.starts_with('*');
 
@@ -2325,13 +2334,14 @@ impl State
     #[must_use]
     pub fn quick_zoom_hull(
         &self,
+        drawing_resources: &DrawingResources,
         key_inputs: &ButtonInput<KeyCode>,
         binds: &BindsKeyCodes
     ) -> Option<Hull>
     {
         if Bind::Zoom.alt_just_pressed(key_inputs, binds)
         {
-            return self.manager.selected_entities_hull();
+            return self.manager.selected_entities_hull(drawing_resources);
         }
 
         None

@@ -14,6 +14,7 @@ use crate::{
     config::controls::bind::Bind,
     map::{
         brush::Brush,
+        drawer::drawing_resources::DrawingResources,
         editor::{
             state::{
                 clipboard::Clipboard,
@@ -91,6 +92,7 @@ impl Innards
         ui: &mut egui::Ui,
         brushes_default_properties: &DefaultProperties,
         things_default_properties: &DefaultProperties,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
@@ -147,6 +149,7 @@ impl Innards
                     ui,
                     brushes_default_properties,
                     things_default_properties,
+                    drawing_resources,
                     manager,
                     edits_history,
                     clipboard,
@@ -162,6 +165,7 @@ impl Innards
         ui: &mut egui::Ui,
         brushes_default_properties: &DefaultProperties,
         things_default_properties: &DefaultProperties,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
@@ -170,10 +174,10 @@ impl Innards
     {
         /// Sets a property.
         macro_rules! set_property {
-            ($self:ident, $key:ident, $value:ident, $entities:ident) => {
+            ($self:ident, $key:ident, $value:ident, $entities:ident $(, $drawing_resources:ident)?) => {
                 $self.edits_history.property(
                     $key,
-                    $self.manager.$entities().filter_map(|mut entity| {
+                    $self.manager.$entities($($drawing_resources)?).filter_map(|mut entity| {
                         entity.set_property($key, $value).map(|value| (entity.id(), value))
                     })
                 );
@@ -203,9 +207,14 @@ impl Innards
         impl<'a> SetProperty for BrushesPropertySetter<'a>
         {
             #[inline]
-            fn set_property(&mut self, key: &str, value: &Value)
+            fn set_property(
+                &mut self,
+                drawing_resources: &DrawingResources,
+                key: &str,
+                value: &Value
+            )
             {
-                set_property!(self, key, value, selected_brushes_mut);
+                set_property!(self, key, value, selected_brushes_mut, drawing_resources);
             }
         }
 
@@ -220,7 +229,7 @@ impl Innards
         impl<'a> SetProperty for ThingsPropertySetter<'a>
         {
             #[inline]
-            fn set_property(&mut self, key: &str, value: &Value)
+            fn set_property(&mut self, _: &DrawingResources, key: &str, value: &Value)
             {
                 set_property!(self, key, value, selected_things_mut);
             }
@@ -235,7 +244,7 @@ impl Innards
 
                 if let Some(value) = CheckBox::show(ui, &self.overall_brushes_collision, |v| *v)
                 {
-                    for mut brush in manager.selected_brushes_mut()
+                    for mut brush in manager.selected_brushes_mut(drawing_resources)
                     {
                         edits_history
                             .collision(brush.id(), continue_if_none!(brush.set_collision(value)));
@@ -247,6 +256,7 @@ impl Innards
                 ui.end_row();
 
                 self.overall_brushes_properties.show(
+                    drawing_resources,
                     ui,
                     &mut BrushesPropertySetter {
                         manager,
@@ -303,6 +313,7 @@ impl Innards
                 angle_height!("Angle", angle, 0f32, 359f32);
 
                 self.overall_things_properties.show(
+                    drawing_resources,
                     ui,
                     &mut ThingsPropertySetter {
                         manager,
@@ -551,6 +562,7 @@ impl PropertiesWindow
                         ui,
                         map_brushes,
                         map_things,
+                        bundle.drawing_resources,
                         manager,
                         edits_history,
                         clipboard,

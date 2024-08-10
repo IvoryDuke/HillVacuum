@@ -19,6 +19,7 @@ use crate::{
             convex_polygon::{ConvexPolygon, ShearInfo},
             ShearResult
         },
+        drawer::drawing_resources::DrawingResources,
         editor::{
             state::{
                 editor_state::InputsPresses,
@@ -127,6 +128,7 @@ impl ShearTool
                     let mut backup_polygons = hv_vec![];
 
                     _ = return_if_none!(Self::shear_brushes(
+                        bundle.drawing_resources,
                         manager,
                         grid,
                         self.selected_side,
@@ -147,6 +149,7 @@ impl ShearTool
                 drag.conditional_update(cursor, grid, |delta| {
                     let i = return_if_none!(
                         Self::shear_brushes(
+                            bundle.drawing_resources,
                             manager,
                             grid,
                             self.selected_side,
@@ -203,6 +206,7 @@ impl ShearTool
     /// Shears the brushes if possible.
     #[inline]
     fn shear_brushes(
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         grid: Grid,
         selected_side: Side,
@@ -219,7 +223,7 @@ impl ShearTool
 
                 let valid = manager.test_operation_validity(|manager| {
                     manager.selected_brushes().find_map(|brush| {
-                        match brush.$check(&info)
+                        match brush.$check(drawing_resources, &info)
                         {
                             ShearResult::Valid(payload) =>
                             {
@@ -244,7 +248,7 @@ impl ShearTool
 
                 for payload in payloads.into_iter()
                 {
-                    manager.brush_mut(payload.id()).$shear(payload);
+                    manager.brush_mut(drawing_resources, payload.id()).$shear(payload);
                 }
 
                 info

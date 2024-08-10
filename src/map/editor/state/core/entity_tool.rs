@@ -27,7 +27,7 @@ use super::{
 use crate::{
     map::{
         brush::Brush,
-        drawer::drawers::EditDrawer,
+        drawer::{drawers::EditDrawer, drawing_resources::DrawingResources},
         editor::{
             cursor::Cursor,
             state::{
@@ -155,6 +155,7 @@ impl Selector
         /// brush and [`ThingInstance`] selection update.
         #[inline]
         fn entity_selector(
+            _: &DrawingResources,
             manager: &EntitiesManager,
             cursor_pos: Vec2,
             _: f32,
@@ -183,6 +184,7 @@ impl Selector
         /// Polygons selection update.
         #[inline]
         fn polygon_selector(
+            _: &DrawingResources,
             manager: &EntitiesManager,
             cursor_pos: Vec2,
             _: f32,
@@ -202,16 +204,19 @@ impl Selector
         /// Textured brush selection update.
         #[inline]
         fn textured_brush_selector(
+            drawing_resources: &DrawingResources,
             manager: &EntitiesManager,
             cursor_pos: Vec2,
             _: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
         {
-            for brush in manager
-                .sprites_at_pos(cursor_pos)
-                .iter()
-                .filter(|brush| brush.sprite_hull().unwrap().contains_point(cursor_pos))
+            for brush in manager.sprites_at_pos(cursor_pos).iter().filter(|brush| {
+                brush
+                    .sprite_hull(drawing_resources)
+                    .unwrap()
+                    .contains_point(cursor_pos)
+            })
             {
                 let id = brush.id();
                 items.push(ItemBeneathCursor::Sprite(id), manager.is_selected(id));
@@ -229,16 +234,19 @@ impl Selector
         /// Any item selection update.
         #[inline]
         fn both_selector(
+            drawing_resources: &DrawingResources,
             manager: &EntitiesManager,
             cursor_pos: Vec2,
             _: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
         {
-            for brush in manager
-                .sprites_at_pos(cursor_pos)
-                .iter()
-                .filter(|brush| brush.sprite_hull().unwrap().contains_point(cursor_pos))
+            for brush in manager.sprites_at_pos(cursor_pos).iter().filter(|brush| {
+                brush
+                    .sprite_hull(drawing_resources)
+                    .unwrap()
+                    .contains_point(cursor_pos)
+            })
             {
                 let id = brush.id();
                 items.push(ItemBeneathCursor::Sprite(id), manager.is_selected(id));
@@ -276,13 +284,19 @@ impl Selector
     #[must_use]
     fn entity_beneath_cursor(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         cursor: &Cursor,
         inputs: &InputsPresses
     ) -> Option<ItemBeneathCursor>
     {
-        self.brushes_and_things
-            .item_beneath_cursor(manager, cursor, 0f32, inputs)
+        self.brushes_and_things.item_beneath_cursor(
+            drawing_resources,
+            manager,
+            cursor,
+            0f32,
+            inputs
+        )
     }
 
     /// Returns the brush beneath the cursor.
@@ -290,12 +304,14 @@ impl Selector
     #[must_use]
     fn brush_beneath_cursor(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         cursor: &Cursor,
         inputs: &InputsPresses
     ) -> Option<ItemBeneathCursor>
     {
-        self.brushes.item_beneath_cursor(manager, cursor, 0f32, inputs)
+        self.brushes
+            .item_beneath_cursor(drawing_resources, manager, cursor, 0f32, inputs)
     }
 
     /// Returns the textured brush or sprite beneath the cursor.
@@ -303,13 +319,14 @@ impl Selector
     #[must_use]
     fn textured_brush_beneath_cursor(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         cursor: &Cursor,
         inputs: &InputsPresses
     ) -> Option<ItemBeneathCursor>
     {
         self.textured_brushes
-            .item_beneath_cursor(manager, cursor, 0f32, inputs)
+            .item_beneath_cursor(drawing_resources, manager, cursor, 0f32, inputs)
     }
 
     /// Returns the entity or the sprite beneath the cursor.
@@ -317,12 +334,14 @@ impl Selector
     #[must_use]
     fn both_beneath_cursor(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         cursor: &Cursor,
         inputs: &InputsPresses
     ) -> Option<ItemBeneathCursor>
     {
-        self.everything.item_beneath_cursor(manager, cursor, 0f32, inputs)
+        self.everything
+            .item_beneath_cursor(drawing_resources, manager, cursor, 0f32, inputs)
     }
 
     /// Returns the item beneath the cursor, if any.
@@ -338,11 +357,22 @@ impl Selector
     {
         match settings.target_switch()
         {
-            TargetSwitch::Entity => self.entity_beneath_cursor(manager, bundle.cursor, inputs),
-            TargetSwitch::Both => self.both_beneath_cursor(manager, bundle.cursor, inputs),
+            TargetSwitch::Entity =>
+            {
+                self.entity_beneath_cursor(bundle.drawing_resources, manager, bundle.cursor, inputs)
+            },
+            TargetSwitch::Both =>
+            {
+                self.both_beneath_cursor(bundle.drawing_resources, manager, bundle.cursor, inputs)
+            },
             TargetSwitch::Texture =>
             {
-                self.textured_brush_beneath_cursor(manager, bundle.cursor, inputs)
+                self.textured_brush_beneath_cursor(
+                    bundle.drawing_resources,
+                    manager,
+                    bundle.cursor,
+                    inputs
+                )
             },
         }
     }
@@ -532,11 +562,11 @@ impl EntityTool
                 {
                     if settings.entity_editing()
                     {
-                        manager.despawn_selected_entities(edits_history);
+                        manager.despawn_selected_entities(bundle.drawing_resources, edits_history);
                     }
                     else
                     {
-                        manager.remove_selected_textures(edits_history);
+                        manager.remove_selected_textures(bundle.drawing_resources, edits_history);
                     }
 
                     ds.set_highlighted_entity(
@@ -644,8 +674,12 @@ impl EntityTool
             {
                 *hgl_e = None;
 
-                let brush_beneath_cursor =
-                    self.1.brush_beneath_cursor(manager, bundle.cursor, inputs);
+                let brush_beneath_cursor = self.1.brush_beneath_cursor(
+                    bundle.drawing_resources,
+                    manager,
+                    bundle.cursor,
+                    inputs
+                );
                 let brush_id = return_if_none!(brush_beneath_cursor).id();
 
                 if brush_id == *id ||
@@ -697,8 +731,12 @@ impl EntityTool
             {
                 *hgl_e = None;
 
-                let brush_beneath_cursor =
-                    self.1.brush_beneath_cursor(manager, bundle.cursor, inputs);
+                let brush_beneath_cursor = self.1.brush_beneath_cursor(
+                    bundle.drawing_resources,
+                    manager,
+                    bundle.cursor,
+                    inputs
+                );
                 let id = return_if_none!(brush_beneath_cursor).id();
 
                 if !manager.is_selected(id)
@@ -863,7 +901,10 @@ impl EntityTool
         let valid = manager.test_operation_validity(|manager| {
             manager
                 .selected_brushes()
-                .find_map(|brush| (!brush.check_move(delta, move_texture)).then_some(brush.id()))
+                .find_map(|brush| {
+                    (!brush.check_move(bundle.drawing_resources, delta, move_texture))
+                        .then_some(brush.id())
+                })
                 .or(manager
                     .selected_things()
                     .find_map(|thing| (!thing.check_move(delta)).then_some(thing.id())))
@@ -874,9 +915,9 @@ impl EntityTool
             return false;
         }
 
-        for mut brush in manager.selected_brushes_mut()
+        for mut brush in manager.selected_brushes_mut(bundle.drawing_resources)
         {
-            brush.move_by_delta(bundle.drawing_resources, delta, move_texture);
+            brush.move_by_delta(delta, move_texture);
         }
 
         for mut thing in manager.selected_things_mut()
@@ -896,9 +937,9 @@ impl EntityTool
     ) -> bool
     {
         let valid = manager.test_operation_validity(|manager| {
-            manager
-                .selected_brushes_with_sprites()
-                .find_map(|brush| (!brush.check_texture_move(delta)).then_some(brush.id()))
+            manager.selected_brushes_with_sprites().find_map(|brush| {
+                (!brush.check_texture_move(bundle.drawing_resources, delta)).then_some(brush.id())
+            })
         });
 
         if !valid
@@ -906,9 +947,9 @@ impl EntityTool
             return false;
         }
 
-        for mut brush in manager.selected_brushes_mut()
+        for mut brush in manager.selected_brushes_mut(bundle.drawing_resources)
         {
-            brush.move_texture(bundle.drawing_resources, delta);
+            brush.move_texture(delta);
         }
 
         true
@@ -938,7 +979,10 @@ impl EntityTool
         #[inline]
         fn sprite_outline(brush: &Brush, drawer: &mut EditDrawer, color: Color)
         {
-            drawer.sides(brush.sprite_hull().unwrap().rectangle().into_iter(), color);
+            drawer.sides(
+                brush.sprite_hull(drawer.resources()).unwrap().rectangle().into_iter(),
+                color
+            );
         }
 
         /// Draws the selected and non selected entities, except `filters`.
@@ -984,7 +1028,7 @@ impl EntityTool
             },
             Status::Drag(drag, _) =>
             {
-                drag.draw(bundle.window, bundle.camera, bundle.egui_context, &mut bundle.drawer);
+                drag.draw(bundle);
                 None
             },
             Status::PreDrag(_, hgl_e, _) => Some(*hgl_e),
@@ -1088,7 +1132,7 @@ impl EntityTool
                 {
                     brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
                     sprite_outline(brush, &mut bundle.drawer, Color::HighlightedSelectedEntity);
-                    brush.sprite_hull().unwrap().into()
+                    brush.sprite_hull(bundle.drawer.resources()).unwrap().into()
                 }
                 else
                 {

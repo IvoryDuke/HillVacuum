@@ -929,12 +929,11 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub fn clip_polygon_at_intrusion_side(
             &self,
-            drawing_resources: &DrawingResources,
             brush: &Brush,
             distance: Vec2
         ) -> Option<[ConvexPolygon; 2]>
         {
-            brush.clip(drawing_resources, &self.xtrusion_side(distance))
+            brush.clip(&self.xtrusion_side(distance))
         }
     }
 
@@ -1126,15 +1125,19 @@ pub(in crate::map) mod ui_mod
     impl<'b> TextureInterfaceExtra for MovingTextureSettings<'b>
     {
         #[inline]
-        fn sprite_hull(&self, center: Vec2) -> Option<Hull>
+        fn sprite_hull(&self, drawing_resources: &DrawingResources, center: Vec2) -> Option<Hull>
         {
-            self.texture.sprite_hull(center + self.delta)
+            self.texture.sprite_hull(drawing_resources, center + self.delta)
         }
 
         #[inline]
-        fn sprite_vxs(&self, center: Vec2) -> Option<[Vec2; 4]>
+        fn sprite_vxs(
+            &self,
+            drawing_resources: &DrawingResources,
+            center: Vec2
+        ) -> Option<[Vec2; 4]>
         {
-            self.texture.sprite_vxs(center + self.delta)
+            self.texture.sprite_vxs(drawing_resources, center + self.delta)
         }
 
         #[inline]
@@ -1398,17 +1401,21 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn sprite_hull(&self) -> Option<Hull>
+        pub fn sprite_hull(&self, drawing_resources: &DrawingResources) -> Option<Hull>
         {
-            self.texture.as_ref()?.sprite_hull(self.center)
+            self.texture.as_ref()?.sprite_hull(drawing_resources, self.center)
         }
 
         #[inline]
         #[must_use]
-        pub(in crate::map::brush) fn sprite_hull_out_of_bounds(&self, center: Vec2) -> bool
+        pub(in crate::map::brush) fn sprite_hull_out_of_bounds(
+            &self,
+            drawing_resources: &DrawingResources,
+            center: Vec2
+        ) -> bool
         {
             return_if_none!(self.texture_settings(), false)
-                .sprite_hull(center)
+                .sprite_hull(drawing_resources, center)
                 .map_or(false, |hull| hull.out_of_bounds())
         }
 
@@ -1432,7 +1439,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn update_center_hull_vertexes(&mut self, drawing_resources: &DrawingResources)
+        pub fn update_center_hull_vertexes(&mut self)
         {
             let old_center = self.center;
             self.update_center_hull();
@@ -1441,11 +1448,7 @@ pub(in crate::map) mod ui_mod
             {
                 let center = self.center;
                 self.texture_updated = true;
-                self.texture_settings_mut().move_offset(
-                    drawing_resources,
-                    old_center - center,
-                    center
-                );
+                self.texture_settings_mut().move_offset(old_center - center);
             }
         }
 
@@ -1459,7 +1462,12 @@ pub(in crate::map) mod ui_mod
 
         /// Moves the polygon by the amount delta.
         #[inline]
-        pub fn check_move(&self, delta: Vec2, move_texture: bool) -> bool
+        pub fn check_move(
+            &self,
+            drawing_resources: &DrawingResources,
+            delta: Vec2,
+            move_texture: bool
+        ) -> bool
         {
             if (self.hull + delta).out_of_bounds()
             {
@@ -1468,7 +1476,11 @@ pub(in crate::map) mod ui_mod
 
             if move_texture && self.has_sprite()
             {
-                return self.texture_settings().unwrap().check_move(delta, self.center);
+                return self.texture_settings().unwrap().check_move(
+                    drawing_resources,
+                    delta,
+                    self.center
+                );
             }
 
             true
@@ -1476,12 +1488,7 @@ pub(in crate::map) mod ui_mod
 
         /// Moves the polygon by the amount delta.
         #[inline]
-        pub fn move_by_delta(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            delta: Vec2,
-            move_texture: bool
-        )
+        pub fn move_by_delta(&mut self, delta: Vec2, move_texture: bool)
         {
             for vx in &mut self.vertexes
             {
@@ -1496,7 +1503,6 @@ pub(in crate::map) mod ui_mod
                 return;
             }
 
-            let center = self.center;
             self.texture_updated = true;
             let texture = self.texture_settings_mut();
             let sprite = texture.sprite();
@@ -1505,12 +1511,12 @@ pub(in crate::map) mod ui_mod
             {
                 if sprite
                 {
-                    texture.move_offset(drawing_resources, -delta, center);
+                    texture.move_offset(-delta);
                 }
             }
             else if !sprite
             {
-                texture.move_offset(drawing_resources, Vec2::new(-delta.x, delta.y), center);
+                texture.move_offset(Vec2::new(-delta.x, delta.y));
             }
         }
 
@@ -1621,7 +1627,7 @@ pub(in crate::map) mod ui_mod
             {
                 Some(tex_set) =>
                 {
-                    match tex_set.set_texture(drawing_resources, texture, self.center)
+                    match tex_set.set_texture(drawing_resources, texture)
                     {
                         Some(prev) => TextureSetResult::Changed(prev),
                         None => TextureSetResult::Unchanged
@@ -1657,24 +1663,25 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub(in crate::map::brush) fn check_texture_move(&self, value: Vec2) -> bool
+        pub(in crate::map::brush) fn check_texture_move(
+            &self,
+            drawing_resources: &DrawingResources,
+            value: Vec2
+        ) -> bool
         {
-            self.texture_settings().unwrap().check_move(value, self.center)
+            self.texture_settings()
+                .unwrap()
+                .check_move(drawing_resources, value, self.center)
         }
 
         #[inline]
-        pub(in crate::map::brush) fn move_texture(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            value: Vec2
-        )
+        pub(in crate::map::brush) fn move_texture(&mut self, value: Vec2)
         {
-            let center = self.center;
             self.texture_updated = true;
             let texture = self.texture_settings_mut();
             let x = if texture.sprite() { value.x } else { -value.x };
-            _ = texture.set_offset_x(drawing_resources, texture.offset_x() + x, center);
-            _ = texture.set_offset_y(drawing_resources, texture.offset_y() + value.y, center);
+            _ = texture.set_offset_x(texture.offset_x() + x);
+            _ = texture.set_offset_y(texture.offset_y() + value.y);
         }
 
         #[inline]
@@ -1692,17 +1699,9 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub(in crate::map::brush) fn set_texture_offset_x(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            value: f32
-        ) -> Option<f32>
+        pub(in crate::map::brush) fn set_texture_offset_x(&mut self, value: f32) -> Option<f32>
         {
-            let center = self.center;
-            let result = self
-                .texture_settings_mut()
-                .set_offset_x(drawing_resources, value, center);
-
+            let result = self.texture_settings_mut().set_offset_x(value);
             self.set_texture_updated(result)
         }
 
@@ -1721,16 +1720,9 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub(in crate::map::brush) fn set_texture_offset_y(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            value: f32
-        ) -> Option<f32>
+        pub(in crate::map::brush) fn set_texture_offset_y(&mut self, value: f32) -> Option<f32>
         {
-            let center = self.center;
-            let result = self
-                .texture_settings_mut()
-                .set_offset_y(drawing_resources, value, center);
+            let result = self.texture_settings_mut().set_offset_y(value);
 
             self.set_texture_updated(result)
         }
@@ -1749,31 +1741,20 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub(in crate::map::brush) fn set_texture_scale_x(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            value: f32
-        ) -> Option<f32>
+        pub(in crate::map::brush) fn set_texture_scale_x(&mut self, value: f32) -> Option<f32>
         {
-            let center = self.center;
-            let result = self
-                .texture_settings_mut()
-                .set_scale_x(drawing_resources, value, center);
+            let result = self.texture_settings_mut().set_scale_x(value);
 
             self.set_texture_updated(result)
         }
 
         #[inline]
-        pub(in crate::map::brush) fn flip_texture_scale_x(
-            &mut self,
-            drawing_resources: &DrawingResources
-        )
+        pub(in crate::map::brush) fn flip_texture_scale_x(&mut self)
         {
-            let center = self.center;
             self.texture_updated = true;
             let texture = self.texture_settings_mut();
             let scale = texture.scale_x();
-            _ = texture.set_scale_x(drawing_resources, -scale, center);
+            _ = texture.set_scale_x(-scale);
         }
 
         #[inline]
@@ -1791,31 +1772,20 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub(in crate::map::brush) fn set_texture_scale_y(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            value: f32
-        ) -> Option<f32>
+        pub(in crate::map::brush) fn set_texture_scale_y(&mut self, value: f32) -> Option<f32>
         {
-            let center = self.center;
-            let result = self
-                .texture_settings_mut()
-                .set_scale_y(drawing_resources, value, center);
+            let result = self.texture_settings_mut().set_scale_y(value);
 
             self.set_texture_updated(result)
         }
 
         #[inline]
-        pub(in crate::map::brush) fn flip_texture_scale_y(
-            &mut self,
-            drawing_resources: &DrawingResources
-        )
+        pub(in crate::map::brush) fn flip_texture_scale_y(&mut self)
         {
-            let center = self.center;
             self.texture_updated = true;
             let texture = self.texture_settings_mut();
             let scale = texture.scale_y();
-            _ = texture.set_scale_y(drawing_resources, -scale, center);
+            _ = texture.set_scale_y(-scale);
         }
 
         #[inline]
@@ -1864,16 +1834,9 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub(in crate::map::brush) fn set_texture_angle(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            value: f32
-        ) -> Option<f32>
+        pub(in crate::map::brush) fn set_texture_angle(&mut self, value: f32) -> Option<f32>
         {
-            let center = self.center;
-            let result = self
-                .texture_settings_mut()
-                .set_angle(drawing_resources, value, center);
+            let result = self.texture_settings_mut().set_angle(value);
 
             self.set_texture_updated(result)
         }
@@ -1904,20 +1867,15 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map::brush) fn set_texture_sprite(
             &mut self,
-            drawing_resources: &DrawingResources,
             value: impl Into<Sprite>
         ) -> Option<(Sprite, f32, f32)>
         {
-            let center = self.center;
-            let result = self
-                .texture_settings_mut()
-                .set_sprite(drawing_resources, value, center);
-
+            let result = self.texture_settings_mut().set_sprite(value);
             self.set_texture_updated(result)
         }
 
         #[inline]
-        fn transfer_sprite(&self, drawing_resources: &DrawingResources, target: &mut Self)
+        fn transfer_sprite(&self, target: &mut Self)
         {
             if !self.has_sprite()
             {
@@ -1928,9 +1886,7 @@ pub(in crate::map) mod ui_mod
             let center = target.center;
             let delta = self.center - center;
             target.texture_updated = true;
-            target
-                .texture_settings_mut()
-                .move_offset(drawing_resources, delta, center);
+            target.texture_settings_mut().move_offset(delta);
         }
 
         #[inline]
@@ -1959,39 +1915,28 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn set_texture_animation(
             &mut self,
-            drawing_resources: &DrawingResources,
             animation: Animation
         ) -> Animation
         {
-            let center = self.center;
             self.texture_updated = true;
-            self.texture_settings_mut()
-                .set_animation(drawing_resources, animation, center)
+            self.texture_settings_mut().set_animation(animation)
         }
 
         #[inline]
         pub(in crate::map::brush) fn set_texture_list_animation(
             &mut self,
-            drawing_resources: &DrawingResources,
             texture: &str
         ) -> Animation
         {
-            let center = self.center;
             self.texture_updated = true;
-            self.texture_settings_mut()
-                .set_list_animation(drawing_resources, texture, center)
+            self.texture_settings_mut().set_list_animation(texture)
         }
 
         #[inline]
-        pub(in crate::map::brush) fn generate_list_animation(
-            &mut self,
-            drawing_resources: &DrawingResources
-        ) -> Animation
+        pub(in crate::map::brush) fn generate_list_animation(&mut self) -> Animation
         {
-            let center = self.center;
             self.texture_updated = true;
-            self.texture_settings_mut()
-                .generate_list_animation(drawing_resources, center)
+            self.texture_settings_mut().generate_list_animation()
         }
 
         #[inline]
@@ -2014,16 +1959,10 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map::brush) fn set_atlas_animation_x_partition(
             &mut self,
-            drawing_resources: &DrawingResources,
             value: u32
         ) -> Option<u32>
         {
-            let center = self.center;
-            let result = self.texture_settings_mut().set_atlas_animation_x_partition(
-                drawing_resources,
-                value,
-                center
-            );
+            let result = self.texture_settings_mut().set_atlas_animation_x_partition(value);
 
             self.set_texture_updated(result)
         }
@@ -2048,16 +1987,10 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map::brush) fn set_atlas_animation_y_partition(
             &mut self,
-            drawing_resources: &DrawingResources,
             value: u32
         ) -> Option<u32>
         {
-            let center = self.center;
-            let result = self.texture_settings_mut().set_atlas_animation_y_partition(
-                drawing_resources,
-                value,
-                center
-            );
+            let result = self.texture_settings_mut().set_atlas_animation_y_partition(value);
 
             self.set_texture_updated(result)
         }
@@ -2259,7 +2192,6 @@ pub(in crate::map) mod ui_mod
         #[inline]
         fn snap_filtered_vertexes<F>(
             &mut self,
-            drawing_resources: &DrawingResources,
             grid: Grid,
             f: F
         ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
@@ -2307,7 +2239,7 @@ pub(in crate::map) mod ui_mod
 
             if self.vxs_valid()
             {
-                self.update_center_hull_vertexes(drawing_resources);
+                self.update_center_hull_vertexes();
                 return moved_vxs.into();
             }
 
@@ -2338,7 +2270,7 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            self.update_center_hull_vertexes(drawing_resources);
+            self.update_center_hull_vertexes();
             moved_vxs.into()
         }
 
@@ -2346,34 +2278,31 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map::brush) fn snap_vertexes(
             &mut self,
-            drawing_resources: &DrawingResources,
             grid: Grid
         ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
         {
-            self.snap_filtered_vertexes(drawing_resources, grid, |_| true)
+            self.snap_filtered_vertexes(grid, |_| true)
         }
 
         #[inline]
         #[must_use]
         pub(in crate::map::brush) fn snap_selected_vertexes(
             &mut self,
-            drawing_resources: &DrawingResources,
             grid: Grid
         ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
         {
-            self.snap_filtered_vertexes(drawing_resources, grid, |svx| svx.selected)
+            self.snap_filtered_vertexes(grid, |svx| svx.selected)
         }
 
         #[inline]
         #[must_use]
         pub(in crate::map::brush) fn snap_selected_sides(
             &mut self,
-            drawing_resources: &DrawingResources,
             grid: Grid
         ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
         {
             let vertexes_to_deselect = self.select_vertexes_of_selected_sides();
-            let result = self.snap_filtered_vertexes(drawing_resources, grid, |svx| svx.selected);
+            let result = self.snap_filtered_vertexes(grid, |svx| svx.selected);
 
             for idx in vertexes_to_deselect
             {
@@ -2733,16 +2662,10 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn insert_vertex_at_index(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            pos: Vec2,
-            index: usize,
-            selected: bool
-        )
+        pub fn insert_vertex_at_index(&mut self, pos: Vec2, index: usize, selected: bool)
         {
             assert!(
-                self.try_vertex_insertion_at_index(drawing_resources, pos, index, selected),
+                self.try_vertex_insertion_at_index(pos, index, selected),
                 "insert_vertex_at_index generated an invalid polygon."
             );
         }
@@ -2752,7 +2675,6 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn try_vertex_insertion_at_index(
             &mut self,
-            drawing_resources: &DrawingResources,
             pos: Vec2,
             index: usize,
             selected: bool
@@ -2788,7 +2710,7 @@ pub(in crate::map) mod ui_mod
                 self.selected_vertexes += 1;
             }
 
-            self.update_center_hull_vertexes(drawing_resources);
+            self.update_center_hull_vertexes();
 
             true
         }
@@ -2922,7 +2844,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn delete_vertex_at_index(&mut self, drawing_resources: &DrawingResources, index: usize)
+        pub fn delete_vertex_at_index(&mut self, index: usize)
         {
             if self.vertexes[index].selected
             {
@@ -2930,7 +2852,7 @@ pub(in crate::map) mod ui_mod
             }
 
             self.vertexes.remove(index);
-            self.update_center_hull_vertexes(drawing_resources);
+            self.update_center_hull_vertexes();
         }
 
         #[inline]
@@ -2955,8 +2877,7 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         pub(in crate::map::brush) fn delete_selected_vertexes(
-            &mut self,
-            drawing_resources: &DrawingResources
+            &mut self
         ) -> Option<HvVec<(Vec2, u8)>>
         {
             let mut deleted_vxs = hv_vec![];
@@ -2987,7 +2908,7 @@ pub(in crate::map) mod ui_mod
             self.selected_vertexes = 0;
 
             deleted_vxs.none_if_empty().map(|vxs| {
-                self.update_center_hull_vertexes(drawing_resources);
+                self.update_center_hull_vertexes();
                 vxs
             })
         }
@@ -3074,11 +2995,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub(in crate::map::brush) fn apply_vertexes_move_result(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            vxs_move: &VertexesMove
-        )
+        pub(in crate::map::brush) fn apply_vertexes_move_result(&mut self, vxs_move: &VertexesMove)
         {
             for idx in vxs_move.moved.iter().map(|idx| usize::from(*idx))
             {
@@ -3091,7 +3008,7 @@ pub(in crate::map) mod ui_mod
                 self.vertexes.remove(idx);
             }
 
-            self.update_center_hull_vertexes(drawing_resources);
+            self.update_center_hull_vertexes();
             assert!(self.valid(), "apply_vertexes_move_result generated an invalid polygon.");
         }
 
@@ -3110,14 +3027,10 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub(in crate::map::brush) fn undo_vertexes_move(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            vxs_move: &VertexesMove
-        )
+        pub(in crate::map::brush) fn undo_vertexes_move(&mut self, vxs_move: &VertexesMove)
         {
             self.execute_vertexes_move_undo(vxs_move);
-            self.update_center_hull_vertexes(drawing_resources);
+            self.update_center_hull_vertexes();
             assert!(self.valid(), "undo_vertexes_move generated an invalid polygon.");
         }
 
@@ -3160,11 +3073,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub(in crate::map::brush) fn split(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            indexes: &ArrayVec<u8, 2>
-        ) -> Self
+        pub(in crate::map::brush) fn split(&mut self, indexes: &ArrayVec<u8, 2>) -> Self
         {
             let mut indexes = [usize::from(indexes[0]), usize::from(indexes[1])];
             let mut vertexes = hv_vec![capacity; indexes[1] - indexes[0]];
@@ -3177,7 +3086,7 @@ pub(in crate::map) mod ui_mod
                 vertexes.push(svx);
             }
 
-            self.update_center_hull_vertexes(drawing_resources);
+            self.update_center_hull_vertexes();
 
             vertexes.push(self.vertexes[indexes[0]]);
             (vertexes, self.texture_settings()).into()
@@ -3533,7 +3442,6 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn delete_selected_sides(
             &mut self,
-            drawing_resources: &DrawingResources,
             deletion_indexes: impl Iterator<Item = usize>
         )
         {
@@ -3550,7 +3458,7 @@ pub(in crate::map) mod ui_mod
                 self.sides()
             );
 
-            self.update_center_hull_vertexes(drawing_resources);
+            self.update_center_hull_vertexes();
         }
 
         #[inline]
@@ -3692,17 +3600,13 @@ pub(in crate::map) mod ui_mod
         // Clip
 
         #[inline]
-        pub(in crate::map::brush) fn clip(
-            &self,
-            drawing_resources: &DrawingResources,
-            clip_segment: &[Vec2; 2]
-        ) -> Option<[Self; 2]>
+        pub(in crate::map::brush) fn clip(&self, clip_segment: &[Vec2; 2]) -> Option<[Self; 2]>
         {
             let mut right_polygon = self.clone();
             let mut left_polygon = right_polygon.clip_self(clip_segment)?;
 
-            self.transfer_sprite(drawing_resources, &mut right_polygon);
-            self.transfer_sprite(drawing_resources, &mut left_polygon);
+            self.transfer_sprite(&mut right_polygon);
+            self.transfer_sprite(&mut left_polygon);
 
             Some([left_polygon, right_polygon])
         }
@@ -3754,7 +3658,6 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn hollow(
             &self,
-            drawing_resources: &DrawingResources,
             grid_size: f32
         ) -> Option<impl ExactSizeIterator<Item = Self>>
         {
@@ -3785,7 +3688,7 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            self.transfer_sprite(drawing_resources, &mut walls[0]);
+            self.transfer_sprite(&mut walls[0]);
 
             walls.into_iter().into()
         }
@@ -3798,7 +3701,6 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn shatter(
             &self,
-            drawing_resources: &DrawingResources,
             cursor_pos: Vec2,
             camera_scale: f32
         ) -> Option<impl ExactSizeIterator<Item = Self>>
@@ -3844,7 +3746,7 @@ pub(in crate::map) mod ui_mod
                 .take(capacity)
             ];
 
-            self.transfer_sprite(drawing_resources, &mut shards[0]);
+            self.transfer_sprite(&mut shards[0]);
 
             Some(shards.into_iter())
         }
@@ -3881,11 +3783,7 @@ pub(in crate::map) mod ui_mod
 
         // Original convex polygons subtraction algorithm, please steal, gently caress my ego.
         #[inline]
-        pub(in crate::map::brush) fn subtract(
-            &self,
-            drawing_resources: &DrawingResources,
-            other: &Self
-        ) -> SubtractResult
+        pub(in crate::map::brush) fn subtract(&self, other: &Self) -> SubtractResult
         {
             #[derive(Clone, Copy, Debug, PartialEq)]
             enum VertexTag
@@ -4090,7 +3988,7 @@ pub(in crate::map) mod ui_mod
 
             assert!(!polygons.is_empty(), "Subtraction generated no polygons.");
 
-            self.transfer_sprite(drawing_resources, &mut polygons[0]);
+            self.transfer_sprite(&mut polygons[0]);
 
             SubtractResult::Some(polygons)
         }
@@ -4235,6 +4133,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn check_horizontal_shear(
             &self,
+            drawing_resources: &DrawingResources,
             info: &ShearInfo
         ) -> Option<(Vec2, HvVec<f32>)>
         {
@@ -4257,7 +4156,7 @@ pub(in crate::map) mod ui_mod
 
             new_center /= self.sides_f32();
 
-            if self.sprite_hull_out_of_bounds(new_center)
+            if self.sprite_hull_out_of_bounds(drawing_resources, new_center)
             {
                 return None;
             }
@@ -4281,6 +4180,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn check_vertical_shear(
             &self,
+            drawing_resources: &DrawingResources,
             info: &ShearInfo
         ) -> Option<(Vec2, HvVec<f32>)>
         {
@@ -4303,7 +4203,7 @@ pub(in crate::map) mod ui_mod
 
             new_center /= self.sides_f32();
 
-            if self.sprite_hull_out_of_bounds(new_center)
+            if self.sprite_hull_out_of_bounds(drawing_resources, new_center)
             {
                 return None;
             }
@@ -4424,7 +4324,7 @@ pub(in crate::map) mod ui_mod
                     .then_some(new_center);
             }
 
-            (!self.sprite_hull_out_of_bounds(new_center)).then_some(new_center)
+            (!self.sprite_hull_out_of_bounds(drawing_resources, new_center)).then_some(new_center)
         }
 
         #[inline]
@@ -4454,7 +4354,7 @@ pub(in crate::map) mod ui_mod
                     .then_some(new_center);
             }
 
-            (!self.sprite_hull_out_of_bounds(new_center)).then_some(new_center)
+            (!self.sprite_hull_out_of_bounds(drawing_resources, new_center)).then_some(new_center)
         }
 
         #[inline]
@@ -5096,7 +4996,10 @@ pub(in crate::map) mod ui_mod
             settings: &T
         )
         {
-            let hull_center = settings.sprite_hull(self.center).unwrap().center();
+            let hull_center = settings
+                .sprite_hull(drawer.resources(), self.center)
+                .unwrap()
+                .center();
 
             drawer.square_highlight(center, Color::SpriteAnchor);
             drawer.square_highlight(hull_center, Color::SpriteAnchor);

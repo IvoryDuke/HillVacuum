@@ -82,10 +82,12 @@ impl InstancesEditor
                     .clone();
 
                 edits_history.list_animation_texture(
-                    manager.selected_textured_brushes_mut().map(|mut brush| {
-                        _ = brush.set_list_animation_texture(index, texture);
-                        brush.id()
-                    }),
+                    manager
+                        .selected_textured_brushes_mut(drawing_resources)
+                        .map(|mut brush| {
+                            _ = brush.set_list_animation_texture(index, texture);
+                            brush.id()
+                        }),
                     index,
                     name
                 );
@@ -98,30 +100,36 @@ impl InstancesEditor
                     .1;
 
                 edits_history.list_animation_time(
-                    manager.selected_textured_brushes_mut().map(|mut brush| {
-                        _ = brush.set_texture_list_animation_time(index, time);
-                        brush.id()
-                    }),
+                    manager
+                        .selected_textured_brushes_mut(drawing_resources)
+                        .map(|mut brush| {
+                            _ = brush.set_texture_list_animation_time(index, time);
+                            brush.id()
+                        }),
                     index,
                     prev
                 );
             },
             |index| {
                 edits_history.animation_move_up(
-                    manager.selected_textured_brushes_mut().map(|mut brush| {
-                        brush.move_up_list_animation_frame(index);
-                        brush.id()
-                    }),
+                    manager
+                        .selected_textured_brushes_mut(drawing_resources)
+                        .map(|mut brush| {
+                            brush.move_up_list_animation_frame(index);
+                            brush.id()
+                        }),
                     index,
                     false
                 );
             },
             |index| {
                 edits_history.animation_move_down(
-                    manager.selected_textured_brushes_mut().map(|mut brush| {
-                        brush.move_down_list_animation_frame(index);
-                        brush.id()
-                    }),
+                    manager
+                        .selected_textured_brushes_mut(drawing_resources)
+                        .map(|mut brush| {
+                            brush.move_down_list_animation_frame(index);
+                            brush.id()
+                        }),
                     index,
                     false
                 );
@@ -134,10 +142,12 @@ impl InstancesEditor
                     .clone();
 
                 edits_history.list_animation_frame_removal(
-                    manager.selected_textured_brushes_mut().map(|mut brush| {
-                        brush.remove_list_animation_frame(index);
-                        brush.id()
-                    }),
+                    manager
+                        .selected_textured_brushes_mut(drawing_resources)
+                        .map(|mut brush| {
+                            brush.remove_list_animation_frame(index);
+                            brush.id()
+                        }),
                     index,
                     texture,
                     time
@@ -145,10 +155,12 @@ impl InstancesEditor
             },
             |texture| {
                 edits_history.list_animation_new_frame(
-                    manager.selected_textured_brushes_mut().map(|mut brush| {
-                        brush.push_list_animation_frame(texture);
-                        brush.id()
-                    }),
+                    manager
+                        .selected_textured_brushes_mut(drawing_resources)
+                        .map(|mut brush| {
+                            brush.push_list_animation_frame(texture);
+                            brush.id()
+                        }),
                     texture
                 );
             }
@@ -179,7 +191,7 @@ impl InstancesEditor
                 paste::paste! {
                     |value| {
                         let valid = manager.test_operation_validity(|manager| {
-                            manager.selected_brushes_with_sprite_mut().find_map(|mut brush| {
+                            manager.selected_brushes_with_sprite_mut(drawing_resources).find_map(|mut brush| {
                                 (!brush.[< check_atlas_animation_ $xy _partition >](
                                     drawing_resources,
                                     value
@@ -193,10 +205,9 @@ impl InstancesEditor
                         }
 
                         edits_history.[< atlas_ $xy _cluster >](
-                            manager.selected_textured_brushes_mut().filter_map(|mut brush| {
+                            manager.selected_textured_brushes_mut(drawing_resources).filter_map(|mut brush| {
                                 brush
                                     .[< set_texture_atlas_animation_ $xy _partition >](
-                                        drawing_resources,
                                         value
                                     )
                                     .map(|value| (brush.id(), value))
@@ -215,7 +226,7 @@ impl InstancesEditor
                 paste::paste! {
                     |index| {
                         edits_history.[< animation_move_ $ud >](
-                            manager.selected_textured_brushes_mut().map(|mut brush| {
+                            manager.selected_textured_brushes_mut(drawing_resources).map(|mut brush| {
                                 brush.[< move_ $ud _atlas_animation_frame_time >](index);
                                 brush.id()
                             }),
@@ -250,11 +261,13 @@ impl InstancesEditor
                 }
 
                 edits_history.atlas_len_cluster(
-                    manager.selected_textured_brushes_mut().filter_map(|mut brush| {
-                        brush
-                            .set_texture_atlas_animation_len(len)
-                            .map(|prev| (brush.id(), prev))
-                    })
+                    manager.selected_textured_brushes_mut(drawing_resources).filter_map(
+                        |mut brush| {
+                            brush
+                                .set_texture_atlas_animation_len(len)
+                                .map(|prev| (brush.id(), prev))
+                        }
+                    )
                 );
 
                 len.into()
@@ -263,21 +276,25 @@ impl InstancesEditor
                 if uniform.clicked()
                 {
                     edits_history.atlas_timing_cluster(
-                        manager.selected_textured_brushes_mut().filter_map(|mut brush| {
-                            brush
-                                .set_atlas_animation_uniform_timing()
-                                .map(|timing| (brush.id(), timing))
-                        })
+                        manager.selected_textured_brushes_mut(drawing_resources).filter_map(
+                            |mut brush| {
+                                brush
+                                    .set_atlas_animation_uniform_timing()
+                                    .map(|timing| (brush.id(), timing))
+                            }
+                        )
                     );
                 }
                 else if per_frame.clicked()
                 {
                     edits_history.atlas_timing_cluster(
-                        manager.selected_textured_brushes_mut().filter_map(|mut brush| {
-                            brush
-                                .set_atlas_animation_per_frame_timing()
-                                .map(|timing| (brush.id(), timing))
-                        })
+                        manager.selected_textured_brushes_mut(drawing_resources).filter_map(
+                            |mut brush| {
+                                brush
+                                    .set_atlas_animation_per_frame_timing()
+                                    .map(|timing| (brush.id(), timing))
+                            }
+                        )
                     );
                 }
 
@@ -291,20 +308,24 @@ impl InstancesEditor
             },
             |_, time| {
                 edits_history.atlas_uniform_time_cluster(
-                    manager.selected_textured_brushes_mut().filter_map(|mut brush| {
-                        brush
-                            .set_texture_atlas_animation_uniform_time(time)
-                            .map(|prev| (brush.id(), prev))
-                    })
+                    manager.selected_textured_brushes_mut(drawing_resources).filter_map(
+                        |mut brush| {
+                            brush
+                                .set_texture_atlas_animation_uniform_time(time)
+                                .map(|prev| (brush.id(), prev))
+                        }
+                    )
                 );
             },
             |index, time| {
                 edits_history.atlas_frame_time_cluster(
-                    manager.selected_textured_brushes_mut().filter_map(|mut brush| {
-                        brush
-                            .set_texture_atlas_animation_frame_time(index, time)
-                            .map(|prev| (brush.id(), (index, prev)))
-                    })
+                    manager.selected_textured_brushes_mut(drawing_resources).filter_map(
+                        |mut brush| {
+                            brush
+                                .set_texture_atlas_animation_frame_time(index, time)
+                                .map(|prev| (brush.id(), (index, prev)))
+                        }
+                    )
                 );
             },
             move_up_down!(up),
@@ -338,10 +359,12 @@ impl InstancesEditor
                     ($new:expr, $f:expr) => {{
                         let new = &$new;
                         let valid = manager.test_operation_validity(|manager| {
-                            manager.selected_brushes_with_sprite_mut().find_map(|mut brush| {
-                                (!brush.check_texture_animation_change(drawing_resources, new))
-                                    .then_some(brush.id())
-                            })
+                            manager.selected_brushes_with_sprite_mut(drawing_resources).find_map(
+                                |mut brush| {
+                                    (!brush.check_texture_animation_change(drawing_resources, new))
+                                        .then_some(brush.id())
+                                }
+                            )
                         });
 
                         #[allow(clippy::redundant_closure_call)]
@@ -349,7 +372,7 @@ impl InstancesEditor
                         {
                             edits_history.animation_cluster(
                                 manager
-                                    .selected_textured_brushes_mut()
+                                    .selected_textured_brushes_mut(drawing_resources)
                                     .map(|mut brush| (brush.id(), $f(&mut brush)))
                             );
                         }
@@ -359,19 +382,19 @@ impl InstancesEditor
                 if none.clicked()
                 {
                     anim_change!(Animation::None, |brush: &mut Brush| {
-                        brush.set_texture_animation(drawing_resources, Animation::None)
+                        brush.set_texture_animation(Animation::None)
                     });
                 }
                 else if list.clicked()
                 {
                     anim_change!(Animation::None, |brush: &mut Brush| {
-                        brush.generate_list_animation(drawing_resources)
+                        brush.generate_list_animation()
                     });
                 }
                 else if atlas.clicked()
                 {
                     anim_change!(Animation::atlas_animation(), |brush: &mut Brush| {
-                        brush.set_texture_animation(drawing_resources, Animation::atlas_animation())
+                        brush.set_texture_animation(Animation::atlas_animation())
                     });
                 }
 
@@ -407,14 +430,12 @@ impl InstancesEditor
                                 if let Some(texture) =
                                     drawing_resources.texture(&value).map(Texture::name)
                                 {
-                                    for mut brush in manager.selected_textured_brushes_mut()
+                                    for mut brush in
+                                        manager.selected_textured_brushes_mut(drawing_resources)
                                     {
                                         edits_history.animation(
                                             brush.id(),
-                                            brush.set_texture_list_animation(
-                                                drawing_resources,
-                                                texture
-                                            )
+                                            brush.set_texture_list_animation(texture)
                                         );
                                     }
 

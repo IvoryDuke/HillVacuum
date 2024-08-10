@@ -12,6 +12,7 @@ use super::quad_tree::InsertResult;
 use crate::{
     map::{
         brush::Brush,
+        drawer::drawing_resources::DrawingResources,
         editor::state::{
             grid::Grid,
             manager::quad_tree::{QuadTree, QuadTreeIds}
@@ -185,11 +186,15 @@ impl Trees
     /// Inserts the [`Hull`] of the sprite of `brush`.
     #[inline]
     #[must_use]
-    pub fn insert_sprite_hull(&mut self, brush: &Brush) -> InsertResult
+    pub fn insert_sprite_hull(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        brush: &Brush
+    ) -> InsertResult
     {
         self.set_sprites_dirty();
         self.sprites_tree
-            .insert_entity(brush, |brush| brush.sprite_and_anchor_hull().unwrap())
+            .insert_entity(brush, |brush| brush.sprite_and_anchor_hull(drawing_resources).unwrap())
     }
 
     /// Removes the [`Hull`] of the sprite of `brush`.

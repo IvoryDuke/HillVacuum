@@ -3,15 +3,14 @@
 //
 //=======================================================================//
 
-use bevy::{transform::components::Transform, window::Window};
 use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_shared::return_if_none;
 
 use crate::{
     map::{
-        drawer::{color::Color, drawers::EditDrawer},
-        editor::{cursor::Cursor, state::grid::Grid}
+        drawer::color::Color,
+        editor::{cursor::Cursor, state::grid::Grid, DrawBundle}
     },
     utils::{
         math::AroundEqual,
@@ -150,13 +149,7 @@ impl CursorDelta
     /// Draws two lines, a horizontal one and a vertical one, that represent the distance of the
     /// cursor from the origin.
     #[inline]
-    pub(in crate::map::editor::state::core) fn draw(
-        &self,
-        window: &Window,
-        camera: &Transform,
-        egui_context: &egui::Context,
-        drawer: &mut EditDrawer
-    )
+    pub(in crate::map::editor::state::core) fn draw(&self, bundle: &mut DrawBundle)
     {
         /// The color of the tooltip.
         const TOOLTIP_TEXT_COLOR: egui::Color32 = egui::Color32::from_rgb(127, 255, 212);
@@ -165,6 +158,14 @@ impl CursorDelta
         {
             return;
         }
+
+        let DrawBundle {
+            window,
+            egui_context,
+            drawer,
+            camera,
+            ..
+        } = bundle;
 
         let p = self.origin + self.delta;
         drawer.line(self.origin, Vec2::new(p.x, self.origin.y), Color::Hull);

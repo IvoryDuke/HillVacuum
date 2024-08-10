@@ -280,15 +280,19 @@ impl BrushesWithSelectedVertexes
         for p in self.splittable_ids.values()
         {
             let polygon = {
-                let mut brush = manager.brush_mut(p.id());
+                let mut brush = manager.brush_mut(drawing_resources, p.id());
                 edits_history.polygon_edit(brush.id(), brush.polygon());
-                brush.split(drawing_resources, p)
+                brush.split(p)
             };
             edits_history.override_edit_tag("Brush Split");
 
             let properties = manager.brush(p.id()).properties();
-            self.ids
-                .asserted_insert(manager.spawn_brush(polygon, edits_history, properties));
+            self.ids.asserted_insert(manager.spawn_brush(
+                drawing_resources,
+                polygon,
+                edits_history,
+                properties
+            ));
         }
 
         self.splittable_ids.clear();
@@ -423,6 +427,7 @@ impl VertexTool
                         else if inputs.shift_pressed()
                         {
                             match Self::toggle_vertexes(
+                                bundle.drawing_resources,
                                 manager,
                                 edits_history,
                                 cursor_pos,
@@ -441,6 +446,7 @@ impl VertexTool
                         else
                         {
                             if Self::exclusively_select_vertexes(
+                                bundle.drawing_resources,
                                 manager,
                                 edits_history,
                                 &self.1,
@@ -456,11 +462,12 @@ impl VertexTool
                         }
                     },
                     {
-                        deselect_vertexes(manager, edits_history);
+                        deselect_vertexes(bundle.drawing_resources, manager, edits_history);
                     },
                     hull,
                     {
                         Self::select_vertexes_from_drag_selection(
+                            bundle.drawing_resources,
                             manager,
                             edits_history,
                             &hull,
@@ -486,7 +493,11 @@ impl VertexTool
                 if inputs.back.just_pressed()
                 {
                     // Vertex deletion.
-                    Self::delete_selected_vertexes(bundle, manager, edits_history);
+                    Self::delete_selected_vertexes(
+                        bundle.drawing_resources,
+                        manager,
+                        edits_history
+                    );
                     return None;
                 }
 
@@ -500,7 +511,13 @@ impl VertexTool
                 let mut vxs_move = hv_vec![];
 
                 if self.1.selected_vxs.any_selected_vx() &&
-                    Self::move_vertexes(bundle, manager, edits_history, dir, &mut vxs_move)
+                    Self::move_vertexes(
+                        bundle.drawing_resources,
+                        manager,
+                        edits_history,
+                        dir,
+                        &mut vxs_move
+                    )
                 {
                     edits_history.vertexes_move(vxs_move);
                 }
@@ -539,7 +556,13 @@ impl VertexTool
                 else if bundle.cursor.moved()
                 {
                     drag.conditional_update(bundle.cursor, grid, |delta| {
-                        Self::move_vertexes(bundle, manager, edits_history, delta, cumulative_drag)
+                        Self::move_vertexes(
+                            bundle.drawing_resources,
+                            manager,
+                            edits_history,
+                            delta,
+                            cumulative_drag
+                        )
                     });
                 }
             },
@@ -563,18 +586,13 @@ impl VertexTool
                 vx
             } =>
             {
-                let mut brush = manager.brush_mut(*identifier);
+                let mut brush = manager.brush_mut(bundle.drawing_resources, *identifier);
 
                 if !inputs.left_mouse.pressed()
                 {
                     let idx = u8::try_from(*index).unwrap();
 
-                    if brush.try_vertex_insertion_at_index(
-                        bundle.drawing_resources,
-                        *vx,
-                        idx.into(),
-                        false
-                    )
+                    if brush.try_vertex_insertion_at_index(*vx, idx.into(), false)
                     {
                         edits_history.vertex_insertion(&brush, (*vx, idx));
                     }
@@ -651,6 +669,7 @@ impl VertexTool
     /// Exclusively selects the vertexes whose highlight is beneath `cursor_pos`.
     #[inline]
     fn exclusively_select_vertexes(
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         brushes_with_selected_vertexes: &BrushesWithSelectedVertexes,
@@ -660,18 +679,14 @@ impl VertexTool
     {
         let mut id_vx_id = None;
 
-        for (id, result) in
-            manager
-                .selected_brushes_mut_at_pos(cursor_pos, camera_scale)
-                .map(|mut brush| {
-                    (
-                        brush.id(),
-                        brush.check_vertex_proximity_and_exclusively_select(
-                            cursor_pos,
-                            camera_scale
-                        )
-                    )
-                })
+        for (id, result) in manager
+            .selected_brushes_mut_at_pos(drawing_resources, cursor_pos, camera_scale)
+            .map(|mut brush| {
+                (
+                    brush.id(),
+                    brush.check_vertex_proximity_and_exclusively_select(cursor_pos, camera_scale)
+                )
+            })
         {
             match result
             {
@@ -693,7 +708,7 @@ impl VertexTool
                 .iter()
                 .filter_set_with_predicate(id, |id| **id)
                 .filter_map(|id| {
-                    let mut brush = manager.brush_mut(*id);
+                    let mut brush = manager.brush_mut(drawing_resources, *id);
 
                     (!brush.hull().contains_point(vx))
                         .then(|| brush.deselect_vertexes().map(|idxs| (brush.id(), idxs)).unwrap())
@@ -702,7 +717,7 @@ impl VertexTool
 
         edits_history.vertexes_selection_cluster(
             manager
-                .selected_brushes_mut_at_pos(vx, None)
+                .selected_brushes_mut_at_pos(drawing_resources, vx, None)
                 .filter_set_with_predicate(id, EntityId::id)
                 .filter_map(|mut brush| {
                     brush.try_exclusively_select_vertex(vx).map(|idxs| (brush.id(), idxs))
@@ -717,13 +732,15 @@ impl VertexTool
     #[inline]
     #[must_use]
     fn toggle_vertexes(
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         cursor_pos: Vec2,
         camera_scale: f32
     ) -> VertexesToggle
     {
-        let mut brushes = manager.selected_brushes_mut_at_pos(cursor_pos, camera_scale);
+        let mut brushes =
+            manager.selected_brushes_mut_at_pos(drawing_resources, cursor_pos, camera_scale);
         let (vx_pos, selected) = return_if_none!(
             brushes.by_ref().find_map(|mut brush| {
                 let (vx_pos, idx, selected) = return_if_none!(
@@ -750,7 +767,7 @@ impl VertexTool
     /// that overlap the moved ones.
     #[inline]
     fn move_vertexes(
-        bundle: &mut ToolUpdateBundle,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         delta: Vec2,
@@ -761,7 +778,7 @@ impl VertexTool
         let mut move_payloads = hv_vec![];
 
         let valid = manager.test_operation_validity(|manager| {
-            manager.selected_brushes_mut().find_map(|mut brush| {
+            manager.selected_brushes_mut(drawing_resources).find_map(|mut brush| {
                 match brush.check_selected_vertexes_move(delta)
                 {
                     VertexesMoveResult::None => (),
@@ -798,8 +815,8 @@ impl VertexTool
             }
 
             let vx_move = manager
-                .brush_mut(id)
-                .apply_vertexes_move_result(bundle.drawing_resources, payload);
+                .brush_mut(drawing_resources, id)
+                .apply_vertexes_move_result(payload);
 
             let mov = cumulative_move
                 .iter_mut()
@@ -823,9 +840,13 @@ impl VertexTool
 
         for pos in moved_vertexes
         {
-            selections.extend(manager.selected_brushes_mut_at_pos(pos.0, None).filter_map(
-                |mut brush| brush.try_select_vertex(pos.0).map(|idx| (brush.id(), hv_vec![idx]))
-            ));
+            selections.extend(
+                manager
+                    .selected_brushes_mut_at_pos(drawing_resources, pos.0, None)
+                    .filter_map(|mut brush| {
+                        brush.try_select_vertex(pos.0).map(|idx| (brush.id(), hv_vec![idx]))
+                    })
+            );
         }
 
         edits_history.vertexes_selection_cluster(selections.into_iter());
@@ -836,7 +857,7 @@ impl VertexTool
     /// Deletes the selected vertexes, if possible.
     #[inline]
     fn delete_selected_vertexes(
-        bundle: &mut ToolUpdateBundle,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory
     )
@@ -856,18 +877,17 @@ impl VertexTool
             return;
         }
 
-        for mut brush in manager.selected_brushes_mut()
+        for mut brush in manager.selected_brushes_mut(drawing_resources)
         {
-            edits_history.vertexes_deletion(
-                brush.id(),
-                continue_if_none!(brush.delete_selected_vertexes(bundle.drawing_resources))
-            );
+            edits_history
+                .vertexes_deletion(brush.id(), continue_if_none!(brush.delete_selected_vertexes()));
         }
     }
 
     /// Selects the vertexes within `range`.
     #[inline]
     fn select_vertexes_from_drag_selection(
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         range: &Hull,
@@ -885,7 +905,7 @@ impl VertexTool
 
         edits_history.vertexes_selection_cluster(
             manager
-                .selected_brushes_mut()
+                .selected_brushes_mut(drawing_resources)
                 .filter_map(|mut brush| func(&mut brush, range).map(|vxs| (brush.id(), vxs)))
         );
     }
@@ -1056,12 +1076,7 @@ impl VertexTool
 
         if merge_clicked
         {
-            ActiveTool::merge_vertexes(
-                bundle.default_properties.brushes,
-                manager,
-                edits_history,
-                false
-            );
+            ActiveTool::merge_vertexes(bundle, manager, edits_history, false);
             return;
         }
 

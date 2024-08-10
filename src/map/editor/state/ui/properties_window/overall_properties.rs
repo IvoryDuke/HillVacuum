@@ -10,6 +10,7 @@ use hill_vacuum_shared::{match_or_panic, NextValue};
 
 use crate::{
     map::{
+        drawer::drawing_resources::DrawingResources,
         editor::{
             state::{
                 clipboard::Clipboard,
@@ -162,6 +163,7 @@ impl UiOverallProperties
     #[inline]
     pub fn show<S: SetProperty>(
         &mut self,
+        drawing_resources: &DrawingResources,
         ui: &mut egui::Ui,
         value_setter: &mut S,
         clipboard: &mut Clipboard,
@@ -184,7 +186,7 @@ impl UiOverallProperties
                     CheckBox::show(ui, &o.value, |v| match_or_panic!(v, Value::Bool(value), *value))
                 {
                     let value = Value::Bool(value);
-                    value_setter.set_property(k, &value);
+                    value_setter.set_property(drawing_resources, k, &value);
                     o.value = value.into();
                     o.ui = o.value.clone().ui();
                 }
@@ -198,7 +200,7 @@ impl UiOverallProperties
                     &mut o.ui,
                     |new_value| {
                         let new_value = d_v.parse(&new_value)?;
-                        value_setter.set_property(k, &new_value);
+                        value_setter.set_property(drawing_resources, k, &new_value);
                         new_value.into()
                     }
                 );

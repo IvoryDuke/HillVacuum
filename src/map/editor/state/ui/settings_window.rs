@@ -136,6 +136,7 @@ impl SettingsWindow
             key_inputs,
             egui_context,
             user_textures,
+            drawing_resources,
             config:
                 Config {
                     binds,
@@ -149,7 +150,13 @@ impl SettingsWindow
         if self.grid_changed && (!inputs.left_mouse.pressed() || !self.window.is_open())
         {
             self.grid_changed = false;
-            clipboard.queue_all_props_screenshots(images, prop_cameras, user_textures, *grid);
+            clipboard.queue_all_props_screenshots(
+                images,
+                prop_cameras,
+                user_textures,
+                drawing_resources,
+                *grid
+            );
         }
 
         if !self.window.check_open(Bind::Settings.just_pressed(key_inputs, binds))

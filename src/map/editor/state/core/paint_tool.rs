@@ -22,20 +22,29 @@ use super::{
     }
 };
 use crate::{
-    map::editor::{
-        cursor::Cursor,
-        state::{
-            clipboard::{ChunkItem, Clipboard, Prop, PropScreenshotTimer, PROP_SCREENSHOT_SIZE},
-            core::tool::subtools_buttons,
-            editor_state::InputsPresses,
-            edits_history::EditsHistory,
-            grid::Grid,
-            manager::EntitiesManager,
-            ui::{centered_window, ToolsButtons}
-        },
-        DrawBundle,
-        StateUpdateBundle,
-        ToolUpdateBundle
+    map::{
+        drawer::drawing_resources::DrawingResources,
+        editor::{
+            cursor::Cursor,
+            state::{
+                clipboard::{
+                    ChunkItem,
+                    Clipboard,
+                    Prop,
+                    PropScreenshotTimer,
+                    PROP_SCREENSHOT_SIZE
+                },
+                core::tool::subtools_buttons,
+                editor_state::InputsPresses,
+                edits_history::EditsHistory,
+                grid::Grid,
+                manager::EntitiesManager,
+                ui::{centered_window, ToolsButtons}
+            },
+            DrawBundle,
+            StateUpdateBundle,
+            ToolUpdateBundle
+        }
     },
     utils::hull::Hull,
     INDEXES
@@ -192,6 +201,7 @@ impl PaintTool
             prop_cameras,
             paint_tool_camera,
             cursor,
+            drawing_resources,
             ..
         } = bundle;
 
@@ -208,7 +218,8 @@ impl PaintTool
 
                 if inputs.enter.just_pressed() && manager.any_selected_entities()
                 {
-                    self.status = Status::SetPivot(Self::outline(manager, grid).unwrap());
+                    self.status =
+                        Status::SetPivot(Self::outline(drawing_resources, manager, grid).unwrap());
                 }
 
                 if !inputs.left_mouse.just_pressed() || clipboard.selected_prop_index().is_none()
@@ -226,11 +237,13 @@ impl PaintTool
                     return;
                 }
 
-                let mut prop = Prop::new(manager.selected_entities(), cursor_pos, None);
+                let mut prop =
+                    Prop::new(drawing_resources, manager.selected_entities(), cursor_pos, None);
                 Clipboard::assign_camera_to_prop(
                     images,
                     paint_tool_camera,
                     user_textures,
+                    drawing_resources,
                     grid,
                     &mut prop
                 );
@@ -302,17 +315,28 @@ impl PaintTool
     /// Returns the selected entities' outline.
     #[inline]
     #[must_use]
-    fn outline(manager: &EntitiesManager, grid: Grid) -> Option<Hull>
+    fn outline(
+        drawing_resources: &DrawingResources,
+        manager: &EntitiesManager,
+        grid: Grid
+    ) -> Option<Hull>
     {
-        manager.selected_entities_hull().map(|hull| grid.snap_hull(&hull))
+        manager
+            .selected_entities_hull(drawing_resources)
+            .map(|hull| grid.snap_hull(&hull))
     }
 
     /// Updates the selected entities' outline.
     #[inline]
-    pub fn update_outline(&mut self, manager: &EntitiesManager, grid: Grid)
+    pub fn update_outline(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        manager: &EntitiesManager,
+        grid: Grid
+    )
     {
         *return_if_no_match!(&mut self.status, Status::SetPivot(hull), hull) =
-            return_if_none!(Self::outline(manager, grid));
+            return_if_none!(Self::outline(drawing_resources, manager, grid));
     }
 
     /// Draws the UI.
@@ -452,7 +476,7 @@ impl PaintTool
             tool_change_conditions,
             (
                 PaintCreation,
-                Status::SetPivot(Self::outline(manager, grid).unwrap()),
+                Status::SetPivot(Self::outline(bundle.drawing_resources, manager, grid).unwrap()),
                 Status::SetPivot(_) |
                     Status::PropCreationScreenshot(..) |
                     Status::PropCreationUi(..),

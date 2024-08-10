@@ -11,7 +11,7 @@ use hill_vacuum_shared::{match_or_panic, return_if_none};
 use crate::{
     map::{
         brush::convex_polygon::{free_draw_tooltip, ConvexPolygon, FreeDrawVertexDeletionResult},
-        drawer::{color::Color, drawers::EditDrawer},
+        drawer::{color::Color, drawers::EditDrawer, drawing_resources::DrawingResources},
         editor::{
             cursor::Cursor,
             state::{
@@ -75,7 +75,7 @@ macro_rules! shape_cursor_brush {
             {
                 self.state_update(inputs, bundle.cursor $(, $settings)?);
                 $(let $orientation = self.$orientation();)?
-                self.core_mut().update(inputs, bundle.cursor, bundle.camera.scale(), |hull| {
+                self.core_mut().update(bundle, inputs, |hull| {
                     Self::vertex_gen(&hull $(, $orientation)? $(, $settings)?)
                 });
 
@@ -90,6 +90,7 @@ macro_rules! shape_cursor_brush {
                 }));
 
                 manager.spawn_drawn_brush(
+                    bundle.drawing_resources,
                     ConvexPolygon::new(vxs),
                     drawn_brushes,
                     edits_history,
@@ -235,13 +236,15 @@ impl DrawMode
     #[inline]
     fn update<I: IntoIterator<Item = Vec2>, V: Fn(&Hull) -> I>(
         &mut self,
+        bundle: &ToolUpdateBundle,
         inputs: &InputsPresses,
-        cursor: &Cursor,
-        camera_scale: f32,
         v: V
     )
     {
+        let ToolUpdateBundle { cursor, camera, .. } = bundle;
+
         let cursor_pos = cursor.world_snapped();
+        let camera_scale = camera.scale();
 
         match self
         {
@@ -588,6 +591,7 @@ impl FreeDrawCursorPolygon
         if inputs.enter.just_pressed()
         {
             self.generate_polygon(
+                bundle.drawing_resources,
                 manager,
                 drawn_brushes,
                 edits_history,
@@ -695,6 +699,7 @@ impl FreeDrawCursorPolygon
     #[inline]
     fn generate_polygon(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         drawn_brushes: &mut Ids,
         edits_history: &mut EditsHistory,
@@ -709,6 +714,7 @@ impl FreeDrawCursorPolygon
         let status = std::mem::take(&mut self.0);
 
         manager.spawn_drawn_brush(
+            drawing_resources,
             match_or_panic!(status, Status::Polygon(poly), poly),
             drawn_brushes,
             edits_history,

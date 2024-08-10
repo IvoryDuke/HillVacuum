@@ -88,10 +88,17 @@ impl FlipTool
                 };
 
                 let valid = manager.test_operation_validity(|manager| {
-                    manager.selected_brushes_mut().find_map(|mut brush| {
-                        (!check(&mut brush, bundle.drawing_resources, flip.mirror(), flip_texture))
+                    manager
+                        .selected_brushes_mut(bundle.drawing_resources)
+                        .find_map(|mut brush| {
+                            (!check(
+                                &mut brush,
+                                bundle.drawing_resources,
+                                flip.mirror(),
+                                flip_texture
+                            ))
                             .then_some(brush.id())
-                    })
+                        })
                 });
 
                 if !valid
@@ -99,7 +106,7 @@ impl FlipTool
                     return;
                 }
 
-                for mut brush in manager.selected_brushes_mut()
+                for mut brush in manager.selected_brushes_mut(bundle.drawing_resources)
                 {
                     func(&mut brush, bundle.drawing_resources, flip.mirror(), flip_texture);
                 }
@@ -110,18 +117,18 @@ impl FlipTool
             {
                 let y = if dir.x == 0f32
                 {
-                    for mut brush in manager.selected_brushes_mut()
+                    for mut brush in manager.selected_brushes_mut(bundle.drawing_resources)
                     {
-                        brush.flip_scale_y(bundle.drawing_resources);
+                        brush.flip_scale_y();
                     }
 
                     true
                 }
                 else
                 {
-                    for mut brush in manager.selected_brushes_mut()
+                    for mut brush in manager.selected_brushes_mut(bundle.drawing_resources)
                     {
-                        brush.flip_texture_scale_x(bundle.drawing_resources);
+                        brush.flip_texture_scale_x();
                     }
 
                     false

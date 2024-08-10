@@ -484,7 +484,7 @@ impl Editor
             return false;
         }
 
-        if let Some(hull) = self.state.quick_zoom_hull(key_inputs, binds)
+        if let Some(hull) = self.state.quick_zoom_hull(&self.drawing_resources, key_inputs, binds)
         {
             // Zoom on the selected entities.
             camera.scale_viewport_to_hull(

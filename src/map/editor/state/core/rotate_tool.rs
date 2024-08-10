@@ -388,7 +388,7 @@ impl RotateTool
 
                 let angle = angle.to_degrees().rem_euclid(360f32);
 
-                if angle != 0f32 && angle != 360f32
+                if angle != 0f32 && angle.around_equal_narrow(&360f32)
                 {
                     if settings.entity_editing()
                     {
@@ -552,17 +552,19 @@ impl RotateTool
         let mut payloads = hv_vec![];
 
         let valid = manager.test_operation_validity(|manager| {
-            manager.selected_brushes_mut().find_map(|mut brush| {
-                match brush.check_rotate(bundle.drawing_resources, pivot, angle, rotate_texture)
-                {
-                    RotateResult::Invalid => brush.id().into(),
-                    RotateResult::Valid(payload) =>
+            manager
+                .selected_brushes_mut(bundle.drawing_resources)
+                .find_map(|mut brush| {
+                    match brush.check_rotate(bundle.drawing_resources, pivot, angle, rotate_texture)
                     {
-                        payloads.push(payload);
-                        None
+                        RotateResult::Invalid => brush.id().into(),
+                        RotateResult::Valid(payload) =>
+                        {
+                            payloads.push(payload);
+                            None
+                        }
                     }
-                }
-            })
+                })
         });
 
         if !valid
@@ -579,8 +581,8 @@ impl RotateTool
         for payload in payloads
         {
             manager
-                .brush_mut(payload.id())
-                .set_rotation_coordinates(bundle.drawing_resources, payload);
+                .brush_mut(bundle.drawing_resources, payload.id())
+                .set_rotation_coordinates(payload);
         }
 
         true
@@ -594,12 +596,14 @@ impl RotateTool
         let angle = angle.to_degrees();
 
         let valid = manager.test_operation_validity(|manager| {
-            manager.selected_brushes_with_sprite_mut().find_map(|mut brush| {
-                let prev_angle = brush.texture_settings().unwrap().angle();
+            manager
+                .selected_brushes_with_sprite_mut(bundle.drawing_resources)
+                .find_map(|mut brush| {
+                    let prev_angle = brush.texture_settings().unwrap().angle();
 
-                (!brush.check_texture_angle(bundle.drawing_resources, prev_angle - angle))
-                    .then_some(brush.id())
-            })
+                    (!brush.check_texture_angle(bundle.drawing_resources, prev_angle - angle))
+                        .then_some(brush.id())
+                })
         });
 
         if !valid
@@ -607,10 +611,10 @@ impl RotateTool
             return false;
         }
 
-        for mut brush in manager.selected_textured_brushes_mut()
+        for mut brush in manager.selected_textured_brushes_mut(bundle.drawing_resources)
         {
             let prev_angle = brush.texture_settings().unwrap().angle();
-            _ = brush.set_texture_angle(bundle.drawing_resources, prev_angle - angle);
+            _ = brush.set_texture_angle(prev_angle - angle);
         }
 
         true

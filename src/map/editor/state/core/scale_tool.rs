@@ -11,6 +11,7 @@ use super::{tool::OngoingMultiframeChange, ActiveTool};
 use crate::{
     map::{
         brush::convex_polygon::{ConvexPolygon, ScaleInfo},
+        drawer::drawing_resources::DrawingResources,
         editor::{
             cursor::Cursor,
             state::{
@@ -86,11 +87,16 @@ impl ScaleTool
 
     /// Returns an [`ActiveTool`] in its scale variant.
     #[inline]
-    pub fn tool(manager: &EntitiesManager, grid: Grid, settings: &ToolsSettings) -> ActiveTool
+    pub fn tool(
+        drawing_resources: &DrawingResources,
+        manager: &EntitiesManager,
+        grid: Grid,
+        settings: &ToolsSettings
+    ) -> ActiveTool
     {
         ActiveTool::Scale(ScaleTool {
             status:          Status::Keyboard,
-            outline:         Self::outline(manager, grid, settings).unwrap(),
+            outline:         Self::outline(drawing_resources, manager, grid, settings).unwrap(),
             selected_corner: Corner::TopLeft
         })
     }
@@ -154,7 +160,14 @@ impl ScaleTool
 
                 if let Some(dir) = inputs.directional_keys_vector(grid.size())
                 {
-                    self.keyboard_scale(bundle, manager, edits_history, grid, settings, dir);
+                    self.keyboard_scale(
+                        bundle.drawing_resources,
+                        manager,
+                        edits_history,
+                        grid,
+                        settings,
+                        dir
+                    );
                 }
                 else if inputs.left_mouse.just_pressed()
                 {
@@ -170,7 +183,7 @@ impl ScaleTool
                 let cursor_pos = Self::cursor_pos(cursor);
 
                 Self::scale_brushes(
-                    bundle,
+                    bundle.drawing_resources,
                     manager,
                     hull,
                     &mut self.selected_corner,
@@ -190,14 +203,14 @@ impl ScaleTool
                     edits_history.override_edit_tag("Brushes Scale");
                 }
 
-                self.finalize_drag_scale(manager, grid, settings);
+                self.finalize_drag_scale(bundle.drawing_resources, manager, grid, settings);
             },
             Status::DragTextures(backup_scales, start_pos, hull) =>
             {
                 let cursor_pos = Self::cursor_pos(cursor);
 
                 Self::scale_textures(
-                    bundle,
+                    bundle.drawing_resources,
                     manager,
                     hull,
                     &mut self.selected_corner,
@@ -216,7 +229,7 @@ impl ScaleTool
                         .texture_scale_flip_cluster(backup_scales.take_value().into_iter());
                 }
 
-                self.finalize_drag_scale(manager, grid, settings);
+                self.finalize_drag_scale(bundle.drawing_resources, manager, grid, settings);
             }
         };
     }
@@ -225,7 +238,7 @@ impl ScaleTool
     #[inline]
     fn keyboard_scale(
         &mut self,
-        bundle: &mut ToolUpdateBundle,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         grid: Grid,
@@ -241,7 +254,7 @@ impl ScaleTool
                 let mut backup_polygons = hv_vec![];
 
                 Self::scale_brushes(
-                    bundle,
+                    drawing_resources,
                     manager,
                     &mut self.outline,
                     &mut self.selected_corner,
@@ -257,10 +270,6 @@ impl ScaleTool
                 }
             },
             {
-                let ToolUpdateBundle {
-                    drawing_resources, ..
-                } = bundle;
-
                 if dir.x != 0f32
                 {
                     dir.x = dir.x.signum() * settings.texture_scale_interval;
@@ -280,15 +289,17 @@ impl ScaleTool
                 };
 
                 let valid = manager.test_operation_validity(|manager| {
-                    manager.selected_textured_brushes_mut().find_map(|mut brush| {
-                        let texture = brush.texture_settings().unwrap();
-                        let scale_x = texture.scale_x() + dir.x;
-                        let scale_y = texture.scale_y() + dir.y;
+                    manager.selected_textured_brushes_mut(drawing_resources).find_map(
+                        |mut brush| {
+                            let texture = brush.texture_settings().unwrap();
+                            let scale_x = texture.scale_x() + dir.x;
+                            let scale_y = texture.scale_y() + dir.y;
 
-                        (!brush.check_texture_scale_x(drawing_resources, scale_x) ||
-                            !brush.check_texture_scale_y(drawing_resources, scale_y))
-                        .then_some(brush.id())
-                    })
+                            (!brush.check_texture_scale_x(drawing_resources, scale_x) ||
+                                !brush.check_texture_scale_y(drawing_resources, scale_y))
+                            .then_some(brush.id())
+                        }
+                    )
                 });
 
                 if !valid
@@ -296,18 +307,18 @@ impl ScaleTool
                     return;
                 }
 
-                for mut brush in manager.selected_textured_brushes_mut()
+                for mut brush in manager.selected_textured_brushes_mut(drawing_resources)
                 {
                     let texture = brush.texture_settings().unwrap();
                     let scale_x = texture.scale_x() + dir.x;
                     let scale_y = texture.scale_y() + dir.y;
 
-                    _ = brush.set_texture_scale_x(drawing_resources, scale_x);
-                    _ = brush.set_texture_scale_y(drawing_resources, scale_y);
+                    _ = brush.set_texture_scale_x(scale_x);
+                    _ = brush.set_texture_scale_y(scale_y);
                 }
 
                 edits_history.texture_scale_delta(manager.selected_textured_ids().copied(), dir);
-                self.update_outline(manager, grid, settings);
+                self.update_outline(drawing_resources, manager, grid, settings);
             }
         );
     }
@@ -315,7 +326,7 @@ impl ScaleTool
     /// Scales the selected brushes.
     #[inline]
     fn scale_brushes(
-        bundle: &mut ToolUpdateBundle,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         hull: &mut Hull,
         selected_corner: &mut Corner,
@@ -333,10 +344,10 @@ impl ScaleTool
                 let mut payloads = hv_vec![capacity; manager.selected_brushes_amount()];
 
                 let valid = manager.test_operation_validity(|manager| {
-                    manager.selected_brushes_mut().find_map(|mut brush| {
+                    manager.selected_brushes_mut(drawing_resources).find_map(|mut brush| {
                         use crate::map::brush::ScaleResult;
 
-                        match brush.check_scale(bundle.drawing_resources, &info, scale_texture)
+                        match brush.check_scale(drawing_resources, &info, scale_texture)
                         {
                             ScaleResult::Invalid => brush.id().into(),
                             ScaleResult::Valid(payload) =>
@@ -363,11 +374,11 @@ impl ScaleTool
                 let mut payloads = hv_vec![capacity; manager.selected_brushes_amount()];
 
                 let valid = manager.test_operation_validity(|manager| {
-                    manager.selected_brushes_mut().find_map(|mut brush| {
+                    manager.selected_brushes_mut(drawing_resources).find_map(|mut brush| {
                         use crate::map::brush::ScaleResult;
 
                         match brush.check_flip_scale(
-                            bundle.drawing_resources,
+                            drawing_resources,
                             &info,
                             &flip_queue,
                             scale_texture
@@ -403,15 +414,15 @@ impl ScaleTool
         for payload in payloads
         {
             manager
-                .brush_mut(payload.id())
-                .set_scale_coordinates(bundle.drawing_resources, payload);
+                .brush_mut(drawing_resources, payload.id())
+                .set_scale_coordinates(payload);
         }
     }
 
     /// Scales the textures of the selected brushes and returns the new outline [`Hull`].
     #[inline]
     fn scale_textures(
-        bundle: &mut ToolUpdateBundle,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         hull: &mut Hull,
         selected_corner: &mut Corner,
@@ -419,10 +430,6 @@ impl ScaleTool
         backup_scales: &mut HvVec<(Id, (f32, f32))>
     ) -> Option<Hull>
     {
-        let ToolUpdateBundle {
-            drawing_resources, ..
-        } = bundle;
-
         let result = hull.scaled(selected_corner, new_corner_position);
         let new_hull = match &result
         {
@@ -433,15 +440,17 @@ impl ScaleTool
         let multi = Vec2::new(info.width_multi(), info.height_multi());
 
         let valid = manager.test_operation_validity(|manager| {
-            manager.selected_textured_brushes_mut().find_map(|mut brush| {
-                let texture = brush.texture_settings().unwrap();
-                let scale_x = texture.scale_x() * multi.x;
-                let scale_y = texture.scale_y() * multi.y;
+            manager
+                .selected_textured_brushes_mut(drawing_resources)
+                .find_map(|mut brush| {
+                    let texture = brush.texture_settings().unwrap();
+                    let scale_x = texture.scale_x() * multi.x;
+                    let scale_y = texture.scale_y() * multi.y;
 
-                (!brush.check_texture_scale_x(drawing_resources, scale_x) ||
-                    !brush.check_texture_scale_y(drawing_resources, scale_y))
-                .then_some(brush.id())
-            })
+                    (!brush.check_texture_scale_x(drawing_resources, scale_x) ||
+                        !brush.check_texture_scale_y(drawing_resources, scale_y))
+                    .then_some(brush.id())
+                })
         });
 
         if !valid
@@ -460,14 +469,14 @@ impl ScaleTool
 
         *hull = new_hull;
 
-        for mut brush in manager.selected_textured_brushes_mut()
+        for mut brush in manager.selected_textured_brushes_mut(drawing_resources)
         {
             let texture = brush.texture_settings().unwrap();
             let scale_x = texture.scale_x() * multi.x;
             let scale_y = texture.scale_y() * multi.y;
 
-            _ = brush.set_texture_scale_x(drawing_resources, scale_x);
-            _ = brush.set_texture_scale_y(drawing_resources, scale_y);
+            _ = brush.set_texture_scale_x(scale_x);
+            _ = brush.set_texture_scale_y(scale_y);
         }
 
         if let ScaleResult::Flip(flip_queue, _) = result
@@ -478,16 +487,16 @@ impl ScaleTool
                 {
                     Flip::Above(_) | Flip::Below(_) =>
                     {
-                        for mut brush in manager.selected_textured_brushes_mut()
+                        for mut brush in manager.selected_textured_brushes_mut(drawing_resources)
                         {
-                            brush.flip_scale_y(drawing_resources);
+                            brush.flip_scale_y();
                         }
                     },
                     Flip::Left(_) | Flip::Right(_) =>
                     {
-                        for mut brush in manager.selected_textured_brushes_mut()
+                        for mut brush in manager.selected_textured_brushes_mut(drawing_resources)
                         {
-                            brush.flip_texture_scale_x(drawing_resources);
+                            brush.flip_texture_scale_x();
                         }
                     }
                 };
@@ -522,7 +531,12 @@ impl ScaleTool
     /// Returns the outline of the tool, if any.
     #[inline]
     #[must_use]
-    fn outline(manager: &EntitiesManager, grid: Grid, settings: &ToolsSettings) -> Option<Hull>
+    fn outline(
+        drawing_resources: &DrawingResources,
+        manager: &EntitiesManager,
+        grid: Grid,
+        settings: &ToolsSettings
+    ) -> Option<Hull>
     {
         match settings.target_switch()
         {
@@ -532,10 +546,10 @@ impl ScaleTool
                 manager
                     .selected_brushes_hull()
                     .unwrap()
-                    .merged(&manager.selected_textured_brushes_hull().unwrap())
+                    .merged(&manager.selected_textured_brushes_hull(drawing_resources).unwrap())
                     .into()
             },
-            TargetSwitch::Texture => manager.selected_textured_brushes_hull()
+            TargetSwitch::Texture => manager.selected_textured_brushes_hull(drawing_resources)
         }
         .map(|hull| grid.snap_hull(&hull))
     }
@@ -544,6 +558,7 @@ impl ScaleTool
     #[inline]
     pub fn update_outline(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         grid: Grid,
         settings: &ToolsSettings
@@ -551,7 +566,7 @@ impl ScaleTool
     {
         if !self.ongoing_multi_frame_change()
         {
-            self.outline = Self::outline(manager, grid, settings).unwrap();
+            self.outline = Self::outline(drawing_resources, manager, grid, settings).unwrap();
         }
     }
 
@@ -559,13 +574,14 @@ impl ScaleTool
     #[inline]
     pub fn finalize_drag_scale(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         grid: Grid,
         settings: &ToolsSettings
     )
     {
         self.status = Status::Keyboard;
-        self.update_outline(manager, grid, settings);
+        self.update_outline(drawing_resources, manager, grid, settings);
     }
 
     //==============================================================

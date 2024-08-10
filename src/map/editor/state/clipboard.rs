@@ -75,7 +75,7 @@ use crate::{
     },
     utils::{
         hull::{EntityHull, Hull},
-        identifiers::{EntityCenter, EntityId, Id}
+        identifiers::{EntityId, Id}
     },
     HvVec,
     Path
@@ -150,10 +150,18 @@ impl EntityId for ClipboardData
     }
 }
 
-impl EntityHull for ClipboardData
+impl ClipboardData
 {
+    /// Whether `self` is out of bounds if moved by the amount `delta`.
     #[inline]
-    fn hull(&self) -> Hull
+    #[must_use]
+    fn out_of_bounds_moved(&self, drawing_resources: &DrawingResources, delta: Vec2) -> bool
+    {
+        (self.hull(drawing_resources) + delta).out_of_bounds()
+    }
+
+    #[inline]
+    fn hull(&self, drawing_resources: &DrawingResources) -> Hull
     {
         match self
         {
@@ -161,7 +169,7 @@ impl EntityHull for ClipboardData
             {
                 let mut hull = data.polygon_hull();
 
-                if let Some(h) = data.sprite_hull()
+                if let Some(h) = data.sprite_hull(drawing_resources)
                 {
                     hull = hull.merged(&h);
                 }
@@ -184,20 +192,6 @@ impl EntityHull for ClipboardData
             }
         }
     }
-}
-
-impl EntityCenter for ClipboardData
-{
-    #[inline]
-    fn center(&self) -> Vec2 { self.hull().center() }
-}
-
-impl ClipboardData
-{
-    /// Whether `self` is out of bounds if moved by the amount `delta`.
-    #[inline]
-    #[must_use]
-    fn out_of_bounds_moved(&self, delta: Vec2) -> bool { (self.hull() + delta).out_of_bounds() }
 
     /// Draws the [`ClipboardData`] at its position moved by `delta`
     #[inline]
@@ -304,15 +298,6 @@ impl Default for Prop
     }
 }
 
-impl EntityHull for Prop
-{
-    #[inline]
-    fn hull(&self) -> Hull
-    {
-        Hull::from_hulls_iter(self.data.iter().map(EntityHull::hull)).unwrap()
-    }
-}
-
 impl Prop
 {
     //==============================================================
@@ -322,6 +307,7 @@ impl Prop
     /// `cursor_pos`, and `screenshot`.
     #[inline]
     pub(in crate::map::editor::state) fn new<'a, D>(
+        drawing_resources: &DrawingResources,
         iter: impl Iterator<Item = &'a D>,
         cursor_pos: Vec2,
         screenshot: Option<egui::TextureId>
@@ -330,7 +316,7 @@ impl Prop
         D: CopyToClipboard + ?Sized + 'a
     {
         let mut new = Self::default();
-        new.fill(iter);
+        new.fill(drawing_resources, iter);
         new.pivot = new.data_center - cursor_pos;
         new.screenshot = screenshot;
         new
@@ -376,6 +362,12 @@ impl Prop
     //==============================================================
     // Info
 
+    #[inline]
+    fn hull(&self, drawing_resources: &DrawingResources) -> Hull
+    {
+        Hull::from_hulls_iter(self.data.iter().map(|data| data.hull(drawing_resources))).unwrap()
+    }
+
     /// Whether `self` contains copied entities.
     #[inline]
     #[must_use]
@@ -402,8 +394,11 @@ impl Prop
 
     /// Fills `self` with copies of the entities provided by `iter`.
     #[inline]
-    fn fill<'a, D>(&mut self, iter: impl Iterator<Item = &'a D>)
-    where
+    fn fill<'a, D>(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        iter: impl Iterator<Item = &'a D>
+    ) where
         D: CopyToClipboard + ?Sized + 'a
     {
         self.data.clear();
@@ -497,23 +492,28 @@ impl Prop
             self.anchor_owners += 1;
         }
 
-        self.reset_data_center();
+        self.reset_data_center(drawing_resources);
     }
 
     /// Resets the center of `self`.
     #[inline]
-    fn reset_data_center(&mut self)
+    fn reset_data_center(&mut self, drawing_resources: &DrawingResources)
     {
-        self.data_center = Hull::from_hulls_iter(self.data.iter().map(EntityHull::hull))
-            .unwrap()
-            .center();
+        self.data_center =
+            Hull::from_hulls_iter(self.data.iter().map(|data| data.hull(drawing_resources)))
+                .unwrap()
+                .center();
     }
 
     /// Updates the things of the contained [`ThingInstance`]s after a things reload. Returns
     /// whether any [`Thing`]s were changed.
     #[inline]
     #[must_use]
-    fn reload_things(&mut self, catalog: &ThingsCatalog) -> bool
+    fn reload_things(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        catalog: &ThingsCatalog
+    ) -> bool
     {
         let mut changed = false;
 
@@ -526,7 +526,7 @@ impl Prop
 
         if changed
         {
-            self.reset_data_center();
+            self.reset_data_center(drawing_resources);
             return true;
         }
 
@@ -563,7 +563,7 @@ impl Prop
 
         if changed
         {
-            self.reset_data_center();
+            self.reset_data_center(drawing_resources);
             return true;
         }
 
@@ -613,7 +613,10 @@ impl Prop
 
         assert!(self.has_data(), "Prop contains no entities.");
 
-        if self.data.iter().any(|item| item.out_of_bounds_moved(delta))
+        if self
+            .data
+            .iter()
+            .any(|item| item.out_of_bounds_moved(drawing_resources, delta))
         {
             error_message("Cannot spawn copy: out of bounds");
             return;
@@ -675,7 +678,7 @@ impl Prop
         // If the pasted and the original overlap pull them apart.
         if self.data.len() == 1 && manager.entity_exists(self.data[0].id())
         {
-            let hull = self.data[0].hull();
+            let hull = self.data[0].hull(drawing_resources);
 
             if let Some(overlap_vector) = hull.overlap_vector(&(hull + delta))
             {
@@ -798,8 +801,14 @@ pub(in crate::map::editor::state) struct Clipboard
     /// The frames that must pass before the [`Prop`] screenshots can be taken.
     props_import_wait_frames: usize,
     /// The function used to run the frame update.
-    update_func:
-        fn(&mut Self, &mut Assets<Image>, &mut PropCamerasMut, &mut EguiUserTextures, Grid)
+    update_func: fn(
+        &mut Self,
+        &mut Assets<Image>,
+        &mut PropCamerasMut,
+        &mut EguiUserTextures,
+        &DrawingResources,
+        Grid
+    )
 }
 
 impl Clipboard
@@ -836,6 +845,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
+        drawing_resources: &DrawingResources,
         catalog: &ThingsCatalog,
         grid: Grid,
         header: &MapHeader,
@@ -860,6 +870,7 @@ impl Clipboard
             images,
             prop_cameras,
             user_textures,
+            drawing_resources,
             catalog,
             grid,
             header.props,
@@ -878,6 +889,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
+        drawing_resources: &DrawingResources,
         catalog: &ThingsCatalog,
         grid: Grid,
         props_amount: usize,
@@ -890,7 +902,7 @@ impl Clipboard
         {
             let mut prop =
                 ciborium::from_reader::<Prop, _>(&mut *file).map_err(|_| "Error loading props")?;
-            _ = prop.reload_things(catalog);
+            _ = prop.reload_things(drawing_resources, catalog);
             props.push(prop);
         }
 
@@ -902,7 +914,14 @@ impl Clipboard
         {
             let index = self.props.len();
             self.props.push(prop);
-            self.queue_prop_screenshot(images, user_textures, prop_cameras.next(), grid, index);
+            self.queue_prop_screenshot(
+                images,
+                user_textures,
+                prop_cameras.next(),
+                drawing_resources,
+                grid,
+                index
+            );
         }
 
         Ok(())
@@ -915,6 +934,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         user_textures: &mut EguiUserTextures,
         camera: Option<(Entity, Mut<Camera>, Mut<Transform>)>,
+        drawing_resources: &DrawingResources,
         grid: Grid,
         index: usize
     )
@@ -935,6 +955,7 @@ impl Clipboard
             images,
             &mut (&mut camera.1, &mut camera.2),
             user_textures,
+            drawing_resources,
             grid,
             &mut self.props[index]
         );
@@ -948,6 +969,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
+        drawing_resources: &DrawingResources,
         grid: Grid
     )
     {
@@ -955,7 +977,14 @@ impl Clipboard
 
         for i in 0..self.props.len()
         {
-            self.queue_prop_screenshot(images, user_textures, prop_cameras.next(), grid, i);
+            self.queue_prop_screenshot(
+                images,
+                user_textures,
+                prop_cameras.next(),
+                drawing_resources,
+                grid,
+                i
+            );
         }
     }
 
@@ -1003,6 +1032,7 @@ impl Clipboard
         _: &mut Assets<Image>,
         _: &mut PropCamerasMut,
         _: &mut EguiUserTextures,
+        _: &DrawingResources,
         _: Grid
     )
     {
@@ -1022,6 +1052,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
+        drawing_resources: &DrawingResources,
         grid: Grid
     )
     {
@@ -1052,6 +1083,7 @@ impl Clipboard
                 images,
                 &mut (&mut camera.1, &mut camera.2),
                 user_textures,
+                drawing_resources,
                 grid,
                 &mut self.props[index]
             );
@@ -1068,10 +1100,11 @@ impl Clipboard
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
+        drawing_resources: &DrawingResources,
         grid: Grid
     )
     {
-        (self.update_func)(self, images, prop_cameras, user_textures, grid);
+        (self.update_func)(self, images, prop_cameras, user_textures, drawing_resources, grid);
     }
 
     /// Assigns a camera to a [`Prop`] to take its screenshot.
@@ -1081,6 +1114,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         prop_camera: &mut (&mut Camera, &mut Transform),
         user_textures: &mut EguiUserTextures,
+        drawing_resources: &DrawingResources,
         grid: Grid,
         prop: &mut Prop
     )
@@ -1093,7 +1127,9 @@ impl Clipboard
         scale_viewport(
             prop_camera.1,
             (PROP_SCREENSHOT_SIZE.x as f32, PROP_SCREENSHOT_SIZE.y as f32),
-            &prop.hull().transformed(|vx| grid.transform_point(vx)),
+            &prop
+                .hull(drawing_resources)
+                .transformed(|vx| grid.transform_point(vx)),
             32f32
         );
 
@@ -1124,12 +1160,13 @@ impl Clipboard
         {
             let prop = &mut self.props[i];
 
-            if prop.reload_things(bundle.things_catalog)
+            if prop.reload_things(bundle.drawing_resources, bundle.things_catalog)
             {
                 self.queue_prop_screenshot(
                     bundle.images,
                     bundle.user_textures,
                     prop_cameras.next(),
+                    bundle.drawing_resources,
                     grid,
                     i
                 );
@@ -1156,7 +1193,14 @@ impl Clipboard
 
             if prop.reload_textures(drawing_resources)
             {
-                self.queue_prop_screenshot(images, user_textures, prop_cameras.next(), grid, i);
+                self.queue_prop_screenshot(
+                    images,
+                    user_textures,
+                    prop_cameras.next(),
+                    drawing_resources,
+                    grid,
+                    i
+                );
             }
         }
     }
@@ -1184,11 +1228,14 @@ impl Clipboard
 
     /// Stores the entities in `iter` as a copy-paste [`Prop`].
     #[inline]
-    pub fn copy<'a, D>(&mut self, iter: impl Iterator<Item = &'a D>)
-    where
+    pub fn copy<'a, D>(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        iter: impl Iterator<Item = &'a D>
+    ) where
         D: CopyToClipboard + ?Sized + 'a
     {
-        self.copy_paste.fill(iter);
+        self.copy_paste.fill(drawing_resources, iter);
     }
 
     /// Pastes the copied entities.
@@ -1472,6 +1519,7 @@ impl Clipboard
     #[inline]
     pub fn paste_platform_path(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         identifier: Id
@@ -1486,24 +1534,30 @@ impl Clipboard
                 return;
             }
 
-            manager.replace_selected_path(identifier, edits_history, path.clone());
+            manager.replace_selected_path(
+                drawing_resources,
+                identifier,
+                edits_history,
+                path.clone()
+            );
             return;
         }
 
-        manager.create_path(identifier, path.clone(), edits_history);
+        manager.create_path(drawing_resources, identifier, path.clone(), edits_history);
     }
 
     /// Cuts the [`Path`] of the brush with [`Id`] `identifier`.
     #[inline]
     pub fn cut_platform_path(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         identifier: Id
     )
     {
         self.copy_platform_path(manager, identifier);
-        manager.remove_selected_path(identifier, edits_history);
+        manager.remove_selected_path(drawing_resources, identifier, edits_history);
     }
 
     //==============================================================

@@ -55,6 +55,7 @@ impl Selector
         /// Selector function.
         #[inline]
         fn selector(
+            _: &DrawingResources,
             manager: &EntitiesManager,
             cursor_pos: Vec2,
             _: f32,
@@ -81,12 +82,14 @@ impl Selector
     #[must_use]
     fn brush_beneath_cursor(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         cursor: &Cursor,
         inputs: &InputsPresses
     ) -> Option<Id>
     {
-        self.0.item_beneath_cursor(manager, cursor, 0f32, inputs)
+        self.0
+            .item_beneath_cursor(drawing_resources, manager, cursor, 0f32, inputs)
     }
 }
 
@@ -157,8 +160,14 @@ impl SubtractTool
         edits_history: &mut EditsHistory
     ) -> bool
     {
-        let ToolUpdateBundle { cursor, .. } = bundle;
-        let subtractee_beneath_cursor = self.selector.brush_beneath_cursor(manager, cursor, inputs);
+        let ToolUpdateBundle {
+            cursor,
+            drawing_resources,
+            ..
+        } = bundle;
+        let subtractee_beneath_cursor =
+            self.selector
+                .brush_beneath_cursor(drawing_resources, manager, cursor, inputs);
 
         rect::update!(
             self.drag_selection,
@@ -261,13 +270,14 @@ impl SubtractTool
         {
             let [brush, sel_brush] = manager.many_brushes([id, sel_id]);
 
-            match brush.subtract(drawing_resources, sel_brush)
+            match brush.subtract(sel_brush)
             {
                 SubtractResult::None => continue,
                 SubtractResult::Despawn => (),
                 SubtractResult::Some(subtract_polygons) =>
                 {
                     manager.spawn_brushes(
+                        drawing_resources,
                         subtract_polygons.into_iter(),
                         edits_history,
                         brush.properties()
@@ -275,7 +285,7 @@ impl SubtractTool
                 }
             };
 
-            manager.despawn_brush(id, edits_history, false);
+            manager.despawn_brush(drawing_resources, id, edits_history, false);
         }
 
         edits_history.override_edit_tag("Brush Subtraction");

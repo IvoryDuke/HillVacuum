@@ -17,6 +17,7 @@ use super::{
 use crate::{
     map::{
         brush::Brush,
+        drawer::drawing_resources::DrawingResources,
         editor::state::manager::quad_tree::QuadTreeIds,
         path::Moving,
         thing::ThingInstance
@@ -149,6 +150,7 @@ pub(in crate::map::editor::state::manager) struct SelectedBrushesMut<'a>
 {
     /// The [`Id`]s iterator.
     iter:       hashbrown::hash_set::Iter<'a, Id>,
+    resources:  &'a DrawingResources,
     /// The manager.
     manager:    &'a mut Innards,
     /// The [`QuadTree`]s.
@@ -165,6 +167,7 @@ impl<'a> Iterator for SelectedBrushesMut<'a>
         unsafe {
             self.iter.next().map(|id| {
                 BrushMut::new(
+                    self.resources,
                     std::ptr::from_mut(self.manager).as_mut().unwrap(),
                     std::ptr::from_mut(self.quad_trees).as_mut().unwrap(),
                     *id
@@ -179,6 +182,7 @@ impl<'a> SelectedBrushesMut<'a>
     /// Returns a new [`SelectedBrushesMut`].
     #[inline]
     pub fn new(
+        resources: &'a DrawingResources,
         manager: &'a mut Innards,
         quad_trees: &'a mut Trees,
         selected_brushes: &'a AuxiliaryIds
@@ -186,6 +190,7 @@ impl<'a> SelectedBrushesMut<'a>
     {
         Self {
             iter: selected_brushes.iter(),
+            resources,
             manager,
             quad_trees
         }
@@ -356,6 +361,7 @@ pub(in crate::map::editor::state::manager) struct SelectedMovingsMut<'a>
 {
     /// The iterator of the [`Id`]s.
     iter:       hashbrown::hash_set::Iter<'a, Id>,
+    resources:  &'a DrawingResources,
     /// The entities manager.
     manager:    &'a mut Innards,
     /// The [`QuadTree`]s.
@@ -371,10 +377,11 @@ impl<'a> Iterator for SelectedMovingsMut<'a>
     {
         unsafe {
             self.iter.next().map(|id| {
-                std::ptr::from_mut(self.manager)
-                    .as_mut()
-                    .unwrap()
-                    .moving_mut(std::ptr::from_mut(self.quad_trees).as_mut().unwrap(), *id)
+                std::ptr::from_mut(self.manager).as_mut().unwrap().moving_mut(
+                    self.resources,
+                    std::ptr::from_mut(self.quad_trees).as_mut().unwrap(),
+                    *id
+                )
             })
         }
     }
@@ -385,6 +392,7 @@ impl<'a> SelectedMovingsMut<'a>
     /// Returns a new [`SelectedMovingsMut`].
     #[inline]
     pub fn new(
+        resources: &'a DrawingResources,
         manager: &'a mut Innards,
         quad_trees: &'a mut Trees,
         selected_brushes: &'a AuxiliaryIds
@@ -392,6 +400,7 @@ impl<'a> SelectedMovingsMut<'a>
     {
         Self {
             iter: selected_brushes.iter(),
+            resources,
             manager,
             quad_trees
         }

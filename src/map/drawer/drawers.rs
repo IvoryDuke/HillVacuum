@@ -200,6 +200,12 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     }
 
     //==============================================================
+    // Resources
+
+    #[inline]
+    pub const fn resources(&self) -> &DrawingResources { self.resources }
+
+    //==============================================================
     // Mesh creation
 
     /// Returns a reference to the [`ColorResources`].
@@ -854,11 +860,8 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         color: Color
     )
     {
-        let mut mesh_generator = self.resources.mesh_generator();
-        mesh_generator.set_indexes(4);
-
         let brush_center = self.grid.transform_point(brush_center);
-        let mut vxs = settings.sprite_vxs(brush_center).unwrap();
+        let mut vxs = settings.sprite_vxs(self.resources, brush_center).unwrap();
 
         let offset = Vec2::new(settings.offset_x(), settings.offset_y());
         vxs.translate(self.grid.transform_point(offset) - offset);
@@ -867,11 +870,16 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         {
             vxs.translate(Vec2::new(
                 0f32,
-                settings.sprite_hull(brush_center).unwrap().half_height()
+                settings
+                    .sprite_hull(self.resources, brush_center)
+                    .unwrap()
+                    .half_height()
             ));
         }
 
-        mesh_generator.push_positions(vxs.into_iter());
+        let mut mesh_generator = self.resources.mesh_generator();
+        mesh_generator.set_indexes(4);
+        mesh_generator.push_positions(vxs);
         mesh_generator.set_sprite_uv(settings.name(), settings);
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
@@ -1264,14 +1272,24 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
             }
         };
 
-        let mut hull = settings.sprite_hull(self.grid.transform_point(brush_center)).unwrap();
+        let brush_center = self.grid.transform_point(brush_center);
+        let mut vxs = settings.sprite_vxs(self.resources, brush_center).unwrap();
+
+        let offset = Vec2::new(settings.offset_x(), settings.offset_y());
+        vxs.translate(self.grid.transform_point(offset) - offset);
 
         if self.grid.isometric()
         {
-            hull += Vec2::new(0f32, hull.half_height());
+            vxs.translate(Vec2::new(
+                0f32,
+                settings
+                    .sprite_hull(self.resources, brush_center)
+                    .unwrap()
+                    .half_height()
+            ));
         }
 
-        mesh_generator.push_positions(hull.vertexes().map(|vx| self.grid.transform_point(vx)));
+        mesh_generator.push_positions(vxs);
 
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
         resources.push_map_preview_sprite(self.meshes.add(mesh).into(), texture, settings);

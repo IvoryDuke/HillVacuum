@@ -721,7 +721,15 @@ impl Ui
                 Self::camera_info(bundle.camera, *grid, ui);
 
                 // Extra tool info.
-                core.tool_ui(manager, inputs, edits_history, clipboard, ui, settings);
+                core.tool_ui(
+                    bundle.drawing_resources,
+                    manager,
+                    inputs,
+                    edits_history,
+                    clipboard,
+                    ui,
+                    settings
+                );
             })
             .response
             .layer_id;

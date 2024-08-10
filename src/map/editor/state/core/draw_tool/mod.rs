@@ -23,7 +23,7 @@ use super::{
 };
 use crate::{
     map::{
-        drawer::color::Color,
+        drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             cursor::Cursor,
             state::{
@@ -200,11 +200,12 @@ impl DrawTool
     #[inline]
     pub fn despawn_drawn_brushes(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory
     )
     {
-        manager.despawn_drawn_brushes(&mut self.drawn_brushes, edits_history);
+        manager.despawn_drawn_brushes(drawing_resources, &mut self.drawn_brushes, edits_history);
     }
 
     /// Updates the tool.
@@ -220,7 +221,11 @@ impl DrawTool
     {
         if inputs.back.just_pressed()
         {
-            manager.despawn_drawn_brushes(&mut self.drawn_brushes, edits_history);
+            manager.despawn_drawn_brushes(
+                bundle.drawing_resources,
+                &mut self.drawn_brushes,
+                edits_history
+            );
             return;
         }
 

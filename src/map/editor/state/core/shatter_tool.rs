@@ -9,7 +9,7 @@ use hill_vacuum_shared::return_if_none;
 use super::item_selector::{ItemSelector, ItemsBeneathCursor};
 use crate::{
     map::{
-        drawer::color::Color,
+        drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             cursor::Cursor,
             state::{
@@ -48,6 +48,7 @@ impl Selector
         /// The selector function.
         #[inline]
         fn selector(
+            _: &DrawingResources,
             manager: &EntitiesManager,
             cursor_pos: Vec2,
             _: f32,
@@ -71,12 +72,14 @@ impl Selector
     #[must_use]
     fn brush_beneath_cursor(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         cursor: &Cursor,
         inputs: &InputsPresses
     ) -> Option<Id>
     {
-        self.0.item_beneath_cursor(manager, cursor, 0f32, inputs)
+        self.0
+            .item_beneath_cursor(drawing_resources, manager, cursor, 0f32, inputs)
     }
 }
 
@@ -110,7 +113,9 @@ impl ShatterTool
         edits_history: &mut EditsHistory
     )
     {
-        self.0 = self.1.brush_beneath_cursor(manager, bundle.cursor, inputs);
+        self.0 =
+            self.1
+                .brush_beneath_cursor(bundle.drawing_resources, manager, bundle.cursor, inputs);
 
         if inputs.left_mouse.just_pressed()
         {
@@ -133,15 +138,12 @@ impl ShatterTool
         let properties = manager.brush(id).properties();
 
         manager.spawn_brushes(
-            return_if_none!(manager.brush(id).shatter(
-                bundle.drawing_resources,
-                Self::cursor_pos(cursor),
-                camera.scale()
-            )),
+            bundle.drawing_resources,
+            return_if_none!(manager.brush(id).shatter(Self::cursor_pos(cursor), camera.scale())),
             edits_history,
             properties
         );
-        manager.despawn_selected_brush(id, edits_history);
+        manager.despawn_selected_brush(bundle.drawing_resources, id, edits_history);
         edits_history.override_edit_tag("Brush Shatter");
 
         self.0 = None;

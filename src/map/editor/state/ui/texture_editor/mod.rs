@@ -84,33 +84,31 @@ macro_rules! plus_minus_textedit {
         $step:expr,
         $strip:ident,
         $clamp:expr
-        $(, $drawing_resources:ident)?
         $(, $return_if_none:literal)?
     ) => {{ paste::paste! {
+        #[allow(unused_mut)]
         #[inline]
         fn set(
             value: $t,
             manager: &mut EntitiesManager,
-            edits_history: &mut EditsHistory
-            $(, $drawing_resources: &DrawingResources)?
+            edits_history: &mut EditsHistory,
+            drawing_resources: &DrawingResources
         ) -> bool
         {
-            $(
-                let valid = manager.test_operation_validity(|manager| {
-                    manager.selected_textured_brushes_mut().find_map(|mut brush| {
-                        (!brush.[< check_texture_ $value >]($drawing_resources, value)).then_some(brush.id())
-                    })
-                });
+            let valid = manager.test_operation_validity(|manager| {
+                manager.selected_textured_brushes_mut(drawing_resources).find_map(|mut brush| {
+                    (!brush.[< check_texture_ $value >](drawing_resources, value)).then_some(brush.id())
+                })
+            });
 
-                if !valid
-                {
-                    return false;
-                }
-            )?
+            if !valid
+            {
+                return false;
+            }
 
             edits_history.[< texture_ $value _cluster >](
-                manager.selected_textured_brushes_mut().filter_map(|mut brush| {
-                    brush.[< set_texture_ $value >]($($drawing_resources, )? value).map(|prev| (brush.id(), prev))
+                manager.selected_textured_brushes_mut(drawing_resources).filter_map(|mut brush| {
+                    brush.[< set_texture_ $value >](value).map(|prev| (brush.id(), prev))
                 })
             );
 
@@ -118,20 +116,20 @@ macro_rules! plus_minus_textedit {
             true
         }
 
-        let Bundle {
-            clipboard,
-            inputs,
-            manager,
-            edits_history,
-            $($drawing_resources,)?
-            ..
-        } = $bundle;
-
         let value = &mut $self.overall_texture.$value;
         $(
             let _ = $return_if_none;
             let value = return_if_none!(value);
         )?
+
+        let Bundle {
+            clipboard,
+            inputs,
+            manager,
+            edits_history,
+            drawing_resources,
+            ..
+        } = $bundle;
 
         MinusPlusOverallValueField::new((MINUS_PLUS_WIDTH, MINUS_PLUS_HEIGHT).into())
             .show(
@@ -145,8 +143,8 @@ macro_rules! plus_minus_textedit {
                     set(
                         value,
                         manager,
-                        edits_history
-                        $(, $drawing_resources)?
+                        edits_history,
+                        drawing_resources
                     ).then_some(value)
                 }
             );
@@ -162,7 +160,6 @@ macro_rules! scale_offset_scroll_parallax {
         $label:literal,
         $step:literal,
         $clamp:expr
-        $(, $drawing_resources:ident)?
         $(, $return_if_none:literal)?
     )),+) => { paste::paste! { $(
         #[inline]
@@ -207,7 +204,6 @@ macro_rules! scale_offset_scroll_parallax {
                         $step,
                         strip,
                         $clamp
-                        $(, $drawing_resources)?
                         $(, $return_if_none)?
                     );
 
@@ -224,7 +220,6 @@ macro_rules! scale_offset_scroll_parallax {
                         $step,
                         strip,
                         $clamp
-                        $(, $drawing_resources)?
                         $(, $return_if_none)?
                     );
                 });
@@ -236,7 +231,7 @@ macro_rules! scale_offset_scroll_parallax {
 
 /// Creates the definition for the angle and height texture settings functions.
 macro_rules! angle_and_height {
-    ($(($value:ident, $label:literal, $t:ty, $clamp:expr $(, $drawing_resources:ident)?)),+) => { paste::paste! { $(
+    ($(($value:ident, $label:literal, $t:ty, $clamp:expr)),+) => { paste::paste! { $(
         #[inline]
         fn [< set_ $value >](
             &mut self,
@@ -263,7 +258,6 @@ macro_rules! angle_and_height {
                         ONE,
                         strip,
                         $clamp
-                        $(, $drawing_resources)?
                     );
                 });
         }
@@ -422,42 +416,30 @@ struct Innards
 impl Innards
 {
     scale_offset_scroll_parallax!(
-        (
-            scale,
-            "Scale",
-            0.5,
-            |scale, step| {
-                if scale == 0f32
-                {
-                    return step;
-                }
+        (scale, "Scale", 0.5, |scale, step| {
+            if scale == 0f32
+            {
+                return step;
+            }
 
-                scale
-            },
-            drawing_resources
-        ),
-        (offset, "Offset", 1f32, no_clamp, drawing_resources),
+            scale
+        }),
+        (offset, "Offset", 1f32, no_clamp),
         (scroll, "Scroll", 1f32, no_clamp, 0),
         (parallax, "Parallax", 0.05, no_clamp, 0)
     );
 
     angle_and_height!(
-        (
-            angle,
-            "Angle",
-            f32,
-            |angle: f32, _| {
-                let mut angle = angle.floor().rem_euclid(360f32);
+        (angle, "Angle", f32, |angle: f32, _| {
+            let mut angle = angle.floor().rem_euclid(360f32);
 
-                if angle < 0f32
-                {
-                    angle += 360f32;
-                }
+            if angle < 0f32
+            {
+                angle += 360f32;
+            }
 
-                angle
-            },
-            drawing_resources
-        ),
+            angle
+        }),
         (height, "Height", i8, |height: i8, _| {
             height.clamp(*TEXTURE_HEIGHT_RANGE.start(), *TEXTURE_HEIGHT_RANGE.end())
         })
@@ -781,11 +763,10 @@ impl Innards
             });
 
             self.animation_editor.push_list_animation_frame(
-                &mut drawing_resources
-                    .texture_mut(self.selected_texture_name().unwrap().as_str())
-                    .unwrap(),
+                drawing_resources,
                 manager,
                 edits_history,
+                &self.overall_texture,
                 return_if_none!(clicked_texture).as_str()
             );
 
@@ -966,7 +947,9 @@ impl Innards
             strip.cell(|ui| {
                 if delete_button(ui)
                 {
-                    bundle.manager.remove_selected_textures(bundle.edits_history);
+                    bundle
+                        .manager
+                        .remove_selected_textures(bundle.drawing_resources, bundle.edits_history);
                     bundle.manager.schedule_outline_update();
                 }
             });

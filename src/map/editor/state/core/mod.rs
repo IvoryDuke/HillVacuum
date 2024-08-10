@@ -421,10 +421,16 @@ impl<'a> UndoRedoInterface<'a>
 
     /// Spawns a new brush.
     #[inline]
-    pub fn spawn_brush(&mut self, identifier: Id, data: BrushData, b_type: BrushType)
+    pub fn spawn_brush(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        identifier: Id,
+        data: BrushData,
+        b_type: BrushType
+    )
     {
         self.manager
-            .spawn_brush_from_parts(identifier, data, b_type.selected());
+            .spawn_brush_from_parts(drawing_resources, identifier, data, b_type.selected());
 
         if b_type.drawn()
         {
@@ -435,9 +441,16 @@ impl<'a> UndoRedoInterface<'a>
 
     /// Despawns the brush with [`Id`] `identifier`.
     #[inline]
-    pub fn despawn_brush(&mut self, identifier: Id, b_type: BrushType) -> BrushData
+    pub fn despawn_brush(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        identifier: Id,
+        b_type: BrushType
+    ) -> BrushData
     {
-        let data = self.manager.despawn_brush_into_parts(identifier, b_type.selected());
+        let data =
+            self.manager
+                .despawn_brush_into_parts(drawing_resources, identifier, b_type.selected());
 
         match self.active_tool
         {
@@ -464,27 +477,38 @@ impl<'a> UndoRedoInterface<'a>
 
     /// Returns a [`BrushMut`] wrapping the brush with [`Id`] `identifier`.
     #[inline]
-    pub fn brush_mut(&mut self, identifier: Id) -> BrushMut { self.manager.brush_mut(identifier) }
+    pub fn brush_mut<'b>(
+        &'b mut self,
+        drawing_resources: &'b DrawingResources,
+        identifier: Id
+    ) -> BrushMut
+    {
+        self.manager.brush_mut(drawing_resources, identifier)
+    }
 
     /// Returns a [`MovingMut`] wrapping the entity with id `identifier`.
     #[inline]
-    pub fn moving_mut(&mut self, identifier: Id) -> MovingMut<'_>
+    pub fn moving_mut<'b>(
+        &'b mut self,
+        drawing_resources: &'b DrawingResources,
+        identifier: Id
+    ) -> MovingMut<'_>
     {
-        self.manager.moving_mut(identifier)
+        self.manager.moving_mut(drawing_resources, identifier)
     }
 
     /// Gives the brush with [`Id`] `identifier` a [`Motor`].
     #[inline]
-    pub fn set_path(&mut self, identifier: Id, path: Path)
+    pub fn set_path(&mut self, drawing_resources: &DrawingResources, identifier: Id, path: Path)
     {
-        self.manager.set_path(identifier, path);
+        self.manager.set_path(drawing_resources, identifier, path);
     }
 
     /// Removes the [`Path`] from the entity with [`Id`] `identifier`.
     #[inline]
-    pub fn remove_path(&mut self, identifier: Id) -> Path
+    pub fn remove_path(&mut self, drawing_resources: &DrawingResources, identifier: Id) -> Path
     {
-        let motor = self.manager.remove_path(identifier);
+        let motor = self.manager.remove_path(drawing_resources, identifier);
 
         if self.manager.is_selected(identifier)
         {
@@ -546,17 +570,27 @@ impl<'a> UndoRedoInterface<'a>
 
     /// Set the [`TextureSettings`] of the brush with [`Id`] `identifier`.
     #[inline]
-    pub fn set_texture_settings(&mut self, identifier: Id, texture: TextureSettings)
+    pub fn set_texture_settings(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        identifier: Id,
+        texture: TextureSettings
+    )
     {
-        self.manager.set_texture_settings(identifier, texture);
+        self.manager
+            .set_texture_settings(drawing_resources, identifier, texture);
     }
 
     /// Removes the texture from the brush with [`Id`] identifier, and returns its
     /// [`TextureSettings`].
     #[inline]
-    pub fn remove_texture(&mut self, identifier: Id) -> TextureSettings
+    pub fn remove_texture(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        identifier: Id
+    ) -> TextureSettings
     {
-        self.manager.remove_texture(identifier)
+        self.manager.remove_texture(drawing_resources, identifier)
     }
 
     /// Sets whether the texture of the selected brush with [`Id`] `identifier` should be
@@ -662,7 +696,13 @@ impl<'a> UndoRedoInterface<'a>
 
     /// Sets the property with key `k` of the entity with [`Id`] `identifier` to `value`.
     #[inline]
-    pub fn set_property(&mut self, identifier: Id, k: &str, value: &Value) -> Value
+    pub fn set_property(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        identifier: Id,
+        k: &str,
+        value: &Value
+    ) -> Value
     {
         if self.manager.is_thing(identifier)
         {
@@ -672,7 +712,10 @@ impl<'a> UndoRedoInterface<'a>
         else
         {
             self.manager.schedule_overall_brushes_property_update(k);
-            self.manager.brush_mut(identifier).set_property(k, value).unwrap()
+            self.manager
+                .brush_mut(drawing_resources, identifier)
+                .set_property(k, value)
+                .unwrap()
         }
     }
 }
@@ -745,13 +788,15 @@ impl Core
     #[inline]
     pub fn select_all(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         grid: Grid,
         settings: &ToolsSettings
     )
     {
-        self.active_tool.select_all(manager, edits_history, grid, settings);
+        self.active_tool
+            .select_all(drawing_resources, manager, edits_history, grid, settings);
     }
 
     //==============================================================
@@ -871,12 +916,14 @@ impl Core
     #[inline]
     pub fn update_outline(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         grid: Grid,
         settings: &mut ToolsSettings
     )
     {
-        self.active_tool.update_outline(manager, grid, settings);
+        self.active_tool
+            .update_outline(drawing_resources, manager, grid, settings);
     }
 
     /// Updates the data stored concerning the selected vertexes.
@@ -945,6 +992,7 @@ impl Core
     #[inline]
     pub fn frame_start_update(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         clipboard: &Clipboard
@@ -960,14 +1008,14 @@ impl Core
             {
                 EditingTarget::Sides | EditingTarget::Vertexes =>
                 {
-                    for mut brush in manager.selected_brushes_mut()
+                    for mut brush in manager.selected_brushes_mut(drawing_resources)
                     {
                         brush.deselect_vertexes_no_indexes();
                     }
                 },
                 EditingTarget::Path =>
                 {
-                    for mut brush in manager.selected_movings_mut()
+                    for mut brush in manager.selected_movings_mut(drawing_resources)
                     {
                         brush.deselect_path_nodes_no_indexes();
                     }
@@ -1044,6 +1092,7 @@ impl Core
     #[inline]
     pub fn tool_ui(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
@@ -1052,8 +1101,15 @@ impl Core
         settings: &mut ToolsSettings
     )
     {
-        self.active_tool
-            .ui(manager, inputs, edits_history, clipboard, ui, settings);
+        self.active_tool.ui(
+            drawing_resources,
+            manager,
+            inputs,
+            edits_history,
+            clipboard,
+            ui,
+            settings
+        );
     }
 
     /// Draws the subtools.
@@ -1088,11 +1144,15 @@ impl Core
 
 /// Deselects all the selected vertexes.
 #[inline]
-fn deselect_vertexes(manager: &mut EntitiesManager, edits_history: &mut EditsHistory)
+fn deselect_vertexes(
+    drawing_resources: &DrawingResources,
+    manager: &mut EntitiesManager,
+    edits_history: &mut EditsHistory
+)
 {
     edits_history.vertexes_selection_cluster(
         manager
-            .selected_brushes_mut()
+            .selected_brushes_mut(drawing_resources)
             .filter_map(|mut brush| brush.deselect_vertexes().map(|idxs| (brush.id(), idxs)))
     );
 }

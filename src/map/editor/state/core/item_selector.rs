@@ -9,10 +9,13 @@ use std::{cmp::Ordering, fmt::Debug, ops::Index};
 use glam::Vec2;
 
 use crate::{
-    map::editor::{
-        cursor::Cursor,
-        hv_vec,
-        state::{editor_state::InputsPresses, manager::EntitiesManager}
+    map::{
+        drawer::drawing_resources::DrawingResources,
+        editor::{
+            cursor::Cursor,
+            hv_vec,
+            state::{editor_state::InputsPresses, manager::EntitiesManager}
+        }
     },
     utils::{identifiers::EntityId, misc::next},
     HvVec
@@ -40,7 +43,8 @@ enum Position
 //=======================================================================//
 
 #[allow(clippy::missing_docs_in_private_items)]
-type SelectorFunc<T> = fn(&EntitiesManager, Vec2, f32, &mut ItemsBeneathCursor<T>);
+type SelectorFunc<T> =
+    fn(&DrawingResources, &EntitiesManager, Vec2, f32, &mut ItemsBeneathCursor<T>);
 
 //=======================================================================//
 
@@ -199,6 +203,7 @@ where
     #[must_use]
     pub fn item_beneath_cursor(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         cursor: &Cursor,
         camera_scale: f32,
@@ -206,7 +211,7 @@ where
     ) -> Option<T>
     {
         self.items.clear();
-        (self.selector)(manager, cursor.world(), camera_scale, &mut self.items);
+        (self.selector)(drawing_resources, manager, cursor.world(), camera_scale, &mut self.items);
 
         if self.items.is_empty()
         {

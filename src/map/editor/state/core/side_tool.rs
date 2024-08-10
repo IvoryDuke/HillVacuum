@@ -42,7 +42,7 @@ use crate::{
             XtrusionPayload,
             XtrusionResult
         },
-        drawer::color::Color,
+        drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             cursor::Cursor,
             state::{
@@ -481,12 +481,7 @@ impl SideTool
                         }
                         else if inputs.shift_pressed()
                         {
-                            match Self::toggle_sides(
-                                manager,
-                                edits_history,
-                                cursor_pos,
-                                bundle.camera.scale()
-                            )
+                            match Self::toggle_sides(bundle, manager, edits_history, cursor_pos)
                             {
                                 VertexesToggle::None => true,
                                 VertexesToggle::Selected =>
@@ -500,11 +495,11 @@ impl SideTool
                         else
                         {
                             if Self::exclusively_select_sides(
+                                bundle,
                                 manager,
                                 edits_history,
                                 &self.1,
-                                cursor_pos,
-                                bundle.camera.scale()
+                                cursor_pos
                             )
                             {
                                 if inputs.alt_pressed()
@@ -529,11 +524,12 @@ impl SideTool
                         }
                     },
                     {
-                        deselect_vertexes(manager, edits_history);
+                        deselect_vertexes(bundle.drawing_resources, manager, edits_history);
                     },
                     hull,
                     {
                         Self::select_sides_from_drag_selection(
+                            bundle.drawing_resources,
                             manager,
                             edits_history,
                             &hull,
@@ -559,7 +555,13 @@ impl SideTool
                 let mut vxs_move = hv_vec![];
 
                 if self.1.selected_sides.any_selected_vx() &&
-                    Self::move_sides(bundle, manager, edits_history, dir, &mut vxs_move)
+                    Self::move_sides(
+                        bundle.drawing_resources,
+                        manager,
+                        edits_history,
+                        dir,
+                        &mut vxs_move
+                    )
                 {
                     edits_history.vertexes_move(vxs_move);
                 }
@@ -598,7 +600,13 @@ impl SideTool
                 else if bundle.cursor.moved()
                 {
                     drag.conditional_update(bundle.cursor, grid, |delta| {
-                        Self::move_sides(bundle, manager, edits_history, delta, cumulative_drag)
+                        Self::move_sides(
+                            bundle.drawing_resources,
+                            manager,
+                            edits_history,
+                            delta,
+                            cumulative_drag
+                        )
                     });
                 }
             },
@@ -625,11 +633,23 @@ impl SideTool
                     },
                     XtrusionMode::Intrusion { payloads, polygons } =>
                     {
-                        Self::intrude_sides(bundle, manager, grid, payloads, polygons, line, drag);
+                        Self::intrude_sides(
+                            manager,
+                            grid,
+                            bundle.cursor,
+                            payloads,
+                            polygons,
+                            line,
+                            drag
+                        );
 
                         if !inputs.left_mouse.pressed()
                         {
-                            self.finalize_intrusion(manager, edits_history);
+                            self.finalize_intrusion(
+                                bundle.drawing_resources,
+                                manager,
+                                edits_history
+                            );
                         }
                     },
                     XtrusionMode::Extrusion(polygons) =>
@@ -638,7 +658,11 @@ impl SideTool
 
                         if !inputs.left_mouse.pressed()
                         {
-                            self.finalize_extrusion(manager, edits_history);
+                            self.finalize_extrusion(
+                                bundle.drawing_resources,
+                                manager,
+                                edits_history
+                            );
                         }
                     }
                 }
@@ -662,24 +686,30 @@ impl SideTool
     /// Exclusively selects the sides beneath the cursor position within vertex highlight distance.
     #[inline]
     fn exclusively_select_sides(
+        bundle: &ToolUpdateBundle,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         brushes_with_selected_sides: &BrushesWithSelectedSides,
-        cursor_pos: Vec2,
-        camera_scale: f32
+        cursor_pos: Vec2
     ) -> bool
     {
+        let ToolUpdateBundle {
+            drawing_resources,
+            camera,
+            ..
+        } = bundle;
+
+        let camera_scale = camera.scale();
         let mut id_vx_id = None;
 
-        for (id, result) in
-            manager
-                .selected_brushes_mut_at_pos(cursor_pos, camera_scale)
-                .map(|mut brush| {
-                    (
-                        brush.id(),
-                        brush.check_side_proximity_and_exclusively_select(cursor_pos, camera_scale)
-                    )
-                })
+        for (id, result) in manager
+            .selected_brushes_mut_at_pos(drawing_resources, cursor_pos, camera_scale)
+            .map(|mut brush| {
+                (
+                    brush.id(),
+                    brush.check_side_proximity_and_exclusively_select(cursor_pos, camera_scale)
+                )
+            })
         {
             match result
             {
@@ -701,7 +731,7 @@ impl SideTool
                 .iter()
                 .filter_set_with_predicate(id, |id| **id)
                 .filter_map(|id| {
-                    let mut brush = manager.brush_mut(*id);
+                    let mut brush = manager.brush_mut(drawing_resources, *id);
                     (!brush.hull().contains_point(side[0]) || !brush.hull().contains_point(side[1]))
                         .then(|| brush.deselect_vertexes().map(|idxs| (brush.id(), idxs)).unwrap())
                 })
@@ -710,7 +740,7 @@ impl SideTool
         // Stash these right away.
         edits_history.vertexes_selection_cluster(
             manager
-                .selected_brushes_mut()
+                .selected_brushes_mut(drawing_resources)
                 .filter_set_with_predicate(id, EntityId::id)
                 .filter_map(|mut brush| {
                     brush
@@ -727,13 +757,16 @@ impl SideTool
     #[inline]
     #[must_use]
     fn toggle_sides(
+        bundle: &ToolUpdateBundle,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        cursor_pos: Vec2,
-        camera_scale: f32
+        cursor_pos: Vec2
     ) -> VertexesToggle
     {
-        let mut brushes = manager.selected_brushes_mut_at_pos(cursor_pos, camera_scale);
+        let camera_scale = bundle.camera.scale();
+
+        let mut brushes =
+            manager.selected_brushes_mut_at_pos(bundle.drawing_resources, cursor_pos, camera_scale);
         let (side, selected) = return_if_none!(
             brushes.by_ref().find_map(|mut brush| {
                 let (side, idx, selected) = return_if_none!(
@@ -758,7 +791,7 @@ impl SideTool
     /// overlap the moved ones.
     #[inline]
     fn move_sides(
-        bundle: &ToolUpdateBundle,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         delta: Vec2,
@@ -769,7 +802,7 @@ impl SideTool
         let mut move_payloads = hv_vec![];
 
         let valid = manager.test_operation_validity(|manager| {
-            manager.selected_brushes_mut().find_map(|mut brush| {
+            manager.selected_brushes_mut(drawing_resources).find_map(|mut brush| {
                 match brush.check_selected_sides_move(delta)
                 {
                     VertexesMoveResult::None => (),
@@ -809,8 +842,8 @@ impl SideTool
             }
 
             let vx_move = manager
-                .brush_mut(id)
-                .apply_vertexes_move_result(bundle.drawing_resources, payload);
+                .brush_mut(drawing_resources, id)
+                .apply_vertexes_move_result(payload);
 
             let mov = cumulative_move
                 .iter_mut()
@@ -836,13 +869,15 @@ impl SideTool
         {
             for vx in [vx_j.0, vx_i.0]
             {
-                selections.extend(manager.selected_brushes_mut_at_pos(vx, None).filter_map(
-                    |mut brush| {
-                        brush
-                            .try_select_side(&[vx_j.0, vx_i.0])
-                            .map(|idx| (brush.id(), hv_vec![idx]))
-                    }
-                ));
+                selections.extend(
+                    manager
+                        .selected_brushes_mut_at_pos(drawing_resources, vx, None)
+                        .filter_map(|mut brush| {
+                            brush
+                                .try_select_side(&[vx_j.0, vx_i.0])
+                                .map(|idx| (brush.id(), hv_vec![idx]))
+                        })
+                );
             }
         }
 
@@ -879,14 +914,15 @@ impl SideTool
         }
 
         edits_history.sides_deletion_cluster(payloads.into_iter().map(|p| {
-            let mut brush = manager.brush_mut(p.id());
-            (brush.id(), brush.delete_selected_sides(bundle.drawing_resources, p))
+            let mut brush = manager.brush_mut(bundle.drawing_resources, p.id());
+            (brush.id(), brush.delete_selected_sides(p))
         }));
     }
 
     /// Selects the sides that fit in the drag selection.
     #[inline]
     fn select_sides_from_drag_selection(
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         range: &Hull,
@@ -904,7 +940,7 @@ impl SideTool
 
         edits_history.vertexes_selection_cluster(
             manager
-                .selected_brushes_mut()
+                .selected_brushes_mut(drawing_resources)
                 .filter_map(|mut brush| func(&mut brush, range).map(|idxs| (brush.id(), idxs)))
         );
     }
@@ -913,7 +949,6 @@ impl SideTool
     #[inline]
     #[must_use]
     fn intrusion_polygons(
-        bundle: &ToolUpdateBundle,
         manager: &mut EntitiesManager,
         payloads: &HvVec<XtrusionPayload>,
         delta: Vec2
@@ -925,11 +960,9 @@ impl SideTool
             payloads.iter().find_map(|payload| {
                 let id = payload.id();
 
-                match payload.info().clip_polygon_at_intrusion_side(
-                    bundle.drawing_resources,
-                    manager.brush(id),
-                    delta
-                )
+                match payload
+                    .info()
+                    .clip_polygon_at_intrusion_side(manager.brush(id), delta)
                 {
                     None => id.into(),
                     Some([left, mut right]) =>
@@ -975,10 +1008,8 @@ impl SideTool
                 if delta_against_normal
                 {
                     // Intrusion.
-                    let polygons = return_if_none!(
-                        Self::intrusion_polygons(bundle, manager, payloads, delta),
-                        false
-                    );
+                    let polygons =
+                        return_if_none!(Self::intrusion_polygons(manager, payloads, delta), false);
 
                     // Update the edits history.
                     XtrusionMode::Intrusion {
@@ -1030,18 +1061,17 @@ impl SideTool
     /// Intrudes the selected sides splitting the selected brushes.
     #[inline]
     fn intrude_sides(
-        bundle: &ToolUpdateBundle,
         manager: &mut EntitiesManager,
         grid: Grid,
+        cursor: &Cursor,
         payloads: &HvVec<XtrusionPayload>,
         polygons: &mut HvVec<(ConvexPolygon, Id)>,
         line: &[Vec2; 2],
         drag: &mut XTrusionDrag
     )
     {
-        drag.conditional_update(bundle.cursor, grid, line, |delta| {
-            *polygons =
-                return_if_none!(Self::intrusion_polygons(bundle, manager, payloads, delta), false);
+        drag.conditional_update(cursor, grid, line, |delta| {
+            *polygons = return_if_none!(Self::intrusion_polygons(manager, payloads, delta), false);
             true
         });
     }
@@ -1094,6 +1124,7 @@ impl SideTool
     #[inline]
     fn finalize_intrusion(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory
     )
@@ -1110,12 +1141,12 @@ impl SideTool
         for (polygon, id) in polygons.take_value()
         {
             let properties = manager.brush(id).properties();
-            manager.spawn_brush(polygon, edits_history, properties);
+            manager.spawn_brush(drawing_resources, polygon, edits_history, properties);
         }
 
         for payload in payloads
         {
-            manager.despawn_brush(payload.id(), edits_history, true);
+            manager.despawn_brush(drawing_resources, payload.id(), edits_history, true);
         }
 
         edits_history.override_edit_tag("Brush Intrusion");
@@ -1128,6 +1159,7 @@ impl SideTool
     #[inline]
     fn finalize_extrusion(
         &mut self,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory
     )
@@ -1143,7 +1175,7 @@ impl SideTool
 
         edits_history.vertexes_selection_cluster(
             manager
-                .selected_brushes_mut()
+                .selected_brushes_mut(drawing_resources)
                 .filter_map(|mut brush| brush.deselect_vertexes().map(|idxs| (brush.id(), idxs)))
         );
 
@@ -1152,7 +1184,7 @@ impl SideTool
         for (id, _, cp) in polygons.take_value()
         {
             let properties = manager.brush(id).properties();
-            manager.spawn_brush(cp, edits_history, properties);
+            manager.spawn_brush(drawing_resources, cp, edits_history, properties);
         }
 
         edits_history.override_edit_tag("Brush Extrusion");
@@ -1286,12 +1318,7 @@ impl SideTool
 
         if merge_clicked
         {
-            ActiveTool::merge_vertexes(
-                bundle.default_properties.brushes,
-                manager,
-                edits_history,
-                true
-            );
+            ActiveTool::merge_vertexes(bundle, manager, edits_history, true);
             return;
         }
 
