@@ -50,7 +50,7 @@ use crate::{
         },
         editor::{
             state::{
-                clipboard::Prop,
+                clipboard::prop::Prop,
                 core::{tool::ToolInterface, Core},
                 input_press::InputState,
                 read_default_properties,

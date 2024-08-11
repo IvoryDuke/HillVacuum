@@ -28,10 +28,9 @@ use crate::{
             cursor::Cursor,
             state::{
                 clipboard::{
+                    prop::{Prop, PropScreenshotTimer},
                     ChunkItem,
                     Clipboard,
-                    Prop,
-                    PropScreenshotTimer,
                     PROP_SCREENSHOT_SIZE
                 },
                 core::tool::subtools_buttons,

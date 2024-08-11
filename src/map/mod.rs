@@ -26,11 +26,7 @@ use hill_vacuum_shared::{return_if_none, NextValue};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    map::{
-        brush::BrushViewer,
-        properties::DefaultProperties,
-        thing::ThingViewer
-    },
+    map::{brush::BrushViewer, properties::DefaultProperties, thing::ThingViewer},
     utils::{
         containers::{hv_hash_map, hv_vec},
         misc::AssertedInsertRemove
@@ -316,8 +312,8 @@ pub(in crate::map) mod ui_mod
             },
             editor::{
                 state::clipboard::{
+                    prop::Prop,
                     PaintToolPropCamera,
-                    Prop,
                     PropCamera,
                     PropCameras,
                     PropCamerasMut
