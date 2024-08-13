@@ -83,8 +83,7 @@ pub fn draw_tooltip_y_centered(
     margin: f32
 )
 {
-    offset.y -= TOOLTIP_FONT_SIZE;
-
+    offset.y -= TOOLTIP_FONT_SIZE / 1.75;
     draw_tooltip(egui_context, label, text, pos + offset, text_color, fill_color, margin, margin);
 }
 
