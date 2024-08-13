@@ -4330,7 +4330,7 @@ pub(in crate::map) mod ui_mod
 
             if self.has_sprite()
             {
-                drawer.sprite(center, self.texture_settings().unwrap(), color);
+                drawer.sprite(center, self.texture_settings().unwrap(), color, false);
             }
         }
 
@@ -4643,7 +4643,7 @@ pub(in crate::map) mod ui_mod
                 if settings.sprite()
                 {
                     moving_brush(self, camera, drawer, None::<&TextureSettings>, movement_vec);
-                    drawer.sprite(self.center, &settings, Color::SelectedEntity);
+                    drawer.sprite(self.center, &settings, Color::SelectedEntity, false);
                     self.sprite_highlight(drawer, self.center + movement_vec, &settings);
                 }
                 else
@@ -4694,14 +4694,19 @@ pub(in crate::map) mod ui_mod
                 return;
             }
 
-            drawer.sprite(self.center, self.texture_settings().unwrap(), color);
+            drawer.sprite(self.center, self.texture_settings().unwrap(), color, false);
             self.sprite_highlight(drawer, self.center, self.texture_settings().unwrap());
         }
 
         #[inline]
-        pub(in crate::map::brush) fn draw_sprite(&self, drawer: &mut EditDrawer, color: Color)
+        pub(in crate::map::brush) fn draw_sprite(
+            &self,
+            drawer: &mut EditDrawer,
+            color: Color,
+            show_outline: bool
+        )
         {
-            drawer.sprite(self.center, self.texture_settings().unwrap(), color);
+            drawer.sprite(self.center, self.texture_settings().unwrap(), color, show_outline);
         }
 
         #[inline]

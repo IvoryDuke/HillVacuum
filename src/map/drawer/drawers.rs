@@ -391,6 +391,17 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     #[inline]
     pub fn grid_lines(&mut self, window: &Window, camera: &Transform)
     {
+        #[inline]
+        fn axis_polygon(drawer: &mut EditDrawer, vertexes: impl ExactSizeIterator<Item = Vec2>)
+        {
+            let mesh = drawer.polygon_mesh(vertexes);
+            drawer.push_mesh(
+                mesh,
+                drawer.color_resources.line_material(Color::OriginGridLines),
+                Color::OriginGridLines.line_height()
+            );
+        }
+
         if !self.grid.visible
         {
             return;
@@ -418,29 +429,29 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
         if let Some((left, right)) = axis.x
         {
-            self.polygon(
+            axis_polygon(
+                self,
                 [
                     Vec2::new(right.x, right.y + side),
                     Vec2::new(left.x, left.y + side),
                     Vec2::new(left.x, left.y - side),
                     Vec2::new(right.x, right.y - side)
                 ]
-                .into_iter(),
-                Color::OriginGridLines
+                .into_iter()
             );
         }
 
         let (top, bottom) = return_if_none!(axis.y);
 
-        self.polygon(
+        axis_polygon(
+            self,
             [
                 Vec2::new(top.x + side, top.y),
                 Vec2::new(top.x - side, top.y),
                 Vec2::new(bottom.x - side, bottom.y),
                 Vec2::new(bottom.x + side, bottom.y)
             ]
-            .into_iter(),
-            Color::OriginGridLines
+            .into_iter()
         );
     }
 
@@ -711,7 +722,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
     /// Draws the collision overlay.
     #[inline]
-    fn collision_overlay(&mut self, vertexes: impl ExactSizeIterator<Item = Vec2>, color: Color)
+    fn collision_overlay(&mut self, vertexes: impl ExactSizeIterator<Item = Vec2>)
     {
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(vertexes.len());
@@ -719,7 +730,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         mesh_generator.clip_uv();
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
-        self.push_mesh(mesh, self.resources.clip_texture(), color.clip_height());
+        self.push_mesh(mesh, self.resources.clip_texture(), Color::clip_height());
     }
 
     /// Draws `settings` mapped to `vertexes`.
@@ -730,15 +741,9 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         vertexes: impl ExactSizeIterator<Item = Vec2> + Clone,
         center: Vec2,
         color: Color,
-        settings: &T,
-        collision: bool
+        settings: &T
     )
     {
-        if self.show_collision_overlay && collision
-        {
-            self.collision_overlay(vertexes.clone(), color);
-        }
-
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(vertexes.len());
         mesh_generator.push_positions_skewed(self.grid, vertexes);
@@ -767,29 +772,27 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         collision: bool
     )
     {
+        if self.show_collision_overlay && collision
+        {
+            self.collision_overlay(vertexes.clone());
+        }
+
         if let Some(texture) = texture
         {
             if !texture.sprite()
             {
                 self.polygon_texture(
                     camera,
-                    vertexes,
+                    vertexes.clone(),
                     self.grid.transform_point(center),
                     color,
-                    texture,
-                    collision
+                    texture
                 );
-                return;
             }
         }
 
-        if self.show_collision_overlay && collision
-        {
-            self.collision_overlay(vertexes.clone(), color);
-        }
-
-        let mesh = self.polygon_mesh(vertexes.clone());
-        self.push_mesh(mesh, self.color_resources.brush_material(color), color.height());
+        let mesh = self.polygon_mesh(vertexes);
+        self.push_mesh(mesh, self.color_resources.polygon_material(color), color.polygon_height());
     }
 
     /// Draws `settings` as a brush also drawing the sides.
@@ -817,15 +820,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     )
     {
         let mesh = self.polygon_mesh(vertexes);
-        self.push_mesh(mesh, self.color_resources.line_material(color), color.height());
-    }
-
-    /// Queues the [`Mesh`] of a polygon to draw.
-    #[inline]
-    fn polygon(&mut self, vertexes: impl ExactSizeIterator<Item = Vec2>, color: Color)
-    {
-        let mesh = self.polygon_mesh(vertexes);
-        self.push_mesh(mesh, self.color_resources.line_material(color), color.height());
+        self.push_mesh(mesh, self.color_resources.line_material(color), color.polygon_height());
     }
 
     /// Draws `settings` mapping the texture to `sides` and also drawing colored lines at the sides.
@@ -857,19 +852,29 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         &mut self,
         brush_center: Vec2,
         settings: &T,
-        color: Color
+        color: Color,
+        show_outline: bool
     )
     {
         let vxs = sprite_vxs(self.resources, brush_center, settings, self.grid);
 
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(4);
-        mesh_generator.push_positions(vxs);
+        mesh_generator.push_positions(vxs.iter().copied());
         mesh_generator.set_sprite_uv(settings.name(), settings);
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
         self.resources
             .push_sprite(self.meshes.add(mesh).into(), settings, color);
+
+        if !show_outline
+        {
+            return;
+        }
+
+        self.hull(&Hull::from_points(vxs.iter().copied()).unwrap(), color);
+        let mesh = self.polygon_mesh(vxs.into_iter());
+        self.push_mesh(mesh, self.color_resources.polygon_material(color), color.polygon_height());
     }
 
     /// Draws `thing`.
@@ -946,6 +951,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
         /// The outline of a [`ThingInstance`] showing its bounding box.
         #[must_use]
+        #[derive(Clone, Copy)]
         struct ThingOutline
         {
             /// The horizontal distance between two corners.
@@ -983,6 +989,18 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             }
         }
 
+        impl ExactSizeIterator for ThingOutline
+        {
+            #[inline]
+            #[must_use]
+            fn len(&self) -> usize
+            {
+                let len = self.circle_iter.len();
+                len + len.div_ceil(CORNER_RESOLUTION as usize - 1)
+            }
+        }
+
+        #[allow(clippy::copy_iterator)]
         impl Iterator for ThingOutline
         {
             type Item = Vec2;
@@ -1028,10 +1046,13 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             }
         }
 
-        // Sides
-        self.sides(ThingOutline::new(thing), color);
+        // Sides and overlay.
+        let iter = ThingOutline::new(thing);
+        self.sides(iter, color);
+        let mesh = self.polygon_mesh(iter);
+        self.push_mesh(mesh, self.color_resources.polygon_material(color), color.entity_height());
 
-        // Angle indicator
+        // Angle indicator.
         let hull = thing.hull();
         let half_side = (hull.width().min(hull.height()) / 2f32).min(64f32);
         let center = self.grid.transform_point(hull.center());
@@ -1056,7 +1077,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(
             mesh,
             self.resources.thing_angle_texture(),
-            color.thing_angle_indicator_height()
+            Color::thing_angle_indicator_height()
         );
 
         // Texture

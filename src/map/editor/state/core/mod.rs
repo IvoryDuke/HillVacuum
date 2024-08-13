@@ -83,7 +83,7 @@ macro_rules! draw_selected_and_non_selected_brushes {
             brushes,
             $bundle,
             $manager,
-            |brush, camera, drawer, color| {
+            |brush, camera, drawer, color, _| {
                 crate::map::brush::Brush::draw_with_color(brush, camera, drawer, color);
             }
             $(, $filters)?
@@ -102,7 +102,8 @@ macro_rules! draw_selected_and_non_selected_things {
             things,
             $bundle,
             $manager,
-            |thing, _: &bevy::transform::components::Transform, drawer: &mut crate::map::drawer::drawers::EditDrawer, color| {
+            |thing,
+            _: &bevy::transform::components::Transform, drawer: &mut crate::map::drawer::drawers::EditDrawer, color, _| {
                 drawer.thing($bundle.things_catalog, thing, color);
             }
             $(, $filters)?
@@ -114,9 +115,29 @@ use draw_selected_and_non_selected_things;
 
 //=======================================================================//
 
+/// Draws the selected and non selected [`ThingInstance`]s.
+macro_rules! draw_selected_and_non_selected_sprites {
+    ($bundle:ident, $manager:ident, $show_outline:expr $(, $filters:expr)?) => {{
+        crate::map::editor::state::core::draw_selected_and_non_selected!(
+            sprites,
+            $bundle,
+            $manager,
+            |brush: &Brush, _: &bevy::transform::components::Transform, drawer: &mut crate::map::drawer::drawers::EditDrawer, color, show_outline: bool| {
+                brush.draw_sprite(drawer, color, show_outline);
+            }
+            $(, $filters)?
+            ; $show_outline
+        );
+    }};
+}
+
+use draw_selected_and_non_selected_sprites;
+
+//=======================================================================//
+
 /// Draws the selected and non selected `entities`.
 macro_rules! draw_selected_and_non_selected {
-    ($entities:ident, $bundle:ident, $manager:ident, $draw:expr $(, $filters:expr)?) => { paste::paste! {
+    ($entities:ident, $bundle:ident, $manager:ident, $draw:expr $(, $filters:expr)? $(; $outline:expr)?) => { paste::paste! {
         use crate::map::drawer::color::Color;
 
         let DrawBundle {
@@ -126,6 +147,7 @@ macro_rules! draw_selected_and_non_selected {
             ..
         } = $bundle;
 
+        let draw_outline = $($outline ||)? false;
         let mut selected_entities_iterated = 0;
         let selected_entities_len = $manager.[< selected_ $entities _amount >]();
 
@@ -139,7 +161,7 @@ macro_rules! draw_selected_and_non_selected {
             if $manager.is_selected(id)
             {
                 #[allow(clippy::redundant_closure_call)]
-                $draw(entity, camera, drawer, Color::SelectedEntity);
+                $draw(entity, camera, drawer, Color::SelectedEntity, draw_outline);
                 selected_entities_iterated += 1;
 
                 if selected_entities_iterated == selected_entities_len
@@ -151,13 +173,13 @@ macro_rules! draw_selected_and_non_selected {
             }
 
             #[allow(clippy::redundant_closure_call)]
-            $draw(entity, camera, drawer, Color::NonSelectedEntity);
+            $draw(entity, camera, drawer, Color::NonSelectedEntity, draw_outline);
         }
 
         for entity in entities
         {
             #[allow(clippy::redundant_closure_call)]
-            $draw(entity, camera, drawer, Color::NonSelectedEntity);
+            $draw(entity, camera, drawer, Color::NonSelectedEntity, draw_outline);
         }
     }};
 }

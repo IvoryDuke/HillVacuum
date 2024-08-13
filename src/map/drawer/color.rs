@@ -153,10 +153,10 @@ impl Color
 {
     color_enum!(
         clear: Clear,
+        extensions: HullExtensions,
         grid: SoftGridLines,
         GridLines,
         OriginGridLines,
-        HullExtensions,
         entities: ClippedPolygonsNotToSpawn | OpaqueEntity,
         NonSelectedEntity,
         SelectedEntity,
@@ -292,24 +292,27 @@ impl ColorHandles
     #[inline]
     fn new(materials: &mut Assets<ColorMaterial>, color: Color, mut bevy_color: BevyColor) -> Self
     {
+        const SEMITRANSPARENT_LINE_ALPHA: f32 = 1f32 / 4f32;
+        const BODY_ALPHA: f32 = 1f32 / 64f32;
+
         if color == Color::DefaultCursor
         {
             bevy_color.set_alpha(0.5);
         }
 
         let mut material = ColorMaterial::from(bevy_color);
-        let line_color = materials.add(material.clone());
+        let line = materials.add(material.clone());
 
-        material.color.set_alpha(0.25);
-        let st_line_color = materials.add(material.clone());
+        material.color.set_alpha(SEMITRANSPARENT_LINE_ALPHA);
+        let semitransparent_line = materials.add(material.clone());
 
-        material.color.set_alpha(0.021_875);
-        let body_color = materials.add(material);
+        material.color.set_alpha(BODY_ALPHA);
+        let body = materials.add(material);
 
         Self {
-            body:                 body_color,
-            line:                 line_color,
-            semitransparent_line: st_line_color
+            body,
+            line,
+            semitransparent_line
         }
     }
 }
@@ -465,7 +468,7 @@ impl ColorResources
     /// The associated brush body [`ColorMaterial`].
     #[inline]
     #[must_use]
-    pub(in crate::map::drawer) fn brush_material(&self, color: Color) -> Handle<ColorMaterial>
+    pub(in crate::map::drawer) fn polygon_material(&self, color: Color) -> Handle<ColorMaterial>
     {
         self.get(color).handles.body.clone()
     }

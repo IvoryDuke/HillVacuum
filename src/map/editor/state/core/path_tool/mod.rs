@@ -1317,7 +1317,7 @@ impl PathTool
                     .iter()
                     .filter(|brush| !is_moving(manager, brush.id()))
                 {
-                    brush.draw_sprite(drawer, Color::OpaqueEntity);
+                    brush.draw_sprite(drawer, Color::OpaqueEntity, false);
                 }
 
                 for brush in manager

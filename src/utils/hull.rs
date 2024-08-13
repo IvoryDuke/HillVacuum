@@ -1001,6 +1001,7 @@ pub(crate) mod ui_mod
     }
 
     /// An iterator that generates the coordinates of an oval/circular shape.
+    #[derive(Clone, Copy)]
     pub(crate) struct CircleIterator
     {
         /// The first coordinate.
@@ -1019,6 +1020,13 @@ pub(crate) mod ui_mod
         generator:      fn(Vec2, f32) -> Vec2
     }
 
+    impl ExactSizeIterator for CircleIterator
+    {
+        #[must_use]
+        fn len(&self) -> usize { self.right - self.left }
+    }
+
+    #[allow(clippy::copy_iterator)]
     impl Iterator for CircleIterator
     {
         type Item = Vec2;
@@ -1035,12 +1043,6 @@ pub(crate) mod ui_mod
             self.left += 1;
             Some(vx)
         }
-    }
-
-    impl ExactSizeIterator for CircleIterator
-    {
-        #[must_use]
-        fn len(&self) -> usize { self.right - self.left }
     }
 
     impl CircleIterator

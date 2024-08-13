@@ -35,10 +35,11 @@ use crate::{
     config::controls::{bind::Bind, BindsKeyCodes},
     map::{
         brush::{convex_polygon::ConvexPolygon, Brush},
-        drawer::{color::Color, drawing_resources::DrawingResources},
+        drawer::drawing_resources::DrawingResources,
         editor::{
             state::{
                 clipboard::Clipboard,
+                core::draw_selected_and_non_selected_sprites,
                 editor_state::{InputsPresses, ToolsSettings},
                 edits_history::EditsHistory,
                 grid::Grid,
@@ -1358,39 +1359,6 @@ impl ActiveTool
             show_tooltips: bool
         )
         {
-            /// Draws the sprites and brush anchors.
-            #[inline]
-            fn sprites_and_anchors(bundle: &mut DrawBundle, manager: &EntitiesManager)
-            {
-                let DrawBundle {
-                    window,
-                    drawer,
-                    camera,
-                    ..
-                } = bundle;
-
-                let brushes = manager.brushes();
-
-                for brush in manager.visible_anchors(window, camera, drawer.grid()).iter()
-                {
-                    brush.draw_anchors(brushes, drawer);
-                }
-
-                for brush in manager.visible_sprites(window, camera, drawer.grid()).iter()
-                {
-                    let color = if manager.is_selected(brush.id())
-                    {
-                        Color::SelectedEntity
-                    }
-                    else
-                    {
-                        Color::NonSelectedEntity
-                    };
-
-                    brush.draw_sprite(drawer, color);
-                }
-            }
-
             // Things
             match tool
             {
@@ -1410,11 +1378,35 @@ impl ActiveTool
                 }
             };
 
+            // Paths.
+            if !matches!(tool, ActiveTool::Path(_))
+            {
+                let brushes = manager.brushes();
+
+                for brush in manager
+                    .visible_anchors(bundle.window, bundle.camera, bundle.drawer.grid())
+                    .iter()
+                {
+                    brush.draw_anchors(brushes, &mut bundle.drawer);
+                }
+
+                for brush in manager
+                    .visible_paths(bundle.window, bundle.camera, bundle.drawer.grid())
+                    .iter()
+                {
+                    brush.draw_semitransparent_path(&mut bundle.drawer);
+                }
+            }
+
             // Brushes
             match tool
             {
                 ActiveTool::Draw(t) => t.draw(bundle, manager, show_tooltips),
-                ActiveTool::Entity(t) => t.draw(bundle, manager, settings, show_tooltips),
+                ActiveTool::Entity(t) =>
+                {
+                    t.draw(bundle, manager, settings, show_tooltips);
+                    return;
+                },
                 ActiveTool::Vertex(t) => t.draw(bundle, manager, show_tooltips),
                 ActiveTool::Side(t) => t.draw(bundle, manager, show_tooltips),
                 ActiveTool::Clip(t) => t.draw(bundle, manager),
@@ -1426,28 +1418,20 @@ impl ActiveTool
                 ActiveTool::Flip(t) => t.draw(bundle, manager),
                 ActiveTool::Path(t) =>
                 {
-                    if !t.simulation_active()
-                    {
-                        sprites_and_anchors(bundle, manager);
-                    }
-
                     t.draw(bundle, manager, show_tooltips);
-                    return;
+
+                    if t.simulation_active()
+                    {
+                        return;
+                    }
                 },
                 ActiveTool::Paint(t) => t.draw(bundle, manager, grid),
                 ActiveTool::Thing(t) => t.draw(bundle, manager),
                 _ => unreachable!()
             };
 
-            // Non simulation common stuff.
-            for brush in manager
-                .visible_paths(bundle.window, bundle.camera, bundle.drawer.grid())
-                .iter()
-            {
-                brush.draw_semitransparent_path(&mut bundle.drawer);
-            }
-
-            sprites_and_anchors(bundle, manager);
+            // Sprites.
+            draw_selected_and_non_selected_sprites!(bundle, manager, false);
         }
 
         match self

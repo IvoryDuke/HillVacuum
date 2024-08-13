@@ -3002,9 +3002,14 @@ pub(in crate::map) mod ui_mod
 
         /// Draws the sprite.
         #[inline]
-        pub(in crate::map) fn draw_sprite(&self, drawer: &mut EditDrawer, color: Color)
+        pub(in crate::map) fn draw_sprite(
+            &self,
+            drawer: &mut EditDrawer,
+            color: Color,
+            show_outline: bool
+        )
         {
-            self.data.polygon.draw_sprite(drawer, color);
+            self.data.polygon.draw_sprite(drawer, color, show_outline);
             self.data.polygon.draw_sprite_highlight(drawer);
         }
 

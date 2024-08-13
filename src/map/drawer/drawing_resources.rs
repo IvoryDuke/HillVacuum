@@ -28,7 +28,7 @@ use bevy::{
 use bevy_egui::{egui, EguiUserTextures};
 use glam::{UVec2, Vec2};
 use hill_vacuum_proc_macros::{meshes_indexes, str_array};
-use hill_vacuum_shared::{continue_if_none, match_or_panic, return_if_none, NextValue};
+use hill_vacuum_shared::{continue_if_none, match_or_panic, return_if_none};
 
 use super::{
     animation::{Animation, AtlasAnimator},
@@ -83,16 +83,11 @@ macro_rules! handles {
 
             match color
             {
-                Color::NonSelectedEntity => &materials.non_selected,
-                Color::SelectedEntity => &materials.selected,
-                Color::HighlightedNonSelectedEntity => &materials.selected,
-                Color::HighlightedSelectedEntity => &materials.selected,
-                Color::NonSelectedVertex => &materials.selected,
-                Color::ClippedPolygonsNotToSpawn => &materials.opaque,
-                Color::ClippedPolygonsToSpawn => &materials.selected,
-                Color::OpaqueEntity => &materials.opaque,
-                Color::SubtractorBrush => &materials.selected,
-                Color::SubtracteeBrush => &materials.selected,
+                Color::NonSelectedEntity | Color::SelectedEntity |
+                Color::HighlightedNonSelectedEntity | Color::HighlightedSelectedEntity |
+                Color::NonSelectedVertex | Color::ClippedPolygonsNotToSpawn |
+                Color::ClippedPolygonsToSpawn | Color::SubtractorBrush |
+                Color::SubtracteeBrush | Color::OpaqueEntity => &materials.semitransparent,
                 _ => panic!("Color with no associated material: {color:?}.")
             }
             .clone_weak()
@@ -115,10 +110,8 @@ meshes_indexes!(INDEXES, 128);
 #[must_use]
 struct Materials
 {
-    opaque:       Handle<ColorMaterial>,
-    non_selected: Handle<ColorMaterial>,
-    selected:     Handle<ColorMaterial>,
-    pure:         Handle<ColorMaterial>
+    semitransparent: Handle<ColorMaterial>,
+    pure:            Handle<ColorMaterial>
 }
 
 impl Placeholder for Materials
@@ -127,59 +120,25 @@ impl Placeholder for Materials
     unsafe fn placeholder() -> Self
     {
         Self {
-            opaque:       Handle::default(),
-            non_selected: Handle::default(),
-            selected:     Handle::default(),
-            pure:         Handle::default()
+            semitransparent: Handle::default(),
+            pure:            Handle::default()
         }
     }
 }
 
 impl Materials
 {
-    /// The alpha of the materials.
-    const ALPHA: f32 = 0.25;
-
     #[inline]
     fn new(handle: Handle<Image>, materials: &mut Assets<ColorMaterial>) -> Self
     {
-        /// The amount of materials to create.
-        const COLORS: [BevyColor; 3] = [
-            BevyColor::srgba(0.4, 0.4, 0.4, Materials::ALPHA),
-            BevyColor::srgba(0.6, 0.6, 0.6, Materials::ALPHA),
-            BevyColor::srgba(0.8, 0.8, 0.8, Materials::ALPHA)
-        ];
-        const LEN: usize = COLORS.len();
+        const ALPHA: f32 = 1f32 / 4f32;
 
-        let mut iter = std::array::from_fn::<_, LEN, _>(|i| {
-            materials.add(ColorMaterial {
-                color:   COLORS[i],
+        Self {
+            semitransparent: materials.add(ColorMaterial {
+                color:   BevyColor::srgba(1.0, 1.0, 1.0, ALPHA),
                 texture: handle.clone_weak().into()
-            })
-        })
-        .into_iter();
-
-        Self {
-            opaque:       iter.next_value(),
-            non_selected: iter.next_value(),
-            selected:     iter.next_value(),
-            pure:         materials.add(handle)
-        }
-    }
-
-    #[inline]
-    fn clean(handle: Handle<Image>, materials: &mut Assets<ColorMaterial>) -> Self
-    {
-        let semi_transparent = materials.add(ColorMaterial {
-            color:   bevy::prelude::Color::srgba(1f32, 1f32, 1f32, Self::ALPHA),
-            texture: handle.clone_weak().into()
-        });
-
-        Self {
-            opaque:       semi_transparent.clone(),
-            non_selected: semi_transparent.clone(),
-            selected:     semi_transparent,
-            pure:         materials.add(handle)
+            }),
+            pure:            materials.add(handle)
         }
     }
 }
@@ -241,11 +200,11 @@ impl TextureMaterials
 
     /// Returns a [`TextureMaterials`] that does not have colored materials.
     #[inline]
-    fn clean(texture: (Texture, egui::TextureId), materials: &mut Assets<ColorMaterial>) -> Self
+    fn error(texture: (Texture, egui::TextureId), materials: &mut Assets<ColorMaterial>) -> Self
     {
         Self {
-            repeat_materials: Materials::clean(texture.0.repeat_handle(), materials),
-            clamp_materials:  Materials::clean(texture.0.clamp_handle(), materials),
+            repeat_materials: Materials::new(texture.0.repeat_handle(), materials),
+            clamp_materials:  Materials::new(texture.0.clamp_handle(), materials),
             texture:          texture.0,
             egui_id:          texture.1
         }
@@ -407,7 +366,7 @@ impl DrawingResources
             tt_label_gen: TooltipLabelGenerator::default(),
             default_material: materials.add(ColorMaterial::default()),
             textures: Self::sort_textures(materials, texture_loader.loaded_textures()),
-            error_texture: TextureMaterials::clean((err_tex, err_id), materials),
+            error_texture: TextureMaterials::error((err_tex, err_id), materials),
             clip_texture: materials
                 .add(asset_server.load(embedded_asset_path(CLIP_OVERLAY_TEXTURE_NAME))),
             thing_angle_texture: materials
@@ -820,7 +779,7 @@ impl DrawingResources
         self.push_mesh(
             mesh,
             self.texture_materials(settings.name()).repeat_material(color),
-            color.height() + settings.height_f32()
+            color.entity_height() + settings.height_f32()
         );
     }
 
@@ -848,7 +807,7 @@ impl DrawingResources
         self.push_mesh(
             mesh,
             self.texture_materials(settings.name()).clamp_material(color),
-            color.height() + settings.height_f32()
+            color.entity_height() + settings.height_f32()
         );
     }
 
@@ -878,7 +837,7 @@ impl DrawingResources
             mesh,
             self.texture_materials(self.texture_or_error(catalog.texture(thing.thing())).name())
                 .repeat_material(color),
-            color.height() + thing.draw_height_f32()
+            color.entity_height() + thing.draw_height_f32()
         );
     }
 

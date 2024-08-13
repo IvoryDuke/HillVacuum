@@ -3,13 +3,13 @@
 //
 //=======================================================================//
 
-use bevy::transform::components::Transform;
 use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_shared::{match_or_panic, return_if_no_match, return_if_none};
 
 use super::{
     draw_selected_and_non_selected_brushes,
+    draw_selected_and_non_selected_sprites,
     draw_selected_and_non_selected_things,
     item_selector::{ItemSelector, ItemsBeneathCursor},
     rect::{Rect, RectHighlightedEntity, RectTrait},
@@ -27,7 +27,7 @@ use super::{
 use crate::{
     map::{
         brush::Brush,
-        drawer::{drawers::EditDrawer, drawing_resources::DrawingResources},
+        drawer::drawing_resources::DrawingResources,
         editor::{
             cursor::Cursor,
             state::{
@@ -127,6 +127,13 @@ impl EntityId for ItemBeneathCursor
         ItemBeneathCursor::Thing(id)) = self;
         id
     }
+}
+
+impl ItemBeneathCursor
+{
+    #[inline]
+    #[must_use]
+    const fn is_brush(&self) -> bool { matches!(self, Self::Polygon(_) | Self::Sprite(_)) }
 }
 
 //=======================================================================//
@@ -975,43 +982,12 @@ impl EntityTool
         show_tooltips: bool
     )
     {
-        /// Draws the sprite outline.
-        #[inline]
-        fn sprite_outline(brush: &Brush, drawer: &mut EditDrawer, color: Color)
-        {
-            drawer.sides(
-                brush.sprite_hull(drawer.resources()).unwrap().rectangle().into_iter(),
-                color
-            );
-        }
-
         /// Draws the selected and non selected entities, except `filters`.
         macro_rules! draw_selected_and_non_selected {
             ($bundle:ident, $manager:ident $(, $filters:expr)?) => {
                 draw_selected_and_non_selected_brushes!(bundle, manager $(, $filters)?);
                 draw_selected_and_non_selected_things!(bundle, manager $(, $filters)?);
-
-                if settings.texture_editing()
-                {
-                    #[inline]
-                    fn compat_sprite_outline(
-                        brush: &Brush,
-                        _: &Transform,
-                        drawer: &mut EditDrawer,
-                        color: Color
-                    )
-                    {
-                        sprite_outline(brush, drawer, color);
-                    }
-
-                    super::draw_selected_and_non_selected!(
-                        sprites,
-                        bundle,
-                        manager,
-                        compat_sprite_outline
-                        $(, $filters)?
-                    );
-                }
+                draw_selected_and_non_selected_sprites!(bundle, manager, settings.texture_editing() $(, $filters)?);
             };
         }
 
@@ -1034,27 +1010,17 @@ impl EntityTool
             Status::PreDrag(_, hgl_e, _) => Some(*hgl_e),
             Status::Anchor(id, hgl_e) =>
             {
-                /// Draws the highlighted sprite's outline.
-                #[inline]
-                fn highlighted_sprite_outline(
-                    brush: &Brush,
-                    drawer: &mut EditDrawer,
-                    settings: &ToolsSettings
-                )
-                {
-                    if settings.texture_editing() && brush.has_sprite()
-                    {
-                        sprite_outline(brush, drawer, Color::HighlightedSelectedEntity);
-                    }
-                }
-
                 let end = if let Some(hgl_e) = *hgl_e
                 {
                     draw_selected_and_non_selected!(bundle, manager, [*id, hgl_e]);
 
                     let brush = manager.brush(hgl_e);
                     brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
-                    highlighted_sprite_outline(brush, &mut bundle.drawer, settings);
+                    brush.draw_sprite(
+                        &mut bundle.drawer,
+                        Color::HighlightedSelectedEntity,
+                        settings.texture_editing()
+                    );
 
                     brush.center()
                 }
@@ -1066,7 +1032,11 @@ impl EntityTool
 
                 let brush = manager.brush(*id);
                 brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
-                highlighted_sprite_outline(brush, &mut bundle.drawer, settings);
+                brush.draw_sprite(
+                    &mut bundle.drawer,
+                    Color::HighlightedNonSelectedEntity,
+                    settings.texture_editing()
+                );
 
                 let start = brush.center();
                 bundle.drawer.square_highlight(start, Color::BrushAnchor);
@@ -1080,16 +1050,37 @@ impl EntityTool
             Status::AnchorUi(hgl_e) => (*hgl_e).map(ItemBeneathCursor::Polygon)
         };
 
-        if hgl_e.is_none()
+        let hgl_e = match hgl_e
         {
-            draw_selected_and_non_selected!(bundle, manager);
-            return;
-        }
-
-        let hgl_e = hgl_e.unwrap();
+            Some(hgl_e) => hgl_e,
+            None =>
+            {
+                draw_selected_and_non_selected!(bundle, manager);
+                return;
+            }
+        };
         let id = hgl_e.id();
 
         draw_selected_and_non_selected!(bundle, manager, id);
+
+        if hgl_e.is_brush()
+        {
+            let brush = manager.brush(id);
+
+            if brush.has_sprite()
+            {
+                let color = if manager.is_selected(id)
+                {
+                    Color::HighlightedSelectedEntity
+                }
+                else
+                {
+                    Color::HighlightedNonSelectedEntity
+                };
+
+                brush.draw_sprite(&mut bundle.drawer, color, settings.texture_editing());
+            }
+        }
 
         let hull = match hgl_e
         {
@@ -1100,27 +1091,11 @@ impl EntityTool
                 if manager.is_selected(id)
                 {
                     brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
-
-                    if brush.has_sprite()
-                    {
-                        sprite_outline(brush, &mut bundle.drawer, Color::HighlightedSelectedEntity);
-                    }
-
                     brush.hull().into()
                 }
                 else
                 {
                     brush.draw_highlighted_non_selected(bundle.camera, &mut bundle.drawer);
-
-                    if brush.has_sprite()
-                    {
-                        sprite_outline(
-                            brush,
-                            &mut bundle.drawer,
-                            Color::HighlightedNonSelectedEntity
-                        );
-                    }
-
                     None
                 }
             },
@@ -1131,13 +1106,11 @@ impl EntityTool
                 if manager.is_selected(id)
                 {
                     brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
-                    sprite_outline(brush, &mut bundle.drawer, Color::HighlightedSelectedEntity);
                     brush.sprite_hull(bundle.drawer.resources()).unwrap().into()
                 }
                 else
                 {
                     brush.draw_highlighted_non_selected(bundle.camera, &mut bundle.drawer);
-                    sprite_outline(brush, &mut bundle.drawer, Color::HighlightedNonSelectedEntity);
                     None
                 }
             },

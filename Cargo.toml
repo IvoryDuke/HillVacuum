@@ -34,7 +34,7 @@ version = "0.6.1"
 version = "0.6.1"
 
 [dependencies.hill_vacuum_proc_macros]
-version = "0.6.1"
+path = "../hill_vacuum_proc_macros"
 
 [dependencies.bevy]
 version = "0.14"
