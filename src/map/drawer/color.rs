@@ -336,12 +336,24 @@ struct Slot
 
 /// The color settings and the related resources.
 #[must_use]
-pub(crate) struct ColorResources(HashMap<Color, Slot>);
+pub(crate) struct ColorResources
+{
+    colors:      HashMap<Color, Slot>,
+    solid_white: Handle<ColorMaterial>,
+    solid_black: Handle<ColorMaterial>
+}
 
 impl Default for ColorResources
 {
     #[inline]
-    fn default() -> Self { Self(HashMap::with_capacity(Color::SIZE - 1)) }
+    fn default() -> Self
+    {
+        Self {
+            colors:      HashMap::with_capacity(Color::SIZE - 1),
+            solid_white: Handle::default(),
+            solid_black: Handle::default()
+        }
+    }
 }
 
 impl ColorResources
@@ -396,22 +408,33 @@ impl ColorResources
 
             let rgb = bevy_color.to_rgb();
 
-            self.0.insert(color, Slot {
+            self.colors.insert(color, Slot {
                 rgb,
                 bevy_color,
                 egui_color: egui::Color32::from_array(&rgb),
                 handles: ColorHandles::new(materials, color, bevy_color)
             });
         }
+
+        self.solid_white = materials.add(ColorMaterial::from_color(BevyColor::WHITE));
+        self.solid_black = materials.add(ColorMaterial::from_color(BevyColor::BLACK));
     }
 
     /// Returns a reference to the [`Slot`] associated with `color`.
     #[inline]
-    fn get(&self, color: Color) -> &Slot { self.0.get(&color).unwrap() }
+    fn get(&self, color: Color) -> &Slot { self.colors.get(&color).unwrap() }
 
     /// Returns a mutable reference to the [`Slot`] associated with `color`.
     #[inline]
-    fn get_mut(&mut self, color: Color) -> &mut Slot { self.0.get_mut(&color).unwrap() }
+    fn get_mut(&mut self, color: Color) -> &mut Slot { self.colors.get_mut(&color).unwrap() }
+
+    #[inline]
+    #[must_use]
+    pub const fn solid_white(&self) -> &Handle<ColorMaterial> { &self.solid_white }
+
+    #[inline]
+    #[must_use]
+    pub const fn solid_black(&self) -> &Handle<ColorMaterial> { &self.solid_black }
 
     /// Returns the [`ColorHandles`] associated with `color`.
     #[inline]
@@ -423,7 +446,7 @@ impl ColorResources
         f: F
     ) -> ColorHandles
     {
-        self.0
+        self.colors
             .iter()
             .find_map(|(color, slot)| f(*color, slot).then_some(*color))
             .map_or_else(
@@ -496,7 +519,7 @@ impl ColorResources
     #[inline]
     pub fn save(&self, config: &mut IniConfig)
     {
-        for (color, slot) in &self.0
+        for (color, slot) in &self.colors
         {
             config.set(
                 INI_SECTION,
@@ -515,7 +538,7 @@ impl ColorResources
 
         for color in &mut iter
         {
-            let slot = self.0.get_mut(&color).unwrap();
+            let slot = self.colors.get_mut(&color).unwrap();
 
             ui.label(color.label());
             let response = egui::color_picker::color_edit_button_rgb(ui, &mut slot.rgb);

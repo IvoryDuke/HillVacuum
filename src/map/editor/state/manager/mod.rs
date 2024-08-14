@@ -229,6 +229,92 @@ impl AuxiliaryIds
 
 //=======================================================================//
 
+#[must_use]
+struct SelectedSprites(HvHashMap<String, Ids>, usize);
+
+impl Default for SelectedSprites
+{
+    #[inline]
+    fn default() -> Self { Self(hv_hash_map![capacity; 10], 0) }
+}
+
+impl SelectedSprites
+{
+    #[inline]
+    #[must_use]
+    const fn len(&self) -> usize { self.1 }
+
+    #[inline]
+    #[must_use]
+    fn get(&self, texture: &str) -> Option<&Ids> { self.0.get(texture) }
+
+    #[inline]
+    fn insert(&mut self, brush: &Brush)
+    {
+        let texture = brush.texture_settings().unwrap();
+        assert!(texture.sprite(), "Brush has no sprite.");
+        let texture = texture.name();
+
+        match self.0.get_mut(texture)
+        {
+            Some(ids) => ids.asserted_insert(brush.id()),
+            None =>
+            {
+                self.0.asserted_insert((texture.to_owned(), hv_hash_set![brush.id()]));
+            }
+        };
+
+        self.1 += 1;
+    }
+
+    #[inline]
+    fn remove(&mut self, brush: &Brush)
+    {
+        assert!(!brush.has_sprite(), "Brush has a sprite.");
+
+        self.0
+            .get_mut(brush.texture_settings().unwrap().name())
+            .unwrap()
+            .asserted_remove(brush.id_as_ref());
+
+        self.1 -= 1;
+    }
+
+    #[inline]
+    fn remove_texture(&mut self, identifier: Id, texture: &TextureSettings)
+    {
+        self.0.get_mut(texture.name()).unwrap().asserted_remove(&identifier);
+        self.1 -= 1;
+    }
+
+    #[inline]
+    fn replace(&mut self, brush: &Brush, prev_texture: &str)
+    {
+        self.0
+            .get_mut(prev_texture)
+            .unwrap()
+            .asserted_remove(brush.id_as_ref());
+
+        self.insert(brush);
+    }
+
+    #[inline]
+    fn clear(&mut self)
+    {
+        for ids in self.0.values_mut()
+        {
+            ids.clear();
+        }
+
+        self.1 = 0;
+    }
+
+    #[inline]
+    fn values(&self) -> hashbrown::hash_map::Values<String, Ids> { self.0.values() }
+}
+
+//=======================================================================//
+
 /// The error drawer.
 #[must_use]
 struct ErrorHighlight
@@ -412,7 +498,7 @@ struct Innards
     /// The [`Id`]s of the selected textured brushes.
     selected_textured: Ids,
     /// The [`Id`]s of the selected brushes with associated sprites.
-    selected_sprites: HvHashMap<String, Ids>,
+    selected_sprites: SelectedSprites,
     /// The [`Id`]s of the  moving brushes with anchors.
     brushes_with_anchors: HvHashMap<Id, Hull>,
     /// The generator of the [`Id`]s of the new entities.
@@ -457,7 +543,7 @@ impl Innards
             selected_possible_moving: hv_hash_set![capacity; 10],
             textured: hv_hash_set![capacity; 10],
             selected_textured: hv_hash_set![capacity; 10],
-            selected_sprites: hv_hash_map![capacity; 10],
+            selected_sprites: SelectedSprites::default(),
             brushes_with_anchors: hv_hash_map![],
             id_generator: IdGenerator::default(),
             error_highlight: ErrorHighlight::new(),
@@ -849,17 +935,7 @@ impl Innards
 
         if self.brush(identifier).has_sprite()
         {
-            self.selected_sprites
-                .get_mut(
-                    self.brushes
-                        .get(&identifier)
-                        .unwrap()
-                        .texture_settings()
-                        .unwrap()
-                        .name()
-                )
-                .unwrap()
-                .asserted_remove(&identifier);
+            self.selected_sprites.remove(self.brushes.get(&identifier).unwrap());
         }
 
         self.outline_update = true;
@@ -873,22 +949,7 @@ impl Innards
     #[inline]
     fn insert_selected_sprite(&mut self, identifier: Id)
     {
-        let brush = self.brushes.get(&identifier).unwrap();
-        let texture = brush.texture_settings().unwrap();
-
-        assert!(texture.sprite(), "Brush has no sprite.");
-
-        let name = texture.name();
-
-        match self.selected_sprites.get_mut(name)
-        {
-            Some(ids) => ids.asserted_insert(brush.id()),
-            None =>
-            {
-                self.selected_sprites
-                    .asserted_insert((name.to_owned(), hv_hash_set![brush.id()]));
-            }
-        };
+        self.selected_sprites.insert(self.brushes.get(&identifier).unwrap());
     }
 
     /// Removes the [`Id`] of a brush with sprite from the selected sprites set.
@@ -897,13 +958,7 @@ impl Innards
     #[inline]
     fn remove_selected_sprite(&mut self, identifier: Id)
     {
-        let brush = self.brushes.get(&identifier).unwrap();
-        assert!(!brush.has_sprite(), "Brush has a sprite.");
-
-        self.selected_sprites
-            .get_mut(brush.texture_settings().unwrap().name())
-            .unwrap()
-            .asserted_remove(&identifier);
+        self.selected_sprites.remove(self.brushes.get(&identifier).unwrap());
     }
 
     /// Removes the texture from the brush with [`Id`] `identifier`, and returns its
@@ -917,23 +972,19 @@ impl Innards
     ) -> TextureSettings
     {
         assert!(self.is_selected(identifier), "Brush is not selected.");
-
-        let tex = self
+        let texture = self
             .brush_mut(drawing_resources, quad_trees, identifier)
             .remove_texture();
+
+        if texture.sprite()
+        {
+            self.selected_sprites.remove_texture(identifier, &texture);
+        }
 
         self.textured.asserted_remove(&identifier);
         self.selected_textured.asserted_remove(&identifier);
 
-        if tex.sprite()
-        {
-            self.selected_sprites
-                .get_mut(tex.name())
-                .unwrap()
-                .asserted_remove(&identifier);
-        }
-
-        tex
+        texture
     }
 
     /// Selects the entities contained in `iter`.
@@ -1374,19 +1425,7 @@ impl Innards
             TextureSetResult::Changed(prev) if sprite =>
             {
                 self.selected_sprites
-                    .get_mut(prev)
-                    .unwrap()
-                    .asserted_remove(&identifier);
-
-                match self.selected_sprites.get_mut(texture)
-                {
-                    Some(ids) => ids.asserted_insert(identifier),
-                    None =>
-                    {
-                        self.selected_sprites
-                            .asserted_insert((texture.to_owned(), hv_hash_set![identifier]));
-                    }
-                };
+                    .replace(self.brushes.get(&identifier).unwrap(), prev);
             },
             TextureSetResult::Unchanged | TextureSetResult::Changed(_) => (),
             TextureSetResult::Set =>
@@ -2465,7 +2504,7 @@ impl EntitiesManager
     {
         self.auxiliary.clear();
 
-        for set in self.innards.selected_sprites.values()
+        for set in self.innards.selected_sprites.0.values()
         {
             self.auxiliary.0.extend(set);
         }
@@ -2887,7 +2926,7 @@ impl EntitiesManager
 
     /// Returns the amount of selected brushes with sprites.
     #[inline]
-    pub fn selected_sprites_amount(&self) -> usize { self.innards.selected_sprites.len() }
+    pub const fn selected_sprites_amount(&self) -> usize { self.innards.selected_sprites.len() }
 
     /// Returns an iterator to the [`Id`]s of the selected textured brushes.
     #[inline]

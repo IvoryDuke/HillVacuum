@@ -168,12 +168,12 @@ macro_rules! draw_selected_and_non_selected {
                 {
                     break;
                 }
-
-                continue;
             }
-
-            #[allow(clippy::redundant_closure_call)]
-            $draw(entity, camera, drawer, Color::NonSelectedEntity, draw_outline);
+            else
+            {
+                #[allow(clippy::redundant_closure_call)]
+                $draw(entity, camera, drawer, Color::NonSelectedEntity, draw_outline);
+            }
         }
 
         for entity in entities

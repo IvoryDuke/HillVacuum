@@ -1068,17 +1068,49 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             hull += Vec2::new(0f32, thing.hull().half_height());
         }
 
-        let mut mesh_generator = self.resources.mesh_generator();
-        mesh_generator.set_indexes(4);
-        mesh_generator.push_positions(hull.rectangle());
+        let half_width = hull.half_width();
+        let distance = half_width * 0.75;
+        let arrow_width = half_width * 0.0625;
+        let v0 = Vec2::new(center.x + distance, center.y);
+        let v1 = Vec2::new(center.x, center.y + distance);
+        let v2 = Vec2::new(center.x, center.y - distance);
+        let [black_height, white_height] = Color::thing_angle_indicator_height();
 
-        mesh_generator.set_thing_angle_indicator_uv(thing.angle());
-        let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
-        self.push_mesh(
-            mesh,
-            self.resources.thing_angle_texture(),
-            Color::thing_angle_indicator_height()
-        );
+        for (s, height, material) in [
+            (arrow_width * 2f32, black_height, self.color_resources.solid_white()),
+            (arrow_width, white_height, self.color_resources.solid_black())
+        ]
+        {
+            let v0_left = Vec2::new(v0.x - s, v0.y);
+            let v0_right = Vec2::new(v0.x + s, v0.y);
+
+            let mut top_wing = [
+                Vec2::new(v1.x, v1.y + s),
+                Vec2::new(v1.x - s, v1.y),
+                v0_left,
+                v0_right
+            ];
+            let mut bottom_wing = [
+                Vec2::new(v2.x - s, v2.y),
+                Vec2::new(v2.x, v2.y - s),
+                v0_right,
+                v0_left
+            ];
+
+            for vxs in [&mut top_wing, &mut bottom_wing]
+            {
+                for vx in &mut *vxs
+                {
+                    *vx = rotate_point(*vx, center, thing.angle());
+                }
+
+                let mut mesh_generator = self.resources.mesh_generator();
+                mesh_generator.set_indexes(4);
+                mesh_generator.push_positions(vxs.iter().copied());
+                let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
+                self.push_mesh(mesh, material.clone_weak(), height);
+            }
+        }
 
         // Texture
         let vxs = thing_texture_hull(self.resources, catalog, self.grid, thing);

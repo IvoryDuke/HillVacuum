@@ -34,7 +34,7 @@ version = "0.6.1"
 version = "0.6.1"
 
 [dependencies.hill_vacuum_proc_macros]
-path = "../hill_vacuum_proc_macros"
+git = "https://github.com/IvoryDuke/hill_vacuum_proc_macros"
 
 [dependencies.bevy]
 version = "0.14"

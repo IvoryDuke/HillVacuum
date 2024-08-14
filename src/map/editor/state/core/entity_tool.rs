@@ -982,12 +982,14 @@ impl EntityTool
         show_tooltips: bool
     )
     {
+        let texture_editing = settings.texture_editing();
+
         /// Draws the selected and non selected entities, except `filters`.
         macro_rules! draw_selected_and_non_selected {
             ($bundle:ident, $manager:ident $(, $filters:expr)?) => {
                 draw_selected_and_non_selected_brushes!(bundle, manager $(, $filters)?);
                 draw_selected_and_non_selected_things!(bundle, manager $(, $filters)?);
-                draw_selected_and_non_selected_sprites!(bundle, manager, settings.texture_editing() $(, $filters)?);
+                draw_selected_and_non_selected_sprites!(bundle, manager, texture_editing $(, $filters)?);
             };
         }
 
@@ -1019,7 +1021,7 @@ impl EntityTool
                     brush.draw_sprite(
                         &mut bundle.drawer,
                         Color::HighlightedSelectedEntity,
-                        settings.texture_editing()
+                        texture_editing
                     );
 
                     brush.center()
@@ -1035,7 +1037,7 @@ impl EntityTool
                 brush.draw_sprite(
                     &mut bundle.drawer,
                     Color::HighlightedNonSelectedEntity,
-                    settings.texture_editing()
+                    texture_editing
                 );
 
                 let start = brush.center();
@@ -1078,7 +1080,7 @@ impl EntityTool
                     Color::HighlightedNonSelectedEntity
                 };
 
-                brush.draw_sprite(&mut bundle.drawer, color, settings.texture_editing());
+                brush.draw_sprite(&mut bundle.drawer, color, texture_editing);
             }
         }
 

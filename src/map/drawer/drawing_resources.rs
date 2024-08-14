@@ -131,11 +131,9 @@ impl Materials
     #[inline]
     fn new(handle: Handle<Image>, materials: &mut Assets<ColorMaterial>) -> Self
     {
-        const ALPHA: f32 = 1f32 / 4f32;
-
         Self {
             semitransparent: materials.add(ColorMaterial {
-                color:   BevyColor::srgba(1.0, 1.0, 1.0, ALPHA),
+                color:   BevyColor::srgba(1.0, 1.0, 1.0, 1f32 / 4f32),
                 texture: handle.clone_weak().into()
             }),
             pure:            materials.add(handle)
@@ -239,8 +237,6 @@ pub(in crate::map) struct DrawingResources
     error_texture: TextureMaterials,
     /// The clip overlay texture.
     clip_texture: Handle<ColorMaterial>,
-    /// The thing angle texture.
-    thing_angle_texture: Handle<ColorMaterial>,
     /// The names of the textures with [`Animations`].
     animated_textures: HvHashSet<String>,
     /// Whether any default texture animation was changed.
@@ -264,7 +260,6 @@ impl Placeholder for DrawingResources
             textures: IndexedMap::new(hv_vec![], |tex| tex.texture.name().to_owned()),
             error_texture: TextureMaterials::placeholder(),
             clip_texture: Handle::default(),
-            thing_angle_texture: Handle::default(),
             animated_textures: hv_hash_set![],
             default_animation_changed: false
         }
@@ -309,8 +304,6 @@ impl DrawingResources
     {
         /// The name of the error texture.
         const ERROR_TEXTURE_NAME: &str = "error.png";
-        /// The name of the thing angle texture.
-        const THING_ANGLE_TEXTURE_NAME: &str = "thing_angle.png";
         /// The name of the clip overlay texture.
         const CLIP_OVERLAY_TEXTURE_NAME: &str = "clip_overlay.png";
 
@@ -369,8 +362,6 @@ impl DrawingResources
             error_texture: TextureMaterials::error((err_tex, err_id), materials),
             clip_texture: materials
                 .add(asset_server.load(embedded_asset_path(CLIP_OVERLAY_TEXTURE_NAME))),
-            thing_angle_texture: materials
-                .add(asset_server.load(embedded_asset_path(THING_ANGLE_TEXTURE_NAME))),
             animated_textures: hv_hash_set![],
             default_animation_changed: false
         }
@@ -572,10 +563,6 @@ impl DrawingResources
     /// Returns the [`Handle`] to the clip texture.
     #[inline]
     pub fn clip_texture(&self) -> Handle<ColorMaterial> { self.clip_texture.clone() }
-
-    /// Returns the [`Handle`] of the thing angle texture.
-    #[inline]
-    pub fn thing_angle_texture(&self) -> Handle<ColorMaterial> { self.thing_angle_texture.clone() }
 
     /// Returns a [`Chunks`] iterator with `chunk_size` to the [`TextureMaterials`].
     #[inline]
@@ -1489,28 +1476,6 @@ impl<'a> MeshGenerator<'a>
                 .iter()
                 .map(|vx| f([vx[0], vx[1]], texture, settings, elapsed_time, parallax))
         );
-    }
-
-    /// Sets the UV to the one of an thin angle indicator.
-    #[inline]
-    pub fn set_thing_angle_indicator_uv(&mut self, angle: f32)
-    {
-        /// The UV coordinates of a non rotated angle indicator.
-        const UV: [Uv; 4] = [[1f32, 0f32], [0f32, 0f32], [0f32, 1f32], [1f32, 1f32]];
-
-        if angle != 0f32
-        {
-            let angle = angle.to_radians();
-
-            self.3.extend(
-                UV.into_iter()
-                    .map(|vx| Uv::from(rotate_point_around_origin([vx[0], vx[1]].into(), angle)))
-            );
-
-            return;
-        }
-
-        self.3.extend(UV);
     }
 
     /// Sets the texture UV.
