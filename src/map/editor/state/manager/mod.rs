@@ -1251,20 +1251,16 @@ impl Innards
         &mut self,
         drawing_resources: &DrawingResources,
         quad_trees: &mut Trees,
-        identifier: Id,
-        selected: bool
-    ) -> Brush
+        identifier: Id
+    ) -> (Brush, bool)
     {
         self.outline_update = true;
         self.error_highlight.check_entity_error_removal(identifier);
+        let selected = self.is_selected(identifier);
 
         if selected
         {
             self.remove_entity_selection(identifier);
-        }
-        else
-        {
-            assert!(!self.is_selected(identifier), "Brush is stored as selected.");
         }
 
         let has_anchors = self.brush(identifier).has_anchors();
@@ -1339,7 +1335,7 @@ impl Innards
             assert!(quad_trees.remove_sprite_hull(&brush), "Sprite hull was not in the quad tree.");
         }
 
-        brush
+        (brush, selected)
     }
 
     /// Returns a new unique [`Id`].
@@ -1375,11 +1371,10 @@ impl Innards
         drawing_resources: &DrawingResources,
         quad_trees: &mut Trees,
         identifier: Id,
-        edits_history: &mut EditsHistory,
-        selected: bool
+        edits_history: &mut EditsHistory
     )
     {
-        let brush = self.remove_brush(drawing_resources, quad_trees, identifier, selected);
+        let (brush, selected) = self.remove_brush(drawing_resources, quad_trees, identifier);
         edits_history.brush_despawn(brush, selected);
     }
 
@@ -1393,7 +1388,7 @@ impl Innards
         edits_history: &mut EditsHistory
     )
     {
-        self.despawn_brush(drawing_resources, quad_trees, identifier, edits_history, true);
+        self.despawn_brush(drawing_resources, quad_trees, identifier, edits_history);
     }
 
     /// Sets the texture of the brush with [`Id`] `identifier`.
@@ -2635,15 +2630,11 @@ impl EntitiesManager
 
     /// Removes the brush with [`Id`] `identifier` from the internal data structures.
     #[inline]
-    fn remove_brush(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        identifier: Id,
-        selected: bool
-    ) -> Brush
+    fn remove_brush(&mut self, drawing_resources: &DrawingResources, identifier: Id) -> Brush
     {
         self.innards
-            .remove_brush(drawing_resources, &mut self.quad_trees, identifier, selected)
+            .remove_brush(drawing_resources, &mut self.quad_trees, identifier)
+            .0
     }
 
     /// Despawns the brushes created with a draw tool whose [`Id`]s are contained in
@@ -2658,7 +2649,7 @@ impl EntitiesManager
     {
         for id in &*drawn_brushes
         {
-            edits_history.drawn_brush_despawn(self.remove_brush(drawing_resources, *id, true));
+            edits_history.drawn_brush_despawn(self.remove_brush(drawing_resources, *id));
         }
 
         drawn_brushes.clear();
@@ -2670,16 +2661,14 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         identifier: Id,
-        edits_history: &mut EditsHistory,
-        selected: bool
+        edits_history: &mut EditsHistory
     )
     {
         self.innards.despawn_brush(
             drawing_resources,
             &mut self.quad_trees,
             identifier,
-            edits_history,
-            selected
+            edits_history
         );
     }
 
@@ -2688,13 +2677,10 @@ impl EntitiesManager
     pub fn despawn_brush_into_parts(
         &mut self,
         drawing_resources: &DrawingResources,
-        identifier: Id,
-        selected: bool
+        identifier: Id
     ) -> BrushData
     {
-        self.remove_brush(drawing_resources, identifier, selected)
-            .into_parts()
-            .0
+        self.remove_brush(drawing_resources, identifier).into_parts().0
     }
 
     /// Despawns the brush with [`Id`] `identifier`.
@@ -2706,7 +2692,7 @@ impl EntitiesManager
         edits_history: &mut EditsHistory
     )
     {
-        self.despawn_brush(drawing_resources, identifier, edits_history, true);
+        self.despawn_brush(drawing_resources, identifier, edits_history);
     }
 
     /// Despawns the selected brushes.

@@ -285,7 +285,7 @@ impl SubtractTool
                 }
             };
 
-            manager.despawn_brush(drawing_resources, id, edits_history, false);
+            manager.despawn_brush(drawing_resources, id, edits_history);
         }
 
         edits_history.override_edit_tag("Brushes Subtraction");

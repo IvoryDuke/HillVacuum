@@ -311,6 +311,7 @@ pub(in crate::map) mod ui_mod
 
     impl From<super::compatibility::ThingInstance> for ThingInstance
     {
+        #[allow(clippy::cast_possible_truncation)]
         #[inline]
         fn from(value: super::compatibility::ThingInstance) -> Self
         {

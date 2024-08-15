@@ -195,7 +195,7 @@ impl ThingsCatalog
         }
 
         things.sort_by(|a, b| a.name().cmp(b.name()));
-        IndexedMap::new(things, |thing| thing.id())
+        IndexedMap::new(things, Thing::id)
     }
 
     //==============================================================

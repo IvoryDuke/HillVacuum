@@ -1,14 +1,14 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/IvoryDuke/HillVacuum#license)
 
-## What is HillVacuum?
-HillVacuum is a Doom Builder and TrenchBroom inspired editor that allows the creation of bidimensional maps through the manipulation of convex polygons, placement of items and entities, and texture mapping.
+## What is `HillVacuum`?
+`HillVacuum` is a Doom Builder and TrenchBroom inspired editor that allows the creation of bidimensional maps through the manipulation of convex polygons, placement of items and entities, and texture mapping.
 
-## Why is HillVacuum?
+## Why is `HillVacuum`?
 - I wanted to learn Rust;
 - I wanted to create my editor;
 - I got tired of manually typing the coordinates of the collision polygons in a text file.
 
-## How is HillVacuum?
+## How is `HillVacuum`?
 For those who do not mind reading, HV features a built in manual which can be opened through the keyboard combination `` Ctrl+` ``.  
 For the rest, there's this [video](https://youtu.be/c5lakP_V1n0).
 
@@ -25,7 +25,7 @@ Finally, brushes have a built-in property, `collision`, which determines whether
 ### Things
 Things are objects which can be placed around the map. They are characterized by an ID, a width and height, a name, and a texture which represents them.  
 Things can also be assigned a path that describes how it moves in the bidimensional space and that can be edited with the Path tool.  
-Things can either be defined in one or many .ini files to be placed in the `assets/things/` folder or, if HillVacuum is used as a library, implementing the `MapThing` interface for the structs representing an object to be placed in the map and using the `hardcoded_things` macro to insert them in the bevy App.  
+Things can either be defined in one or many .ini files to be placed in the `assets/things/` folder or, if `HillVacuum` is used as a library, implementing the `MapThing` interface for the structs representing an object to be placed in the map and using the `hardcoded_things` macro to insert them in the bevy App.  
 If defined in the .ini files, the things must follow a similar format:
 ```ini
 [Name]

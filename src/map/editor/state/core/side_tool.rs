@@ -979,6 +979,12 @@ impl SideTool
                     Some([left, mut right]) =>
                     {
                         right.deselect_vertexes_no_indexes();
+
+                        if right.has_sprite()
+                        {
+                            _ = right.remove_texture();
+                        }
+
                         polygons.push((left, id));
                         polygons.push((right, id));
                         None
@@ -1157,7 +1163,7 @@ impl SideTool
 
         for payload in payloads
         {
-            manager.despawn_brush(drawing_resources, payload.id(), edits_history, true);
+            manager.despawn_brush(drawing_resources, payload.id(), edits_history);
         }
 
         edits_history.override_edit_tag("Brushes Intrusion");

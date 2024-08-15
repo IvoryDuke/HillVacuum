@@ -6,7 +6,7 @@
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use super::{ThingId, ThingInterface};
+use super::ThingId;
 use crate::{map::properties::Properties, Hull, Id, Path};
 
 //=======================================================================//
@@ -46,19 +46,4 @@ pub(in crate::map) struct ThingInstance
     pub(in crate::map::thing) id:   Id,
     /// All entity data.
     pub(in crate::map::thing) data: ThingInstanceData
-}
-
-impl ThingInterface for ThingInstance
-{
-    #[inline]
-    fn thing(&self) -> ThingId { self.data.thing }
-
-    #[inline]
-    fn pos(&self) -> Vec2 { self.data.pos }
-
-    #[inline]
-    fn draw_height_f32(&self) -> f32 { f32::from(self.data.draw_height) }
-
-    #[inline]
-    fn angle_f32(&self) -> f32 { f32::from(self.data.angle) }
 }

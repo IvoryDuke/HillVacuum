@@ -470,9 +470,7 @@ impl<'a> UndoRedoInterface<'a>
         b_type: BrushType
     ) -> BrushData
     {
-        let data =
-            self.manager
-                .despawn_brush_into_parts(drawing_resources, identifier, b_type.selected());
+        let data = self.manager.despawn_brush_into_parts(drawing_resources, identifier);
 
         match self.active_tool
         {

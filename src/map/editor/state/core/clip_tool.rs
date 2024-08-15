@@ -85,7 +85,7 @@ macro_rules! clip_brushes {
 
         for id in clipped_brushes
         {
-            $manager.despawn_brush($drawing_resources, id, $edits_history, true);
+            $manager.despawn_brush($drawing_resources, id, $edits_history);
         }
 
         $self.0 = Status::PostClip {
@@ -559,11 +559,7 @@ impl ClipTool
 
                         for (cp, _) in right_polygons
                         {
-                            cp.draw(
-                                bundle.camera,
-                                &mut bundle.drawer,
-                                Color::OpaqueEntity
-                            );
+                            cp.draw(bundle.camera, &mut bundle.drawer, Color::OpaqueEntity);
                         }
                     },
                     PickedPolygons::Right =>
@@ -580,11 +576,7 @@ impl ClipTool
 
                         for (cp, _) in left_polygons
                         {
-                            cp.draw(
-                                bundle.camera,
-                                &mut bundle.drawer,
-                                Color::OpaqueEntity
-                            );
+                            cp.draw(bundle.camera, &mut bundle.drawer, Color::OpaqueEntity);
                         }
                     }
                 };
