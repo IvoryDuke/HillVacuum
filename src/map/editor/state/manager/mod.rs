@@ -270,13 +270,10 @@ impl SelectedSprites
     #[inline]
     fn remove(&mut self, brush: &Brush)
     {
-        assert!(!brush.has_sprite(), "Brush has a sprite.");
-
         self.0
             .get_mut(brush.texture_settings().unwrap().name())
             .unwrap()
             .asserted_remove(brush.id_as_ref());
-
         self.1 -= 1;
     }
 

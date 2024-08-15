@@ -85,7 +85,7 @@ macro_rules! handles {
             {
                 Color::NonSelectedEntity | Color::SelectedEntity |
                 Color::HighlightedNonSelectedEntity | Color::HighlightedSelectedEntity |
-                Color::NonSelectedVertex | Color::ClippedPolygonsNotToSpawn |
+                Color::NonSelectedVertex |
                 Color::ClippedPolygonsToSpawn | Color::SubtractorBrush |
                 Color::SubtracteeBrush | Color::OpaqueEntity => &materials.semitransparent,
                 _ => panic!("Color with no associated material: {color:?}.")

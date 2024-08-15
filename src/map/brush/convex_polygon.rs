@@ -4383,7 +4383,7 @@ pub(in crate::map) mod ui_mod
 
             for svx in &self.vertexes
             {
-                drawer.square_highlight(svx.vec, Color::SideModeVertex);
+                drawer.square_highlight(svx.vec, Color::NonSelectedVertex);
 
                 if svx.selected
                 {

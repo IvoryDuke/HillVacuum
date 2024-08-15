@@ -562,7 +562,7 @@ impl ClipTool
                             cp.draw(
                                 bundle.camera,
                                 &mut bundle.drawer,
-                                Color::ClippedPolygonsNotToSpawn
+                                Color::OpaqueEntity
                             );
                         }
                     },
@@ -583,7 +583,7 @@ impl ClipTool
                             cp.draw(
                                 bundle.camera,
                                 &mut bundle.drawer,
-                                Color::ClippedPolygonsNotToSpawn
+                                Color::OpaqueEntity
                             );
                         }
                     }

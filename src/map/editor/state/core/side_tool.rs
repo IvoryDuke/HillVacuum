@@ -376,16 +376,21 @@ impl BrushesWithSelectedSides
 
 /// The side tool.
 #[derive(Debug)]
-pub(in crate::map::editor::state::core) struct SideTool(Status, BrushesWithSelectedSides);
+pub(in crate::map::editor::state::core) struct SideTool
+{
+    status:         Status,
+    selected_sides: BrushesWithSelectedSides,
+    check_xtrusion: bool
+}
 
 impl DisableSubtool for SideTool
 {
     #[inline]
     fn disable_subtool(&mut self)
     {
-        if matches!(self.0, Status::XtrusionUi)
+        if matches!(self.status, Status::XtrusionUi)
         {
-            self.0 = Status::default();
+            self.status = Status::default();
         }
     }
 }
@@ -395,7 +400,7 @@ impl OngoingMultiframeChange for SideTool
     #[inline]
     fn ongoing_multi_frame_change(&self) -> bool
     {
-        !matches!(self.0, Status::Inactive(..) | Status::PreDrag(_) | Status::XtrusionUi)
+        !matches!(self.status, Status::Inactive(..) | Status::PreDrag(_) | Status::XtrusionUi)
     }
 }
 
@@ -404,7 +409,7 @@ impl DragSelection for SideTool
     #[inline]
     fn drag_selection(&self) -> Option<Rect>
     {
-        (*return_if_no_match!(&self.0, Status::Inactive(drag_selection), drag_selection, None))
+        (*return_if_no_match!(&self.status, Status::Inactive(drag_selection), drag_selection, None))
             .into()
     }
 }
@@ -415,10 +420,11 @@ impl SideTool
     #[inline]
     pub fn tool(drag_selection: Rect) -> ActiveTool
     {
-        ActiveTool::Side(SideTool(
-            Status::Inactive(drag_selection),
-            BrushesWithSelectedSides::new()
-        ))
+        ActiveTool::Side(SideTool {
+            status:         Status::Inactive(drag_selection),
+            selected_sides: BrushesWithSelectedSides::new(),
+            check_xtrusion: false
+        })
     }
 
     //==============================================================
@@ -429,7 +435,7 @@ impl SideTool
     #[must_use]
     pub const fn intrusion(&self) -> bool
     {
-        matches!(self.0, Status::Xtrusion {
+        matches!(self.status, Status::Xtrusion {
             mode: XtrusionMode::Intrusion { .. },
             ..
         })
@@ -442,12 +448,12 @@ impl SideTool
 
     /// Whether the vertexes merge is available.
     #[inline]
-    pub const fn vx_merge_available(&self) -> bool { self.1.vx_merge_available() }
+    pub const fn vx_merge_available(&self) -> bool { self.selected_sides.vx_merge_available() }
 
     /// Whether the xtrusion is available.
     #[inline]
     #[must_use]
-    pub fn xtrusion_available(&self) -> bool { self.1.xtrusion_available() }
+    pub fn xtrusion_available(&self) -> bool { self.selected_sides.xtrusion_available() }
 
     //==============================================================
     // Update
@@ -465,7 +471,7 @@ impl SideTool
     {
         let cursor_pos = Self::cursor_pos(bundle.cursor);
 
-        match &mut self.0
+        match &mut self.status
         {
             Status::Inactive(ds) =>
             {
@@ -475,6 +481,19 @@ impl SideTool
                     bundle.camera.scale(),
                     inputs.left_mouse.pressed(),
                     {
+                        if std::mem::take(&mut self.check_xtrusion)
+                        {
+                            if let Some(s) = self.selected_sides.initialize_xtrusion(
+                                manager,
+                                cursor_pos,
+                                bundle.camera.scale()
+                            )
+                            {
+                                self.status = s;
+                                return;
+                            }
+                        }
+
                         if !inputs.left_mouse.just_pressed()
                         {
                             false
@@ -486,7 +505,7 @@ impl SideTool
                                 VertexesToggle::None => true,
                                 VertexesToggle::Selected =>
                                 {
-                                    self.0 = Status::PreDrag(cursor_pos);
+                                    self.status = Status::PreDrag(cursor_pos);
                                     return;
                                 },
                                 VertexesToggle::NonSelected => return
@@ -498,25 +517,17 @@ impl SideTool
                                 bundle,
                                 manager,
                                 edits_history,
-                                &self.1,
+                                &self.selected_sides,
                                 cursor_pos
                             )
                             {
                                 if inputs.alt_pressed()
                                 {
-                                    if let Some(s) = self.1.initialize_xtrusion(
-                                        manager,
-                                        cursor_pos,
-                                        bundle.camera.scale()
-                                    )
-                                    {
-                                        self.0 = s;
-                                    }
-
+                                    self.check_xtrusion = true;
                                     return;
                                 }
 
-                                self.0 = Status::PreDrag(cursor_pos);
+                                self.status = Status::PreDrag(cursor_pos);
                                 return;
                             }
 
@@ -554,7 +565,7 @@ impl SideTool
                 let dir = return_if_none!(inputs.directional_keys_vector(grid.size()));
                 let mut vxs_move = hv_vec![];
 
-                if self.1.selected_sides.any_selected_vx() &&
+                if self.selected_sides.selected_sides.any_selected_vx() &&
                     Self::move_sides(
                         bundle.drawing_resources,
                         manager,
@@ -570,7 +581,7 @@ impl SideTool
             {
                 if !inputs.left_mouse.pressed()
                 {
-                    self.0 = Status::Inactive(Rect::default());
+                    self.status = Status::Inactive(Rect::default());
                     return;
                 }
 
@@ -579,7 +590,7 @@ impl SideTool
                     return;
                 }
 
-                self.0 = Status::Drag(
+                self.status = Status::Drag(
                     return_if_none!(CursorDelta::try_new(bundle.cursor, grid, *pos)),
                     hv_vec![]
                 );
@@ -595,7 +606,7 @@ impl SideTool
                     }
 
                     edits_history.end_multiframe_edit();
-                    self.0 = Status::default();
+                    self.status = Status::default();
                 }
                 else if bundle.cursor.moved()
                 {
@@ -629,7 +640,7 @@ impl SideTool
                             return;
                         }
 
-                        self.0 = Status::default();
+                        self.status = Status::default();
                     },
                     XtrusionMode::Intrusion { payloads, polygons } =>
                     {
@@ -674,7 +685,7 @@ impl SideTool
                     return;
                 }
 
-                self.0 = return_if_none!(self.1.initialize_xtrusion(
+                self.status = return_if_none!(self.selected_sides.initialize_xtrusion(
                     manager,
                     cursor_pos,
                     bundle.camera.scale()
@@ -1130,7 +1141,7 @@ impl SideTool
     )
     {
         let (payloads, polygons) = match_or_panic!(
-            &mut self.0,
+            &mut self.status,
             Status::Xtrusion {
                 mode: XtrusionMode::Intrusion { payloads, polygons },
                 ..
@@ -1151,8 +1162,8 @@ impl SideTool
 
         edits_history.override_edit_tag("Brushes Intrusion");
 
-        self.0 = Status::default();
-        self.1.clear();
+        self.status = Status::default();
+        self.selected_sides.clear();
     }
 
     /// Finalizes the extrusion.
@@ -1165,7 +1176,7 @@ impl SideTool
     )
     {
         let polygons = match_or_panic!(
-            &mut self.0,
+            &mut self.status,
             Status::Xtrusion {
                 mode: XtrusionMode::Extrusion(polygons),
                 ..
@@ -1189,8 +1200,8 @@ impl SideTool
 
         edits_history.override_edit_tag("Brushes Extrusion");
 
-        self.0 = Status::default();
-        self.1.clear();
+        self.status = Status::default();
+        self.selected_sides.clear();
     }
 
     /// Updates the selected sides info.
@@ -1199,11 +1210,11 @@ impl SideTool
     {
         if manager.entity_exists(identifier)
         {
-            self.1.toggle_brush(manager.brush(identifier));
+            self.selected_sides.toggle_brush(manager.brush(identifier));
             return;
         }
 
-        self.1.remove_id(manager, identifier);
+        self.selected_sides.remove_id(manager, identifier);
     }
 
     //==============================================================
@@ -1236,7 +1247,7 @@ impl SideTool
 
         draw_non_selected_brushes(bundle, manager);
 
-        match &self.0
+        match &self.status
         {
             Status::Inactive(ds) =>
             {
@@ -1312,9 +1323,9 @@ impl SideTool
     )
     {
         let extrusion_clicked =
-            buttons.draw(ui, bundle, SubTool::SideXtrusion, tool_change_conditions, &self.0);
+            buttons.draw(ui, bundle, SubTool::SideXtrusion, tool_change_conditions, &self.status);
         let merge_clicked =
-            buttons.draw(ui, bundle, SubTool::SideMerge, tool_change_conditions, &self.0);
+            buttons.draw(ui, bundle, SubTool::SideMerge, tool_change_conditions, &self.status);
 
         if merge_clicked
         {
@@ -1322,6 +1333,6 @@ impl SideTool
             return;
         }
 
-        subtools_buttons!(self.0, (extrusion_clicked, Status::XtrusionUi, Status::XtrusionUi));
+        subtools_buttons!(self.status, (extrusion_clicked, Status::XtrusionUi, Status::XtrusionUi));
     }
 }
