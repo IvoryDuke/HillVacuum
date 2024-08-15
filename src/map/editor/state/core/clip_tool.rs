@@ -23,7 +23,7 @@ use super::{
 use crate::{
     map::{
         brush::convex_polygon::ConvexPolygon,
-        drawer::{color::Color, drawers::EditDrawer, drawing_resources::DrawingResources},
+        drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             cursor::Cursor,
             state::{
@@ -510,16 +510,6 @@ impl ClipTool
                     }
                 }
 
-                /// Draws the sprite highlight of `polygon`.
-                #[inline]
-                fn draw_sprite_highlight(polygon: &ConvexPolygon, drawer: &mut EditDrawer)
-                {
-                    if polygon.has_sprite()
-                    {
-                        polygon.draw_sprite_highlight(drawer);
-                    }
-                }
-
                 draw_selected_and_non_selected_brushes!(bundle, manager);
 
                 match status
@@ -542,7 +532,7 @@ impl ClipTool
                                 &mut bundle.drawer,
                                 Color::ClippedPolygonsToSpawn
                             );
-                            draw_sprite_highlight(cp, &mut bundle.drawer);
+                            draw_sprite_with_highlight(cp, bundle, Color::ClippedPolygonsToSpawn);
                         }
                     },
                     PickedPolygons::Left =>
