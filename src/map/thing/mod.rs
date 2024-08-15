@@ -1,5 +1,7 @@
 #[cfg(feature = "ui")]
 pub(in crate::map) mod catalog;
+#[cfg(feature = "ui")]
+pub(in crate::map) mod compatibility;
 
 //=======================================================================//
 // IMPORTS
@@ -9,8 +11,7 @@ pub(in crate::map) mod catalog;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use super::properties::Properties;
-use crate::{Hull, HvHashMap, Id, Path, Value};
+use crate::{HvHashMap, Id, Path, Value};
 
 //=======================================================================//
 // TRAITS
@@ -44,7 +45,7 @@ pub(in crate::map) trait ThingInterface
 
     /// The angle of `self`.
     #[must_use]
-    fn angle(&self) -> f32;
+    fn angle_f32(&self) -> f32;
 }
 
 //=======================================================================//
@@ -93,8 +94,8 @@ pub struct Thing
 
 impl Thing
 {
-    /// Returns a new [`Thing`] with the requested properties, unless width or height are equal or
-    /// less than zero.
+    /// Returns a new [`Thing`] with the requested properties, unless width or height are equal
+    /// or less than zero.
     #[must_use]
     #[inline]
     pub fn new(name: &str, id: u16, width: f32, height: f32, preview: &str) -> Option<Self>
@@ -102,13 +103,17 @@ impl Thing
         (width > 0f32 && height > 0f32).then(|| {
             Self {
                 name: name.to_string(),
-                id: ThingId(id),
+                id: ThingId::new(id),
                 width,
                 height,
                 preview: preview.to_string()
             }
         })
     }
+
+    #[inline]
+    #[must_use]
+    pub fn name(&self) -> &str { &self.name }
 
     /// Returns the [`ThingId`].
     #[inline]
@@ -124,58 +129,10 @@ impl Thing
     #[inline]
     #[must_use]
     pub const fn height(&self) -> f32 { self.height }
-}
-
-//=======================================================================//
-
-/// The data of [`ThingInstance`].
-#[must_use]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-
-pub(in crate::map) struct ThingInstanceData
-{
-    /// The [`ThingId`] of the [`Thing`] it represents.
-    thing:       ThingId,
-    /// The position on the map.
-    pos:         Vec2,
-    /// The spawn angle of the [`Thing`] in the map.
-    angle:       f32,
-    /// The height its preview should be drawn.
-    draw_height: i8,
-    /// The bounding box.
-    hull:        Hull,
-    /// The path describing the [`ThingInstance`] movement, if any.
-    path:        Option<Path>,
-    /// The associated properties.
-    properties:  Properties
-}
-
-//=======================================================================//
-
-/// An instance of a [`Thing`] which can be placed in a map.
-#[must_use]
-#[derive(Clone, Serialize, Deserialize)]
-pub(in crate::map) struct ThingInstance
-{
-    /// The id.
-    id:   Id,
-    /// All entity data.
-    data: ThingInstanceData
-}
-
-impl ThingInterface for ThingInstance
-{
-    #[inline]
-    fn thing(&self) -> ThingId { self.data.thing }
 
     #[inline]
-    fn pos(&self) -> Vec2 { self.data.pos }
-
-    #[inline]
-    fn draw_height_f32(&self) -> f32 { f32::from(self.data.draw_height) }
-
-    #[inline]
-    fn angle(&self) -> f32 { self.data.angle }
+    #[must_use]
+    pub fn preview(&self) -> &str { &self.preview }
 }
 
 //=======================================================================//
@@ -201,35 +158,6 @@ pub struct ThingViewer
     pub properties:  HvHashMap<String, Value>
 }
 
-impl ThingViewer
-{
-    /// Creates a new [`ThingViewer`].
-    #[inline]
-    pub(in crate::map) fn new(thing: ThingInstance) -> Self
-    {
-        let id = thing.id;
-        let draw_height = thing.draw_height_f32();
-        let ThingInstanceData {
-            thing,
-            pos,
-            angle,
-            path,
-            properties,
-            ..
-        } = thing.data;
-
-        Self {
-            id,
-            thing_id: thing,
-            pos,
-            angle,
-            draw_height,
-            path,
-            properties: properties.take()
-        }
-    }
-}
-
 //=======================================================================//
 // UI
 //
@@ -247,14 +175,9 @@ pub(in crate::map) mod ui_mod
     use bevy_egui::egui;
     use glam::Vec2;
     use hill_vacuum_shared::{return_if_none, TEXTURE_HEIGHT_RANGE};
+    use serde::{Deserialize, Serialize};
 
-    use super::{
-        catalog::ThingsCatalog,
-        ThingInstance,
-        ThingInstanceData,
-        ThingInterface,
-        ThingViewer
-    };
+    use super::{catalog::ThingsCatalog, Thing, ThingInterface, ThingViewer};
     use crate::{
         map::{
             drawer::{
@@ -272,14 +195,12 @@ pub(in crate::map) mod ui_mod
         },
         utils::{
             hull::EntityHull,
-            identifiers::{EntityCenter, EntityId},
-            math::AroundEqual
+            identifiers::{EntityCenter, EntityId}
         },
         Hull,
         Id,
         MapThing,
         Path,
-        Thing,
         ThingId,
         Value
     };
@@ -289,37 +210,153 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
-    /// A translated [`ThingInstance`].
-    struct MovedThingInstance<'a>
+    /// The data of [`ThingInstance`].
+    #[must_use]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+
+    pub(in crate::map) struct ThingInstanceData
     {
-        /// The original [`ThingInstance`].
-        thing: &'a ThingInstanceData,
-        /// The translation vector.
-        delta: Vec2
+        /// The [`ThingId`] of the [`Thing`] it represents.
+        thing:       ThingId,
+        /// The position on the map.
+        pos:         Vec2,
+        /// The spawn angle of the [`Thing`] in the map.
+        angle:       i16,
+        /// The height its preview should be drawn.
+        draw_height: i8,
+        /// The bounding box.
+        hull:        Hull,
+        /// The path describing the [`ThingInstance`] movement, if any.
+        path:        Option<Path>,
+        /// The associated properties.
+        properties:  Properties
     }
 
-    impl<'a> EntityHull for MovedThingInstance<'a>
+    impl EntityHull for ThingInstanceData
     {
         #[inline]
-        fn hull(&self) -> Hull { self.thing.hull() + self.delta }
+        fn hull(&self) -> Hull { self.hull }
     }
 
-    impl<'a> ThingInterface for MovedThingInstance<'a>
+    impl ThingInstanceData
     {
+        /// Returns the [`ThingId`] of the [`Thing`] represented by `self`.
         #[inline]
-        fn thing(&self) -> ThingId { self.thing.thing }
+        pub const fn thing(&self) -> ThingId { self.thing }
 
+        /// Returns the [`Hull`] of [`Thing`] with center at `pos`.
         #[inline]
-        fn pos(&self) -> Vec2 { self.thing.pos + self.delta }
+        #[must_use]
+        fn create_hull(pos: Vec2, thing: &Thing) -> Hull
+        {
+            let half_width = thing.width / 2f32;
+            let half_height = thing.height / 2f32;
 
-        #[inline]
-        fn draw_height_f32(&self) -> f32 { f32::from(self.thing.draw_height) }
+            Hull::from_opposite_vertexes(
+                pos + Vec2::new(-half_width, half_height),
+                pos + Vec2::new(half_width, -half_height)
+            )
+            .unwrap()
+        }
 
+        /// Return the [`Hull`] of the associated [`Path`], if any.
         #[inline]
-        fn angle(&self) -> f32 { self.thing.angle }
+        #[must_use]
+        pub fn path_hull(&self) -> Option<Hull>
+        {
+            self.path.as_ref().map(|path| path.hull() + self.pos)
+        }
+
+        /// Sets the [`Thing`] represented by `self` to `thing`.
+        /// Returns the [`ThingId`] of the previous [`Thing`] if different.
+        #[inline]
+        #[must_use]
+        pub fn set_thing(&mut self, thing: &Thing) -> Option<ThingId>
+        {
+            self.hull = ThingInstanceData::create_hull(self.pos, thing);
+
+            if thing.id == self.thing
+            {
+                return None;
+            }
+
+            std::mem::replace(&mut self.thing, thing.id).into()
+        }
+
+        /// Draw `self` displaced by `delta` for a prop screenshot.
+        #[inline]
+        pub fn draw_prop(&self, drawer: &mut EditDrawer, catalog: &ThingsCatalog, delta: Vec2)
+        {
+            drawer.thing(
+                catalog,
+                &MovedThingInstance { thing: self, delta },
+                Color::NonSelectedEntity
+            );
+            return_if_none!(&self.path).draw_prop(drawer, self.pos + delta);
+        }
     }
 
     //=======================================================================//
+
+    /// An instance of a [`Thing`] which can be placed in a map.
+    #[must_use]
+    #[derive(Clone)]
+    pub(in crate::map) struct ThingInstance
+    {
+        /// The id.
+        id:   Id,
+        /// All entity data.
+        data: ThingInstanceData
+    }
+
+    impl From<super::compatibility::ThingInstance> for ThingInstance
+    {
+        #[inline]
+        fn from(value: super::compatibility::ThingInstance) -> Self
+        {
+            let super::compatibility::ThingInstance {
+                id,
+                data:
+                    super::compatibility::ThingInstanceData {
+                        thing,
+                        pos,
+                        angle,
+                        draw_height,
+                        hull,
+                        path,
+                        properties
+                    }
+            } = value;
+
+            Self {
+                id,
+                data: ThingInstanceData {
+                    thing,
+                    pos,
+                    angle: angle as i16,
+                    draw_height,
+                    hull,
+                    path,
+                    properties
+                }
+            }
+        }
+    }
+
+    impl ThingInterface for ThingInstance
+    {
+        #[inline]
+        fn thing(&self) -> ThingId { self.data.thing }
+
+        #[inline]
+        fn pos(&self) -> Vec2 { self.data.pos }
+
+        #[inline]
+        fn draw_height_f32(&self) -> f32 { f32::from(self.data.draw_height) }
+
+        #[inline]
+        fn angle_f32(&self) -> f32 { f32::from(self.data.angle) }
+    }
 
     impl<'a> From<(ThingViewer, &'a ThingsCatalog)> for ThingInstance
     {
@@ -346,7 +383,7 @@ pub(in crate::map) mod ui_mod
                 pos,
                 Properties::from_parts(properties)
             );
-            thing.data.angle = angle;
+            thing.data.angle = angle as i16;
             thing.data.draw_height = draw_height as i8;
             thing.data.path = path;
 
@@ -556,7 +593,7 @@ pub(in crate::map) mod ui_mod
                     thing: thing.id,
                     pos,
                     draw_height: 0,
-                    angle: 0f32,
+                    angle: 0,
                     hull,
                     path: None,
                     properties: default_properties
@@ -575,6 +612,10 @@ pub(in crate::map) mod ui_mod
         /// Consumes `self` and returns the underlying [`ThingInstanceData`].
         #[inline]
         pub fn take_data(self) -> ThingInstanceData { self.data }
+
+        #[inline]
+        #[must_use]
+        pub const fn angle(&self) -> i16 { self.data.angle }
 
         /// Returns the draw height.
         #[inline]
@@ -646,11 +687,11 @@ pub(in crate::map) mod ui_mod
         /// Sets the angle of `self`.
         #[inline]
         #[must_use]
-        pub fn set_angle(&mut self, angle: f32) -> Option<f32>
+        pub fn set_angle(&mut self, angle: i16) -> Option<i16>
         {
-            let angle = angle.floor().rem_euclid(360f32);
+            let angle = angle % 360;
 
-            if angle.around_equal_narrow(&self.data.angle)
+            if angle == self.data.angle
             {
                 return None;
             }
@@ -727,68 +768,67 @@ pub(in crate::map) mod ui_mod
         }
     }
 
-    impl EntityHull for ThingInstanceData
+    //=======================================================================//
+
+    impl ThingViewer
     {
+        /// Creates a new [`ThingViewer`].
         #[inline]
-        fn hull(&self) -> Hull { self.hull }
+        pub(in crate::map) fn new(thing: ThingInstance) -> Self
+        {
+            let id = thing.id;
+            let draw_height = thing.draw_height_f32();
+            let angle = thing.angle_f32();
+            let ThingInstanceData {
+                thing,
+                pos,
+                path,
+                properties,
+                ..
+            } = thing.data;
+
+            Self {
+                id,
+                thing_id: thing,
+                pos,
+                angle,
+                draw_height,
+                path,
+                properties: properties.take()
+            }
+        }
     }
 
-    impl ThingInstanceData
+    //=======================================================================//
+
+    /// A translated [`ThingInstance`].
+    struct MovedThingInstance<'a>
     {
-        /// Returns the [`ThingId`] of the [`Thing`] represented by `self`.
+        /// The original [`ThingInstance`].
+        thing: &'a ThingInstanceData,
+        /// The translation vector.
+        delta: Vec2
+    }
+
+    impl<'a> EntityHull for MovedThingInstance<'a>
+    {
         #[inline]
-        pub const fn thing(&self) -> ThingId { self.thing }
+        fn hull(&self) -> Hull { self.thing.hull() + self.delta }
+    }
 
-        /// Returns the [`Hull`] of [`Thing`] with center at `pos`.
+    impl<'a> ThingInterface for MovedThingInstance<'a>
+    {
         #[inline]
-        #[must_use]
-        fn create_hull(pos: Vec2, thing: &Thing) -> Hull
-        {
-            let half_width = thing.width / 2f32;
-            let half_height = thing.height / 2f32;
+        fn thing(&self) -> ThingId { self.thing.thing }
 
-            Hull::from_opposite_vertexes(
-                pos + Vec2::new(-half_width, half_height),
-                pos + Vec2::new(half_width, -half_height)
-            )
-            .unwrap()
-        }
-
-        /// Return the [`Hull`] of the associated [`Path`], if any.
         #[inline]
-        #[must_use]
-        pub fn path_hull(&self) -> Option<Hull>
-        {
-            self.path.as_ref().map(|path| path.hull() + self.pos)
-        }
+        fn pos(&self) -> Vec2 { self.thing.pos + self.delta }
 
-        /// Sets the [`Thing`] represented by `self` to `thing`.
-        /// Returns the [`ThingId`] of the previous [`Thing`] if different.
         #[inline]
-        #[must_use]
-        pub fn set_thing(&mut self, thing: &Thing) -> Option<ThingId>
-        {
-            self.hull = ThingInstanceData::create_hull(self.pos, thing);
+        fn draw_height_f32(&self) -> f32 { f32::from(self.thing.draw_height) }
 
-            if thing.id == self.thing
-            {
-                return None;
-            }
-
-            std::mem::replace(&mut self.thing, thing.id).into()
-        }
-
-        /// Draw `self` displaced by `delta` for a prop screenshot.
         #[inline]
-        pub fn draw_prop(&self, drawer: &mut EditDrawer, catalog: &ThingsCatalog, delta: Vec2)
-        {
-            drawer.thing(
-                catalog,
-                &MovedThingInstance { thing: self, delta },
-                Color::NonSelectedEntity
-            );
-            return_if_none!(&self.path).draw_prop(drawer, self.pos + delta);
-        }
+        fn angle_f32(&self) -> f32 { f32::from(self.thing.angle) }
     }
 
     //=======================================================================//

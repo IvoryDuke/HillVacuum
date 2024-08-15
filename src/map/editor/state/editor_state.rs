@@ -1392,10 +1392,12 @@ impl State
 
             for _ in 0..header.things
             {
-                things.push(
-                    ciborium::from_reader::<ThingInstance, _>(&mut *reader)
-                        .map_err(|_| "Error reading things for conversion.")?
-                );
+                things.push(ThingInstance::from(
+                    ciborium::from_reader::<crate::map::thing::compatibility::ThingInstance, _>(
+                        &mut *reader
+                    )
+                    .map_err(|_| "Error reading things for conversion.")?
+                ));
             }
 
             Ok(things)

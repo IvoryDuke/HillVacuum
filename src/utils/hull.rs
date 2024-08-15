@@ -8,8 +8,6 @@ use std::ops::{Add, AddAssign, RangeInclusive, Sub, SubAssign};
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::utils::math::AroundEqual;
-
 //=======================================================================//
 // TYPES
 //
@@ -89,29 +87,6 @@ impl SubAssign<Vec2> for Hull
         self.bottom -= rhs.y;
         self.left -= rhs.x;
         self.right -= rhs.x;
-    }
-}
-
-impl AroundEqual for Hull
-{
-    #[inline]
-    #[must_use]
-    fn around_equal(&self, other: &Self) -> bool
-    {
-        self.top.around_equal(&other.top) &&
-            self.bottom.around_equal(&other.bottom) &&
-            self.left.around_equal(&other.left) &&
-            self.right.around_equal(&other.right)
-    }
-
-    #[inline]
-    #[must_use]
-    fn around_equal_narrow(&self, other: &Self) -> bool
-    {
-        self.top.around_equal_narrow(&other.top) &&
-            self.bottom.around_equal_narrow(&other.bottom) &&
-            self.left.around_equal_narrow(&other.left) &&
-            self.right.around_equal_narrow(&other.right)
     }
 }
 
@@ -497,6 +472,29 @@ pub(crate) mod ui_mod
         #[inline]
         #[must_use]
         fn from(value: T) -> Self { Self::from_points(value).unwrap() }
+    }
+
+    impl AroundEqual for Hull
+    {
+        #[inline]
+        #[must_use]
+        fn around_equal(&self, other: &Self) -> bool
+        {
+            self.top.around_equal(&other.top) &&
+                self.bottom.around_equal(&other.bottom) &&
+                self.left.around_equal(&other.left) &&
+                self.right.around_equal(&other.right)
+        }
+
+        #[inline]
+        #[must_use]
+        fn around_equal_narrow(&self, other: &Self) -> bool
+        {
+            self.top.around_equal_narrow(&other.top) &&
+                self.bottom.around_equal_narrow(&other.bottom) &&
+                self.left.around_equal_narrow(&other.left) &&
+                self.right.around_equal_narrow(&other.right)
+        }
     }
 
     impl Hull

@@ -17,10 +17,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use smallvec::SmallVec;
 
 use super::misc::AssertedInsertRemove;
-use crate::utils::{
-    identifiers::Id,
-    iterators::{SliceTripletIter, TripletIterator}
-};
+use crate::utils::identifiers::Id;
 
 //=======================================================================//
 // STATICS
@@ -264,13 +261,6 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for HvVec<T>
     {
         Vec::<T>::deserialize(deserializer).map(|vec| hv_vec![collect; vec])
     }
-}
-
-impl<'a, T: 'a> TripletIterator<'a, &'a T, SliceTripletIter<'a, T>> for HvVec<T>
-{
-    #[inline]
-    #[must_use]
-    fn triplet_iter(&'a self) -> Option<SliceTripletIter<'a, T>> { self.0.triplet_iter() }
 }
 
 impl<T> HvVec<T>
@@ -768,7 +758,14 @@ pub(crate) mod ui_mod
     use crate::utils::containers::blink_alloc;
     use crate::{
         utils::{
-            iterators::{PairIterator, PairIteratorMut, SlicePairIter, SlicePairIterMut},
+            iterators::{
+                PairIterator,
+                PairIteratorMut,
+                SlicePairIter,
+                SlicePairIterMut,
+                SliceTripletIter,
+                TripletIterator
+            },
             misc::{NoneIfEmpty, ReplaceValues, TakeValue}
         },
         HvHashMap,
@@ -853,6 +850,13 @@ pub(crate) mod ui_mod
         #[inline]
         #[must_use]
         fn pair_iter_mut(&'a mut self) -> Option<SlicePairIterMut<'a, T>> { self.0.pair_iter_mut() }
+    }
+
+    impl<'a, T: 'a> TripletIterator<'a, &'a T, SliceTripletIter<'a, T>> for HvVec<T>
+    {
+        #[inline]
+        #[must_use]
+        fn triplet_iter(&'a self) -> Option<SliceTripletIter<'a, T>> { self.0.triplet_iter() }
     }
 
     impl<T> HvVec<T>

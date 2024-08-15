@@ -193,21 +193,7 @@ impl std::fmt::Display for Value
 #[must_use]
 #[allow(clippy::unsafe_derive_deserialize)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-
 pub(in crate::map) struct Properties(HvHashMap<String, Value>);
-
-impl Default for Properties
-{
-    #[inline]
-    fn default() -> Self { Self(HvHashMap::default()) }
-}
-
-impl Properties
-{
-    /// Consumes `self` and returns the underlying hashmap of values.
-    #[inline]
-    pub fn take(self) -> HvHashMap<String, Value> { self.0 }
-}
 
 //=======================================================================//
 
@@ -423,6 +409,7 @@ pub(in crate::map) mod ui_mod
             write!(f, "{properties}")
         }
     }
+
     impl PartialEq for DefaultProperties
     {
         #[inline]
@@ -534,6 +521,19 @@ pub(in crate::map) mod ui_mod
     }
 
     //=======================================================================//
+
+    impl Default for Properties
+    {
+        #[inline]
+        fn default() -> Self { Self(HvHashMap::default()) }
+    }
+
+    impl Properties
+    {
+        /// Consumes `self` and returns the underlying hashmap of values.
+        #[inline]
+        pub fn take(self) -> HvHashMap<String, Value> { self.0 }
+    }
 
     impl Properties
     {

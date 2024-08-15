@@ -1053,7 +1053,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(mesh, self.color_resources.polygon_material(color), color.entity_height());
 
         // Angle indicator.
-        let angle = thing.angle().to_radians();
+        let angle = thing.angle_f32().to_radians();
         let hull = thing.hull();
         let half_side = (hull.width().min(hull.height()) / 2f32).min(64f32);
         let center = self.grid.transform_point(hull.center());

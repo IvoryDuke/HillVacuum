@@ -181,7 +181,7 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     /// Thing draw height change.
     ThingHeight(i8),
     /// Thing angle change.
-    ThingAngle(f32),
+    ThingAngle(i16),
     /// Brush texture change.
     TextureChange(Option<String>),
     /// Brush texture removed.

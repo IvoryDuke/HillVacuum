@@ -1,4 +1,6 @@
+#[cfg(feature = "ui")]
 pub(in crate::map) mod compatibility;
+#[cfg(feature = "ui")]
 pub(in crate::map) mod convex_polygon;
 pub mod mover;
 
@@ -7,330 +9,14 @@ pub mod mover;
 //
 //=======================================================================//
 
-use convex_polygon::ConvexPolygon;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use super::properties::Properties;
-use crate::{
-    utils::containers::hv_vec,
-    Animation,
-    HvHashMap,
-    HvVec,
-    Id,
-    Mover,
-    TextureSettings,
-    Value
-};
-
-//=======================================================================//
-// MACROS
-//
-//=======================================================================//
-
-macro_rules! impl_convex_polygon {
-    ($tex:ty) => {
-        #[allow(dead_code)]
-        #[must_use]
-        #[derive(Clone, Debug)]
-        pub(in crate::map) struct ConvexPolygon
-        {
-            // Vertexes of the polygon.
-            vertexes:          crate::HvVec<crate::map::selectable_vector::SelectableVector>,
-            center:            Vec2,
-            hull:              Hull,
-            selected_vertexes: u8,
-            /// How the texture should be mapped.
-            texture:           Option<$tex>,
-            collision:         bool,
-            texture_updated:   bool
-        }
-
-        impl serde::Serialize for ConvexPolygon
-        {
-            #[inline]
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer
-            {
-                use serde::ser::SerializeStruct;
-
-                let mut s = serializer.serialize_struct("ConvexPolygon", 3)?;
-                s.serialize_field("vertexes", &self.vertexes)?;
-                s.serialize_field("texture", &self.texture)?;
-                s.serialize_field("collision", &self.collision)?;
-                s.end()
-            }
-        }
-
-        impl<'de> serde::Deserialize<'de> for ConvexPolygon
-        {
-            #[inline]
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::de::Deserializer<'de>
-            {
-                const FIELDS: &[&str] = &["vertexes", "texture", "collision"];
-
-                enum Field
-                {
-                    Vertexes,
-                    Texture,
-                    Collision
-                }
-
-                impl<'de> serde::Deserialize<'de> for Field
-                {
-                    #[inline]
-                    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                    where
-                        D: serde::de::Deserializer<'de>
-                    {
-                        struct FieldVisitor;
-
-                        impl<'de> serde::de::Visitor<'de> for FieldVisitor
-                        {
-                            type Value = Field;
-
-                            #[inline]
-                            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result
-                            {
-                                formatter.write_str("`vertexes` or `texture' or 'collision'")
-                            }
-
-                            #[inline]
-                            fn visit_str<E>(self, value: &str) -> Result<Field, E>
-                            where
-                                E: serde::de::Error
-                            {
-                                match value
-                                {
-                                    "vertexes" => Ok(Field::Vertexes),
-                                    "texture" => Ok(Field::Texture),
-                                    "collision" => Ok(Field::Collision),
-                                    _ => Err(serde::de::Error::unknown_field(value, FIELDS))
-                                }
-                            }
-                        }
-
-                        deserializer.deserialize_identifier(FieldVisitor)
-                    }
-                }
-
-                struct PolygonVisitor;
-
-                impl<'de> serde::de::Visitor<'de> for PolygonVisitor
-                {
-                    type Value = ConvexPolygon;
-
-                    #[inline]
-                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result
-                    {
-                        formatter.write_str("struct ConvexPolygon")
-                    }
-
-                    #[inline]
-                    fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
-                    where
-                        V: serde::de::MapAccess<'de>
-                    {
-                        let mut vertexes: Option<crate::HvVec<crate::map::selectable_vector::SelectableVector>> = None;
-                        let mut texture = None;
-                        let mut collision = None;
-
-                        while let Some(key) = map.next_key()?
-                        {
-                            match key
-                            {
-                                Field::Vertexes =>
-                                {
-                                    if vertexes.is_some()
-                                    {
-                                        return Err(serde::de::Error::duplicate_field("vertexes"));
-                                    }
-                                    vertexes = Some(map.next_value()?);
-                                },
-                                Field::Texture =>
-                                {
-                                    if texture.is_some()
-                                    {
-                                        return Err(serde::de::Error::duplicate_field("texture"));
-                                    }
-                                    texture = Some(map.next_value()?);
-                                },
-                                Field::Collision =>
-                                {
-                                    if collision.is_some()
-                                    {
-                                        return Err(serde::de::Error::duplicate_field("collision"));
-                                    }
-                                    collision = Some(map.next_value()?);
-                                }
-                            }
-                        }
-
-                        let vertexes =
-                            vertexes.ok_or_else(|| serde::de::Error::missing_field("vertexes"))?;
-                        let texture = texture.ok_or_else(|| serde::de::Error::missing_field("texture"))?;
-                        let collision =
-                            collision.ok_or_else(|| serde::de::Error::missing_field("collision"))?;
-
-                        let mut poly = <ConvexPolygon>::new(vertexes.into_iter().map(|svec| svec.vec));
-                        poly.texture = texture;
-                        poly.collision = collision;
-                        Ok(poly)
-                    }
-                }
-
-                deserializer.deserialize_struct("ConvexPolygon", FIELDS, PolygonVisitor)
-            }
-        }
-
-        impl From<crate::HvVec<Vec2>> for ConvexPolygon
-    {
-        #[inline]
-        fn from(vertexes: crate::HvVec<Vec2>) -> Self
-        {
-            crate::utils::containers::hv_vec![collect; vertexes.into_iter().map(crate::map::selectable_vector::SelectableVector::new)].into()
-        }
-    }
-
-    impl From<crate::HvVec<crate::map::selectable_vector::SelectableVector>> for ConvexPolygon
-    {
-        #[inline]
-        fn from(vertexes: crate::HvVec<crate::map::selectable_vector::SelectableVector>) -> Self
-        {
-            assert!(vertexes.len() >= 3, "Not enough vertexes to create a polygon.\n{vertexes:?}.");
-
-            let center = crate::utils::math::points::vxs_center(vertexes.iter().map(|svx| svx.vec));
-            let hull = Hull::from_points(vertexes.iter().map(|svx| svx.vec)).unwrap();
-            let selected_vertexes = vertexes.iter().fold(0, |add, svx| add + u8::from(svx.selected));
-            let cp = Self {
-                vertexes,
-                center,
-                hull,
-                selected_vertexes,
-                texture: None,
-                collision: true,
-                texture_updated: false
-            };
-
-            assert!(cp.valid(), "Invalid vertexes.\n{cp:?}");
-
-            cp
-        }
-    }
-
-    impl ConvexPolygon
-    {
-        #[inline]
-        pub fn new<T>(vxs: T) -> Self
-        where
-            T: Iterator<Item = Vec2>
-        {
-            crate::utils::containers::hv_vec![collect; vxs].into()
-        }
-
-        /// Returns true if vxs represents a valid polygon.
-        #[inline]
-        #[must_use]
-        fn valid(&self) -> bool
-        {
-            use crate::utils::math::AroundEqual;
-
-            if !self.center.around_equal(&crate::utils::math::points::vxs_center(self.vertexes())) ||
-                !self.hull.around_equal(&Hull::from_points(self.vertexes()).unwrap())
-            {
-                eprintln!("Failed center/hull assertion.");
-                return false;
-            }
-
-            if self.selected_vertexes !=
-                self.vertexes.iter().fold(0, |add, svx| add + u8::from(svx.selected))
-            {
-                eprintln!("Failed selected vertexes count.");
-                return false;
-            }
-
-            self.vxs_valid()
-        }
-
-        #[inline]
-        #[must_use]
-        fn vxs_valid(&self) -> bool
-        {
-            use crate::utils::{math::{AroundEqual, points::are_vxs_ccw}, iterators::TripletIterator};
-
-            let vxs = &self.vertexes;
-            let len = self.sides();
-
-            if len < 3
-            {
-                return false;
-            }
-
-            for i in 0..len - 1
-            {
-                for j in i + 1..len
-                {
-                    if vxs[i].vec.around_equal_narrow(&vxs[j].vec)
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            self.vertexes
-                .triplet_iter()
-                .unwrap()
-                .all(|[svx_i, svx_j, svx_k]| are_vxs_ccw(&[svx_i.vec, svx_j.vec, svx_k.vec]))
-        }
-
-        /// Returns the amount of sides the polygon has.
-        #[inline]
-        #[must_use]
-        pub fn sides(&self) -> usize { self.vertexes.len() }
-
-        /// Returns an iterator to the vertexes of the polygon.
-        #[inline]
-        pub fn vertexes(&self) -> impl ExactSizeIterator<Item = Vec2> + Clone + '_
-        {
-            self.vertexes.iter().map(|svx| svx.vec)
-        }
-    }
-    };
-}
-
-use impl_convex_polygon;
+use crate::{Animation, HvHashMap, HvVec, Id, Mover, TextureSettings, Value};
 
 //=======================================================================//
 // TYPES
 //
-//=======================================================================//
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(in crate::map) struct BrushData
-{
-    /// The polygon of the brush.
-    polygon:    ConvexPolygon,
-    /// Platform path and anchored brushes.
-    mover:      Mover,
-    /// The properties of the brush.
-    properties: Properties
-}
-
-//=======================================================================//
-
-/// The entity representing one of the shapes that make the maps, as saved in the .hv files.
-#[must_use]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Brush
-{
-    // The id of the brush.
-    id:   Id,
-    data: BrushData
-}
-
 //=======================================================================//
 
 /// A convex polygon characterized by an optional [`Mover`], an optional texture, and certain
@@ -356,31 +42,6 @@ pub struct BrushViewer
 
 impl BrushViewer
 {
-    /// Returns a new [`crate::Brush`].
-    #[inline]
-    pub fn new(brush: Brush) -> Self
-    {
-        let Brush {
-            data:
-                BrushData {
-                    polygon,
-                    mover,
-                    properties
-                },
-            id
-        } = brush;
-        let collision = polygon.collision();
-
-        Self {
-            id,
-            vertexes: hv_vec![collect; polygon.vertexes()],
-            texture: polygon.take_texture_settings(),
-            mover,
-            collision,
-            properties: properties.take()
-        }
-    }
-
     /// Sets the [`Animation`] of the texture.
     #[inline]
     pub(in crate::map) fn set_texture_animation(&mut self, animation: Animation)
@@ -411,6 +72,7 @@ pub(in crate::map) mod ui_mod
     use bevy_egui::egui;
     use glam::Vec2;
     use hill_vacuum_shared::{return_if_no_match, return_if_none};
+    use serde::{Deserialize, Serialize};
 
     use crate::{
         map::{
@@ -428,8 +90,6 @@ pub(in crate::map) mod ui_mod
                     VertexesMove,
                     XtrusionInfo
                 },
-                Brush,
-                BrushData,
                 BrushViewer
             },
             drawer::{
@@ -471,6 +131,283 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
     // MACROS
     //
+    //=======================================================================//
+
+    macro_rules! impl_convex_polygon {
+        ($tex:ty) => {
+            #[allow(dead_code)]
+            #[must_use]
+            #[derive(Clone, Debug)]
+            pub(in crate::map) struct ConvexPolygon
+            {
+                // Vertexes of the polygon.
+                vertexes:          crate::HvVec<crate::map::selectable_vector::SelectableVector>,
+                center:            Vec2,
+                hull:              Hull,
+                selected_vertexes: u8,
+                /// How the texture should be mapped.
+                texture:           Option<$tex>,
+                collision:         bool,
+                texture_updated:   bool
+            }
+
+            impl serde::Serialize for ConvexPolygon
+            {
+                #[inline]
+                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where
+                    S: serde::Serializer
+                {
+                    use serde::ser::SerializeStruct;
+
+                    let mut s = serializer.serialize_struct("ConvexPolygon", 3)?;
+                    s.serialize_field("vertexes", &self.vertexes)?;
+                    s.serialize_field("texture", &self.texture)?;
+                    s.serialize_field("collision", &self.collision)?;
+                    s.end()
+                }
+            }
+
+            impl<'de> serde::Deserialize<'de> for ConvexPolygon
+            {
+                #[inline]
+                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where
+                    D: serde::de::Deserializer<'de>
+                {
+                    const FIELDS: &[&str] = &["vertexes", "texture", "collision"];
+
+                    enum Field
+                    {
+                        Vertexes,
+                        Texture,
+                        Collision
+                    }
+
+                    impl<'de> serde::Deserialize<'de> for Field
+                    {
+                        #[inline]
+                        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                        where
+                            D: serde::de::Deserializer<'de>
+                        {
+                            struct FieldVisitor;
+
+                            impl<'de> serde::de::Visitor<'de> for FieldVisitor
+                            {
+                                type Value = Field;
+
+                                #[inline]
+                                fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result
+                                {
+                                    formatter.write_str("`vertexes` or `texture' or 'collision'")
+                                }
+
+                                #[inline]
+                                fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                                where
+                                    E: serde::de::Error
+                                {
+                                    match value
+                                    {
+                                        "vertexes" => Ok(Field::Vertexes),
+                                        "texture" => Ok(Field::Texture),
+                                        "collision" => Ok(Field::Collision),
+                                        _ => Err(serde::de::Error::unknown_field(value, FIELDS))
+                                    }
+                                }
+                            }
+
+                            deserializer.deserialize_identifier(FieldVisitor)
+                        }
+                    }
+
+                    struct PolygonVisitor;
+
+                    impl<'de> serde::de::Visitor<'de> for PolygonVisitor
+                    {
+                        type Value = ConvexPolygon;
+
+                        #[inline]
+                        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result
+                        {
+                            formatter.write_str("struct ConvexPolygon")
+                        }
+
+                        #[inline]
+                        fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+                        where
+                            V: serde::de::MapAccess<'de>
+                        {
+                            let mut vertexes: Option<crate::HvVec<crate::map::selectable_vector::SelectableVector>> = None;
+                            let mut texture = None;
+                            let mut collision = None;
+
+                            while let Some(key) = map.next_key()?
+                            {
+                                match key
+                                {
+                                    Field::Vertexes =>
+                                    {
+                                        if vertexes.is_some()
+                                        {
+                                            return Err(serde::de::Error::duplicate_field("vertexes"));
+                                        }
+                                        vertexes = Some(map.next_value()?);
+                                    },
+                                    Field::Texture =>
+                                    {
+                                        if texture.is_some()
+                                        {
+                                            return Err(serde::de::Error::duplicate_field("texture"));
+                                        }
+                                        texture = Some(map.next_value()?);
+                                    },
+                                    Field::Collision =>
+                                    {
+                                        if collision.is_some()
+                                        {
+                                            return Err(serde::de::Error::duplicate_field("collision"));
+                                        }
+                                        collision = Some(map.next_value()?);
+                                    }
+                                }
+                            }
+
+                            let vertexes =
+                                vertexes.ok_or_else(|| serde::de::Error::missing_field("vertexes"))?;
+                            let texture = texture.ok_or_else(|| serde::de::Error::missing_field("texture"))?;
+                            let collision =
+                                collision.ok_or_else(|| serde::de::Error::missing_field("collision"))?;
+
+                            let mut poly = <ConvexPolygon>::new(vertexes.into_iter().map(|svec| svec.vec));
+                            poly.texture = texture;
+                            poly.collision = collision;
+                            Ok(poly)
+                        }
+                    }
+
+                    deserializer.deserialize_struct("ConvexPolygon", FIELDS, PolygonVisitor)
+                }
+            }
+
+            impl From<crate::HvVec<Vec2>> for ConvexPolygon
+            {
+                #[inline]
+                fn from(vertexes: crate::HvVec<Vec2>) -> Self
+                {
+                    crate::utils::containers::hv_vec![collect; vertexes.into_iter().map(crate::map::selectable_vector::SelectableVector::new)].into()
+                }
+            }
+
+            impl From<crate::HvVec<crate::map::selectable_vector::SelectableVector>> for ConvexPolygon
+            {
+                #[inline]
+                fn from(vertexes: crate::HvVec<crate::map::selectable_vector::SelectableVector>) -> Self
+                {
+                    assert!(vertexes.len() >= 3, "Not enough vertexes to create a polygon.\n{vertexes:?}.");
+
+                    let center = crate::utils::math::points::vxs_center(vertexes.iter().map(|svx| svx.vec));
+                    let hull = Hull::from_points(vertexes.iter().map(|svx| svx.vec)).unwrap();
+                    let selected_vertexes = vertexes.iter().fold(0, |add, svx| add + u8::from(svx.selected));
+                    let cp = Self {
+                        vertexes,
+                        center,
+                        hull,
+                        selected_vertexes,
+                        texture: None,
+                        collision: true,
+                        texture_updated: false
+                    };
+
+                    assert!(cp.valid(), "Invalid vertexes.\n{cp:?}");
+
+                    cp
+                }
+            }
+
+            impl ConvexPolygon
+            {
+                #[inline]
+                pub fn new<T>(vxs: T) -> Self
+                where
+                    T: Iterator<Item = Vec2>
+                {
+                    crate::utils::containers::hv_vec![collect; vxs].into()
+                }
+
+                /// Returns true if vxs represents a valid polygon.
+                #[inline]
+                #[must_use]
+                fn valid(&self) -> bool
+                {
+                    use crate::utils::math::AroundEqual;
+
+                    if !self.center.around_equal(&crate::utils::math::points::vxs_center(self.vertexes())) ||
+                        !self.hull.around_equal(&Hull::from_points(self.vertexes()).unwrap())
+                    {
+                        eprintln!("Failed center/hull assertion.");
+                        return false;
+                    }
+
+                    if self.selected_vertexes !=
+                        self.vertexes.iter().fold(0, |add, svx| add + u8::from(svx.selected))
+                    {
+                        eprintln!("Failed selected vertexes count.");
+                        return false;
+                    }
+
+                    self.vxs_valid()
+                }
+
+                #[inline]
+                #[must_use]
+                fn vxs_valid(&self) -> bool
+                {
+                    use crate::utils::{math::{AroundEqual, points::are_vxs_ccw}, iterators::TripletIterator};
+
+                    let vxs = &self.vertexes;
+                    let len = self.sides();
+
+                    if len < 3
+                    {
+                        return false;
+                    }
+
+                    for i in 0..len - 1
+                    {
+                        for j in i + 1..len
+                        {
+                            if vxs[i].vec.around_equal_narrow(&vxs[j].vec)
+                            {
+                                return false;
+                            }
+                        }
+                    }
+
+                    self.vertexes
+                        .triplet_iter()
+                        .unwrap()
+                        .all(|[svx_i, svx_j, svx_k]| are_vxs_ccw(&[svx_i.vec, svx_j.vec, svx_k.vec]))
+                }
+
+                /// Returns the amount of sides the polygon has.
+                #[inline]
+                #[must_use]
+                pub fn sides(&self) -> usize { self.vertexes.len() }
+
+                /// Returns an iterator to the vertexes of the polygon.
+                #[inline]
+                pub fn vertexes(&self) -> impl ExactSizeIterator<Item = Vec2> + Clone + '_
+                {
+                    self.vertexes.iter().map(|svx| svx.vec)
+                }
+            }
+        };
+    }
+
+    pub(in crate::map::brush) use impl_convex_polygon;
+
     //=======================================================================//
 
     macro_rules! flip_funcs {
@@ -853,6 +790,17 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub(in crate::map) struct BrushData
+    {
+        /// The polygon of the brush.
+        polygon:    ConvexPolygon,
+        /// Platform path and anchored brushes.
+        mover:      Mover,
+        /// The properties of the brush.
+        properties: Properties
+    }
+
     impl BrushData
     {
         #[inline]
@@ -955,6 +903,16 @@ pub(in crate::map) mod ui_mod
     }
 
     //=======================================================================//
+
+    /// The entity representing one of the shapes that make the maps, as saved in the .hv files.
+    #[must_use]
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    pub(in crate::map) struct Brush
+    {
+        // The id of the brush.
+        id:   Id,
+        data: BrushData
+    }
 
     from_compat!(_03, _04);
 
@@ -3022,6 +2980,36 @@ pub(in crate::map) mod ui_mod
         )
         {
             self.data.polygon.draw_map_preview_sprite(drawer, animator);
+        }
+    }
+
+    //=======================================================================//
+
+    impl BrushViewer
+    {
+        /// Returns a new [`crate::Brush`].
+        #[inline]
+        pub(in crate::map) fn new(brush: Brush) -> Self
+        {
+            let Brush {
+                data:
+                    BrushData {
+                        polygon,
+                        mover,
+                        properties
+                    },
+                id
+            } = brush;
+            let collision = polygon.collision();
+
+            Self {
+                id,
+                vertexes: hv_vec![collect; polygon.vertexes()],
+                texture: polygon.take_texture_settings(),
+                mover,
+                collision,
+                properties: properties.take()
+            }
         }
     }
 }

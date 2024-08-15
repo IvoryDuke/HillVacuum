@@ -2,6 +2,7 @@
 pub mod angles;
 #[cfg(feature = "ui")]
 pub mod lines_and_segments;
+#[cfg(feature = "ui")]
 pub mod points;
 #[cfg(feature = "ui")]
 pub mod polygons;
@@ -14,47 +15,6 @@ pub mod polygons;
 use std::hash::Hash;
 
 use glam::Vec2;
-
-//=======================================================================//
-// TRAITS
-//
-//=======================================================================//
-
-/// A trait to determine whether two objects are equal within a certain error margin.
-pub(crate) trait AroundEqual
-{
-    /// Whether `self` and `other` are equal within a somewhat loose margin.
-    #[must_use]
-    fn around_equal(&self, other: &Self) -> bool;
-
-    /// Whether `self` and `other` are equal within a very tight margin.
-    #[must_use]
-    fn around_equal_narrow(&self, other: &Self) -> bool;
-}
-
-impl AroundEqual for f32
-{
-    #[inline]
-    fn around_equal(&self, other: &Self) -> bool { (*self - *other).abs() < 1f32 / 128f32 }
-
-    #[inline]
-    fn around_equal_narrow(&self, other: &Self) -> bool { (*self - *other).abs() < f32::EPSILON }
-}
-
-impl AroundEqual for Vec2
-{
-    #[inline]
-    fn around_equal(&self, other: &Self) -> bool
-    {
-        self.x.around_equal(&other.x) && self.y.around_equal(&other.y)
-    }
-
-    #[inline]
-    fn around_equal_narrow(&self, other: &Self) -> bool
-    {
-        self.x.around_equal_narrow(&other.x) && self.y.around_equal_narrow(&other.y)
-    }
-}
 
 //=======================================================================//
 // TYPES
@@ -92,6 +52,47 @@ pub(crate) mod ui_mod
     //=======================================================================//
     // TRAITS
     //
+    //=======================================================================//
+
+    /// A trait to determine whether two objects are equal within a certain error margin.
+    pub(crate) trait AroundEqual
+    {
+        /// Whether `self` and `other` are equal within a somewhat loose margin.
+        #[must_use]
+        fn around_equal(&self, other: &Self) -> bool;
+
+        /// Whether `self` and `other` are equal within a very tight margin.
+        #[must_use]
+        fn around_equal_narrow(&self, other: &Self) -> bool;
+    }
+
+    impl AroundEqual for f32
+    {
+        #[inline]
+        fn around_equal(&self, other: &Self) -> bool { (*self - *other).abs() < 1f32 / 128f32 }
+
+        #[inline]
+        fn around_equal_narrow(&self, other: &Self) -> bool
+        {
+            (*self - *other).abs() < f32::EPSILON
+        }
+    }
+
+    impl AroundEqual for Vec2
+    {
+        #[inline]
+        fn around_equal(&self, other: &Self) -> bool
+        {
+            self.x.around_equal(&other.x) && self.y.around_equal(&other.y)
+        }
+
+        #[inline]
+        fn around_equal_narrow(&self, other: &Self) -> bool
+        {
+            self.x.around_equal_narrow(&other.x) && self.y.around_equal_narrow(&other.y)
+        }
+    }
+
     //=======================================================================//
 
     /// A trait to calculate the inverse square root of a number using the famous Quake

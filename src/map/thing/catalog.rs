@@ -91,7 +91,7 @@ impl ThingsCatalog
         {
             for thing in hardcoded_things.as_ref()
             {
-                h_things.asserted_insert((thing.id, thing.clone()));
+                h_things.asserted_insert((thing.id(), thing.clone()));
             }
         }
 
@@ -179,11 +179,11 @@ impl ThingsCatalog
                     value!("height", f32),
                     continue_if_none!(values.get("preview")).as_ref().unwrap()
                 ));
-                let id = new_thing.id;
+                let id = new_thing.id();
 
                 for thing in &mut things
                 {
-                    if thing.id == id
+                    if thing.id() == id
                     {
                         *thing = new_thing;
                         continue 'outer;
@@ -194,8 +194,8 @@ impl ThingsCatalog
             }
         }
 
-        things.sort_by(|a, b| a.name.cmp(&b.name));
-        IndexedMap::new(things, |thing| thing.id)
+        things.sort_by(|a, b| a.name().cmp(b.name()));
+        IndexedMap::new(things, |thing| thing.id())
     }
 
     //==============================================================
@@ -226,7 +226,7 @@ impl ThingsCatalog
     /// Returns the name of the preview texture of the [`Thing`] with the associated [`ThingId`].
     #[inline]
     #[must_use]
-    pub fn texture(&self, thing: ThingId) -> &str { &self.thing_or_error(thing).preview }
+    pub fn texture(&self, thing: ThingId) -> &str { self.thing_or_error(thing).preview() }
 
     /// Returns a reference to the [`Thing`] selected in the UI gallery.
     /// # Panics
@@ -298,10 +298,10 @@ impl ThingsCatalog
                 let mut index = index * chunk_size;
 
                 things.iter().map(move |thing| {
-                    let texture = drawing_resources.egui_texture(&thing.preview);
+                    let texture = drawing_resources.egui_texture(thing.preview());
                     let value = ChunkItem {
                         index,
-                        name: thing.name.as_str(),
+                        name: thing.name(),
                         tex_id: texture.0,
                         tex_size: texture.1
                     };

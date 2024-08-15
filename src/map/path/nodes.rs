@@ -9,10 +9,7 @@ use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
-use crate::{
-    map::{path::Path, selectable_vector::SelectableVector},
-    utils::math::AroundEqual
-};
+use crate::map::{path::Path, selectable_vector::SelectableVector};
 
 //=======================================================================//
 // TYPES

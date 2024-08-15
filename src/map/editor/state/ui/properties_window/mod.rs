@@ -28,7 +28,7 @@ use crate::{
             StateUpdateBundle
         },
         properties::{DefaultProperties, SetProperty, Value},
-        thing::{ThingInstance, ThingInterface}
+        thing::ThingInstance
     },
     utils::{
         identifiers::EntityId,
@@ -72,7 +72,7 @@ struct Innards
     /// The overall draw height of the [`ThingInstance`]s.
     overall_things_draw_height: UiOverallValue<i8>,
     /// The overall angle of the [`ThingInstance`]s.
-    overall_things_angle:       UiOverallValue<f32>,
+    overall_things_angle:       UiOverallValue<i16>,
     /// The overall [`ThingInstance`]s properties.
     overall_things_properties:  UiOverallProperties,
     /// The maximum amount of rows of the grid.
@@ -310,7 +310,7 @@ impl Innards
                     *TEXTURE_HEIGHT_RANGE.start(),
                     *TEXTURE_HEIGHT_RANGE.end()
                 );
-                angle_height!("Angle", angle, 0f32, 359f32);
+                angle_height!("Angle", angle, 0, 359);
 
                 self.overall_things_properties.show(
                     drawing_resources,
