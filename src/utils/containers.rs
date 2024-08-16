@@ -304,6 +304,11 @@ impl<T> HvVec<T>
     #[must_use]
     pub fn is_empty(&self) -> bool { self.0.is_empty() }
 
+    /// Returns the last element of the slice, or `None` if it is empty.
+    #[inline]
+    #[must_use]
+    pub fn last(&self) -> Option<&T> { self.0.last() }
+
     //==============================================================
     // Edit
 
@@ -874,14 +879,6 @@ pub(crate) mod ui_mod
 
             Self(vec)
         }
-
-        //==============================================================
-        // Info
-
-        /// Returns the last element of the slice, or `None` if it is empty.
-        #[inline]
-        #[must_use]
-        pub(crate) fn last(&self) -> Option<&T> { self.0.last() }
 
         //==============================================================
         // Edit

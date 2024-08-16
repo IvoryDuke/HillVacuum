@@ -88,7 +88,7 @@ enum Status
     /// Starting a [`Path`] free draw from the UI.
     FreeDrawUi(Option<Id>),
     /// Starting a [`Node`] insertion from the UI.
-    AddNodeUi(Option<ItemBeneathCursor>)
+    InsertNodeUi(Option<ItemBeneathCursor>)
 }
 
 impl Default for Status
@@ -108,7 +108,7 @@ impl EnabledTool for Status
         tool == match self
         {
             Status::FreeDrawUi(_) => SubTool::PathFreeDraw,
-            Status::AddNodeUi(_) => SubTool::PathAddNode,
+            Status::InsertNodeUi(_) => SubTool::PathInsertNode,
             Status::Simulation(..) => SubTool::PathSimulation,
             _ => return false
         }
@@ -124,7 +124,7 @@ enum PathEditing
     /// Creating a new [`Path`].
     FreeDraw(PathCreation),
     /// Adding a [`Node`] to a [`Path`].
-    AddNode
+    InsertNode
     {
         /// The position of the [`Node`].
         pos:   Vec2,
@@ -269,7 +269,7 @@ impl DisableSubtool for PathTool
     {
         if matches!(
             self.status,
-            Status::AddNodeUi(_) |
+            Status::InsertNodeUi(_) |
                 Status::FreeDrawUi(_) |
                 Status::Simulation(..) |
                 Status::SingleEditing(_, PathEditing::FreeDraw(..))
@@ -289,7 +289,7 @@ impl OngoingMultiframeChange for PathTool
             self.status,
             Status::Drag(..) |
                 Status::Simulation(..) |
-                Status::SingleEditing(_, PathEditing::AddNode { .. })
+                Status::SingleEditing(_, PathEditing::InsertNode { .. })
         )
     }
 }
@@ -357,7 +357,7 @@ impl PathTool
     #[must_use]
     pub const fn copy_paste_available(&self) -> bool
     {
-        matches!(self.status, Status::Inactive(..) | Status::AddNodeUi(_) | Status::FreeDrawUi(_))
+        matches!(self.status, Status::Inactive(..) | Status::InsertNodeUi(_) | Status::FreeDrawUi(_))
     }
 
     /// Whether free draw is active.
@@ -381,7 +381,7 @@ impl PathTool
         let value = match status
         {
             Status::PreDrag(..) | Status::Drag(..) | Status::Inactive(_) => cursor.world(),
-            Status::SingleEditing(..) | Status::AddNodeUi(_) => cursor.world_snapped(),
+            Status::SingleEditing(..) | Status::InsertNodeUi(_) => cursor.world_snapped(),
             _ => return None
         };
 
@@ -698,7 +698,7 @@ impl PathTool
                     );
                 }
             },
-            Status::AddNodeUi(hgl_e) =>
+            Status::InsertNodeUi(hgl_e) =>
             {
                 *hgl_e = item_beneath_cursor;
 
@@ -770,7 +770,7 @@ impl PathTool
     #[must_use]
     const fn add_node_status(cursor: &Cursor, identifier: Id, index: u8) -> Status
     {
-        Status::SingleEditing(identifier, PathEditing::AddNode {
+        Status::SingleEditing(identifier, PathEditing::InsertNode {
             index: index + 1,
             pos:   cursor.world_snapped()
         })
@@ -961,7 +961,7 @@ impl PathTool
                     path.push(edits_history, cursor_pos, manager.moving(id).center());
                 }
             },
-            PathEditing::AddNode { index, pos } =>
+            PathEditing::InsertNode { index, pos } =>
             {
                 *pos = cursor_pos;
                 let mut moving = manager.moving_mut(bundle.drawing_resources, id);
@@ -1229,7 +1229,7 @@ impl PathTool
                 draw_entities_with_highlight!(ds.highlighted_entity());
                 drawer.hull(&return_if_none!(ds.hull()), Color::Hull);
             },
-            Status::PreDrag(_, hgl_e) | Status::AddNodeUi(hgl_e) =>
+            Status::PreDrag(_, hgl_e) | Status::InsertNodeUi(hgl_e) =>
             {
                 draw_entities_with_highlight!(*hgl_e);
             },
@@ -1262,7 +1262,7 @@ impl PathTool
                             center
                         );
                     },
-                    PathEditing::AddNode { pos, index } =>
+                    PathEditing::InsertNode { pos, index } =>
                     {
                         manager.moving(*id).draw_with_path_node_addition(
                             window,
@@ -1419,12 +1419,12 @@ impl PathTool
                 PathFreeDraw,
                 Status::FreeDrawUi(None),
                 Status::FreeDrawUi(_),
-                Status::AddNodeUi(_) | Status::Simulation(..)
+                Status::InsertNodeUi(_) | Status::Simulation(..)
             ),
             (
-                PathAddNode,
-                Status::AddNodeUi(None),
-                Status::AddNodeUi(_),
+                PathInsertNode,
+                Status::InsertNodeUi(None),
+                Status::InsertNodeUi(_),
                 Status::FreeDrawUi(_) | Status::Simulation(..)
             )
         );
@@ -1436,7 +1436,7 @@ impl PathTool
 
         match &self.status
         {
-            Status::Inactive(..) | Status::FreeDrawUi(_) | Status::AddNodeUi(_) =>
+            Status::Inactive(..) | Status::FreeDrawUi(_) | Status::InsertNodeUi(_) =>
             {
                 self.nodes_editor.force_simulation(
                     bundle.drawing_resources,

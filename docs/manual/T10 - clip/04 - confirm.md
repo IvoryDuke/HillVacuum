@@ -1,0 +1,2 @@
+### Enter
+Confirms the clip.

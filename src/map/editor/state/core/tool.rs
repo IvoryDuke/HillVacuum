@@ -827,6 +827,7 @@ impl ActiveTool
         bundle: &StateUpdateBundle,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         grid: Grid,
         settings: &ToolsSettings,
         tool_change_conditions: &ChangeConditions
@@ -882,7 +883,7 @@ impl ActiveTool
             },
             Tool::Merge =>
             {
-                self.merge_tool(bundle, manager, edits_history);
+                self.merge_tool(bundle, manager, edits_history, inputs);
                 return;
             },
             Tool::Path => PathTool::tool(self.drag_selection()),
@@ -1166,9 +1167,28 @@ impl ActiveTool
         &mut self,
         bundle: &StateUpdateBundle,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses
     )
     {
+        if inputs.alt_pressed()
+        {
+            match self
+            {
+                Self::Vertex(_) =>
+                {
+                    Self::merge_vertexes(bundle, manager, edits_history, false);
+                    return;
+                },
+                Self::Side(_) =>
+                {
+                    Self::merge_vertexes(bundle, manager, edits_history, true);
+                    return;
+                },
+                _ => ()
+            };
+        }
+
         // Place all vertexes of the selected brushes in one vector.
         let mut vertexes = HvHashSet::new();
         let mut brushes = manager.selected_brushes();
@@ -1687,7 +1707,7 @@ pub(in crate::map::editor::state) enum SubTool
     /// Path tool free draw.
     PathFreeDraw,
     /// Path tool add node.
-    PathAddNode,
+    PathInsertNode,
     /// Path tool movement simulation.
     PathSimulation,
     /// Pain tool prop creation.
@@ -1717,7 +1737,7 @@ impl SubTool
             },
             Self::ClipSide => Cow::Borrowed("Alt"),
             Self::EntityAnchor => Cow::Borrowed("Right mouse click"),
-            Self::VertexInsert | Self::PathFreeDraw | Self::PathAddNode | Self::ThingChange =>
+            Self::VertexInsert | Self::PathFreeDraw | Self::PathInsertNode | Self::ThingChange =>
             {
                 Cow::Borrowed("Alt + left mouse click")
             },
@@ -1725,7 +1745,7 @@ impl SubTool
             {
                 Cow::Borrowed("Enter")
             },
-            Self::VertexPolygonToPath | Self::PaintQuick => Cow::Borrowed("Shift + Enter")
+            Self::VertexPolygonToPath | Self::PaintQuick => Cow::Borrowed("Alt + mouse drag")
         }
     }
 }

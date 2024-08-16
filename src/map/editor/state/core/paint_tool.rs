@@ -181,6 +181,20 @@ impl PaintTool
     #[must_use]
     const fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world_snapped() }
 
+    #[inline]
+    fn quick_spawn(
+        &mut self,
+        bundle: &mut ToolUpdateBundle,
+        manager: &mut EntitiesManager,
+        edits_history: &mut EditsHistory,
+        clipboard: &mut Clipboard,
+        cursor_pos: Vec2
+    )
+    {
+        clipboard.spawn_quick_prop(bundle, manager, edits_history, cursor_pos);
+        self.status = Status::Paint(PaintingProp::Quick, CursorDelta::new(cursor_pos));
+    }
+
     /// Updates the tool.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
@@ -221,8 +235,14 @@ impl PaintTool
                         Status::SetPivot(Self::outline(drawing_resources, manager, grid).unwrap());
                 }
 
-                if !inputs.left_mouse.just_pressed() || clipboard.selected_prop_index().is_none()
+                if !inputs.left_mouse.just_pressed()
                 {
+                    return;
+                }
+
+                if inputs.alt_pressed() && clipboard.has_quick_prop()
+                {
+                    self.quick_spawn(bundle, manager, edits_history, clipboard, cursor_pos);
                     return;
                 }
 
@@ -286,13 +306,7 @@ impl PaintTool
                     return;
                 }
 
-                clipboard.spawn_quick_prop(
-                    bundle,
-                    manager,
-                    edits_history,
-                    bundle.cursor.world_snapped()
-                );
-                self.status = Status::Paint(PaintingProp::Quick, CursorDelta::new(cursor_pos));
+                self.quick_spawn(bundle, manager, edits_history, clipboard, cursor_pos);
             },
             Status::Paint(prop, drag) =>
             {

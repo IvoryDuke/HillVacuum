@@ -1,5 +1,5 @@
 ## What is HillVacuum?
-HillVacuum is a Doom Builder and TrenchBroom inspired editor that allows the creation of bidimensional maps through the manipulation of convex polygons, placement of items and entities, and texture mapping.
+`HillVacuum` is a `Doom Builder` and `TrenchBroom` inspired editor that allows the creation of bidimensional maps through the manipulation of convex polygons, placement of items and entities, and texture mapping.
 
 ## Why is HillVacuum?
 - I wanted to learn Rust;

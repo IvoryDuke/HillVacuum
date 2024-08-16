@@ -992,6 +992,7 @@ impl Core
         bundle: &StateUpdateBundle,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         grid: Grid,
         settings: &ToolsSettings,
         tool_change_conditions: &ChangeConditions
@@ -1002,6 +1003,7 @@ impl Core
             bundle,
             manager,
             edits_history,
+            inputs,
             grid,
             settings,
             tool_change_conditions

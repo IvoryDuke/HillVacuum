@@ -143,7 +143,7 @@ impl ThingTool
         }
         else if inputs.tab.just_pressed()
         {
-            if inputs.shift_pressed()
+            if inputs.alt_pressed()
             {
                 settings.thing_pivot.prev();
             }

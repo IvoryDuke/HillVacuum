@@ -28,10 +28,10 @@ ui = [
 default = ["ui"]
 
 [dependencies.hill_vacuum_shared]
-version = "0.6.1"
+git = "https://github.com/IvoryDuke/hill_vacuum_shared"
 
 [build-dependencies.hill_vacuum_shared]
-version = "0.6.1"
+git = "https://github.com/IvoryDuke/hill_vacuum_shared"
 
 [dependencies.hill_vacuum_proc_macros]
 git = "https://github.com/IvoryDuke/hill_vacuum_proc_macros"

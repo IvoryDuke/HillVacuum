@@ -1,10 +1,23 @@
 # Changelog
 
+## 0.6.2
+
+### Changes
+- Partial renderer rework to favor understanding of which entities are selected/highlighted;
+- improved things angle indicator by drawing it in code instead of using an image;
+- added `MANUAL.md`, for those who prefer to read the manual in a separate file instead of using the built-in one;
+- improved app-manual consistency.
+
+### Fixes
+- Fixed height tooltip of the highlighted entity slightly off-center;
+- fixed sprites not being rendered when picking the brushes to spawn after a clip;
+- fixed extrusion/intrusion not being initiated right after Alt clicking on a previously non-selected side;
+- fixed vertexes/nodes selection when the area described by the mouse drag includes all of the surface of the points.
+
 ## 0.6.1
 
 ### Changes
 - Further decreased `.hv` file size;
-- removed some unused code;
 - changed the name of some edits.
 
 ### Fixes

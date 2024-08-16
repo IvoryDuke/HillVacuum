@@ -2384,6 +2384,7 @@ impl State
             bundle,
             &mut self.manager,
             &mut self.edits_history,
+            &self.inputs,
             self.grid,
             &self.tools_settings,
             tool_change_conditions

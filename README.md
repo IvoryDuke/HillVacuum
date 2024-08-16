@@ -1,14 +1,14 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/IvoryDuke/HillVacuum#license)
 
-## What is `HillVacuum`?
-`HillVacuum` is a Doom Builder and TrenchBroom inspired editor that allows the creation of bidimensional maps through the manipulation of convex polygons, placement of items and entities, and texture mapping.
+## What is HillVacuum?
+`HillVacuum` is a `Doom Builder` and `TrenchBroom` inspired editor that allows the creation of bidimensional maps through the manipulation of convex polygons, placement of items and entities, and texture mapping.
 
-## Why is `HillVacuum`?
+## Why is HillVacuum?
 - I wanted to learn Rust;
 - I wanted to create my editor;
 - I got tired of manually typing the coordinates of the collision polygons in a text file.
 
-## How is `HillVacuum`?
+## How is HillVacuum?
 For those who do not mind reading, HV features a built in manual which can be opened through the keyboard combination `` Ctrl+` ``.  
 For the rest, there's this [video](https://youtu.be/c5lakP_V1n0).
 
@@ -17,13 +17,13 @@ For the rest, there's this [video](https://youtu.be/c5lakP_V1n0).
 
 ## Keywords
 
-### Brushes
-Brushes are convex polygonal surfaces. They can have an associated texture which can either be drawn filling their area or as a sprite. The sprite can be displaced independently of the brush surface.  
+### Brush
+A brush is a convex polygonal surfaces. It can have an associated texture which can either be drawn filling its surface or as a sprite. The sprite can be displaced independently of the brush's surface.  
 Brushes can also be assigned a path that describes how it moves in the bidimensional space and that can be edited with the Path tool.  
 Finally, brushes have a built-in property, `collision`, which determines whether they should represent a clipping surface or not. It can be edited in the properties window.
 
 ### Things
-Things are objects which can be placed around the map. They are characterized by an ID, a width and height, a name, and a texture which represents them.  
+A thing is an object which can be placed around the map. It is characterized by an ID, a width and height, a name, and a texture which represents it.  
 Things can also be assigned a path that describes how it moves in the bidimensional space and that can be edited with the Path tool.  
 Things can either be defined in one or many .ini files to be placed in the `assets/things/` folder or, if `HillVacuum` is used as a library, implementing the `MapThing` interface for the structs representing an object to be placed in the map and using the `hardcoded_things` macro to insert them in the bevy App.  
 If defined in the .ini files, the things must follow a similar format:
@@ -35,34 +35,45 @@ id = ID
 preview = TEX
 ```
 Where ID is an unique identifier between 0 and 65534, and TEX is the name of the texture to be drawn along with the bounding box.  
-If a thing defined through the `MapThing` interface has the same ID as one loaded from file, the latter will overwrite the former.   
+If a thing defined through the `MapThing` interface has the same ID as one loaded from file, the latter will overwrite the former.  
 Finally, things have two built-in properties, `angle` and `draw height`. The orientation of the arrow drawn on top of the things will change based on the value of `angle`, and `draw height` determines its draw order. They can be edited in the properties window.
-     
+    
 Things can be reloaded while the application is running through the UI button in the Options menu.
 
 ### Properties
-Properties are custom user defined values which can be associated to brushes and things.   
-Such values can be inserted through the `brush_properties` and `thing_properties` macros by specifying the pairs `(name, default_value)` of the properties.   
-Properties can be edited per-entity using the properties window.   
-Currently supported value types are `bool`, `u8`, `u16`, `u32`, `u64`, `u128`, `i8`, `i16`, `i32`, `i64`, `i128`, `f32`, `f64`, and `String`.   
-   
+Properties are custom user defined values which can be associated to brushes and things.  
+Such values can be inserted through the `brush_properties` and `thing_properties` macros by specifying the pairs `(name, default_value)` of the properties.  
+Properties can be edited per-entity using the properties window.  
+Currently supported value types are `bool`, `u8`, `u16`, `u32`, `u64`, `u128`, `i8`, `i16`, `i32`, `i64`, `i128`, `f32`, `f64`, and `String`.  
+  
 !!! If a saved map contains properties that differ in type and/or name from the ones defined in the aforementioned resources, a warning window will appear on screen when trying to load the .hv file, asking whether you'd like to use the app or map ones.
 
-### Textures
+### Texture
 Textures must be placed in the `assets/textures/` folder to be loaded.  
 The texture editor can be opened at any time to edit the properties of the textures of the selected brushes.  
-Entity, scale, and rotate tool also feature texture editing capabilities. These capabilities can be either enabled through the dedicated "Target" UI element in the bottom left area, or by pressing Alt + texture editor bind.  
+Entity, scale, and rotate tool also feature texture editing capabilities. These capabilities can be either enabled through the dedicated "Target" UI element in the bottom left area, or by pressing `Alt + texture editor bind`.  
 Textures can have an associated animation which can either consist of a list of textures to display, each one for a specific time, or an atlas of textures generated by subdividing the textures in subareas. The animations can be applied to the texture as a default or to the texture of the selected brushes only.  
-When editing a list type animation, it is possible to add a texture by clicking it with the left mouse button.   
-To edit the animation of a texture that is not the one of the selected brushes, it needs to be pressed with the right mouse button.   
-   
+When editing a list type animation, it is possible to add a texture by clicking it with the left mouse button.  
+To edit the animation of a texture that is not the one of the selected brushes, it needs to be pressed with the right mouse button.  
+  
 Textures can be reloaded while the application is running through the UI button in the Options menu.  
-Default textures animation can be exported and imported between map files. The file extension of the animations files is .anms.
+Default textures animation can be exported and imported between map files. The file extension of the animations files is `.anms`.
 
-### Props
+### Prop
 A prop is a collection of entities which can be painted around the map like the brushes of an image editing tool.  
 Each prop has a pivot, the point relative to which it is painted onto the map.  
-Props can be imported and exported between map files. The file extension of the props files is .prps.
+Props can be imported and exported between map files. The file extension of the props files is `.prps`.
+
+## Paths
+A path is a series of nodes describing how the entity that owns it moves over time around the map.  
+Nodes have five customizable parameters:  
+- `Standby`: the amount of time the entity stands still before starting to move to the next node;  
+- `Min speed`: the minimum speed the entity moves;  
+- `Max speed`: the maximum speed the entity reaches;  
+- `Accel (%)`: the percentage of the distance between the current node and the next that the entity will spend accelerating from the minimum to the maximum speed;  
+- `Decel (%)`: the percentage of the distance between the current node and the next that the entity will spend decelerating from the maximum to the minimum speed.  
+The maximum speed can never be lower than the minimum speed and it can never be 0. The acceleration and deceleration percentages always amount to 100% at most. The acceleration phase always comes before the deceleration one.  
+A path can have overlapping nodes. However, two consecutive nodes cannot overlap. Overlapping nodes are clearly shown in the tooltips. Therefore, it is highly encouraged to leave them on.
 
 ### Grid
 The map grid can be skewed and/or rotated to give the map an isometric look. These two parameters can be edited in the settings window.
