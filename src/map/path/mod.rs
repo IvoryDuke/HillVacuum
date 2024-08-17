@@ -2340,7 +2340,7 @@ pub(in crate::map) mod ui_mod
             range: &Hull
         ) -> Option<HvVec<u8>>
         {
-            if !range.intersects(&(self.hull + center))
+            if !range.overlaps(&(self.hull + center))
             {
                 return self.deselect_nodes(center);
             }
@@ -2358,7 +2358,7 @@ pub(in crate::map) mod ui_mod
             range: &Hull
         ) -> Option<HvVec<u8>>
         {
-            if !range.intersects(&(self.hull + center))
+            if !range.overlaps(&(self.hull + center))
             {
                 return self.deselect_nodes(center);
             }
