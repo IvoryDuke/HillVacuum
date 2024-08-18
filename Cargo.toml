@@ -1,6 +1,6 @@
 [package]
 name = "hill_vacuum"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "A bevy-based 2D map editor"
@@ -28,13 +28,13 @@ ui = [
 default = ["ui"]
 
 [dependencies.hill_vacuum_shared]
-git = "https://github.com/IvoryDuke/hill_vacuum_shared"
+version = "0.6.2"
 
 [build-dependencies.hill_vacuum_shared]
-git = "https://github.com/IvoryDuke/hill_vacuum_shared"
+version = "0.6.2"
 
 [dependencies.hill_vacuum_proc_macros]
-git = "https://github.com/IvoryDuke/hill_vacuum_proc_macros"
+version = "0.6.2"
 
 [dependencies.bevy]
 version = "0.14"

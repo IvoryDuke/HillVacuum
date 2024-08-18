@@ -1,4 +1,4 @@
-## Paths
+### Path
 A path is a series of nodes describing how the entity that owns it moves over time around the map.  
 Nodes have five customizable parameters:  
 - `Standby`: the amount of time the entity stands still before starting to move to the next node;  

@@ -10,6 +10,8 @@ fn main()
         f.write_all(buffer.as_bytes()).expect("Unable to write data");
     }
 
+    let mut f = return_if_err!(File::create("docs/crate_description.md"));
+
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed=docs/intro.md");
     println!("cargo::rerun-if-changed=docs/outro.md");
@@ -26,7 +28,6 @@ fn main()
         }
     }
 
-    let mut f = return_if_err!(File::create("docs/crate_description.md"));
     let mut readme = String::new();
     let mut description = String::new();
 

@@ -1,4 +1,4 @@
-### Things
+### Thing
 A thing is an object which can be placed around the map. It is characterized by an ID, a width and height, a name, and a texture which represents it.  
 Things can also be assigned a path that describes how it moves in the bidimensional space and that can be edited with the Path tool.  
 Things can either be defined in one or many .ini files to be placed in the `assets/things/` folder or, if `HillVacuum` is used as a library, implementing the `MapThing` interface for the structs representing an object to be placed in the map and using the `hardcoded_things` macro to insert them in the bevy App.  

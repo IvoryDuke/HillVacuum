@@ -7,7 +7,7 @@ A brush is a convex polygonal surfaces. It can have an associated texture which 
 Brushes can also be assigned a path that describes how it moves in the bidimensional space and that can be edited with the Path tool.  
 Finally, brushes have a built-in property, `collision`, which determines whether they should represent a clipping surface or not. It can be edited in the properties window.
 
-### Things
+### Thing
 A thing is an object which can be placed around the map. It is characterized by an ID, a width and height, a name, and a texture which represents it.  
 Things can also be assigned a path that describes how it moves in the bidimensional space and that can be edited with the Path tool.  
 Things can either be defined in one or many .ini files to be placed in the `assets/things/` folder or, if `HillVacuum` is used as a library, implementing the `MapThing` interface for the structs representing an object to be placed in the map and using the `hardcoded_things` macro to insert them in the bevy App.  
@@ -49,7 +49,7 @@ A prop is a collection of entities which can be painted around the map like the 
 Each prop has a pivot, the point relative to which it is painted onto the map.  
 Props can be imported and exported between map files. The file extension of the props files is `.prps`.
 
-## Paths
+### Path
 A path is a series of nodes describing how the entity that owns it moves over time around the map.  
 Nodes have five customizable parameters:  
 - `Standby`: the amount of time the entity stands still before starting to move to the next node;  
