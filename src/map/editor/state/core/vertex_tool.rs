@@ -478,7 +478,7 @@ impl VertexTool
 
                 if inputs.enter.just_pressed()
                 {
-                    if inputs.shift_pressed()
+                    if inputs.alt_pressed()
                     {
                         self.0 = Status::PolygonToPath(PathCreation::None);
                     }

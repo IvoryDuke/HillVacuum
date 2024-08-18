@@ -1795,7 +1795,8 @@ impl SubTool
             {
                 Cow::Borrowed("Enter")
             },
-            Self::VertexPolygonToPath | Self::PaintQuick => Cow::Borrowed("Alt + mouse drag")
+            Self::VertexPolygonToPath => Cow::Borrowed("Alt + Enter"),
+            Self::PaintQuick => Cow::Borrowed("Alt + mouse drag")
         }
     }
 

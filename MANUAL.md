@@ -273,7 +273,8 @@ If a moved vertex overlaps a non selected one, it is selected as well.
 
 ### Enter
 If there are only two selected vertexes on each selected brush that has selected vertexes, splits them in two using the line passing through the vertexes as clip line.  
-It fails if at least one brush is a triangle or the selected vertexes are consecutive.
+It fails if at least one brush is a triangle or the selected vertexes are consecutive.  
+Otherwise, if the polygon to path subtool is enabled, pressing it finalizes the path creation and the generated path can be assigned to an entity.
 
 ### Backspace
 Deletes all selected vertexes, unless there is at least one brush that would become a point or line, or be erased, if such vertexes were deleted.
@@ -289,6 +290,9 @@ Executes the selected vertexes merge.
 
 ### Vertexes split subtool
 Executes the brushes' split.
+
+### Polygon to path subtool
+After being enabled, vertexes of the selected brushes can be clicked in sequence to create a path which can then be assigned to an entity by pressing `Enter`.
 
 ## Side tool
 

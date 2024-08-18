@@ -80,7 +80,7 @@ The map grid can be skewed and/or rotated to give the map an isometric look. The
 
 ## Files
 HV creates three types of files, all of which are relatively simple:
-- .hv is the regular map file;
+- `.hv` is the map file;
 ```
 -------------------------------
 | Version number              |
@@ -106,7 +106,7 @@ HV creates three types of files, all of which are relatively simple:
 | Props                       |
 -------------------------------
 ```
-- .anms is the "animations only" file, which can be used to exchange animations between maps;
+- `.anms` is the "animations only" file, which can be used to exchange animations between maps;
 ```
 -------------------------------
 | Version number              |
@@ -116,7 +116,7 @@ HV creates three types of files, all of which are relatively simple:
 | Animations                  |
 -------------------------------
 ```
-- .prps is the "props only" file, which can be used to exchange props between maps.
+- `.prps` is the "props only" file, which can be used to exchange props between maps.
 ```
 -------------------------------
 | Version number              |
