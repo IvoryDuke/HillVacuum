@@ -1320,15 +1320,8 @@ impl<'a> MeshGenerator<'a>
     #[inline]
     pub fn push_positions_skewed(&mut self, grid: Grid, iter: impl IntoIterator<Item = Vec2>)
     {
-        if grid.skew() != 0 || grid.angle() != 0
-        {
-            self.0
-                .extend(iter.into_iter().map(|vx| grid.transform_point(vx).as_f32x3()));
-        }
-        else
-        {
-            self.0.extend(iter.into_iter().map(IntoArray3::as_f32x3));
-        }
+        self.0
+            .extend(iter.into_iter().map(|vx| grid.transform_point(vx).as_f32x3()));
     }
 
     #[inline]

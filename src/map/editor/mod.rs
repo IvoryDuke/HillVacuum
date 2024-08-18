@@ -289,7 +289,7 @@ impl Editor
             Some(path) =>
             {
                 window.title = window_title(path.file_stem().unwrap().to_str());
-                config.open_file = OpenFile::from_path(path);
+                config.open_file = OpenFile::from(path);
             },
             None => config.open_file.clear()
         };

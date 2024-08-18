@@ -1766,22 +1766,20 @@ impl State
             _ => ()
         };
 
-        bundle.config.open_file = OpenFile::new(
-            return_if_none!(rfd::FileDialog::new()
+        let file_to_open = return_if_none!(
+            rfd::FileDialog::new()
                 .set_title("Open")
                 .add_filter(HV_FILTER_NAME, &[FILE_EXTENSION])
                 .set_directory(std::env::current_dir().unwrap())
-                .pick_file())
-            .as_os_str()
-            .to_str()
-            .unwrap()
+                .pick_file()
         );
+        let file_to_open = file_to_open.as_os_str().to_str().unwrap();
 
         match Self::manager_clipboard_grid(
             bundle.images,
             bundle.prop_cameras,
             bundle.user_textures,
-            bundle.config.open_file.path().unwrap().clone(),
+            PathBuf::from(file_to_open),
             bundle.drawing_resources,
             bundle.things_catalog,
             bundle.default_properties
@@ -1792,11 +1790,10 @@ impl State
                 self.manager = manager;
                 self.clipboard = clipboard;
                 self.grid = grid;
-                bundle.config.open_file = OpenFile::new(path.as_os_str().to_str().unwrap());
+                bundle.config.open_file = OpenFile::from(path);
             },
             Err(err) =>
             {
-                bundle.config.open_file.clear();
                 error_message(err);
                 return;
             }

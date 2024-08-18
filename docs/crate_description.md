@@ -160,5 +160,5 @@ The executable can be picked through Options->Exporter.
 HV has been thoroughly tested but is still in its early releases, so there might be issues that lead to crashes due to unrecoverable errors. It is strongly recommended to save often.
 
 ## Misc
-In order to close the in-editor windows through the keyboard the F4 key needs to be pressed (similar to pressing `Alt+F4` to close OS windows).
+In order to close the in-editor windows through the keyboard the `F4` key needs to be pressed (similar to pressing `Alt+F4` to close OS windows).
 

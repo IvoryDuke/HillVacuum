@@ -79,6 +79,12 @@ impl Plugin for ConfigPlugin
 #[derive(Clone, Default)]
 pub(crate) struct OpenFile(Option<PathBuf>);
 
+impl From<PathBuf> for OpenFile
+{
+    #[inline]
+    fn from(value: PathBuf) -> Self { Self(value.into()) }
+}
+
 impl OpenFile
 {
     /// Returns a new [`OpenFile`] from the `path`.
@@ -92,9 +98,6 @@ impl OpenFile
         );
         Self(path.into())
     }
-
-    #[inline]
-    pub fn from_path(path: PathBuf) -> Self { Self(path.into()) }
 
     /// Clears the file path.
     #[inline]
