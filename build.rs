@@ -1,6 +1,6 @@
 use std::{fs::File, io::Write, path::PathBuf};
 
-use hill_vacuum_shared::{process_manual, return_if_err, ManualItem};
+use hill_vacuum_shared::{process_manual, return_if_err, ManualItem, NextValue};
 
 fn main()
 {
@@ -8,6 +8,17 @@ fn main()
     fn write(f: &mut File, buffer: &str)
     {
         f.write_all(buffer.as_bytes()).expect("Unable to write data");
+    }
+
+    #[inline]
+    fn push_manual_icon(string: &mut String, icon: &str)
+    {
+        string.push_str("![");
+        string.push_str(icon);
+        string.push_str("](");
+        string.push_str("src/embedded_assets/");
+        string.push_str(icon);
+        string.push_str(".png)  \n");
     }
 
     let mut f = return_if_err!(File::create("docs/crate_description.md"));
@@ -85,17 +96,51 @@ fn main()
             match item
             {
                 ManualItem::Regular => string.push_str("\n\n"),
-                ManualItem::Tool => string.push_str(" tool\n\n"),
+                ManualItem::Tool =>
+                {
+                    string.push_str(" tool\n");
+
+                    push_manual_icon(
+                        string,
+                        &name
+                            .chars()
+                            .map(|c| {
+                                if c == ' '
+                                {
+                                    return '_';
+                                }
+
+                                c.to_ascii_lowercase()
+                            })
+                            .collect::<String>()
+                    );
+
+                    string.push('\n');
+                },
                 ManualItem::Texture => unreachable!()
             };
         },
-        |string, _, file, item| {
+        |string, name, file, item| {
             if let ManualItem::Texture = item
             {
                 string.push_str("### TEXTURE EDITING\n");
             }
 
-            string.push_str(&file);
+            let mut lines = file.lines();
+            string.push_str(lines.next_value());
+            string.push('\n');
+
+            if let ManualItem::Tool = item
+            {
+                push_manual_icon(string, name);
+            }
+
+            for line in lines
+            {
+                string.push_str(line);
+                string.push('\n');
+            }
+
             string.push('\n');
         },
         |_| {}

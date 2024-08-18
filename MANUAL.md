@@ -132,6 +132,7 @@ Zooms the camera towards/outwards the cursor position.
 Zooms the camera on the selected entities.
 
 ## Square tool
+![square](src/embedded_assets/square.png)  
 
 ### Left mouse
 Spawns a grid square shaped brush.
@@ -143,6 +144,7 @@ Creates a rectangular shaped brush spawned when the mouse button is released.
 Deletes all drawn brushes.
 
 ## Triangle tool
+![triangle](src/embedded_assets/triangle.png)  
 
 ### Left mouse
 Spawns a right triangle with right angle placed at the closest grid lines intersection and legs grid-square-side sized.
@@ -154,6 +156,7 @@ Creates a right triangle shaped brush spawned when the mouse button is released.
 Changes the orientation of the triangle being drag spawned.
 
 ## Circle tool
+![circle](src/embedded_assets/circle.png)  
 
 ### Left mouse
 Spawns an ellipse shaped brush inscribed in the hovered grid square.
@@ -168,6 +171,7 @@ Increases the ellipse resolution.
 Drecreases the ellipse resolution.
 
 ## Free draw tool
+![free_draw](src/embedded_assets/free_draw.png)  
 
 ### Left mouse
 Attempts to add a vertex to the shape being drawn. Nothing happens if the shape generated adding such vertex is concave, or the shape already contains that vertex.
@@ -182,6 +186,7 @@ Attempts to spawn the shape currently being drawn. Nothing happens if the shape 
 Erases the brush being drawn.
 
 ## Thing tool
+![thing](src/embedded_assets/thing.png)  
 
 ### Pivot
 Determines how the selected thing is spawned on the map with respect to the mouse position. For example, if the pivot is set to TopLeft the thing is spawned with its top left corner placed at the mouse position.
@@ -200,9 +205,11 @@ Sets the pivot to the next possible value. If `Alt` is pressed as well it is set
 Deletes all drawn things.
 
 ### Thing change subtool
+![thing_change](src/embedded_assets/thing_change.png)  
 Allows to change the selected things placed on the map to the thing clicked in the UI.
 
 ## Entity tool
+![entity](src/embedded_assets/entity.png)  
 
 ### INFO
 Brushes can be tied together into a group through the Anchor subtool. This establishes a owner-anchored relation between the brushes. An "owner" brush can have an unlimited amount of brushes tied to it. A brush that is anchored can have none.  
@@ -238,9 +245,11 @@ Creates copies of the selected entities one grid square away in the pressed dire
 Clicking a brush with no path and not anchored allows to anchor it to another brush. Clicking on an anchored brush disanchors it.
 
 ### Drag spawn subtool
+![entity_drag_spawn](src/embedded_assets/entity_drag_spawn.png)  
 Selecting it and then pressing a directional key, or left clicking and dragging with the cursor a selected brush, spawns copies of the selected entities in the direction the cursor is moved.
 
 ### Anchor subtool
+![entity_anchor](src/embedded_assets/entity_anchor.png)  
 Toggles the brush anchor routine.
 
 ### TEXTURE EDITING
@@ -250,6 +259,7 @@ Target:
 - `Texture`, only moves textures.
 
 ## Vertex tool
+![vertex](src/embedded_assets/vertex.png)  
 
 ### Left mouse
 If there is a non-selected vertex beneath the cursor, it is exclusively selected. If there is no vertex underneath, when the mouse button is released all selected vertexes are deselected.
@@ -283,18 +293,23 @@ Deletes all selected vertexes, unless there is at least one brush that would bec
 Generates a new brush from the selected vertexes, if there are more than 3.
 
 ### Vertex insertion subtool
+![vertex_insert](src/embedded_assets/vertex_insert.png)  
 Selecting it and then left clicking on the side of a selected brush enables vertex insertion.
 
 ### Vertexes merge subtool
+![vertex_merge](src/embedded_assets/vertex_merge.png)  
 Executes the selected vertexes merge.
 
 ### Vertexes split subtool
+![vertex_split](src/embedded_assets/vertex_split.png)  
 Executes the brushes' split.
 
 ### Polygon to path subtool
+![vertex_polygon_to_path](src/embedded_assets/vertex_polygon_to_path.png)  
 After being enabled, vertexes of the selected brushes can be clicked in sequence to create a path which can then be assigned to an entity by pressing `Enter`.
 
 ## Side tool
+![side](src/embedded_assets/side.png)  
 
 ### Left mouse
 If there is a non-selected side beneath the cursor, it is exclusively selected. If there is no side underneath, when the mouse button is released, all selected sides they are deselected.
@@ -325,11 +340,15 @@ Deletes all selected sides, unless there is at least one brush that would become
 Generates a new brush from the selected sides, if there are more than 2.
 
 ### Side xtrusion subtool
+![side_xtrusion](src/embedded_assets/side_xtrusion.png)  
 Selecting it and then left clicking on a selected side of starts the xtrusion process.
+
 ### Sides merge subtool
+![side_merge](src/embedded_assets/side_merge.png)  
 Executes the selected sides merge.
 
 ## Snap tool
+![snap](src/embedded_assets/snap.png)  
 
 ### Snap Tool key
 Based on the active tool the following are snapped to the grid:
@@ -343,6 +362,7 @@ Based on the active tool the following are snapped to the grid:
 Quick snap: snaps the entities to a two-units size grid.
 
 ## Clip tool
+![clip](src/embedded_assets/clip.png)  
 
 ### Left mouse
 Places the points through which the clipping line passes.
@@ -358,20 +378,24 @@ By default, both brushes on the right and left of the clip line are spawned, but
 Confirms the clip.
 
 ### Side clip subtool
+![clip_side](src/embedded_assets/clip_side.png)  
 Selecting it allows to choose the side of the brush to be used as clipping line. Can only be enabled when there are two or more selected brushes.
 
 ## Shatter tool
+![shatter](src/embedded_assets/shatter.png)  
 
 ### Left mouse
 Shatters the highlighted selected brush beneath the cursor into triangles which have a common vertex in the cursor position.  
 The common vertex can be a vertex of the original brush, a point on a side, or a point inside the brush's area.
 
 ## Hollow tool
+![hollow](src/embedded_assets/hollow.png)  
 
 ### Hollow Tool key
 Creates rooms out of the selected brushes with walls that are as thick as the grid size. Does nothing if there is at least one selected brush which cannot be properly hollowed.
 
 ## Scale tool
+![scale](src/embedded_assets/scale.png)  
 
 ### Left mouse + cursor drag
 Clicking a corner of the outline encompassing all selected brushes and dragging it scales the selected brushes.  
@@ -390,6 +414,7 @@ Target:
 - `Texture`, only scales the textures.
 
 ## Shear tool
+![shear](src/embedded_assets/shear.png)  
 
 ### Left mouse + cursor drag
 Clicking a side of the outline encompassing all selected brushes and dragging it shears the selected brushes.
@@ -401,6 +426,7 @@ Shears the selected brushes in the pressed direction by one grid square.
 Changes the outline's selected side. The selection order is clockwise. If `Alt` is pressed as well the sides are cycled in reverse order.
 
 ## Rotate tool
+![rotate](src/embedded_assets/rotate.png)  
 
 ### Left mouse + cursor drag
 Drags to the mouse cursor position, if the rotation pivot is clicked. Otherwise rotates the selected brushes around the pivot by the selected angle snap.
@@ -412,6 +438,7 @@ Rotates the selected brush in clockwise (`Right`) or counterclokwise (`Left`) di
 Moves the rotation pivot a grid square away in the pressed direction.
 
 ### Pivot subtool
+![rotate_pivot](src/embedded_assets/rotate_pivot.png)  
 While enabled, the position of the rotation pivot can be changed by either pressing the directional keys or left clicking with the mouse.
 
 ### TEXTURE EDITING
@@ -421,21 +448,25 @@ Target:
 - `Texture`, rotates only the textures.
 
 ## Flip tool
+![flip](src/embedded_assets/flip.png)  
 
 ### Up/Down/Left/Right
 Creates mirrored copies of the selected brushes in the pressed direction.
 
 ## Intersection tool
+![intersection](src/embedded_assets/intersection.png)  
 
 ### Intersection Tool key
 Generates the intersection brush of the selected brushes. If not all selected brushes overlap over a common area they are erased from the map.
 
 ## Merge tool
+![merge](src/embedded_assets/merge.png)  
 
 ### Merge Tool key
 Merges all the vertexes of the selected brushes into one convex encompassing brush. The selected brushes are then erased.
 
 ## Subtract tool
+![subtract](src/embedded_assets/subtract.png)  
 
 ### Left mouse
 Selects/deselects the brush beneath the cursor, from which the selected brush is subtracted.
@@ -444,6 +475,7 @@ Selects/deselects the brush beneath the cursor, from which the selected brush is
 Executes the subtraction.
 
 ## Paint tool
+![paint](src/embedded_assets/paint.png)  
 
 ### INFO
 When created, the props can be stored in slots displayed in the UI gallery at the bottom of the screen (such gallery is not shown if there are no stored props).  
@@ -468,12 +500,15 @@ Paints the prop in the selected slot around the map.
 Removes the prop in the selected slot.
 
 ### Prop creation subtool
+![paint_creation](src/embedded_assets/paint_creation.png)  
 Initiates the prop creation process.
 
 ### Quick prop subtool
+![paint_quick](src/embedded_assets/paint_quick.png)  
 Selects the prop placed in the temporary slot.
 
 ## Path tool
+![path](src/embedded_assets/path.png)  
 
 ### INFO
 When enabled, the entities are split in three groups:  
@@ -516,15 +551,19 @@ If there is an ongoing path creation it ends it, otherwise toggles and pauses th
 Exits path creation and movement simulation.
 
 ### Path free draw subtool
+![path_free_draw](src/embedded_assets/path_free_draw.png)  
 Selecting it and then left clicking a brush with no path and not anchored starts the path drawing process.
 
 ### Insert node subtool
+![path_insert_node](src/embedded_assets/path_insert_node.png)  
 Selecting it and then left clicking a node starts the node insertion process.
 
 ### Movement simulation subtool
+![path_simulation](src/embedded_assets/path_simulation.png)  
 Selecting it starts the movement simulation.
 
 ## Zoom tool
+![zoom](src/embedded_assets/zoom.png)  
 
 ### Left mouse + cursor drag
 Creates a drag selection that determines the area onto which the viewport is zoomed. Zoom is actuated once the Left mouse button is released.

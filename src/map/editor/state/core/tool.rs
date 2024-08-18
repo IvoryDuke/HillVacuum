@@ -1779,7 +1779,7 @@ impl SubTool
         {
             Self::EntityDragSpawn | Self::SideXtrusion | Self::RotatePivot =>
             {
-                Cow::Borrowed("Alt + directional key, or mouse drag")
+                Cow::Borrowed("Alt + directional key or mouse drag")
             },
             Self::VertexMerge | Self::SideMerge =>
             {
