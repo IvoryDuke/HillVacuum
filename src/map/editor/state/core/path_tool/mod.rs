@@ -357,7 +357,10 @@ impl PathTool
     #[must_use]
     pub const fn copy_paste_available(&self) -> bool
     {
-        matches!(self.status, Status::Inactive(..) | Status::InsertNodeUi(_) | Status::FreeDrawUi(_))
+        matches!(
+            self.status,
+            Status::Inactive(..) | Status::InsertNodeUi(_) | Status::FreeDrawUi(_)
+        )
     }
 
     /// Whether free draw is active.

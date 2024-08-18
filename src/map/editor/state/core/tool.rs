@@ -1676,6 +1676,56 @@ impl Tool
             None => ""
         }
     }
+
+    #[inline]
+    #[must_use]
+    const fn conditions_met(self, change_conditions: &ChangeConditions) -> bool
+    {
+        if change_conditions.ongoing_multi_frame_change ||
+            change_conditions.ctrl_pressed ||
+            change_conditions.space_pressed
+        {
+            return false;
+        }
+
+        match self
+        {
+            Self::Square | Self::Triangle | Self::Circle | Self::FreeDraw | Self::Zoom => true,
+            Self::Thing =>
+            {
+                !change_conditions.things_catalog_empty ||
+                    change_conditions.selected_things_amount != 0
+            },
+            Self::Entity => change_conditions.brushes_amount + change_conditions.things_amount > 0,
+            Self::Paint =>
+            {
+                change_conditions.selected_brushes_amount + change_conditions.selected_things_amount >
+                    0 ||
+                    !change_conditions.no_props
+            },
+            Self::Vertex |
+            Self::Side |
+            Self::Clip |
+            Self::Shatter |
+            Self::Scale |
+            Self::Shear |
+            Self::Rotate |
+            Self::Flip |
+            Self::Hollow => change_conditions.selected_brushes_amount != 0,
+            Self::Path =>
+            {
+                change_conditions.selected_platforms_amount != 0 ||
+                    change_conditions.any_selected_possible_platforms
+            },
+            Self::Snap => change_conditions.vertex_rounding_availability,
+            Self::Merge | Self::Intersection => change_conditions.selected_brushes_amount > 1,
+            Self::Subtract =>
+            {
+                change_conditions.selected_brushes_amount == 1 &&
+                    change_conditions.brushes_amount > 1
+            },
+        }
+    }
 }
 
 //=======================================================================//
@@ -1746,6 +1796,51 @@ impl SubTool
                 Cow::Borrowed("Enter")
             },
             Self::VertexPolygonToPath | Self::PaintQuick => Cow::Borrowed("Alt + mouse drag")
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    const fn conditions_met(self, change_conditions: &ChangeConditions) -> bool
+    {
+        use crate::map::editor::state::editor_state::TargetSwitch;
+
+        if let Self::PathSimulation = self
+        {
+            return (change_conditions.path_simulation_active ||
+                self.tool().conditions_met(change_conditions)) &&
+                change_conditions.selected_platforms_amount != 0;
+        }
+
+        if !self.tool().conditions_met(change_conditions)
+        {
+            return false;
+        }
+
+        match self
+        {
+            Self::ThingChange => change_conditions.selected_things_amount != 0,
+            Self::EntityDragSpawn | Self::PaintCreation =>
+            {
+                change_conditions.selected_brushes_amount + change_conditions.selected_things_amount !=
+                    0
+            },
+            Self::EntityAnchor =>
+            {
+                change_conditions.selected_brushes_amount > 1 &&
+                    !matches!(change_conditions.settings.target_switch(), TargetSwitch::Texture)
+            },
+            Self::VertexSplit => change_conditions.split_available,
+            Self::VertexPolygonToPath => Tool::Path.conditions_met(change_conditions),
+            Self::SideXtrusion => change_conditions.xtrusion_available,
+            Self::PaintQuick => change_conditions.quick_prop,
+            Self::VertexMerge | Self::SideMerge => change_conditions.vx_merge_available,
+            Self::VertexInsert | Self::PathFreeDraw | Self::PathInsertNode | Self::RotatePivot =>
+            {
+                true
+            },
+            Self::ClipSide => change_conditions.selected_brushes_amount > 1,
+            Self::PathSimulation => unreachable!()
         }
     }
 }
