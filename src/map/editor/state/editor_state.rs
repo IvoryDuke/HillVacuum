@@ -1766,13 +1766,11 @@ impl State
             _ => ()
         };
 
-        let file_to_open = return_if_none!(
-            rfd::FileDialog::new()
-                .set_title("Open")
-                .add_filter(HV_FILTER_NAME, &[FILE_EXTENSION])
-                .set_directory(std::env::current_dir().unwrap())
-                .pick_file()
-        );
+        let file_to_open = return_if_none!(rfd::FileDialog::new()
+            .set_title("Open")
+            .add_filter(HV_FILTER_NAME, &[FILE_EXTENSION])
+            .set_directory(std::env::current_dir().unwrap())
+            .pick_file());
         let file_to_open = file_to_open.as_os_str().to_str().unwrap();
 
         match Self::manager_clipboard_grid(

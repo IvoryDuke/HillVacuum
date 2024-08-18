@@ -2629,9 +2629,8 @@ pub(in crate::map) mod ui_mod
 
             self.selected_vertexes = 0;
 
-            deleted_vxs.none_if_empty().map(|vxs| {
+            deleted_vxs.none_if_empty().inspect(|_| {
                 self.update_center_hull_vertexes();
-                vxs
             })
         }
 

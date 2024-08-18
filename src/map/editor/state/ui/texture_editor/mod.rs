@@ -356,7 +356,7 @@ impl SizeFilter
             {
                 match &mut self.value
                 {
-                    Some(v) => *v = (*v + 1).min(u32::MAX),
+                    Some(v) => *v += 1,
                     None => self.value = 1.into()
                 };
 

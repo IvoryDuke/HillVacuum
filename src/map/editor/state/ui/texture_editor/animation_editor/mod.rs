@@ -884,9 +884,8 @@ impl AnimationEditor
                     .animation_mut_set_dirty()
                     .get_atlas_animation_mut()
                     .set_len(len)
-                    .map(|prev| {
-                        edits_history.default_animation_atlas_len(texture, prev);
-                        prev
+                    .inspect(|prev| {
+                        edits_history.default_animation_atlas_len(texture, *prev);
                     })
             },
             |[uniform, per_frame], changed| {
