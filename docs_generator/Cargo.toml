@@ -1,0 +1,10 @@
+[package]
+name = "docs_generator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.hill_vacuum_shared]
+git = "https://github.com/IvoryDuke/hill_vacuum_shared"
+
+[dependencies.regex]
+version = "1.*"

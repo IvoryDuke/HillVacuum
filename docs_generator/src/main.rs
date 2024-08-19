@@ -1,16 +1,9 @@
+use std::{fs::File, io::Write};
+
+use hill_vacuum_shared::{process_manual, ManualItem, NextValue};
+
 fn main()
 {
-    #[cfg(feature = "ui")]
-    execute();
-}
-
-#[cfg(feature = "ui")]
-fn execute()
-{
-    use std::{fs::File, io::Write, path::PathBuf};
-
-    use hill_vacuum_shared::{process_manual, return_if_err, ManualItem, NextValue};
-
     const TEMP_MD: &str = "manual_temp.md";
 
     #[inline]
@@ -29,24 +22,7 @@ fn execute()
         string.push_str("\" height=\"48\" width=\"48\"/>  \n");
     }
 
-    let mut f = return_if_err!(File::create("docs/crate_description.md"));
-
-    println!("cargo::rerun-if-changed=build.rs");
-    println!("cargo::rerun-if-changed=docs/intro.md");
-    println!("cargo::rerun-if-changed=docs/outro.md");
-    println!("cargo::rerun-if-changed=docs/faq.md");
-    println!("cargo::rerun-if-changed=docs/license.md");
-
-    for dir in std::fs::read_dir(PathBuf::from("docs/manual/"))
-        .unwrap()
-        .map(|entry| entry.unwrap().path())
-    {
-        for path in std::fs::read_dir(&dir).unwrap().map(|entry| entry.unwrap().path())
-        {
-            println!("cargo::rerun-if-changed={}", path.as_os_str().to_str().unwrap());
-        }
-    }
-
+    let mut f = File::create("docs/crate_description.md").unwrap();
     let mut readme = String::new();
     let mut description = String::new();
 
@@ -88,11 +64,11 @@ fn execute()
 
     push!("faq");
 
-    let mut f = return_if_err!(File::create("README.md"));
+    let mut f = File::create("README.md").unwrap();
     write(&mut f, &std::fs::read_to_string("docs/license.md").unwrap());
     write(&mut f, &readme);
 
-    let mut f = return_if_err!(File::create("MANUAL.md"));
+    let mut f = File::create("MANUAL.md").unwrap();
 
     let manual = process_manual(
         |_, _| {},
@@ -160,7 +136,7 @@ fn execute()
 
     // You can't make me open a word editor.
     write(
-        &mut return_if_err!(File::create(TEMP_MD)),
+        &mut File::create(TEMP_MD).unwrap(),
         &regex::Regex::new(
             r#"<img src="images/([a-z_]+).svg" alt="[a-z_]+" height="48" width="48"/>"#
         )
