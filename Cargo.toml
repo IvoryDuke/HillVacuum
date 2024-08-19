@@ -22,19 +22,24 @@ ui = [
     "dep:egui_extras",
     "dep:is_executable",
     "dep:paste",
+    "dep:regex",
     "dep:rfd",
     "dep:threadpool"
 ]
 default = ["ui"]
 
 [dependencies.hill_vacuum_shared]
-version = "0.6.2"
+git = "https://github.com/IvoryDuke/hill_vacuum_shared"
 
 [build-dependencies.hill_vacuum_shared]
-version = "0.6.2"
+git = "https://github.com/IvoryDuke/hill_vacuum_shared"
+
+[build-dependencies.regex]
+version = "1.*"
+optional = true
 
 [dependencies.hill_vacuum_proc_macros]
-version = "0.6.2"
+git = "https://github.com/IvoryDuke/hill_vacuum_proc_macros"
 
 [dependencies.bevy]
 version = "0.14"

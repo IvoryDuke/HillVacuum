@@ -29,8 +29,8 @@ height = M
 id = ID
 preview = TEX
 ```
-Where ID is an unique identifier between 0 and 65534, and TEX is the name of the texture to be drawn along with the bounding box.  
-If a thing defined through the `MapThing` interface has the same ID as one loaded from file, the latter will overwrite the former.  
+Where `ID` is an unique identifier between 0 and 65534, and `TEX` is the name of the texture to be drawn along with the bounding box.  
+If a thing defined through the `MapThing` interface has the same `ID` as one loaded from file, the latter will overwrite the former.  
 Finally, things have two built-in properties, `angle` and `draw height`. The orientation of the arrow drawn on top of the things will change based on the value of `angle`, and `draw height` determines its draw order. They can be edited in the properties window.
     
 Things can be reloaded while the application is running through the UI button in the Options menu.

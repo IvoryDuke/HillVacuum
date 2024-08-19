@@ -1,2 +1,2 @@
 ### Minus
-Drecreases the ellipse resolution.
+Decreases the ellipse resolution.

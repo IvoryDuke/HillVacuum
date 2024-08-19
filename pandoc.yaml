@@ -1,0 +1,13 @@
+---
+title: 'HillVacuum'
+geometry:
+- margin=2cm
+---
+
+---
+header-includes: |
+  \definecolor{bg}{HTML}{111111}
+  \pagecolor{bg}
+  \definecolor{text}{HTML}{FFFFFF}
+  \color{text}
+---
