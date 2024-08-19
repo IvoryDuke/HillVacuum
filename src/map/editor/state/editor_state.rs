@@ -791,7 +791,7 @@ impl State
             )
         );
 
-        match Self::manager_clipboard_grid(
+        match Self::process_map_file(
             images,
             prop_cameras,
             user_textures,
@@ -1312,7 +1312,7 @@ impl State
     /// Returns new [`EntitiesManager`] and [`Clipboard`] loading the content of `file`.
     /// Returns `Err` if the file could not be properly read.
     #[inline]
-    fn manager_clipboard_grid(
+    fn process_map_file(
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
@@ -1722,7 +1722,7 @@ impl State
         );
 
         steps.next_value().assert(FileStructure::Animations);
-        drawing_resources.import_animations(header.animations, &mut file)?;
+        drawing_resources.reset_animations(header.animations, &mut file)?;
         drawing_resources.reset_default_animation_changed();
 
         let manager = EntitiesManager::from_file(
@@ -1771,13 +1771,12 @@ impl State
             .add_filter(HV_FILTER_NAME, &[FILE_EXTENSION])
             .set_directory(std::env::current_dir().unwrap())
             .pick_file());
-        let file_to_open = file_to_open.as_os_str().to_str().unwrap();
 
-        match Self::manager_clipboard_grid(
+        match Self::process_map_file(
             bundle.images,
             bundle.prop_cameras,
             bundle.user_textures,
-            PathBuf::from(file_to_open),
+            file_to_open,
             bundle.drawing_resources,
             bundle.things_catalog,
             bundle.default_properties

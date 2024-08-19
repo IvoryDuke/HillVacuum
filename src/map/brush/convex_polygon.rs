@@ -1152,7 +1152,6 @@ pub(in crate::map) mod ui_mod
             self.vertexes.sort_by(|a, b| sort_vxs_ccw(a.vec, b.vec, center));
         }
 
-        /// Moves the polygon by the amount delta.
         #[inline]
         pub fn update_center_hull(&mut self)
         {

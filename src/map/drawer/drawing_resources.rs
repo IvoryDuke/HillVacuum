@@ -404,10 +404,43 @@ impl DrawingResources
         file: &mut BufReader<File>
     ) -> Result<(), &'static str>
     {
+        self.execute_import(amount, file, |_| {})
+    }
+
+    /// Replaces the animations with the ones contained in `file`.
+    #[inline]
+    pub fn reset_animations(
+        &mut self,
+        amount: usize,
+        file: &mut BufReader<File>
+    ) -> Result<(), &'static str>
+    {
+        self.execute_import(amount, file, |resources| {
+            for tex in &resources.animated_textures
+            {
+                *resources.textures.get_mut(tex).unwrap().texture.animation_mut() = Animation::None;
+            }
+
+            resources.animated_textures.clear();
+        })
+    }
+
+    #[inline]
+    pub fn execute_import<F>(
+        &mut self,
+        amount: usize,
+        file: &mut BufReader<File>,
+        f: F
+    ) -> Result<(), &'static str>
+    where
+        F: FnOnce(&mut Self)
+    {
         match file_animations(amount, file)
         {
             Ok(animations) =>
             {
+                f(self);
+
                 for default in animations
                 {
                     *continue_if_none!(self.texture_mut(&default.texture))
