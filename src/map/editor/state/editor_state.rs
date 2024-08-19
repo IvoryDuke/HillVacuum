@@ -34,10 +34,7 @@ use super::{
     ui::Interaction
 };
 use crate::{
-    config::{
-        controls::{bind::Bind, BindsKeyCodes},
-        OpenFile
-    },
+    config::controls::{bind::Bind, BindsKeyCodes},
     error_message,
     map::{
         brush::Brush,
@@ -1065,8 +1062,7 @@ impl State
         self.edits_history = EditsHistory::default();
         self.inputs = InputsPresses::default();
         self.grid = Grid::default();
-        bundle.config.open_file.clear();
-        bundle.update_window_title();
+        bundle.config.open_file.clear(bundle.window);
 
         Ok(())
     }
@@ -1133,7 +1129,7 @@ impl State
             /// Save to new file.
             New(PathBuf),
             /// Save to open file.
-            Open
+            Opened
         }
 
         impl SaveTarget
@@ -1172,7 +1168,7 @@ impl State
                     {
                         if Path::new(&path).exists()
                         {
-                            SaveTarget::Open
+                            SaveTarget::Opened
                         }
                         else
                         {
@@ -1273,7 +1269,7 @@ impl State
                 file = file.create(true);
                 path
             },
-            SaveTarget::Open => bundle.config.open_file.path().unwrap()
+            SaveTarget::Opened => bundle.config.open_file.path().unwrap()
         };
 
         let file = match file.open(path)
@@ -1294,14 +1290,16 @@ impl State
 
         if target.is_new()
         {
-            bundle.config.open_file = OpenFile::new(path.as_os_str().to_str().unwrap());
+            bundle
+                .config
+                .open_file
+                .update(path.as_os_str().to_owned(), bundle.window);
         }
 
         self.edits_history.reset_last_save_edit();
         self.clipboard.reset_props_changed();
         self.manager.reset_refactored_properties();
         bundle.drawing_resources.reset_default_animation_changed();
-        bundle.update_window_title();
 
         Ok(())
     }
@@ -1787,7 +1785,7 @@ impl State
                 self.manager = manager;
                 self.clipboard = clipboard;
                 self.grid = grid;
-                bundle.config.open_file = OpenFile::from(path);
+                bundle.config.open_file.update(path, bundle.window);
             },
             Err(err) =>
             {
@@ -1796,7 +1794,6 @@ impl State
             }
         };
 
-        bundle.update_window_title();
         self.core = Core::default();
         self.inputs = InputsPresses::default();
         self.edits_history = EditsHistory::default();

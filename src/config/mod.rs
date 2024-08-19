@@ -20,7 +20,8 @@ use bevy::{
         world::{FromWorld, Mut, World}
     },
     sprite::ColorMaterial,
-    state::state::OnEnter
+    state::state::OnEnter,
+    window::{PrimaryWindow, Window}
 };
 use configparser::ini::Ini;
 use hill_vacuum_shared::FILE_EXTENSION;
@@ -30,7 +31,8 @@ use self::controls::{bind::Bind, BindsKeyCodes};
 use crate::{
     error_message,
     map::drawer::color::{Color, ColorResources},
-    EditorState
+    EditorState,
+    NAME
 };
 
 //=======================================================================//
@@ -76,52 +78,55 @@ impl Plugin for ConfigPlugin
 
 /// The opened file being edited, if any.
 #[must_use]
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub(crate) struct OpenFile(Option<PathBuf>);
-
-impl From<PathBuf> for OpenFile
-{
-    #[inline]
-    fn from(value: PathBuf) -> Self { Self(value.into()) }
-}
 
 impl OpenFile
 {
     /// Returns a new [`OpenFile`] from the `path`.
     #[inline]
-    pub fn new(path: impl Into<String>) -> Self
+    pub fn update(&mut self, path: impl Into<PathBuf>, window: &mut Window)
     {
-        let path = PathBuf::from(Into::<String>::into(path));
+        let path = Into::<PathBuf>::into(path);
         assert!(
             path.extension().unwrap().to_str().unwrap() == FILE_EXTENSION,
             "Improper file load."
         );
-        Self(path.into())
+
+        self.0 = path.into();
+        self.update_window_title(window);
     }
 
     /// Clears the file path.
     #[inline]
-    pub fn clear(&mut self) { self.0 = None; }
-
-    /// Returns the file stem of the opened file, if any.
-    #[inline]
-    #[must_use]
-    pub fn file_stem(&self) -> Option<&str>
+    pub fn clear(&mut self, window: &mut Window)
     {
-        self.0
-            .as_ref()
-            .map(|path| path.file_stem().unwrap().to_str().unwrap())
+        self.0 = None;
+        self.update_window_title(window);
     }
 
     /// Returns the file path, if any.
     #[inline]
     #[must_use]
     pub const fn path(&self) -> Option<&PathBuf> { self.0.as_ref() }
+
+    #[inline]
+    fn update_window_title(&self, window: &mut Window)
+    {
+        window.title = match self
+            .0
+            .as_ref()
+            .map(|path| path.file_stem().unwrap().to_str().unwrap())
+        {
+            Some(file) => format!("{NAME} - {file}"),
+            None => NAME.to_owned()
+        };
+    }
 }
 
 //=======================================================================//
 
-#[derive(Default, Resource)]
+#[derive(Resource)]
 pub(crate) struct Config
 {
     /// The keyboard binds.
@@ -134,6 +139,21 @@ pub(crate) struct Config
     pub colors:            ColorResources,
     /// Whether the first boot warning was displayed.
     pub warning_displayed: bool
+}
+
+impl Default for Config
+{
+    #[inline]
+    fn default() -> Self
+    {
+        Self {
+            binds:             BindsKeyCodes::default(),
+            open_file:         OpenFile(None),
+            exporter:          None,
+            colors:            ColorResources::default(),
+            warning_displayed: false
+        }
+    }
 }
 
 //=======================================================================//
@@ -158,7 +178,30 @@ impl FromWorld for IniConfig
         ini_config.load(CONFIG_FILE_NAME).unwrap();
 
         world.resource_scope(|world, mut materials: Mut<Assets<ColorMaterial>>| {
+            let open_file = ini_config.get(OPEN_FILE_SECTION, OPEN_FILE_FIELD).and_then(|file| {
+                let path = PathBuf::from(file);
+
+                path.exists().then(|| {
+                    let file = OpenFile(path.into());
+
+                    file.update_window_title(
+                        &mut world
+                            .query::<(&mut Window, &PrimaryWindow)>()
+                            .get_single_mut(world)
+                            .unwrap()
+                            .0
+                    );
+
+                    file
+                })
+            });
+
             let mut config = world.get_resource_mut::<Config>().unwrap();
+
+            if let Some(file) = open_file
+            {
+                config.open_file = file;
+            }
 
             config.warning_displayed = ini_config
                 .get(WARNING_SECTION, WARNING_FIELD)
@@ -167,14 +210,6 @@ impl FromWorld for IniConfig
                 .unwrap_or_default();
 
             config.binds.load(&ini_config);
-
-            if let Some(file) = ini_config.get(OPEN_FILE_SECTION, OPEN_FILE_FIELD)
-            {
-                if Path::new(&file).exists()
-                {
-                    config.open_file = OpenFile::new(file);
-                }
-            }
 
             if let Some(file) = ini_config.get(EXPORTER_SECTION, EXPORTER_FIELD)
             {

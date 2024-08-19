@@ -45,7 +45,7 @@ use super::{
     thing::{catalog::ThingsCatalog, HardcodedThings}
 };
 use crate::{
-    config::{controls::BindsKeyCodes, Config, OpenFile},
+    config::{controls::BindsKeyCodes, Config},
     map::{
         editor::{cursor::Cursor, state::editor_state::State},
         hv_vec,
@@ -53,8 +53,7 @@ use crate::{
     },
     utils::{math::AroundEqual, misc::Camera},
     EditorState,
-    HardcodedActions,
-    NAME
+    HardcodedActions
 };
 
 //=======================================================================//
@@ -111,16 +110,6 @@ struct StateUpdateBundle<'world, 'state, 'a, 'b, 'c>
     default_properties: &'b mut AllDefaultProperties<'b>,
     next_editor_state:  &'a mut NextState<EditorState>,
     next_tex_load:      &'a mut NextState<TextureLoadingProgress>
-}
-
-impl<'world, 'state, 'a, 'b, 'c> StateUpdateBundle<'world, 'state, 'a, 'b, 'c>
-{
-    /// Updates the title of the window based on the file being edited, if any.
-    #[inline]
-    pub fn update_window_title(&mut self)
-    {
-        self.window.title = window_title(self.config.open_file.file_stem());
-    }
 }
 
 //=======================================================================//
@@ -286,12 +275,8 @@ impl Editor
 
         match path
         {
-            Some(path) =>
-            {
-                window.title = window_title(path.file_stem().unwrap().to_str());
-                config.open_file = OpenFile::from(path);
-            },
-            None => config.open_file.clear()
+            Some(path) => config.open_file.update(path, window),
+            None => config.open_file.clear(window)
         };
 
         Self {
@@ -772,21 +757,4 @@ impl Editor
     /// Shutdown cleanup.
     #[inline]
     pub fn cleanup(&self, meshes: &mut Assets<Mesh>) { self.drawing_resources.cleanup(meshes); }
-}
-
-//=======================================================================//
-// FUNCTIONS
-//
-//=======================================================================//
-
-/// Returns the title of the window based on the opened file.
-#[inline]
-#[must_use]
-fn window_title(open_file: Option<&str>) -> String
-{
-    match open_file
-    {
-        Some(file) => format!("{NAME} - {file}"),
-        None => NAME.to_owned()
-    }
 }
