@@ -74,9 +74,19 @@ use crate::{
 //
 //=======================================================================//
 
+#[derive(Debug)]
+struct IntrusionResult
+{
+    id:    Id,
+    main:  ConvexPolygon,
+    other: ConvexPolygon
+}
+
+//=======================================================================//
+
 /// The cursor drag of an xtrusion.
 #[derive(Debug)]
-pub(in crate::map::editor::state::core) struct XTrusionDrag(Vec2);
+struct XTrusionDrag(Vec2);
 
 impl XTrusionDrag
 {
@@ -133,7 +143,7 @@ enum XtrusionMode
         /// The intrusion info of the brushes.
         payloads: HvVec<XtrusionPayload>,
         /// The generated polygons.
-        polygons: HvVec<(ConvexPolygon, Id)>
+        results:  HvVec<IntrusionResult>
     },
     /// Extrusion.
     Extrusion(HvVec<(Id, XtrusionInfo, ConvexPolygon)>)
@@ -642,14 +652,14 @@ impl SideTool
 
                         self.status = Status::default();
                     },
-                    XtrusionMode::Intrusion { payloads, polygons } =>
+                    XtrusionMode::Intrusion { payloads, results } =>
                     {
                         Self::intrude_sides(
                             manager,
                             grid,
                             bundle.cursor,
                             payloads,
-                            polygons,
+                            results,
                             line,
                             drag
                         );
@@ -963,7 +973,7 @@ impl SideTool
         manager: &mut EntitiesManager,
         payloads: &HvVec<XtrusionPayload>,
         delta: Vec2
-    ) -> Option<HvVec<(ConvexPolygon, Id)>>
+    ) -> Option<HvVec<IntrusionResult>>
     {
         let mut polygons = hv_vec![capacity; payloads.len() * 2];
 
@@ -985,8 +995,11 @@ impl SideTool
                             _ = right.remove_texture();
                         }
 
-                        polygons.push((left, id));
-                        polygons.push((right, id));
+                        polygons.push(IntrusionResult {
+                            id,
+                            main: left,
+                            other: right
+                        });
                         None
                     }
                 }
@@ -1025,13 +1038,12 @@ impl SideTool
                 if delta_against_normal
                 {
                     // Intrusion.
-                    let polygons =
-                        return_if_none!(Self::intrusion_polygons(manager, payloads, delta), false);
-
-                    // Update the edits history.
                     XtrusionMode::Intrusion {
-                        payloads: payloads.take_value(),
-                        polygons
+                        results:  return_if_none!(
+                            Self::intrusion_polygons(manager, payloads, delta),
+                            false
+                        ),
+                        payloads: payloads.take_value()
                     }
                 }
                 else
@@ -1082,7 +1094,7 @@ impl SideTool
         grid: Grid,
         cursor: &Cursor,
         payloads: &HvVec<XtrusionPayload>,
-        polygons: &mut HvVec<(ConvexPolygon, Id)>,
+        polygons: &mut HvVec<IntrusionResult>,
         line: &[Vec2; 2],
         drag: &mut XTrusionDrag
     )
@@ -1146,24 +1158,26 @@ impl SideTool
         edits_history: &mut EditsHistory
     )
     {
-        let (payloads, polygons) = match_or_panic!(
+        let results = match_or_panic!(
             &mut self.status,
             Status::Xtrusion {
-                mode: XtrusionMode::Intrusion { payloads, polygons },
+                mode: XtrusionMode::Intrusion { results, .. },
                 ..
             },
-            (payloads, polygons)
+            results.take_value()
         );
 
-        for (polygon, id) in polygons.take_value()
+        for result in results
         {
-            let properties = manager.brush(id).properties();
-            manager.spawn_brush(drawing_resources, polygon, edits_history, properties);
-        }
+            let IntrusionResult { id, main, other } = result;
 
-        for payload in payloads
-        {
-            manager.despawn_brush(drawing_resources, payload.id(), edits_history);
+            _ = manager.replace_brush_with_partition(
+                drawing_resources,
+                edits_history,
+                Some(other).into_iter(),
+                id,
+                |brush| brush.set_polygon(main)
+            );
         }
 
         edits_history.override_edit_tag("Brushes Intrusion");
@@ -1276,7 +1290,7 @@ impl SideTool
                     {
                         draw_selected_brushes(bundle, manager, show_tooltips);
                     },
-                    XtrusionMode::Intrusion { payloads, polygons } =>
+                    XtrusionMode::Intrusion { payloads, results } =>
                     {
                         for brush in manager.selected_brushes()
                         {
@@ -1297,9 +1311,12 @@ impl SideTool
                             );
                         }
 
-                        for (cp, _) in polygons
+                        for polys in results.iter().map(|result| [&result.main, &result.other])
                         {
-                            cp.draw(bundle.camera, &mut bundle.drawer, Color::SelectedEntity);
+                            for p in polys
+                            {
+                                p.draw(bundle.camera, &mut bundle.drawer, Color::SelectedEntity);
+                            }
                         }
                     },
                     XtrusionMode::Extrusion(polygons) =>

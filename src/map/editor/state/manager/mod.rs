@@ -2602,7 +2602,7 @@ impl EntitiesManager
     }
 
     #[inline]
-    pub fn replace_brush_with_partition<F>(
+    pub fn replace_brush_with_partition<F: FnOnce(&mut Brush) -> ConvexPolygon>(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -2610,8 +2610,6 @@ impl EntitiesManager
         identifier: Id,
         f: F
     ) -> impl Iterator<Item = Id>
-    where
-        F: FnOnce(&mut Brush) -> ConvexPolygon
     {
         #[inline]
         fn spawn_brushes_with_ids(
