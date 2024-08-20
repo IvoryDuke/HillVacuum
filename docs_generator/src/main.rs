@@ -143,12 +143,8 @@ fn main()
         .unwrap()
         .replace_all(&manual, "![$1](images/$1.svg){ width=40 height=40 }")
         .replace(
-            "Executes the subtraction.\n\n&nbsp;",
-            "Executes the subtraction.\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;"
-        )
-        .replace(
-            "in the temporary slot.\n\n&nbsp;",
-            "in the temporary slot.\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;"
+            "Erases the brush being drawn.\n\n&nbsp;",
+            "Erases the brush being drawn.\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;"
         )
     );
 

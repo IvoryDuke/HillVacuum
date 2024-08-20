@@ -97,7 +97,7 @@ Paste, creates copies of the selected entities, or sets the path of the entity b
 Copy, copies the selected entities, or the path of the entity beneath the cursor, if any, when using the Path tool.
 
 ### Ctrl + D
-Duplicates the entities. Equivalent to `Ctrl + Alt + Right` when using the Entity tool.
+Duplicate, creates copies of the selected entities and places them one grid square away to the right. Equivalent to `Alt + Right` when using the Entity tool.
 
 ### Ctrl + Z
 Undo.
@@ -227,7 +227,6 @@ Allows to change the selected things placed on the map to the thing clicked in t
 
 ### INFO
 Brushes can be tied together into a group through the Anchor subtool. This establishes a owner-anchored relation between the brushes. An "owner" brush can have an unlimited amount of brushes tied to it. A brush that is anchored can have none.  
-When the "owner" brush is moved all anchored brushes are moved as well even if they are not selected.
 
 ### Left mouse
 If there is a non-selected entity beneath the cursor, it is be exclusively selected. If there is no entity, all entities are deselected when the mouse button is released.  
@@ -254,6 +253,9 @@ Moves the selected entities one grid square away in the pressed direction.
 
 ### Alt + Up/Down/Left/Right
 Creates copies of the selected entities one grid square away in the pressed direction.
+
+### Backspace
+Deletes the selected entities, or the textures of the selected brushes if the editing target is set to `Texture`.
 
 ### Right mouse
 Clicking a brush with no path and not anchored allows to anchor it to another brush. Clicking on an anchored brush disanchors it.
