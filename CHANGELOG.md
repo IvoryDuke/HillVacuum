@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.3
+
+### Changes
+- Added tool icons to `MANUAL.md`;
+- improved documentation;
+- added `MANUAL.pdf` to the documentation;
+- created a separate application to generate the manuals instead of relying on the main application compilation.
+
+### Fixes
+- Documented missing features;
+- when opening a new map, the default texture animations of the previously opened map are now cleared before importing the new ones;
+- fixed anchor tool crash;
+- fixed missing brush anchors drawing when using the Path tool;
+- fixed an issue with the Hollow tool where some wall brushes would not be spawned if multiple brushes were hollowed.
+
 ## 0.6.2
 
 ### Changes
