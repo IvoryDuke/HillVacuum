@@ -271,7 +271,7 @@ Toggles the brush anchor routine.
 ### TEXTURE EDITING
 Target:  
 - `Entity`, only moves entities;  
-- `Both`, moves both entities and textures;  
+- `Entity+Tex`, moves both entities and textures;  
 - `Texture`, only moves textures.
 
 &nbsp;
@@ -441,7 +441,7 @@ Changes the outline's selected vertex. The selection order is clockwise. If `Alt
 ### TEXTURE EDITING
 Target:  
 - `Entity`, only scales the polygons;  
-- `Both`, scales both polygons and textures;  
+- `Entity+Tex`, scales both polygons and textures;  
 - `Texture`, only scales the textures.
 
 &nbsp;
@@ -479,7 +479,7 @@ While enabled, the position of the rotation pivot can be changed by either press
 ### TEXTURE EDITING
 Target:  
 - `Entity`, rotates only the polygons;  
-- `Both`, rotates both polygons and textures;  
+- `Entity+Tex`, rotates both polygons and textures;  
 - `Texture`, rotates only the textures.
 
 &nbsp;
@@ -489,6 +489,12 @@ Target:
 
 ### Up/Down/Left/Right
 Creates mirrored copies of the selected brushes in the pressed direction.
+
+### TEXTURE EDITING
+Target:  
+- `Entity`, only flips the polygons;  
+- `Entity+Tex`, flips both polygons and textures;  
+- `Texture`, only flips  the textures.
 
 &nbsp;
 

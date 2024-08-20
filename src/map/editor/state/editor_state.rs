@@ -236,7 +236,7 @@ impl TargetSwitch
         match self
         {
             Self::Entity => "Entity",
-            Self::Both => "Both",
+            Self::Both => "Entity+Tex",
             Self::Texture => "Texture"
         }
     }

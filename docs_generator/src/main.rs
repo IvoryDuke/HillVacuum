@@ -146,6 +146,10 @@ fn main()
             "Erases the brush being drawn.\n\n&nbsp;",
             "Erases the brush being drawn.\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;"
         )
+        .replace(
+            "over a common area they are erased from the map.\n\n&nbsp;",
+            "over a common area they are erased from the map.\n\n&nbsp;\n\n&nbsp;"
+        )
     );
 
     _ = std::process::Command::new("pandoc")
