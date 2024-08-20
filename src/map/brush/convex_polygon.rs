@@ -387,7 +387,11 @@ pub(in crate::map) mod ui_mod
     {
         None,
         Despawn,
-        Some(HvVec<ConvexPolygon>)
+        Some
+        {
+            main:   ConvexPolygon,
+            others: HvVec<ConvexPolygon>
+        }
     }
 
     //=======================================================================//
@@ -3713,9 +3717,10 @@ pub(in crate::map) mod ui_mod
 
             assert!(!polygons.is_empty(), "Subtraction generated no polygons.");
 
-            self.transfer_sprite(&mut polygons[0]);
-
-            SubtractResult::Some(polygons)
+            SubtractResult::Some {
+                main:   polygons.swap_remove(0),
+                others: polygons
+            }
         }
 
         //==============================================================

@@ -268,24 +268,26 @@ impl SubtractTool
 
         for id in subtractees.take_value()
         {
-            let [brush, sel_brush] = manager.many_brushes([id, sel_id]);
-
-            match brush.subtract(sel_brush)
+            match manager.brush(id).subtract(manager.brush(sel_id))
             {
                 SubtractResult::None => continue,
-                SubtractResult::Despawn => (),
-                SubtractResult::Some(subtract_polygons) =>
+                SubtractResult::Despawn =>
                 {
-                    manager.spawn_brushes(
+                    manager.despawn_brush(drawing_resources, id, edits_history);
+                },
+                SubtractResult::Some { main, others } =>
+                {
+                    manager.replace_brush_with_partition(
                         drawing_resources,
-                        subtract_polygons.into_iter(),
                         edits_history,
-                        brush.properties()
+                        main,
+                        others.into_iter(),
+                        id
                     );
+                    manager.insert_entity_selection(id);
+                    edits_history.entity_selection(id);
                 }
             };
-
-            manager.despawn_brush(drawing_resources, id, edits_history);
         }
 
         edits_history.override_edit_tag("Brushes Subtraction");

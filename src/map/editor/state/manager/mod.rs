@@ -48,7 +48,8 @@ use crate::{
         brush::{
             convex_polygon::{ConvexPolygon, TextureSetResult},
             Brush,
-            BrushData
+            BrushData,
+            PathStatus
         },
         drawer::{
             animation::Animator,
@@ -2094,13 +2095,6 @@ impl EntitiesManager
     #[inline]
     pub const fn brushes(&self) -> Brushes { self.innards.brushes() }
 
-    /// Returns an array of references to `N` brushes.
-    #[inline]
-    pub fn many_brushes<const N: usize>(&self, identifiers: [Id; N]) -> [&Brush; N]
-    {
-        std::array::from_fn(|i| self.brush(identifiers[i]))
-    }
-
     /// Returns a [`BrushMut`] wrapping the brush with [`Id`] `identifier`.
     #[inline]
     pub fn brush_mut<'a>(
@@ -2607,34 +2601,85 @@ impl EntitiesManager
     }
 
     #[inline]
-    pub fn spawn_brushes_with_ids(
+    pub fn replace_brush_with_partition(
         &mut self,
         drawing_resources: &DrawingResources,
-        mut polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
         edits_history: &mut EditsHistory,
-        properties: Properties
-    ) -> impl Iterator<Item = Id>
+        main: ConvexPolygon,
+        others: impl ExactSizeIterator<Item = ConvexPolygon>,
+        identifier: Id
+    )
     {
-        let mut ids = hv_hash_set![];
-
-        for _ in 0..polygons.len() - 1
+        #[inline]
+        fn spawn_brushes_with_ids(
+            manager: &mut EntitiesManager,
+            drawing_resources: &DrawingResources,
+            mut polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
+            edits_history: &mut EditsHistory,
+            properties: Properties
+        ) -> impl Iterator<Item = Id>
         {
-            ids.asserted_insert(self.spawn_brush(
+            let mut ids = hv_hash_set![];
+
+            for _ in 0..polygons.len() - 1
+            {
+                ids.asserted_insert(manager.spawn_brush(
+                    drawing_resources,
+                    polygons.next_value(),
+                    edits_history,
+                    properties.clone()
+                ));
+            }
+
+            ids.asserted_insert(manager.spawn_brush(
                 drawing_resources,
                 polygons.next_value(),
                 edits_history,
-                properties.clone()
+                properties
             ));
+
+            ids.into_iter()
         }
 
-        ids.asserted_insert(self.spawn_brush(
-            drawing_resources,
-            polygons.next_value(),
-            edits_history,
-            properties
-        ));
+        let (properties, path_status) = {
+            let mut brush = self.brush_mut(drawing_resources, identifier);
+            edits_history.polygon_edit(identifier, brush.set_polygon(main));
+            (brush.properties(), brush.path_status())
+        };
 
-        ids.into_iter()
+        match path_status
+        {
+            PathStatus::None =>
+            {
+                self.spawn_brushes(drawing_resources, others, edits_history, properties);
+            },
+            PathStatus::OwnsOrPath =>
+            {
+                for id in spawn_brushes_with_ids(
+                    self,
+                    drawing_resources,
+                    others,
+                    edits_history,
+                    properties
+                )
+                {
+                    self.anchor(identifier, id);
+                }
+            },
+            PathStatus::Anchored(owner) =>
+            {
+                for id in spawn_brushes_with_ids(
+                    self,
+                    drawing_resources,
+                    others,
+                    edits_history,
+                    properties
+                )
+                {
+                    self.anchor(owner, id);
+                }
+            }
+        };
     }
 
     /// Spawns a brush created with a draw tool.

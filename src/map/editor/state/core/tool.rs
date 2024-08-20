@@ -35,7 +35,7 @@ use super::{
 use crate::{
     config::controls::{bind::Bind, BindsKeyCodes},
     map::{
-        brush::{convex_polygon::ConvexPolygon, Brush, PathStatus},
+        brush::{convex_polygon::ConvexPolygon, Brush},
         drawer::drawing_resources::DrawingResources,
         editor::{
             state::{
@@ -888,7 +888,7 @@ impl ActiveTool
             Tool::Shatter => ShatterTool::tool(),
             Tool::Hollow =>
             {
-                self.hollow_tool(bundle, manager, edits_history, grid);
+                Self::hollow_tool(bundle.drawing_resources, manager, edits_history, grid);
                 return;
             },
             Tool::Scale => ScaleTool::tool(bundle.drawing_resources, manager, grid, settings),
@@ -1022,8 +1022,7 @@ impl ActiveTool
     /// process will be aborted.
     #[inline]
     fn hollow_tool(
-        &mut self,
-        bundle: &StateUpdateBundle,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         grid: Grid
@@ -1049,58 +1048,18 @@ impl ActiveTool
             return;
         }
 
-        self.draw_tool_despawn(
-            bundle.drawing_resources,
-            manager,
-            edits_history,
-            move |manager, edits_history| {
-                for result in wall_brushes
-                {
-                    let (properties, path_status) = {
-                        let mut brush = manager.brush_mut(bundle.drawing_resources, result.id);
-                        edits_history.polygon_edit(result.id, brush.set_polygon(result.main));
-                        (brush.properties(), brush.path_status())
-                    };
+        for result in wall_brushes
+        {
+            manager.replace_brush_with_partition(
+                drawing_resources,
+                edits_history,
+                result.main,
+                result.walls.into_iter(),
+                result.id
+            );
+        }
 
-                    match path_status
-                    {
-                        PathStatus::None =>
-                        {
-                            manager.spawn_brushes(
-                                bundle.drawing_resources,
-                                result.walls.into_iter(),
-                                edits_history,
-                                properties
-                            );
-                        },
-                        PathStatus::OwnsOrPath =>
-                        {
-                            for id in manager.spawn_brushes_with_ids(
-                                bundle.drawing_resources,
-                                result.walls.into_iter(),
-                                edits_history,
-                                properties
-                            )
-                            {
-                                manager.anchor(result.id, id);
-                            }
-                        },
-                        PathStatus::Anchored(owner) =>
-                        {
-                            for id in manager.spawn_brushes_with_ids(
-                                bundle.drawing_resources,
-                                result.walls.into_iter(),
-                                edits_history,
-                                properties
-                            )
-                            {
-                                manager.anchor(owner, id);
-                            }
-                        }
-                    };
-                }
-            }
-        );
+        edits_history.override_edit_tag("Brushes hollow");
     }
 
     /// Generates the brush that represents the intersection between all the selected ones, if

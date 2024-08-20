@@ -12,6 +12,7 @@
 - Documented missing features;
 - when opening a new map, the default texture animations of the previously opened map are now cleared before importing the new ones;
 - fixed anchor tool crash;
+- fixed duplicate crashes;
 - fixed missing brush anchors drawing when using the Path tool;
 - fixed an issue with the Hollow tool where some wall brushes would not be spawned if multiple brushes were hollowed.
 
