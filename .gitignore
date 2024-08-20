@@ -1,5 +1,6 @@
 assets/
 target/
+test_maps/
 *.ini
 *.hv
 *.prps
