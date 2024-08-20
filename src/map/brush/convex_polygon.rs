@@ -2267,7 +2267,7 @@ pub(in crate::map) mod ui_mod
         {
             if !range.overlaps(&self.hull)
             {
-                return self.deselect_vertexes();
+                return None;
             }
 
             let idxs =
@@ -3016,7 +3016,7 @@ pub(in crate::map) mod ui_mod
         {
             if !self.hull.overlaps(range)
             {
-                return self.deselect_vertexes();
+                return None;
             }
 
             let mut idxs = hv_vec![];
