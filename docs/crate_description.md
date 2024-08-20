@@ -7,7 +7,10 @@
 - I got tired of manually typing the coordinates of the collision polygons in a text file.
 
 ## How is HillVacuum?
-For those who do not mind reading, HV features a built in manual which can be opened through the keyboard combination `` Ctrl+` ``.  
+For those who do not mind reading, HV features a manual, which can be referenced in three ways:  
+- the `MANUAL.md` file;  
+- the `MANUAL.pdf` file;  
+- the `Manual` window built in the editor which can be opened through the keyboard combination `` Ctrl+` ``.  
 For the rest, there's this [video](https://youtu.be/c5lakP_V1n0).
 
 ## Keywords
