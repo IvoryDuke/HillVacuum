@@ -1398,6 +1398,26 @@ impl ActiveTool
             show_tooltips: bool
         )
         {
+            #[inline]
+            fn paths(bundle: &mut DrawBundle, manager: &EntitiesManager)
+            {
+                let brushes = manager.brushes();
+
+                for brush in manager
+                    .visible_anchors(bundle.window, bundle.camera, bundle.drawer.grid())
+                    .iter()
+                {
+                    brush.draw_anchors(brushes, &mut bundle.drawer);
+                }
+
+                for brush in manager
+                    .visible_paths(bundle.window, bundle.camera, bundle.drawer.grid())
+                    .iter()
+                {
+                    brush.draw_semitransparent_path(&mut bundle.drawer);
+                }
+            }
+
             // Things
             match tool
             {
@@ -1417,26 +1437,6 @@ impl ActiveTool
                 }
             };
 
-            // Paths.
-            if !matches!(tool, ActiveTool::Path(_))
-            {
-                let brushes = manager.brushes();
-
-                for brush in manager
-                    .visible_anchors(bundle.window, bundle.camera, bundle.drawer.grid())
-                    .iter()
-                {
-                    brush.draw_anchors(brushes, &mut bundle.drawer);
-                }
-
-                for brush in manager
-                    .visible_paths(bundle.window, bundle.camera, bundle.drawer.grid())
-                    .iter()
-                {
-                    brush.draw_semitransparent_path(&mut bundle.drawer);
-                }
-            }
-
             // Brushes
             match tool
             {
@@ -1444,6 +1444,7 @@ impl ActiveTool
                 ActiveTool::Entity(t) =>
                 {
                     t.draw(bundle, manager, settings, show_tooltips);
+                    paths(bundle, manager);
                     return;
                 },
                 ActiveTool::Vertex(t) => t.draw(bundle, manager, show_tooltips),
@@ -1469,7 +1470,8 @@ impl ActiveTool
                 _ => unreachable!()
             };
 
-            // Sprites.
+            // Paths and sprites.
+            paths(bundle, manager);
             draw_selected_and_non_selected_sprites!(bundle, manager, false);
         }
 
