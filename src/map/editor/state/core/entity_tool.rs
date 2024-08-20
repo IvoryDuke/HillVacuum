@@ -1018,11 +1018,15 @@ impl EntityTool
 
                     let brush = manager.brush(hgl_e);
                     brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
-                    brush.draw_sprite(
-                        &mut bundle.drawer,
-                        Color::HighlightedSelectedEntity,
-                        texture_editing
-                    );
+
+                    if brush.has_sprite()
+                    {
+                        brush.draw_sprite(
+                            &mut bundle.drawer,
+                            Color::HighlightedSelectedEntity,
+                            texture_editing
+                        );
+                    }
 
                     brush.center()
                 }
@@ -1034,11 +1038,15 @@ impl EntityTool
 
                 let brush = manager.brush(*id);
                 brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
-                brush.draw_sprite(
-                    &mut bundle.drawer,
-                    Color::HighlightedNonSelectedEntity,
-                    texture_editing
-                );
+
+                if brush.has_sprite()
+                {
+                    brush.draw_sprite(
+                        &mut bundle.drawer,
+                        Color::HighlightedSelectedEntity,
+                        texture_editing
+                    );
+                }
 
                 let start = brush.center();
                 bundle.drawer.square_highlight(start, Color::BrushAnchor);
