@@ -1029,7 +1029,7 @@ impl ActiveTool
         grid: Grid
     )
     {
-        let mut wall_brushes = hv_vec![capacity; manager.selected_brushes_amount()];
+        let mut wall_brushes = hv_vec![];
         let valid = manager.test_operation_validity(|manager| {
             manager.selected_brushes().find_map(|brush| {
                 match brush.hollow(grid.size_f32())
@@ -1044,12 +1044,7 @@ impl ActiveTool
             })
         });
 
-        if !valid
-        {
-            return;
-        }
-
-        if wall_brushes.is_empty()
+        if !valid || wall_brushes.is_empty()
         {
             return;
         }
@@ -1059,9 +1054,11 @@ impl ActiveTool
             manager,
             edits_history,
             move |manager, edits_history| {
+                manager.despawn_selected_brushes(bundle.drawing_resources, edits_history);
+
                 for (brushes, properties) in wall_brushes
                 {
-                    manager.replace_selected_brushes(
+                    manager.spawn_brushes(
                         bundle.drawing_resources,
                         brushes.into_iter(),
                         edits_history,
