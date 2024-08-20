@@ -1050,12 +1050,12 @@ impl ActiveTool
 
         for result in wall_brushes
         {
-            manager.replace_brush_with_partition(
+            _ = manager.replace_brush_with_partition(
                 drawing_resources,
                 edits_history,
-                result.main,
                 result.walls.into_iter(),
-                result.id
+                result.id,
+                |brush| brush.set_polygon(result.main)
             );
         }
 

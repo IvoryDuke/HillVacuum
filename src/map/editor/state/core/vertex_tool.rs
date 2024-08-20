@@ -279,21 +279,25 @@ impl BrushesWithSelectedVertexes
 
         for p in self.splittable_ids.values()
         {
-            let polygon = {
+            let (main, other) = {
                 let mut brush = manager.brush_mut(drawing_resources, p.id());
-                edits_history.polygon_edit(brush.id(), brush.polygon());
-                brush.split(p)
+                (brush.polygon(), brush.split(p))
             };
-            edits_history.override_edit_tag("Brushes Split");
 
-            let properties = manager.brush(p.id()).properties();
-            self.ids.asserted_insert(manager.spawn_brush(
-                drawing_resources,
-                polygon,
-                edits_history,
-                properties
-            ));
+            self.ids.asserted_insert(
+                manager
+                    .replace_brush_with_partition(
+                        drawing_resources,
+                        edits_history,
+                        Some(other).into_iter(),
+                        p.id(),
+                        |_| main
+                    )
+                    .next_value()
+            );
         }
+
+        edits_history.override_edit_tag("Brushes Split");
 
         self.splittable_ids.clear();
         self.error_id = (*self.ids.iter().next_value()).into();

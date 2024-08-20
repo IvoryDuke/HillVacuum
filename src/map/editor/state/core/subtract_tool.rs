@@ -277,13 +277,14 @@ impl SubtractTool
                 },
                 SubtractResult::Some { main, others } =>
                 {
-                    manager.replace_brush_with_partition(
+                    _ = manager.replace_brush_with_partition(
                         drawing_resources,
                         edits_history,
-                        main,
                         others.into_iter(),
-                        id
+                        id,
+                        |brush| brush.set_polygon(main)
                     );
+
                     manager.insert_entity_selection(id);
                     edits_history.entity_selection(id);
                 }

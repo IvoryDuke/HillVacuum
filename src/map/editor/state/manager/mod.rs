@@ -84,6 +84,7 @@ use crate::{
         math::AroundEqual,
         misc::{Blinker, ReplaceValues}
     },
+    HvHashSet,
     HvVec,
     Path
 };
@@ -2601,14 +2602,16 @@ impl EntitiesManager
     }
 
     #[inline]
-    pub fn replace_brush_with_partition(
+    pub fn replace_brush_with_partition<F>(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        main: ConvexPolygon,
         others: impl ExactSizeIterator<Item = ConvexPolygon>,
-        identifier: Id
-    )
+        identifier: Id,
+        f: F
+    ) -> impl Iterator<Item = Id>
+    where
+        F: FnOnce(&mut Brush) -> ConvexPolygon
     {
         #[inline]
         fn spawn_brushes_with_ids(
@@ -2617,7 +2620,7 @@ impl EntitiesManager
             mut polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
             edits_history: &mut EditsHistory,
             properties: Properties
-        ) -> impl Iterator<Item = Id>
+        ) -> HvHashSet<Id>
         {
             let mut ids = hv_hash_set![];
 
@@ -2638,12 +2641,12 @@ impl EntitiesManager
                 properties
             ));
 
-            ids.into_iter()
+            ids
         }
 
         let (properties, path_status) = {
             let mut brush = self.brush_mut(drawing_resources, identifier);
-            edits_history.polygon_edit(identifier, brush.set_polygon(main));
+            edits_history.polygon_edit(identifier, f(&mut brush));
             (brush.properties(), brush.path_status())
         };
 
@@ -2651,35 +2654,44 @@ impl EntitiesManager
         {
             PathStatus::None =>
             {
-                self.spawn_brushes(drawing_resources, others, edits_history, properties);
+                spawn_brushes_with_ids(self, drawing_resources, others, edits_history, properties)
             },
             PathStatus::OwnsOrPath =>
             {
-                for id in spawn_brushes_with_ids(
+                let ids = spawn_brushes_with_ids(
                     self,
                     drawing_resources,
                     others,
                     edits_history,
                     properties
-                )
+                );
+
+                for id in &ids
                 {
-                    self.anchor(identifier, id);
+                    self.anchor(identifier, *id);
                 }
+
+                ids
             },
             PathStatus::Anchored(owner) =>
             {
-                for id in spawn_brushes_with_ids(
+                let ids = spawn_brushes_with_ids(
                     self,
                     drawing_resources,
                     others,
                     edits_history,
                     properties
-                )
+                );
+
+                for id in &ids
                 {
-                    self.anchor(owner, id);
+                    self.anchor(owner, *id);
                 }
+
+                ids
             }
-        };
+        }
+        .into_iter()
     }
 
     /// Spawns a brush created with a draw tool.
