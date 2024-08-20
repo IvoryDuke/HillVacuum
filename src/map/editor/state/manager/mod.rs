@@ -36,7 +36,7 @@ use self::{
     }
 };
 use super::{
-    clipboard::{ClipboardData, CopyToClipboard},
+    clipboard::{Clipboard, ClipboardData, CopyToClipboard},
     core::Core,
     editor_state::{InputsPresses, ToolsSettings},
     edits_history::EditsHistory,
@@ -2746,6 +2746,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
+        clipboard: &mut Clipboard,
         delta: Vec2
     ) -> bool
     {
@@ -2760,27 +2761,7 @@ impl EntitiesManager
             return false;
         }
 
-        self.auxiliary.replace_values(
-            self.innards
-                .selected_brushes
-                .iter()
-                .chain(&self.innards.selected_things)
-        );
-        self.deselect_selected_entities(edits_history);
-
-        for id in &self.auxiliary
-        {
-            let data = self.innards.entity(*id).copy_to_clipboard();
-
-            _ = self.innards.spawn_pasted_entity(
-                drawing_resources,
-                edits_history,
-                &mut self.quad_trees,
-                data,
-                delta
-            );
-        }
-
+        clipboard.duplicate(drawing_resources, self, edits_history, delta);
         true
     }
 

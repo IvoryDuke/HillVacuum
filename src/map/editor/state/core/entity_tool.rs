@@ -31,6 +31,7 @@ use crate::{
         editor::{
             cursor::Cursor,
             state::{
+                clipboard::Clipboard,
                 core::{rect, tool::subtools_buttons},
                 editor_state::{edit_target, InputsPresses, TargetSwitch, ToolsSettings},
                 edits_history::EditsHistory,
@@ -459,6 +460,7 @@ impl EntityTool
         manager: &mut EntitiesManager,
         inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
+        clipboard: &mut Clipboard,
         grid: Grid,
         settings: &ToolsSettings
     )
@@ -587,13 +589,18 @@ impl EntityTool
                     return;
                 }
 
-                let dir = return_if_none!(inputs.directional_keys_vector(grid.size()));
+                let delta = return_if_none!(inputs.directional_keys_vector(grid.size()));
 
                 if inputs.alt_pressed()
                 {
                     if settings.entity_editing()
                     {
-                        Self::move_spawn_entities(bundle, manager, edits_history, settings, dir);
+                        _ = manager.duplicate_selected_entities(
+                            bundle.drawing_resources,
+                            edits_history,
+                            clipboard,
+                            delta
+                        );
                     }
 
                     return;
@@ -602,15 +609,15 @@ impl EntityTool
                 edit_target!(
                     settings.target_switch(),
                     |move_texture| {
-                        if Self::move_selected_entities(bundle, manager, dir, move_texture)
+                        if Self::move_selected_entities(bundle, manager, delta, move_texture)
                         {
-                            edits_history.entity_move_cluster(manager, dir, move_texture);
+                            edits_history.entity_move_cluster(manager, delta, move_texture);
                         }
                     },
                     {
-                        if Self::move_selected_textures(bundle, manager, dir)
+                        if Self::move_selected_textures(bundle, manager, delta)
                         {
-                            edits_history.texture_move_cluster(manager, dir);
+                            edits_history.texture_move_cluster(manager, delta);
                         }
                     }
                 );
@@ -636,6 +643,7 @@ impl EntityTool
                     if manager.duplicate_selected_entities(
                         bundle.drawing_resources,
                         edits_history,
+                        clipboard,
                         drag.delta()
                     )
                     {
@@ -710,9 +718,14 @@ impl EntityTool
             },
             Status::DragSpawnUi(hgl_e) =>
             {
-                if let Some(dir) = inputs.directional_keys_vector(grid.size())
+                if let Some(delta) = inputs.directional_keys_vector(grid.size())
                 {
-                    Self::move_spawn_entities(bundle, manager, edits_history, settings, dir);
+                    _ = manager.duplicate_selected_entities(
+                        bundle.drawing_resources,
+                        edits_history,
+                        clipboard,
+                        delta
+                    );
                     self.0 = Status::default();
                     return;
                 }
@@ -847,28 +860,6 @@ impl EntityTool
     {
         manager.deselect_selected_entities(edits_history);
         manager.select_entity(identifier, inputs, edits_history);
-    }
-
-    /// Move spawn the selected entities.
-    #[inline]
-    fn move_spawn_entities(
-        bundle: &ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        settings: &ToolsSettings,
-        direction: Vec2
-    )
-    {
-        if !manager.duplicate_selected_entities(bundle.drawing_resources, edits_history, direction)
-        {
-            return;
-        }
-
-        edits_history.entity_move_cluster(
-            manager,
-            direction,
-            matches!(settings.target_switch(), TargetSwitch::Both)
-        );
     }
 
     /// Selects the entities inside the drag selection.

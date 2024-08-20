@@ -84,7 +84,7 @@ impl Prop
     //==============================================================
     // New
 
-    /// Creates a new [`Prop`] for with the entities contained in `iter`, pivot placed at
+    /// Creates a new [`Prop`] with the entities contained in `iter`, pivot placed at
     /// `cursor_pos`, and `screenshot`.
     #[inline]
     pub(in crate::map::editor::state) fn new<'a, D>(
@@ -365,7 +365,7 @@ impl Prop
 
     /// Spawns a copy of `self` moved by `delta`.
     #[inline]
-    fn spawn(
+    pub(in crate::map::editor::state::clipboard) fn spawn(
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,

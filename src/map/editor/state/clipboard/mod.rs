@@ -256,6 +256,7 @@ pub(in crate::map::editor::state) struct Clipboard
 {
     /// The copy-paste stored entities.
     copy_paste: Prop,
+    duplicate: Prop,
     /// The quick prop created with the paint tool.
     quick_prop: Prop,
     /// The slotted [`Prop`]s.
@@ -300,6 +301,7 @@ impl Clipboard
     {
         Self {
             copy_paste: Prop::default(),
+            duplicate: Prop::default(),
             quick_prop: Prop::default(),
             props: HvVec::new(),
             selected_prop: None,
@@ -328,6 +330,7 @@ impl Clipboard
     {
         let mut clip = Self {
             copy_paste: Prop::default(),
+            duplicate: Prop::default(),
             quick_prop: Prop::default(),
             props: HvVec::new(),
             selected_prop: None,
@@ -718,12 +721,29 @@ impl Clipboard
         &mut self,
         bundle: &StateUpdateBundle,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        cursor_pos: Vec2
+        edits_history: &mut EditsHistory
     )
     {
-        self.copy_paste
-            .spawn_copy(bundle.drawing_resources, manager, edits_history, cursor_pos);
+        self.copy_paste.spawn_copy(
+            bundle.drawing_resources,
+            manager,
+            edits_history,
+            bundle.cursor.world_snapped()
+        );
+    }
+
+    #[inline]
+    pub fn duplicate(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        manager: &mut EntitiesManager,
+        edits_history: &mut EditsHistory,
+        delta: Vec2
+    )
+    {
+        self.duplicate.fill(drawing_resources, manager.selected_entities());
+        manager.deselect_selected_entities(edits_history);
+        self.duplicate.spawn(drawing_resources, manager, edits_history, delta);
     }
 
     /// Stores `prop` as the quick [`Prop`].

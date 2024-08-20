@@ -914,6 +914,20 @@ impl Core
             .paste(bundle, manager, inputs, clipboard, edits_history);
     }
 
+    #[inline]
+    pub fn duplicate(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        manager: &mut EntitiesManager,
+        clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        delta: Vec2
+    )
+    {
+        self.active_tool
+            .duplicate(drawing_resources, manager, clipboard, edits_history, delta);
+    }
+
     //==============================================================
     // Update
 

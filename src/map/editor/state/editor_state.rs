@@ -1858,25 +1858,17 @@ impl State
     fn copy_paste_available(&self) -> bool { self.core.copy_paste_available() }
 
     /// Initiates the copy procedure.
-    /// # Panics
-    /// Panics if the operation is not available.
     #[inline]
     fn copy(&mut self, bundle: &StateUpdateBundle)
     {
-        assert!(self.copy_paste_available(), "Copy cannot be enabled.");
-
         self.core
             .copy(bundle, &mut self.manager, &self.inputs, &mut self.clipboard);
     }
 
     /// Initiates the cut procedure.
-    /// # Panics
-    /// Panics if the operation is not available.
     #[inline]
     fn cut(&mut self, bundle: &StateUpdateBundle)
     {
-        assert!(self.copy_paste_available(), "Cut cannot be enabled.");
-
         self.core.cut(
             bundle,
             &mut self.manager,
@@ -1887,13 +1879,9 @@ impl State
     }
 
     /// Initiates the paste procedure.
-    /// # Panics
-    /// Panics if the operation is not available.
     #[inline]
     fn paste(&mut self, bundle: &StateUpdateBundle)
     {
-        assert!(self.copy_paste_available(), "Paste cannot be enabled.");
-
         self.core.paste(
             bundle,
             &mut self.manager,
@@ -1904,17 +1892,15 @@ impl State
     }
 
     /// Initiates the duplicate procedure.
-    /// # Panics
-    /// Panics if the operation is not available.
     #[inline]
     fn duplicate(&mut self, drawing_resources: &DrawingResources)
     {
-        assert!(self.copy_paste_available(), "Duplicate cannot be enabled.");
-
         let delta = Vec2::new(self.grid_size_f32(), 0f32);
 
-        _ = self.manager.duplicate_selected_entities(
+        self.core.duplicate(
             drawing_resources,
+            &mut self.manager,
+            &mut self.clipboard,
             &mut self.edits_history,
             delta
         );

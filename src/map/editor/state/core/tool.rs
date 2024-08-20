@@ -7,6 +7,7 @@ use std::borrow::Cow;
 
 use bevy::input::{keyboard::KeyCode, ButtonInput};
 use bevy_egui::egui;
+use glam::Vec2;
 use hill_vacuum_proc_macros::{EnumFromUsize, EnumIter, EnumSize, SubToolEnum, ToolEnum};
 use hill_vacuum_shared::{match_or_panic, return_if_no_match, return_if_none, NextValue};
 
@@ -39,7 +40,7 @@ use crate::{
         editor::{
             state::{
                 clipboard::Clipboard,
-                core::draw_selected_and_non_selected_sprites,
+                core::{deselect_vertexes, draw_selected_and_non_selected_sprites},
                 editor_state::{InputsPresses, ToolsSettings},
                 edits_history::EditsHistory,
                 grid::Grid,
@@ -610,14 +611,32 @@ impl ActiveTool
 
         if let Self::Vertex(_) | Self::Side(_) = self
         {
-            for mut brush in manager.selected_brushes_mut(bundle.drawing_resources)
-            {
-                brush.deselect_vertexes_no_indexes();
-            }
+            deselect_vertexes(bundle.drawing_resources, manager, edits_history);
         }
 
         manager.deselect_selected_entities(edits_history);
-        clipboard.paste(bundle, manager, edits_history, bundle.cursor.world_snapped());
+        clipboard.paste(bundle, manager, edits_history);
+        manager.schedule_outline_update();
+    }
+
+    #[inline]
+    pub fn duplicate(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        manager: &mut EntitiesManager,
+        clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        delta: Vec2
+    )
+    {
+        assert!(self.copy_paste_available(), "Duplicate is not available.");
+
+        if let Self::Vertex(_) | Self::Side(_) = self
+        {
+            deselect_vertexes(drawing_resources, manager, edits_history);
+        }
+
+        clipboard.duplicate(drawing_resources, manager, edits_history, delta);
         manager.schedule_outline_update();
     }
 
@@ -774,7 +793,7 @@ impl ActiveTool
             Self::Draw(t) => t.update(bundle, manager, inputs, edits_history, settings),
             Self::Entity(t) =>
             {
-                t.update(bundle, manager, inputs, edits_history, grid, settings);
+                t.update(bundle, manager, inputs, edits_history, clipboard, grid, settings);
             },
             Self::Vertex(t) =>
             {
