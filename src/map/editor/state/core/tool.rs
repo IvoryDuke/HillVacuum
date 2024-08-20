@@ -35,7 +35,7 @@ use super::{
 use crate::{
     config::controls::{bind::Bind, BindsKeyCodes},
     map::{
-        brush::{convex_polygon::ConvexPolygon, Brush},
+        brush::{convex_polygon::ConvexPolygon, Brush, PathStatus},
         drawer::drawing_resources::DrawingResources,
         editor::{
             state::{
@@ -1034,9 +1034,9 @@ impl ActiveTool
             manager.selected_brushes().find_map(|brush| {
                 match brush.hollow(grid.size_f32())
                 {
-                    Some(polys) =>
+                    Some(result) =>
                     {
-                        wall_brushes.push((hv_vec![collect; polys], brush.properties()));
+                        wall_brushes.push(result);
                         None
                     },
                     None => brush.id().into()
@@ -1054,16 +1054,50 @@ impl ActiveTool
             manager,
             edits_history,
             move |manager, edits_history| {
-                manager.despawn_selected_brushes(bundle.drawing_resources, edits_history);
-
-                for (brushes, properties) in wall_brushes
+                for result in wall_brushes
                 {
-                    manager.spawn_brushes(
-                        bundle.drawing_resources,
-                        brushes.into_iter(),
-                        edits_history,
-                        properties
-                    );
+                    let (properties, path_status) = {
+                        let mut brush = manager.brush_mut(bundle.drawing_resources, result.id);
+                        edits_history.polygon_edit(result.id, brush.set_polygon(result.main));
+                        (brush.properties(), brush.path_status())
+                    };
+
+                    match path_status
+                    {
+                        PathStatus::None =>
+                        {
+                            manager.spawn_brushes(
+                                bundle.drawing_resources,
+                                result.walls.into_iter(),
+                                edits_history,
+                                properties
+                            );
+                        },
+                        PathStatus::OwnsOrPath =>
+                        {
+                            for id in manager.spawn_brushes_with_ids(
+                                bundle.drawing_resources,
+                                result.walls.into_iter(),
+                                edits_history,
+                                properties
+                            )
+                            {
+                                manager.anchor(result.id, id);
+                            }
+                        },
+                        PathStatus::Anchored(owner) =>
+                        {
+                            for id in manager.spawn_brushes_with_ids(
+                                bundle.drawing_resources,
+                                result.walls.into_iter(),
+                                edits_history,
+                                properties
+                            )
+                            {
+                                manager.anchor(owner, id);
+                            }
+                        }
+                    };
                 }
             }
         );

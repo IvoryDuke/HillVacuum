@@ -781,6 +781,15 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
+    pub(in crate::map::brush) struct HollowResult
+    {
+        pub main:  ConvexPolygon,
+        pub walls: HvVec<ConvexPolygon>
+    }
+
+    //=======================================================================//
+
+    #[must_use]
     struct MovingTextureSettings<'b>
     {
         texture: &'b TextureSettings,
@@ -1596,7 +1605,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        fn transfer_sprite(&self, target: &mut Self)
+        pub(in crate::map::brush) fn transfer_sprite(&self, target: &mut Self)
         {
             if !self.has_sprite()
             {
@@ -3376,12 +3385,10 @@ pub(in crate::map) mod ui_mod
         // Hollow
 
         #[inline]
-        pub(in crate::map::brush) fn hollow(
-            &self,
-            grid_size: f32
-        ) -> Option<impl ExactSizeIterator<Item = Self>>
+        pub(in crate::map::brush) fn hollow(&self, grid_size: f32) -> Option<HollowResult>
         {
-            let mut walls = hv_vec![capacity; self.sides()];
+            let sides = self.sides();
+            let mut walls = hv_vec![capacity; sides];
             let mut leftover = self.clone();
 
             if leftover.has_sprite()
@@ -3389,9 +3396,7 @@ pub(in crate::map) mod ui_mod
                 leftover.texture = None;
             }
 
-            let mut j = self.sides() - 1;
-
-            for i in 0..self.sides()
+            for [j, i] in (0..sides).pair_iter().unwrap()
             {
                 let vx_j = self.vertexes[j].vec;
                 let vx_i = self.vertexes[i].vec;
@@ -3399,8 +3404,6 @@ pub(in crate::map) mod ui_mod
 
                 let left_polygon = leftover.clip_self(&[vx_j + normal, vx_i + normal])?;
                 walls.push(std::mem::replace(&mut leftover, left_polygon));
-
-                j = i;
             }
 
             if walls.is_empty()
@@ -3408,9 +3411,11 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            self.transfer_sprite(&mut walls[0]);
-
-            walls.into_iter().into()
+            HollowResult {
+                main: walls.swap_remove(0),
+                walls
+            }
+            .into()
         }
 
         //==============================================================
@@ -4003,7 +4008,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub(in crate::map::brush) fn set_coordinates(&mut self, vxs: HvVec<Vec2>)
+        pub(in crate::map::brush) fn set_coordinates(&mut self, vxs: impl Iterator<Item = Vec2>)
         {
             for (vx, svx) in vxs.into_iter().zip(self.vertexes.iter_mut())
             {

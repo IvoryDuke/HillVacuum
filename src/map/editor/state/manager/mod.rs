@@ -2606,6 +2606,37 @@ impl EntitiesManager
         self.spawn_brush(drawing_resources, polygons.next_value(), edits_history, properties);
     }
 
+    #[inline]
+    pub fn spawn_brushes_with_ids(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        mut polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
+        edits_history: &mut EditsHistory,
+        properties: Properties
+    ) -> impl Iterator<Item = Id>
+    {
+        let mut ids = hv_hash_set![];
+
+        for _ in 0..polygons.len() - 1
+        {
+            ids.asserted_insert(self.spawn_brush(
+                drawing_resources,
+                polygons.next_value(),
+                edits_history,
+                properties.clone()
+            ));
+        }
+
+        ids.asserted_insert(self.spawn_brush(
+            drawing_resources,
+            polygons.next_value(),
+            edits_history,
+            properties
+        ));
+
+        ids.into_iter()
+    }
+
     /// Spawns a brush created with a draw tool.
     #[inline]
     pub fn spawn_drawn_brush(
