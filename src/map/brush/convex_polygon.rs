@@ -49,7 +49,7 @@ pub(in crate::map) mod ui_mod
     use super::ConvexPolygon;
     use crate::{
         map::{
-            brush::Brush,
+            brush::{Brush, ShatterResult},
             drawer::{
                 animation::{Animator, Timing},
                 color::{Color, ColorResources},
@@ -3432,7 +3432,7 @@ pub(in crate::map) mod ui_mod
             &self,
             cursor_pos: Vec2,
             camera_scale: f32
-        ) -> Option<impl ExactSizeIterator<Item = Self>>
+        ) -> Option<ShatterResult>
         {
             let (capacity, mut i, mut j, common_vx) = {
                 if let Some(idx) = self.nearby_vertex(cursor_pos, camera_scale)
@@ -3475,9 +3475,10 @@ pub(in crate::map) mod ui_mod
                 .take(capacity)
             ];
 
-            self.transfer_sprite(&mut shards[0]);
+            let mut main = shards.swap_remove(0);
+            self.transfer_sprite(&mut main);
 
-            Some(shards.into_iter())
+            ShatterResult { main, shards }.into()
         }
 
         //==============================================================

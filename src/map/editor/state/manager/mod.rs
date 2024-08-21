@@ -48,8 +48,7 @@ use crate::{
         brush::{
             convex_polygon::{ConvexPolygon, TextureSetResult},
             Brush,
-            BrushData,
-            PathStatus
+            BrushData
         },
         drawer::{
             animation::Animator,
@@ -2611,6 +2610,31 @@ impl EntitiesManager
         f: F
     ) -> impl Iterator<Item = Id>
     {
+        #[must_use]
+        enum PathStatus
+        {
+            None,
+            OwnsOrPath,
+            Anchored(Id)
+        }
+
+        #[inline]
+        fn path_status(brush: &Brush) -> PathStatus
+        {
+            if brush.has_path() || brush.has_anchors()
+            {
+                PathStatus::OwnsOrPath
+            }
+            else if let Some(id) = brush.anchored()
+            {
+                PathStatus::Anchored(id)
+            }
+            else
+            {
+                PathStatus::None
+            }
+        }
+
         #[inline]
         fn spawn_brushes_with_ids(
             manager: &mut EntitiesManager,
@@ -2645,7 +2669,7 @@ impl EntitiesManager
         let (properties, path_status) = {
             let mut brush = self.brush_mut(drawing_resources, identifier);
             edits_history.polygon_edit(identifier, f(&mut brush));
-            (brush.properties(), brush.path_status())
+            (brush.properties(), path_status(&brush))
         };
 
         match path_status
@@ -2767,18 +2791,6 @@ impl EntitiesManager
     ) -> BrushData
     {
         self.remove_brush(drawing_resources, identifier).into_parts().0
-    }
-
-    /// Despawns the brush with [`Id`] `identifier`.
-    #[inline]
-    pub fn despawn_selected_brush(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        identifier: Id,
-        edits_history: &mut EditsHistory
-    )
-    {
-        self.despawn_brush(drawing_resources, identifier, edits_history);
     }
 
     /// Despawns the selected brushes.

@@ -220,7 +220,7 @@ Added customizable properties for both `Brush` and `Thing` entities. See `brush_
 
 ### Changes
 - Updated crates;
-- slight .hv file format changes;
+- slight `.hv` file format changes;
 - many optimizations.
 
 ### Fixes

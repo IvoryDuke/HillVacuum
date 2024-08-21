@@ -785,21 +785,20 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    pub(in crate::map) enum PathStatus
-    {
-        None,
-        OwnsOrPath,
-        Anchored(Id)
-    }
-
-    //=======================================================================//
-
-    #[must_use]
     pub(in crate::map) struct HollowResult
     {
         pub id:    Id,
         pub main:  ConvexPolygon,
         pub walls: HvVec<ConvexPolygon>
+    }
+
+    //=======================================================================//
+
+    #[must_use]
+    pub(in crate::map) struct ShatterResult
+    {
+        pub main:   ConvexPolygon,
+        pub shards: HvVec<ConvexPolygon>
     }
 
     //=======================================================================//
@@ -1527,17 +1526,6 @@ pub(in crate::map) mod ui_mod
 
         //==============================================================
         // Path
-
-        #[inline]
-        pub const fn path_status(&self) -> PathStatus
-        {
-            match &self.data.mover
-            {
-                Mover::None => PathStatus::None,
-                Mover::Anchors(_) | Mover::Motor(_) => PathStatus::OwnsOrPath,
-                Mover::Anchored(id) => PathStatus::Anchored(*id)
-            }
-        }
 
         #[inline]
         #[must_use]
@@ -2497,11 +2485,7 @@ pub(in crate::map) mod ui_mod
         /// Shatters the underlying `ConvexPolygon` in triangles depending on the
         /// position of `cursor_pos` with respect to the polygon's shape.
         #[inline]
-        pub fn shatter(
-            &self,
-            cursor_pos: Vec2,
-            camera_scale: f32
-        ) -> Option<impl ExactSizeIterator<Item = ConvexPolygon>>
+        pub fn shatter(&self, cursor_pos: Vec2, camera_scale: f32) -> Option<ShatterResult>
         {
             self.data.polygon.shatter(cursor_pos, camera_scale)
         }

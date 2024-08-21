@@ -9,6 +9,7 @@ use hill_vacuum_shared::return_if_none;
 use super::item_selector::{ItemSelector, ItemsBeneathCursor};
 use crate::{
     map::{
+        brush::ShatterResult,
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             cursor::Cursor,
@@ -132,20 +133,26 @@ impl ShatterTool
         edits_history: &mut EditsHistory
     )
     {
-        let ToolUpdateBundle { camera, cursor, .. } = bundle;
+        let ToolUpdateBundle {
+            drawing_resources,
+            camera,
+            cursor,
+            ..
+        } = bundle;
 
         let id = return_if_none!(self.0);
-        let properties = manager.brush(id).properties();
+        let ShatterResult { main, shards } =
+            return_if_none!(manager.brush(id).shatter(Self::cursor_pos(cursor), camera.scale()));
 
-        manager.spawn_brushes(
-            bundle.drawing_resources,
-            return_if_none!(manager.brush(id).shatter(Self::cursor_pos(cursor), camera.scale())),
+        _ = manager.replace_brush_with_partition(
+            drawing_resources,
             edits_history,
-            properties
+            shards.into_iter(),
+            id,
+            |brush| brush.set_polygon(main)
         );
-        manager.despawn_selected_brush(bundle.drawing_resources, id, edits_history);
-        edits_history.override_edit_tag("Brushes Shatter");
 
+        edits_history.override_edit_tag("Brush Shatter");
         self.0 = None;
     }
 
