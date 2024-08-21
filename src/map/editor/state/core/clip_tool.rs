@@ -22,8 +22,8 @@ use super::{
 };
 use crate::{
     map::{
-        brush::convex_polygon::ConvexPolygon,
-        drawer::{color::Color, drawing_resources::DrawingResources},
+        brush::{convex_polygon::ConvexPolygon, ClipResult},
+        drawer::{color::Color, drawers::EditDrawer, drawing_resources::DrawingResources},
         editor::{
             cursor::Cursor,
             state::{
@@ -35,16 +35,14 @@ use crate::{
             DrawBundle,
             StateUpdateBundle,
             ToolUpdateBundle
-        },
-        hv_vec,
-        properties::Properties
+        }
     },
     utils::{
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         misc::{next, prev, Camera, TakeValue}
     },
-    HvVec
+    HvHashMap
 };
 
 //=======================================================================//
@@ -54,44 +52,25 @@ use crate::{
 
 /// A macro to clip the selected brushes.
 macro_rules! clip_brushes {
-    (
-        $self:ident,
-        $drawing_resources:ident,
-        $manager:ident,
-        $edits_history:ident,
-        $clip_line:expr,
-        $iter:expr
-    ) => {
-        let mut left_polygons = hv_vec![];
-        let mut right_polygons = hv_vec![];
-        let mut clipped_brushes = hv_vec![];
+    ($self:ident, $clip_line:expr, $iter:expr) => {
+        let mut results = crate::utils::containers::hv_hash_map![];
 
         // Until I figure out how to properly annotate the F lifetimes.
         for brush in $iter
         {
-            let [left, right] = continue_if_none!(brush.clip($clip_line));
-            left_polygons.push((left, brush.properties()));
-            right_polygons.push((right, brush.properties()));
-            clipped_brushes.push(brush.id());
+            use crate::utils::misc::AssertedInsertRemove;
+            results.asserted_insert((brush.id(), continue_if_none!(brush.clip($clip_line))));
         }
 
-        if clipped_brushes.is_empty()
+        if results.is_empty()
         {
             $self.0 = Status::default();
             return;
         }
 
-        $edits_history.start_multiframe_edit();
-
-        for id in clipped_brushes
-        {
-            $manager.despawn_brush($drawing_resources, id, $edits_history);
-        }
-
         $self.0 = Status::PostClip {
             pick: PickedPolygons::default(),
-            left_polygons,
-            right_polygons
+            results
         };
     };
 }
@@ -139,11 +118,8 @@ enum Status
     PostClip
     {
         /// The polygons picked to spawn the brushes.
-        pick:           PickedPolygons,
-        /// The polygons to the left of the clip line.
-        left_polygons:  HvVec<(ConvexPolygon, Properties)>,
-        /// The polygons to the right of the clip line.
-        right_polygons: HvVec<(ConvexPolygon, Properties)>
+        pick:    PickedPolygons,
+        results: HvHashMap<Id, ClipResult>
     },
     /// Choosing the side to clip the brushes.
     PickSideUi(Option<ClipSide>)
@@ -261,7 +237,7 @@ impl ClipTool
                         return;
                     }
 
-                    self.clip_brushes_with_side(bundle.drawing_resources, manager, edits_history);
+                    self.clip_brushes_with_side(manager);
                 }
                 else if left_mouse_just_pressed
                 {
@@ -279,20 +255,20 @@ impl ClipTool
 
                 if inputs.left_mouse.just_pressed()
                 {
-                    self.clip_brushes_with_line(bundle.drawing_resources, manager, edits_history);
+                    self.clip_brushes_with_line(manager);
                 }
             },
-            Status::PostClip { pick: status, .. } =>
+            Status::PostClip { pick, .. } =>
             {
                 if inputs.tab.just_pressed()
                 {
                     if inputs.alt_pressed()
                     {
-                        status.previous();
+                        pick.previous();
                     }
                     else
                     {
-                        status.next();
+                        pick.next();
                     }
                 }
                 else if inputs.enter.just_pressed()
@@ -307,7 +283,7 @@ impl ClipTool
 
                 if inputs.left_mouse.just_pressed()
                 {
-                    self.clip_brushes_with_side(bundle.drawing_resources, manager, edits_history);
+                    self.clip_brushes_with_side(manager);
                 }
             }
         };
@@ -342,12 +318,7 @@ impl ClipTool
 
     /// Clips the selected brushes with the chosen side.
     #[inline]
-    fn clip_brushes_with_side(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory
-    )
+    fn clip_brushes_with_side(&mut self, manager: &mut EntitiesManager)
     {
         let clip_side = match_or_panic!(
             &self.0,
@@ -358,9 +329,6 @@ impl ClipTool
 
         clip_brushes!(
             self,
-            drawing_resources,
-            manager,
-            edits_history,
             &clip_side.side,
             manager
                 .selected_brushes()
@@ -370,23 +338,11 @@ impl ClipTool
 
     /// Clips the selected brushes with the clip line.
     #[inline]
-    fn clip_brushes_with_line(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory
-    )
+    fn clip_brushes_with_line(&mut self, manager: &mut EntitiesManager)
     {
         let clip_segment = &match_or_panic!(&self.0, Status::Active(co, Some(ce)), [*co, *ce]);
 
-        clip_brushes!(
-            self,
-            drawing_resources,
-            manager,
-            edits_history,
-            clip_segment,
-            manager.selected_brushes()
-        );
+        clip_brushes!(self, clip_segment, manager.selected_brushes());
     }
 
     /// Spawns the generated brushes.
@@ -398,51 +354,64 @@ impl ClipTool
         edits_history: &mut EditsHistory
     )
     {
-        let (pick, mut left_polygons, right_polygons) = match_or_panic!(
+        let (pick, mut results) = match_or_panic!(
             &mut self.0,
-            Status::PostClip {
-                pick,
-                left_polygons,
-                right_polygons
-            },
-            (pick, left_polygons.take_value(), right_polygons.take_value())
+            Status::PostClip { pick, results },
+            (pick, results.take_value())
         );
 
         match pick
         {
             PickedPolygons::Both =>
             {
-                if left_polygons[0].0.has_sprite()
+                for result in results.values_mut()
                 {
-                    for (poly, _) in &mut left_polygons
+                    if result.right.has_sprite()
                     {
-                        _ = poly.remove_texture();
+                        _ = result.right.remove_texture();
                     }
                 }
 
-                for (poly, properties) in left_polygons.into_iter().chain(right_polygons)
+                for (id, result) in results
                 {
-                    manager.spawn_brush(drawing_resources, poly, edits_history, properties);
+                    _ = manager.replace_brush_with_partition(
+                        drawing_resources,
+                        edits_history,
+                        Some(result.right).into_iter(),
+                        id,
+                        |brush| brush.set_polygon(result.left)
+                    );
                 }
             },
             PickedPolygons::Left =>
             {
-                for (poly, properties) in left_polygons
+                for (id, result) in results
                 {
-                    manager.spawn_brush(drawing_resources, poly, edits_history, properties);
+                    _ = manager.replace_brush_with_partition(
+                        drawing_resources,
+                        edits_history,
+                        None.into_iter(),
+                        id,
+                        |brush| brush.set_polygon(result.left)
+                    );
                 }
             },
             PickedPolygons::Right =>
             {
-                for (poly, properties) in right_polygons
+                for (id, result) in results
                 {
-                    manager.spawn_brush(drawing_resources, poly, edits_history, properties);
+                    _ = manager.replace_brush_with_partition(
+                        drawing_resources,
+                        edits_history,
+                        None.into_iter(),
+                        id,
+                        |brush| brush.set_polygon(result.right)
+                    );
                 }
             }
         };
 
         edits_history.override_edit_tag("Brushes Clip");
-        edits_history.end_multiframe_edit();
         self.0 = Status::default();
     }
 
@@ -490,83 +459,91 @@ impl ClipTool
                     );
                 }
             },
-            Status::PostClip {
-                pick: status,
-                left_polygons,
-                right_polygons
-            } =>
+            Status::PostClip { pick, results } =>
             {
                 /// Draws the sprite of `polygon` and its highlight.
                 #[inline]
                 fn draw_sprite_with_highlight(
                     polygon: &ConvexPolygon,
-                    bundle: &mut DrawBundle,
+                    drawer: &mut EditDrawer,
                     color: Color
                 )
                 {
                     if polygon.has_sprite()
                     {
-                        polygon.draw_sprite_with_highlight(&mut bundle.drawer, color);
+                        polygon.draw_sprite_with_highlight(drawer, color);
                     }
                 }
 
-                draw_selected_and_non_selected_brushes!(bundle, manager);
+                let DrawBundle {
+                    window,
+                    drawer,
+                    camera,
+                    ..
+                } = bundle;
 
-                match status
+                for brush in manager.visible_brushes(window, camera, drawer.grid()).iter()
+                {
+                    let id = brush.id();
+
+                    if results.contains_key(&id)
+                    {
+                        continue;
+                    }
+
+                    if manager.is_selected(id)
+                    {
+                        brush.draw_selected(camera, drawer);
+                    }
+                    else
+                    {
+                        brush.draw_non_selected(camera, drawer);
+                    }
+                }
+
+                match pick
                 {
                     PickedPolygons::Both =>
                     {
-                        for (cp, _) in left_polygons
+                        for result in results.values()
                         {
-                            cp.draw(
-                                bundle.camera,
-                                &mut bundle.drawer,
-                                Color::ClippedPolygonsToSpawn
-                            );
-                        }
+                            result.left.draw(camera, drawer, Color::ClippedPolygonsToSpawn);
 
-                        for (cp, _) in right_polygons
-                        {
-                            cp.draw(
-                                bundle.camera,
-                                &mut bundle.drawer,
+                            result.right.draw(camera, drawer, Color::ClippedPolygonsToSpawn);
+
+                            draw_sprite_with_highlight(
+                                &result.right,
+                                drawer,
                                 Color::ClippedPolygonsToSpawn
                             );
-                            draw_sprite_with_highlight(cp, bundle, Color::ClippedPolygonsToSpawn);
                         }
                     },
                     PickedPolygons::Left =>
                     {
-                        for (cp, _) in left_polygons
+                        for result in results.values()
                         {
-                            cp.draw(
-                                bundle.camera,
-                                &mut bundle.drawer,
+                            result.left.draw(camera, drawer, Color::ClippedPolygonsToSpawn);
+                            draw_sprite_with_highlight(
+                                &result.left,
+                                drawer,
                                 Color::ClippedPolygonsToSpawn
                             );
-                            draw_sprite_with_highlight(cp, bundle, Color::ClippedPolygonsToSpawn);
-                        }
 
-                        for (cp, _) in right_polygons
-                        {
-                            cp.draw(bundle.camera, &mut bundle.drawer, Color::OpaqueEntity);
+                            result.right.draw(camera, drawer, Color::OpaqueEntity);
                         }
                     },
                     PickedPolygons::Right =>
                     {
-                        for (cp, _) in right_polygons
+                        for result in results.values()
                         {
-                            cp.draw(
-                                bundle.camera,
-                                &mut bundle.drawer,
+                            result.right.draw(camera, drawer, Color::ClippedPolygonsToSpawn);
+                            draw_sprite_with_highlight(
+                                &result.right,
+                                drawer,
                                 Color::ClippedPolygonsToSpawn
                             );
-                            draw_sprite_with_highlight(cp, bundle, Color::ClippedPolygonsToSpawn);
-                        }
 
-                        for (cp, _) in left_polygons
-                        {
-                            cp.draw(bundle.camera, &mut bundle.drawer, Color::OpaqueEntity);
+                            result.left.draw(camera, drawer, Color::OpaqueEntity);
                         }
                     }
                 };

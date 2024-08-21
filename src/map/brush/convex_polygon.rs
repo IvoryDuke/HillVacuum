@@ -49,7 +49,7 @@ pub(in crate::map) mod ui_mod
     use super::ConvexPolygon;
     use crate::{
         map::{
-            brush::{Brush, ShatterResult},
+            brush::{Brush, ClipResult, ShatterResult},
             drawer::{
                 animation::{Animator, Timing},
                 color::{Color, ColorResources},
@@ -657,7 +657,7 @@ pub(in crate::map) mod ui_mod
             &self,
             brush: &Brush,
             distance: Vec2
-        ) -> Option<[ConvexPolygon; 2]>
+        ) -> Option<ClipResult>
         {
             brush.clip(&self.xtrusion_side(distance))
         }

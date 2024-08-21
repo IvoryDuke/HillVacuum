@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.4
+
+### Changes
+Brushes that are split into brushes that amount to all or a fraction of their original surface preserve their Path and/or their anchored brushes.
+
+## Fixes
+Fixed a bug with vertex/side drag selection that could occur when multiple brushes were selected.
+
 ## 0.6.3
 
 ### Changes

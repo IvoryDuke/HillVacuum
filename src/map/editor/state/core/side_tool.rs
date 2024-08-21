@@ -37,6 +37,7 @@ use crate::{
                 XtrusionInfo
             },
             Brush,
+            ClipResult,
             SidesDeletionResult,
             VertexesMoveResult,
             XtrusionPayload,
@@ -59,29 +60,20 @@ use crate::{
         }
     },
     utils::{
-        containers::{hv_hash_set, hv_vec, Ids},
+        containers::{hv_hash_map, hv_hash_set, hv_vec, Ids},
         hull::{EntityHull, Hull},
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::{lines_and_segments::closest_point_on_line, AroundEqual, HashVec2},
         misc::{Camera, TakeValue}
     },
+    HvHashMap,
     HvVec
 };
 
 //=======================================================================//
 // TYPES
 //
-//=======================================================================//
-
-#[derive(Debug)]
-struct IntrusionResult
-{
-    id:    Id,
-    main:  ConvexPolygon,
-    other: ConvexPolygon
-}
-
 //=======================================================================//
 
 /// The cursor drag of an xtrusion.
@@ -136,14 +128,14 @@ impl XTrusionDrag
 enum XtrusionMode
 {
     /// Started.
-    Xtrusion(HvVec<XtrusionPayload>),
+    Xtrusion(HvHashMap<Id, XtrusionPayload>),
     /// Intrusion.
     Intrusion
     {
         /// The intrusion info of the brushes.
-        payloads: HvVec<XtrusionPayload>,
+        payloads: HvHashMap<Id, XtrusionPayload>,
         /// The generated polygons.
-        results:  HvVec<IntrusionResult>
+        results:  HvVec<ClipResult>
     },
     /// Extrusion.
     Extrusion(HvVec<(Id, XtrusionInfo, ConvexPolygon)>)
@@ -349,7 +341,7 @@ impl BrushesWithSelectedSides
             .find_map(|brush| brush.xtrusion_info(cursor_pos, camera_scale))?;
 
         let id = payload.id();
-        let mut payloads = hv_vec![payload];
+        let mut payloads = hv_hash_map![(id, payload)];
 
         let valid = manager.test_operation_validity(|manager| {
             manager
@@ -361,7 +353,7 @@ impl BrushesWithSelectedSides
                     {
                         XtrusionResult::None => (),
                         XtrusionResult::Invalid => return id.into(),
-                        XtrusionResult::Valid(pl) => payloads.push(pl)
+                        XtrusionResult::Valid(pl) => _ = payloads.insert(pl.id(), pl)
                     };
 
                     None
@@ -971,35 +963,29 @@ impl SideTool
     #[must_use]
     fn intrusion_polygons(
         manager: &mut EntitiesManager,
-        payloads: &HvVec<XtrusionPayload>,
+        payloads: &HvHashMap<Id, XtrusionPayload>,
         delta: Vec2
-    ) -> Option<HvVec<IntrusionResult>>
+    ) -> Option<HvVec<ClipResult>>
     {
         let mut polygons = hv_vec![capacity; payloads.len() * 2];
 
         let valid = manager.test_operation_validity(|manager| {
-            payloads.iter().find_map(|payload| {
-                let id = payload.id();
-
+            payloads.iter().find_map(|(id, payload)| {
                 match payload
                     .info()
-                    .clip_polygon_at_intrusion_side(manager.brush(id), delta)
+                    .clip_polygon_at_intrusion_side(manager.brush(*id), delta)
                 {
-                    None => id.into(),
-                    Some([left, mut right]) =>
+                    None => (*id).into(),
+                    Some(mut result) =>
                     {
-                        right.deselect_vertexes_no_indexes();
+                        result.right.deselect_vertexes_no_indexes();
 
-                        if right.has_sprite()
+                        if result.right.has_sprite()
                         {
-                            _ = right.remove_texture();
+                            _ = result.right.remove_texture();
                         }
 
-                        polygons.push(IntrusionResult {
-                            id,
-                            main: left,
-                            other: right
-                        });
+                        polygons.push(result);
                         None
                     }
                 }
@@ -1053,18 +1039,18 @@ impl SideTool
 
                     let valid = manager.test_operation_validity(|manager| {
                         // Generate the extrusion polygons.
-                        payloads.take_value().into_iter().find_map(|payload| {
+                        payloads.take_value().into_iter().find_map(|(id, payload)| {
                             match payload.info().create_extrusion_polygon(
                                 delta,
-                                manager.brush(payload.id()).texture_settings()
+                                manager.brush(id).texture_settings()
                             )
                             {
                                 Some(poly) =>
                                 {
-                                    polys.push((payload.id(), *payload.info(), poly));
+                                    polys.push((id, *payload.info(), poly));
                                     None
                                 },
-                                None => payload.id().into()
+                                None => id.into()
                             }
                         })
                     });
@@ -1093,8 +1079,8 @@ impl SideTool
         manager: &mut EntitiesManager,
         grid: Grid,
         cursor: &Cursor,
-        payloads: &HvVec<XtrusionPayload>,
-        polygons: &mut HvVec<IntrusionResult>,
+        payloads: &HvHashMap<Id, XtrusionPayload>,
+        polygons: &mut HvVec<ClipResult>,
         line: &[Vec2; 2],
         drag: &mut XTrusionDrag
     )
@@ -1169,14 +1155,14 @@ impl SideTool
 
         for result in results
         {
-            let IntrusionResult { id, main, other } = result;
+            let ClipResult { id, left, right } = result;
 
             _ = manager.replace_brush_with_partition(
                 drawing_resources,
                 edits_history,
-                Some(other).into_iter(),
+                Some(right).into_iter(),
                 id,
-                |brush| brush.set_polygon(main)
+                |brush| brush.set_polygon(left)
             );
         }
 
@@ -1296,7 +1282,7 @@ impl SideTool
                         {
                             let id = brush.id();
 
-                            if payloads.iter().any(|p| p.id() == id)
+                            if payloads.contains_key(&id)
                             {
                                 continue;
                             }
@@ -1311,7 +1297,7 @@ impl SideTool
                             );
                         }
 
-                        for polys in results.iter().map(|result| [&result.main, &result.other])
+                        for polys in results.iter().map(|result| [&result.left, &result.right])
                         {
                             for p in polys
                             {

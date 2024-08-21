@@ -2646,6 +2646,11 @@ impl EntitiesManager
         {
             let mut ids = hv_hash_set![];
 
+            if polygons.len() == 0
+            {
+                return ids;
+            }
+
             for _ in 0..polygons.len() - 1
             {
                 ids.asserted_insert(manager.spawn_brush(
