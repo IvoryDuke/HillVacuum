@@ -11,4 +11,5 @@ For those who do not mind reading, HV features a manual, which can be referenced
 - the `MANUAL.md` file;  
 - the `MANUAL.pdf` file;  
 - the `Manual` window built in the editor which can be opened through the keyboard combination `` Ctrl+` ``.  
+
 For the rest, there's this [video](https://youtu.be/c5lakP_V1n0).
