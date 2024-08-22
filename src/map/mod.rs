@@ -804,7 +804,7 @@ pub(in crate::map) mod ui_mod
     #[inline]
     fn process_egui_inputs(mut input: Query<&mut EguiInput>, editor: NonSend<Editor>)
     {
-        let events = &mut input.get_single_mut().unwrap().0.events;
+        let events = &mut return_if_err!(input.get_single_mut()).0.events;
         let mut iter = events.iter_mut().enumerate();
         let mut index = None;
         let mut add_escape = false;
