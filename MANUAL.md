@@ -12,8 +12,8 @@ Things can either be defined in one or many .ini files to be placed in the `asse
 If defined in the .ini files, the things must follow a similar format:
 ```ini
 [Name]
-width = N
-height = M
+width = W
+height = H
 id = ID
 preview = TEX
 ```

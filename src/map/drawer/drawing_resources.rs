@@ -578,10 +578,6 @@ impl DrawingResources
         self.texture(name).unwrap_or(self.error_texture())
     }
 
-    /// Returns the index of the texture named [`name`].
-    #[inline]
-    pub fn texture_index(&self, name: &str) -> Option<usize> { self.textures.index(name) }
-
     /// Returns a reference to the [`TextureMaterials`] of the texture named `name`.
     #[inline]
     pub(in crate::map::drawer) fn texture_materials(&self, name: &str) -> &TextureMaterials
@@ -1442,11 +1438,8 @@ impl<'a> MeshGenerator<'a>
         let mut x = 1f32;
         let mut y = 1f32;
 
-        if let Animation::Atlas(anim) = self
-            .4
-            .texture(self.4.texture_or_error(catalog.texture(thing.thing())).name())
-            .unwrap()
-            .animation()
+        if let Animation::Atlas(anim) =
+            self.4.texture_or_error(catalog.texture(thing.thing())).animation()
         {
             x /= anim.x_partition() as f32;
             y /= anim.y_partition() as f32;

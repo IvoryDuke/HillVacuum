@@ -98,7 +98,7 @@ macro_rules! textures_gallery {
 
             $ui.horizontal(|ui| {
                 let highlight_index_in_row = highlight_index % $textures_per_row;
-                let mut textures = return_if_none!(chunks.next()).into_iter();
+                let mut textures = chunks.next().unwrap();
 
                 for _ in 0..highlight_index_in_row
                 {
@@ -119,7 +119,7 @@ macro_rules! textures_gallery {
             });
         }
 
-        while let Some(chunk) = chunks.next()
+        for chunk in chunks
         {
             #[allow(clippy::redundant_closure_call)]
             $row_without_highlight($ui, chunk);

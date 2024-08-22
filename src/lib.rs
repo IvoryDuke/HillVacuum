@@ -26,7 +26,10 @@ mod utils;
 //=======================================================================//
 
 #[cfg(feature = "ui")]
-pub use crate::map::properties::{BrushProperties, ThingProperties};
+pub use crate::map::{
+    properties::{BrushProperties, ThingProperties},
+    thing::HardcodedThings
+};
 pub use crate::{
     map::{
         brush::{

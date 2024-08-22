@@ -593,36 +593,52 @@ impl Innards
         chunked_textures_container: &mut HvVec<&'static TextureMaterials>
     )
     {
-        /// Draws the button to be clicked to pick a texture.
         #[inline]
-        fn texture_preview<F>(
+        fn gallery<'a, F, G>(
             ui: &mut egui::Ui,
-            texture_materials: &TextureMaterials,
-            f: F
-        ) -> egui::Response
-        where
-            F: FnOnce(&Texture, &egui::Response)
+            drawing_resources: &'a DrawingResources,
+            textures_per_row: usize,
+            chunked_textures_container: &'a mut HvVec<&'static TextureMaterials>,
+            filter: Option<F>,
+            mut click_func: G
+        ) where
+            F: Fn(&&'a TextureMaterials) -> bool,
+            G: FnMut(&Texture, &egui::Response)
         {
-            ui.vertical(|ui| {
-                ui.set_width(TEXTURE_GALLERY_PREVIEW_FRAME_SIDE);
+            let mut chunks = drawing_resources.chunked_textures(
+                textures_per_row,
+                chunked_textures_container,
+                filter
+            );
 
-                let texture = texture_materials.texture();
-                let response = format_texture_preview!(
-                    ImageButton,
-                    ui,
-                    texture_materials.egui_id(),
-                    texture.size(),
-                    TEXTURE_GALLERY_PREVIEW_FRAME_SIDE
-                );
+            while let Some(chunk) = chunks.next()
+            {
+                ui.horizontal(|ui| {
+                    for texture_materials in chunk
+                    {
+                        ui.vertical(|ui| {
+                            ui.set_width(TEXTURE_GALLERY_PREVIEW_FRAME_SIDE);
 
-                f(texture, &response);
+                            let texture = texture_materials.texture();
+                            let response = format_texture_preview!(
+                                ImageButton,
+                                ui,
+                                texture_materials.egui_id(),
+                                texture.size(),
+                                TEXTURE_GALLERY_PREVIEW_FRAME_SIDE
+                            );
 
-                ui.vertical_centered(|ui| {
-                    ui.add(egui::Label::new(texture.label()).wrap());
+                            click_func(texture, &response);
+
+                            ui.vertical_centered(|ui| {
+                                ui.add(egui::Label::new(texture.label()).wrap());
+                            });
+                        });
+                    }
+
+                    ui.add_space(ui.available_width());
                 });
-                response
-            })
-            .inner
+            }
         }
 
         #[inline]
@@ -714,53 +730,29 @@ impl Innards
 
         let textures_per_row = texture_per_row(ui, TEXTURE_GALLERY_PREVIEW_FRAME_SIDE);
 
-        /// Draws the gallery of loaded textures.
-        macro_rules! gallery {
-            ($f:expr) => {{
-                crate::map::editor::state::ui::textures_gallery!(
-                    ui,
-                    textures_per_row,
-                    drawing_resources.chunked_textures(
-                        textures_per_row,
-                        chunked_textures_container,
-                        filter
-                    ),
-                    match self.overall_texture.name.uniform_value()
-                    {
-                        Some(name) => drawing_resources.texture_index(name),
-                        None => None
-                    },
-                    |ui, texture| texture_preview(ui, texture, $f),
-                    |ui: &mut egui::Ui, textures| {
-                        ui.horizontal(|ui| {
-                            for texture_materials in textures
-                            {
-                                texture_preview(ui, texture_materials as &&TextureMaterials, $f);
-                            }
-
-                            ui.add_space(ui.available_width());
-                        });
-                    }
-                );
-            }};
-        }
-
         if self
             .animation_editor
             .can_add_textures_to_list(&self.overall_texture.animation)
         {
             let mut clicked_texture = None;
 
-            gallery!(|texture, response| {
-                if response.clicked()
-                {
-                    clicked_texture = texture.name().to_owned().into();
+            gallery(
+                ui,
+                drawing_resources,
+                textures_per_row,
+                chunked_textures_container,
+                filter,
+                |texture, response| {
+                    if response.clicked()
+                    {
+                        clicked_texture = texture.name().to_owned().into();
+                    }
+                    else if response.secondary_clicked()
+                    {
+                        self.animation_editor.set_texture_override(texture);
+                    }
                 }
-                else if response.secondary_clicked()
-                {
-                    self.animation_editor.set_texture_override(texture);
-                }
-            });
+            );
 
             self.animation_editor.push_list_animation_frame(
                 drawing_resources,
@@ -773,21 +765,28 @@ impl Innards
             return;
         }
 
-        gallery!(|texture, response| {
-            if response.clicked()
-            {
-                _ = Innards::assign_texture(
-                    drawing_resources,
-                    manager,
-                    edits_history,
-                    texture.name()
-                );
+        gallery(
+            ui,
+            drawing_resources,
+            textures_per_row,
+            chunked_textures_container,
+            filter,
+            |texture, response| {
+                if response.clicked()
+                {
+                    _ = Innards::assign_texture(
+                        drawing_resources,
+                        manager,
+                        edits_history,
+                        texture.name()
+                    );
+                }
+                else if response.secondary_clicked()
+                {
+                    self.animation_editor.set_texture_override(texture);
+                }
             }
-            else if response.secondary_clicked()
-            {
-                self.animation_editor.set_texture_override(texture);
-            }
-        });
+        );
     }
 
     /// Shows the texture editor.

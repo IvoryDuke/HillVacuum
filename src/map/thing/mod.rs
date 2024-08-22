@@ -164,7 +164,7 @@ pub struct ThingViewer
 //=======================================================================//
 
 #[cfg(feature = "ui")]
-pub(in crate::map) mod ui_mod
+pub mod ui_mod
 {
     //=======================================================================//
     // IMPORTS
@@ -177,7 +177,7 @@ pub(in crate::map) mod ui_mod
     use hill_vacuum_shared::{return_if_none, TEXTURE_HEIGHT_RANGE};
     use serde::{Deserialize, Serialize};
 
-    use super::{catalog::ThingsCatalog, Thing, ThingInterface, ThingViewer};
+    use super::{catalog::ThingsCatalog, MapThing, Thing, ThingInterface, ThingViewer};
     use crate::{
         map::{
             drawer::{
@@ -199,7 +199,6 @@ pub(in crate::map) mod ui_mod
         },
         Hull,
         Id,
-        MapThing,
         Path,
         ThingId,
         Value
@@ -865,4 +864,4 @@ pub(in crate::map) mod ui_mod
 }
 
 #[cfg(feature = "ui")]
-pub(in crate::map) use ui_mod::*;
+pub use ui_mod::*;

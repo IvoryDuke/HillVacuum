@@ -128,16 +128,6 @@ pub(in crate::map) mod ui_only
             self.map.get_mut(k).map(|idx| &mut self.vec[*idx])
         }
 
-        /// Returns the index of the element associated to the key `k`.
-        #[inline]
-        #[must_use]
-        pub fn index<Q>(&self, k: &Q) -> Option<usize>
-        where
-            Q: ?Sized + Hash + Equivalent<K>
-        {
-            self.map.get(k).copied()
-        }
-
         //==============================================================
         // Iterators
 
