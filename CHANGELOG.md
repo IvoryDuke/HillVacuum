@@ -3,10 +3,14 @@
 ## 0.6.4
 
 ### Changes
-Brushes that are split into brushes that amount to all or a fraction of their original surface preserve their Path and/or their anchored brushes.
+- Brushes that are split into brushes that amount to all or a fraction of their original surface preserve their Path and/or their anchored brushes;
+- added missing flip tool documentation.
 
 ## Fixes
-Fixed a bug with vertex/side drag selection that could occur when multiple brushes were selected.
+- Fixed a bug with vertex/side drag selection that could occur when multiple brushes were selected;
+- fixed texture editor crash when textures were filtered;
+- fixed crash occurring when a thing with the error texture was spawned;
+- fixed `hardcoded_things!` macro.
 
 ## 0.6.3
 
