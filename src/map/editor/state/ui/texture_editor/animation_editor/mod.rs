@@ -725,7 +725,7 @@ impl AnimationEditor
     {
         manager.test_operation_validity(|manager| {
             return_if_none!(
-                manager.selected_brushes_with_texture_sprite_mut(drawing_resources, texture),
+                manager.selected_brushes_with_sprites_mut(drawing_resources, texture),
                 None
             )
             .find_map(|mut brush| {

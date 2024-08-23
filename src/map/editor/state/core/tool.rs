@@ -762,16 +762,12 @@ impl ActiveTool
 
     /// Toggles the map preview.
     #[inline]
-    pub fn toggle_map_preview(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &EntitiesManager
-    )
+    pub fn toggle_map_preview(&mut self, bundle: &StateUpdateBundle, manager: &EntitiesManager)
     {
         *self = match self
         {
             Self::MapPreview(t) => std::mem::take(t.prev_tool()),
-            _ => MapPreviewTool::tool(drawing_resources, self, manager)
+            _ => MapPreviewTool::tool(bundle, self, manager)
         };
     }
 

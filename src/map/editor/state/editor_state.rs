@@ -2173,7 +2173,7 @@ impl State
             Command::ShiftGrid => self.shift_grid(),
             Command::ToggleTooltips => self.toggle_tooltips(),
             Command::ToggleCursorSnap => self.toggle_cursor_snap(),
-            Command::ToggleMapPreview => self.toggle_map_preview(bundle.drawing_resources),
+            Command::ToggleMapPreview => self.toggle_map_preview(bundle),
             Command::ToggleCollision => self.toggle_collision(),
             Command::ReloadTextures => self.start_texture_reload(bundle.next_tex_load),
             Command::ReloadThings => self.reload_things(bundle),
@@ -2303,7 +2303,7 @@ impl State
     {
         match ui_interaction.command
         {
-            Command::ToggleMapPreview => self.toggle_map_preview(bundle.drawing_resources),
+            Command::ToggleMapPreview => self.toggle_map_preview(bundle),
             Command::ReloadTextures => self.start_texture_reload(bundle.next_tex_load),
             Command::Quit =>
             {
@@ -2315,7 +2315,7 @@ impl State
 
         if self.inputs.esc.just_pressed()
         {
-            self.toggle_map_preview(bundle.drawing_resources);
+            self.toggle_map_preview(bundle);
             self.inputs.esc.clear();
         }
 
@@ -2394,9 +2394,9 @@ impl State
 
     /// Toggles the map preview mode.
     #[inline]
-    fn toggle_map_preview(&mut self, drawing_resources: &DrawingResources)
+    fn toggle_map_preview(&mut self, bundle: &StateUpdateBundle)
     {
-        self.core.toggle_map_preview(drawing_resources, &self.manager);
+        self.core.toggle_map_preview(bundle, &self.manager);
     }
 
     /// Toggles the collision overlay.

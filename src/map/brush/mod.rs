@@ -1168,7 +1168,7 @@ pub(in crate::map) mod ui_mod
             self.data.polygon.draw_map_preview_movement_simulation(
                 camera,
                 drawer,
-                animators.get(self.id),
+                animators.get_brush_animator(self.id),
                 movement_vec
             );
             let anchors = return_if_none!(self.anchors_iter());
@@ -1178,7 +1178,7 @@ pub(in crate::map) mod ui_mod
                 brushes.get(*id).data.polygon.draw_map_preview_movement_simulation(
                     camera,
                     drawer,
-                    animators.get(*id),
+                    animators.get_brush_animator(*id),
                     movement_vec
                 );
             }
@@ -1583,10 +1583,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub fn animator(&self, drawing_resources: &DrawingResources) -> Option<Animator>
         {
-            Animator::new(
-                self.texture_settings().unwrap().overall_animation(drawing_resources),
-                self.id
-            )
+            Animator::new(self.texture_settings().unwrap().overall_animation(drawing_resources))
         }
 
         #[inline]
@@ -2705,11 +2702,6 @@ pub(in crate::map) mod ui_mod
             animator: Option<&Animator>
         )
         {
-            if let Some(animator) = animator
-            {
-                assert!(animator.id() == self.id, "Animator's ID is not equal to the Brush's ID.");
-            }
-
             self.data.polygon.draw_map_preview(camera, drawer, animator);
         }
 

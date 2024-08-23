@@ -617,6 +617,10 @@ impl DrawingResources
         }
     }
 
+    #[inline]
+    #[must_use]
+    pub fn is_animated(&self, texture: &str) -> bool { self.animated_textures.contains(texture) }
+
     //==============================================================
     // Texture loading
 
@@ -862,18 +866,11 @@ impl DrawingResources
     pub(in crate::map::drawer) fn push_map_preview_thing<T: ThingInterface>(
         &mut self,
         mesh: Mesh2dHandle,
-        catalog: &ThingsCatalog,
+        texture: &TextureMaterials,
         thing: &T
     )
     {
-        self.push_mesh(
-            mesh,
-            self.texture_materials(self.texture_or_error(catalog.texture(thing.thing())).name())
-                .clamp_materials
-                .pure
-                .clone_weak(),
-            thing.draw_height_f32()
-        );
+        self.push_mesh(mesh, texture.clamp_materials.pure.clone_weak(), thing.draw_height_f32());
     }
 
     /// Queues a new square hightligh [`Mesh`] to be drawn at the end of the frame.
@@ -1407,7 +1404,9 @@ impl<'a> MeshGenerator<'a>
         settings: &T
     )
     {
-        self.3.extend(self.sprite_uv(texture, settings));
+        let uvs = self.sprite_uv(texture, settings);
+        println!("{uvs:?}");
+        self.3.extend(uvs);
     }
 
     /// Sets the UV to the one of an animated sprite.
@@ -1433,19 +1432,58 @@ impl<'a> MeshGenerator<'a>
     /// Sets the UV coordinates to the one of a thing.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    pub fn set_thing_uv<T: ThingInterface>(&mut self, catalog: &ThingsCatalog, thing: &T)
+    pub fn set_thing_uv(&mut self, texture: &str)
     {
         let mut x = 1f32;
         let mut y = 1f32;
 
-        if let Animation::Atlas(anim) =
-            self.4.texture_or_error(catalog.texture(thing.thing())).animation()
+        if let Animation::Atlas(anim) = self.4.texture_or_error(texture).animation()
         {
             x /= anim.x_partition() as f32;
             y /= anim.y_partition() as f32;
         }
 
         self.3.extend([[x, 0f32], [0f32, 0f32], [0f32, y], [x, y]]);
+    }
+
+    #[allow(clippy::cast_precision_loss)]
+    #[inline]
+    pub fn set_animated_thing_uv(&mut self, texture: &str, animator: &AtlasAnimator)
+    {
+        let texture = self.4.texture_or_error(texture);
+        let size = texture.size().as_vec2();
+
+        let mut left = 1f32 / size.x;
+        let mut top = 1f32 / size.y;
+        let mut right = 1f32 + left;
+        let mut bottom = 1f32 + top;
+
+        if let Animation::Atlas(anim) = texture.animation()
+        {
+            let anim_x = anim.x_partition() as f32;
+            let anim_y = anim.y_partition() as f32;
+
+            for x in [&mut left, &mut right]
+            {
+                *x /= anim_x;
+            }
+
+            for y in [&mut top, &mut bottom]
+            {
+                *y /= anim_y;
+            }
+        }
+
+        let pivot = animator.pivot();
+        let mut uvs = [[right, top], [left, top], [left, bottom], [right, bottom]];
+
+        for uv in &mut uvs
+        {
+            uv[0] += pivot[0];
+            uv[1] += pivot[1];
+        }
+
+        self.3.extend(uvs);
     }
 
     /// Sets the UV coordinates based on `f`.

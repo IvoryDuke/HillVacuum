@@ -3,7 +3,7 @@
 ## 0.6.4
 
 ### Changes
-- Brushes that are split into brushes that amount to all or a fraction of their original surface preserve their Path and/or their anchored brushes;
+- Brushes that are split into brushes that amount to all or a fraction of their original surface (ex: cutting them using the clip tool) preserve their Path and/or their anchored brushes;
 - added missing flip tool documentation.
 
 ## Fixes

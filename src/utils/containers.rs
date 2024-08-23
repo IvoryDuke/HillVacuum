@@ -662,7 +662,7 @@ impl<T: Hash + Eq> AssertedInsertRemove<T, T, (), ()> for HvHashSet<T>
     }
 }
 
-impl<T: Hash + Equivalent<T> + Eq> HvHashSet<T>
+impl<T: Hash + Eq> HvHashSet<T>
 {
     /// Returns `true` if the set contains a value.
     ///
@@ -671,7 +671,12 @@ impl<T: Hash + Equivalent<T> + Eq> HvHashSet<T>
     /// the value type.
     #[inline]
     #[must_use]
-    pub fn contains(&self, value: &T) -> bool { self.0.contains(value) }
+    pub fn contains<Q>(&self, value: &Q) -> bool
+    where
+        Q: Hash + Equivalent<T> + ?Sized
+    {
+        self.0.contains(value)
+    }
 }
 
 impl<T: Hash + Eq> HvHashSet<T>

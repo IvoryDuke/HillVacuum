@@ -156,10 +156,9 @@ pub(in crate::map) mod ui_mod
             drawers::Uv,
             drawing_resources::{DrawingResources, TextureMaterials}
         },
-        utils::{identifiers::EntityId, math::AroundEqual, misc::next},
+        utils::{math::AroundEqual, misc::next},
         Animation,
         Atlas,
-        Id,
         List,
         Timing
     };
@@ -229,34 +228,11 @@ pub(in crate::map) mod ui_mod
         Atlas(AtlasAnimator)
     }
 
-    impl EntityId for Animator
-    {
-        #[inline]
-        fn id(&self) -> Id
-        {
-            match self
-            {
-                Animator::List(a) => a.id(),
-                Animator::Atlas(a) => a.id()
-            }
-        }
-
-        #[inline]
-        fn id_as_ref(&self) -> &Id
-        {
-            match self
-            {
-                Animator::List(a) => a.id_as_ref(),
-                Animator::Atlas(a) => a.id_as_ref()
-            }
-        }
-    }
-
     impl Animator
     {
         /// Returns a new [`Animator`].
         #[inline]
-        pub fn new(animation: &Animation, identifier: Id) -> Option<Self>
+        pub fn new(animation: &Animation) -> Option<Self>
         {
             if animation.len() < 2
             {
@@ -266,8 +242,8 @@ pub(in crate::map) mod ui_mod
             match animation
             {
                 Animation::None => unreachable!(),
-                Animation::List(anim) => Self::List(ListAnimator::new(anim, identifier)),
-                Animation::Atlas(anim) => Self::Atlas(AtlasAnimator::new(anim, identifier))
+                Animation::List(anim) => Self::List(ListAnimator::new(anim)),
+                Animation::Atlas(anim) => Self::Atlas(AtlasAnimator::new(anim))
             }
             .into()
         }
@@ -616,31 +592,19 @@ pub(in crate::map) mod ui_mod
     #[derive(Debug)]
     pub(in crate::map) struct ListAnimator
     {
-        /// The [`Id`] of the entity whose texture must be animated.
-        id:           Id,
         /// The index of the texture to draw.
         index:        usize,
         /// The time the current frame is drawn on screen.
         current_time: f32
     }
 
-    impl EntityId for ListAnimator
-    {
-        #[inline]
-        fn id(&self) -> Id { self.id }
-
-        #[inline]
-        fn id_as_ref(&self) -> &Id { &self.id }
-    }
-
     impl ListAnimator
     {
         /// Returns a new [`ListAnimator`].
         #[inline]
-        pub fn new(animation: &List, identifier: Id) -> Self
+        pub fn new(animation: &List) -> Self
         {
             Self {
-                id:           identifier,
                 index:        0,
                 current_time: animation.0[0].1
             }
@@ -684,8 +648,6 @@ pub(in crate::map) mod ui_mod
     #[derive(Debug)]
     pub(in crate::map) struct AtlasAnimator
     {
-        /// The [`Id`] of the entity whose texture must be animated.
-        id:           Id,
         /// The frame of the atlas to draw.
         index:        usize,
         /// The row of the atlas where the frame to draw is.
@@ -700,24 +662,14 @@ pub(in crate::map) mod ui_mod
         current_time: f32
     }
 
-    impl EntityId for AtlasAnimator
-    {
-        #[inline]
-        fn id(&self) -> Id { self.id }
-
-        #[inline]
-        fn id_as_ref(&self) -> &Id { &self.id }
-    }
-
     impl AtlasAnimator
     {
         /// Returns a new [`AtlasAnimator`].
         #[allow(clippy::cast_precision_loss)]
         #[inline]
-        pub fn new(animation: &Atlas, identifier: Id) -> Self
+        pub fn new(animation: &Atlas) -> Self
         {
             Self {
-                id:           identifier,
                 index:        0,
                 row:          0f32,
                 column:       0f32,

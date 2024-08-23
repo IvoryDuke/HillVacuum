@@ -64,6 +64,7 @@ use crate::{
             },
             AllDefaultProperties,
             DrawBundle,
+            StateUpdateBundle,
             ToolUpdateBundle
         },
         hv_vec,
@@ -407,25 +408,55 @@ impl ErrorHighlight
 /// A collection of [`Animator`] that animate the textures on screen during the map preview.
 #[must_use]
 #[derive(Debug)]
-pub(in crate::map) struct Animators(HvHashMap<Id, Animator>);
+pub(in crate::map) struct Animators
+{
+    brushes: HvHashMap<Id, Animator>,
+    things:  HvHashMap<String, Animator>
+}
 
 impl Animators
 {
     /// Returns a new [`Animators`].
     #[inline]
-    pub fn new<'a>(
-        drawing_resources: &DrawingResources,
-        brushes: impl Iterator<Item = &'a Brush>
+    pub(in crate::map::editor::state) fn new(
+        bundle: &StateUpdateBundle,
+        manager: &EntitiesManager
     ) -> Self
     {
-        Self(hv_hash_map![collect; brushes.filter_map(|brush| {
-            brush.animator(drawing_resources).map(|anim| (brush.id(), anim))
-        })])
+        let StateUpdateBundle {
+            drawing_resources,
+            things_catalog,
+            ..
+        } = bundle;
+
+        let previews = hv_hash_set![collect; manager.things().filter_map(|thing| {
+            let texture = things_catalog.texture(thing.thing());
+            drawing_resources.is_animated(texture).then_some(texture)
+        })];
+
+        Self {
+            brushes: hv_hash_map![collect; manager.innards.textured.iter().filter_map(|id| {
+                manager.brush(*id).animator(drawing_resources).map(|anim| (*id, anim))
+            })],
+            things:  hv_hash_map![collect; previews.into_iter().map(|texture| {
+                (texture.to_string(), Animator::new(drawing_resources.texture(texture).unwrap().animation()).unwrap())
+            })]
+        }
     }
 
-    /// Returns the [`Animator`] associated with `identifier`, if any.
+    /// Returns a reference to the [`Animator`] associated with the [`Brush`] with [`Id`]
+    /// `identifier`, if any.
     #[inline]
-    pub fn get(&self, identifier: Id) -> Option<&Animator> { self.0.get(&identifier) }
+    pub fn get_brush_animator(&self, identifier: Id) -> Option<&Animator>
+    {
+        self.brushes.get(&identifier)
+    }
+
+    #[inline]
+    pub fn get_thing_animator(&self, texture: &str) -> Option<&Animator>
+    {
+        self.things.get(texture)
+    }
 
     /// Updates the contained [`Animator`]s based of the time that has passed since the last update.
     #[inline]
@@ -436,7 +467,7 @@ impl Animators
         delta_time: f32
     )
     {
-        for (id, a) in &mut self.0
+        for (id, a) in &mut self.brushes
         {
             match a
             {
@@ -460,6 +491,33 @@ impl Animators
                             .texture_settings()
                             .unwrap()
                             .overall_animation(drawing_resources)
+                            .get_atlas_animation(),
+                        delta_time
+                    );
+                }
+            };
+        }
+
+        for (name, a) in &mut self.things
+        {
+            match a
+            {
+                Animator::List(a) =>
+                {
+                    a.update(
+                        drawing_resources
+                            .texture_or_error(name)
+                            .animation()
+                            .get_list_animation(),
+                        delta_time
+                    );
+                },
+                Animator::Atlas(a) =>
+                {
+                    a.update(
+                        drawing_resources
+                            .texture_or_error(name)
+                            .animation()
                             .get_atlas_animation(),
                         delta_time
                     );
@@ -2506,7 +2564,7 @@ impl EntitiesManager
     /// Returns an iterator to the [`BrushMut`]s wrapping the selected brushes with sprite
     /// `texture`.
     #[inline]
-    pub fn selected_brushes_with_texture_sprite_mut<'a>(
+    pub fn selected_brushes_with_sprites_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         texture: &str
@@ -3609,9 +3667,9 @@ impl EntitiesManager
 
     /// Returns the [`Animators`] for the map preview.
     #[inline]
-    pub fn texture_animators(&self, drawing_resources: &DrawingResources) -> Animators
+    pub fn texture_animators(&self, bundle: &StateUpdateBundle) -> Animators
     {
-        Animators::new(drawing_resources, self.innards.textured.iter().map(|id| self.brush(*id)))
+        Animators::new(bundle, self)
     }
 
     /// Draws the UI error highlight.

@@ -6,10 +6,10 @@
 use super::{tool::ActiveTool, PreviousActiveTool};
 use crate::{
     map::{
-        drawer::drawing_resources::DrawingResources,
         editor::{
             state::manager::{Animators, EntitiesManager},
             DrawBundleMapPreview,
+            StateUpdateBundle,
             ToolUpdateBundle
         },
         path::MovementSimulator
@@ -43,7 +43,7 @@ impl MapPreviewTool
     /// Returns an [`ActiveTool`] in its map preview variant.
     #[inline]
     pub fn tool(
-        drawing_resources: &DrawingResources,
+        bundle: &StateUpdateBundle,
         active_tool: &mut ActiveTool,
         manager: &EntitiesManager
     ) -> ActiveTool
@@ -51,7 +51,7 @@ impl MapPreviewTool
         ActiveTool::MapPreview(MapPreviewTool {
             prev_tool: hv_box!(std::mem::take(active_tool)),
             movement:  manager.movement_simulators(),
-            animators: manager.texture_animators(drawing_resources)
+            animators: manager.texture_animators(bundle)
         })
     }
 
@@ -102,7 +102,7 @@ impl MapPreviewTool
             .iter()
             .filter(|brush| !is_moving(manager, brush.id()) && !brush.has_sprite())
         {
-            brush.draw_map_preview(camera, drawer, self.animators.get(brush.id()));
+            brush.draw_map_preview(camera, drawer, self.animators.get_brush_animator(brush.id()));
         }
 
         for brush in manager
@@ -110,7 +110,7 @@ impl MapPreviewTool
             .iter()
             .filter(|brush| !is_moving(manager, brush.id()))
         {
-            brush.draw_map_preview_sprite(drawer, self.animators.get(brush.id()));
+            brush.draw_map_preview_sprite(drawer, self.animators.get_brush_animator(brush.id()));
         }
 
         for thing in manager
@@ -118,7 +118,7 @@ impl MapPreviewTool
             .iter()
             .filter(|brush| !is_moving(manager, brush.id()))
         {
-            thing.draw_map_preview(drawer, things_catalog);
+            thing.draw_map_preview(drawer, things_catalog, &self.animators);
         }
     }
 }

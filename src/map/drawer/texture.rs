@@ -49,11 +49,11 @@ pub trait TextureInterface
     #[must_use]
     fn offset_y(&self) -> f32;
 
-    /// Returns the horizontal offset of the texture.
+    /// Returns the horizontal scale of the texture.
     #[must_use]
     fn scale_x(&self) -> f32;
 
-    /// Returns the vertical offset of the texture.
+    /// Returns the vertical scale of the texture.
     #[must_use]
     fn scale_y(&self) -> f32;
 

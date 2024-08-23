@@ -30,11 +30,11 @@ use super::{
 };
 use crate::{
     map::{
-        drawer::thing_texture_hull,
         editor::state::{
             clipboard::PropCameras,
             editor_state::ToolsSettings,
-            grid::{Grid, GridLines}
+            grid::{Grid, GridLines},
+            manager::Animators
         },
         thing::{catalog::ThingsCatalog, ThingInterface},
         Translate
@@ -49,6 +49,7 @@ use crate::{
         misc::{Camera, VX_HGL_SIDE},
         tooltips::{draw_tooltip_x_centered_above_pos, draw_tooltip_y_centered}
     },
+    Animation,
     TextureInterface
 };
 
@@ -1114,12 +1115,13 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         }
 
         // Texture
-        let vxs = thing_texture_hull(self.resources, catalog, self.grid, thing);
+        let name = catalog.texture(thing.thing());
+        let vxs = thing_texture_hull(self.resources, self.grid, thing, name);
 
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(4);
         mesh_generator.push_positions(vxs.rectangle());
-        mesh_generator.set_thing_uv(catalog, thing);
+        mesh_generator.set_thing_uv(name);
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
         self.resources
@@ -1318,19 +1320,72 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
 
     /// Draws `thing`.
     #[inline]
-    pub fn thing<T: ThingInterface + EntityHull>(&mut self, catalog: &ThingsCatalog, thing: &T)
+    pub fn thing<T: ThingInterface + EntityHull>(
+        &mut self,
+        catalog: &ThingsCatalog,
+        thing: &T,
+        animators: &Animators
+    )
     {
-        let vxs = thing_texture_hull(self.resources, catalog, self.grid, thing);
+        let texture = catalog.texture(thing.thing());
+        let resources = unsafe { std::ptr::from_mut(self.resources).as_mut().unwrap() };
+        let mut mesh_generator = resources.mesh_generator();
 
-        let mut mesh_generator = self.resources.mesh_generator();
+        let texture = match animators.get_thing_animator(texture)
+        {
+            Some(animator) =>
+            {
+                match animator
+                {
+                    Animator::List(animator) =>
+                    {
+                        let materials = animator.texture(
+                            self.resources,
+                            self.resources
+                                .texture(texture)
+                                .unwrap()
+                                .animation()
+                                .get_list_animation()
+                        );
+
+                        mesh_generator.push_positions(
+                            thing_texture_hull(
+                                self.resources,
+                                self.grid,
+                                thing,
+                                materials.texture().name()
+                            )
+                            .vertexes()
+                        );
+
+                        mesh_generator.set_thing_uv(texture);
+                        materials
+                    },
+                    Animator::Atlas(animator) =>
+                    {
+                        mesh_generator.set_animated_thing_uv(texture, animator);
+                        self.resources.texture_materials(texture)
+                    }
+                }
+            },
+            None =>
+            {
+                let vxs = thing_texture_hull(
+                    self.resources,
+                    self.grid,
+                    thing,
+                    catalog.texture(thing.thing())
+                );
+                mesh_generator.push_positions(vxs.vertexes());
+                mesh_generator.set_thing_uv(texture);
+                self.resources.texture_materials(texture)
+            }
+        };
+
         mesh_generator.set_indexes(4);
-        mesh_generator.push_positions(vxs.vertexes());
-        mesh_generator.set_thing_uv(catalog, thing);
-
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
-        self.resources
-            .push_map_preview_thing(self.meshes.add(mesh).into(), catalog, thing);
+        resources.push_map_preview_thing(self.meshes.add(mesh).into(), texture, thing);
     }
 }
 
@@ -1360,6 +1415,49 @@ fn sprite_vxs<T: TextureInterface + TextureInterfaceExtra>(
             0f32,
             settings.sprite_hull(resources, brush_center).unwrap().half_height()
         ));
+    }
+
+    vxs
+}
+
+//=======================================================================//
+
+#[inline]
+#[must_use]
+#[allow(clippy::cast_precision_loss)]
+pub(in crate::map::drawer) fn thing_texture_hull<T: ThingInterface + EntityHull>(
+    resources: &DrawingResources,
+    grid: Grid,
+    thing: &T,
+    texture: &str
+) -> Hull
+{
+    let texture = resources.texture_or_error(texture);
+    let mut vxs = texture.hull();
+
+    if let Animation::Atlas(anim) = texture.animation()
+    {
+        let half_width = (vxs.width() / anim.x_partition() as f32) / 2f32;
+        let half_height = (vxs.height() / anim.y_partition() as f32) / 2f32;
+
+        vxs = Hull::from_points(
+            [
+                Vec2::new(half_width, half_height),
+                Vec2::new(-half_width, half_height),
+                Vec2::new(-half_width, -half_height),
+                Vec2::new(half_width, -half_height)
+            ]
+            .into_iter()
+        )
+        .unwrap();
+    }
+
+    vxs += grid.transform_point(thing.pos());
+    let y_offset = vxs.half_height();
+
+    if grid.isometric()
+    {
+        vxs += Vec2::new(0f32, y_offset);
     }
 
     vxs

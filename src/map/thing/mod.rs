@@ -195,7 +195,8 @@ pub mod ui_mod
         },
         utils::{
             hull::EntityHull,
-            identifiers::{EntityCenter, EntityId}
+            identifiers::{EntityCenter, EntityId},
+            math::AroundEqual
         },
         Hull,
         Id,
@@ -272,7 +273,8 @@ pub mod ui_mod
         #[must_use]
         pub fn set_thing(&mut self, thing: &Thing) -> Option<ThingId>
         {
-            if thing.width == self.hull.width() && thing.height == self.hull.height()
+            if thing.width.around_equal_narrow(&self.hull.width()) &&
+                thing.height.around_equal_narrow(&self.hull.height())
             {
                 self.hull = ThingInstanceData::create_hull(self.pos, thing);
             }
@@ -554,16 +556,20 @@ pub mod ui_mod
             _: Brushes,
             catalog: &ThingsCatalog,
             drawer: &mut MapPreviewDrawer,
-            _: &Animators,
+            animators: &Animators,
             simulator: &MovementSimulator
         )
         {
             assert!(self.id == simulator.id(), "Simulator's ID is not equal to the Thing's ID.");
 
-            drawer.thing(catalog, &MovedThingInstance {
-                thing: &self.data,
-                delta: simulator.movement_vec()
-            });
+            drawer.thing(
+                catalog,
+                &MovedThingInstance {
+                    thing: &self.data,
+                    delta: simulator.movement_vec()
+                },
+                animators
+            );
         }
     }
 
@@ -765,9 +771,14 @@ pub mod ui_mod
 
         /// Draws `self` as it would appear in a map.
         #[inline]
-        pub fn draw_map_preview(&self, drawer: &mut MapPreviewDrawer, catalog: &ThingsCatalog)
+        pub fn draw_map_preview(
+            &self,
+            drawer: &mut MapPreviewDrawer,
+            catalog: &ThingsCatalog,
+            animators: &Animators
+        )
         {
-            drawer.thing(catalog, self);
+            drawer.thing(catalog, self, animators);
         }
     }
 
