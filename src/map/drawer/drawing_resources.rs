@@ -856,7 +856,7 @@ impl DrawingResources
         self.push_mesh(
             mesh,
             self.texture_materials(self.texture_or_error(catalog.texture(thing.thing())).name())
-                .repeat_material(color),
+                .clamp_material(color),
             color.entity_height() + thing.draw_height_f32()
         );
     }
@@ -1429,10 +1429,9 @@ impl<'a> MeshGenerator<'a>
         self.3.extend(uvs);
     }
 
-    /// Sets the UV coordinates to the one of a thing.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    pub fn set_thing_uv(&mut self, texture: &str)
+    fn thing_uv(&self, texture: &str) -> [Uv; 4]
     {
         let mut x = 1f32;
         let mut y = 1f32;
@@ -1443,39 +1442,23 @@ impl<'a> MeshGenerator<'a>
             y /= anim.y_partition() as f32;
         }
 
-        self.3.extend([[x, 0f32], [0f32, 0f32], [0f32, y], [x, y]]);
+        [[x, 0f32], [0f32, 0f32], [0f32, y], [x, y]]
+    }
+
+    /// Sets the UV coordinates to the one of a thing.
+    #[allow(clippy::cast_precision_loss)]
+    #[inline]
+    pub fn set_thing_uv(&mut self, texture: &str)
+    {
+        self.3.extend(self.thing_uv(texture));
     }
 
     #[allow(clippy::cast_precision_loss)]
     #[inline]
     pub fn set_animated_thing_uv(&mut self, texture: &str, animator: &AtlasAnimator)
     {
-        let texture = self.4.texture_or_error(texture);
-        let size = texture.size().as_vec2();
-
-        let mut left = 1f32 / size.x;
-        let mut top = 1f32 / size.y;
-        let mut right = 1f32 + left;
-        let mut bottom = 1f32 + top;
-
-        if let Animation::Atlas(anim) = texture.animation()
-        {
-            let anim_x = anim.x_partition() as f32;
-            let anim_y = anim.y_partition() as f32;
-
-            for x in [&mut left, &mut right]
-            {
-                *x /= anim_x;
-            }
-
-            for y in [&mut top, &mut bottom]
-            {
-                *y /= anim_y;
-            }
-        }
-
         let pivot = animator.pivot();
-        let mut uvs = [[right, top], [left, top], [left, bottom], [right, bottom]];
+        let mut uvs = self.thing_uv(texture);
 
         for uv in &mut uvs
         {

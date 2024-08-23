@@ -1363,6 +1363,11 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
                     },
                     Animator::Atlas(animator) =>
                     {
+                        mesh_generator.push_positions(
+                            thing_texture_hull(self.resources, self.grid, thing, texture)
+                                .vertexes()
+                        );
+
                         mesh_generator.set_animated_thing_uv(texture, animator);
                         self.resources.texture_materials(texture)
                     }
@@ -1370,13 +1375,12 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
             },
             None =>
             {
-                let vxs = thing_texture_hull(
+                mesh_generator.push_positions(thing_texture_hull(
                     self.resources,
                     self.grid,
                     thing,
                     catalog.texture(thing.thing())
-                );
-                mesh_generator.push_positions(vxs.vertexes());
+                ).vertexes());
                 mesh_generator.set_thing_uv(texture);
                 self.resources.texture_materials(texture)
             }
