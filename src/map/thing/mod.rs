@@ -272,7 +272,10 @@ pub mod ui_mod
         #[must_use]
         pub fn set_thing(&mut self, thing: &Thing) -> Option<ThingId>
         {
-            self.hull = ThingInstanceData::create_hull(self.pos, thing);
+            if thing.width == self.hull.width() && thing.height == self.hull.height()
+            {
+                self.hull = ThingInstanceData::create_hull(self.pos, thing);
+            }
 
             if thing.id == self.thing
             {
