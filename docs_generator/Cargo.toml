@@ -1,10 +1,10 @@
 [package]
 name = "docs_generator"
-version = "0.6.3"
+version = "0.6.5"
 edition = "2021"
 
 [dependencies.hill_vacuum_shared]
-version = "0.6.3"
+version = "0.6.5"
 
 [dependencies.regex]
 version = "1.*"
