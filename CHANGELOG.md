@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.5
+
+### Changes
+Thing textures are now drawn accordingly to the animation assigned to them.
+
+### Fixes
+Fixed a crash that could occur on shutdown on some computers.
+
 ## 0.6.4
 
 ### Changes
