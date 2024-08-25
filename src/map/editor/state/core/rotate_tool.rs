@@ -482,7 +482,7 @@ impl RotateTool
         self.rotate_brushes_with_keyboard(bundle, manager, edits_history, settings, 1f32);
     }
 
-    /// Rotates the selected brushes through the mouse drag.
+    /// Rotates the selected brushes through the cursor drag.
     #[inline]
     fn rotate_brushes_with_mouse(
         bundle: &ToolUpdateBundle,

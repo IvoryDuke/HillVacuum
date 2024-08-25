@@ -1293,7 +1293,7 @@ impl State
             bundle
                 .config
                 .open_file
-                .update(path.as_os_str().to_owned(), bundle.window);
+                .update(path.clone(), bundle.window);
         }
 
         self.edits_history.reset_last_save_edit();
@@ -1937,8 +1937,7 @@ impl State
             &self.clipboard,
             &self.core,
             bundle.things_catalog,
-            &self.manager,
-            &self.tools_settings
+            &self.manager
         );
 
         let ui_interaction = self.ui.frame_start_update(
@@ -2580,7 +2579,7 @@ fn check_path_extension(path: PathBuf, extension: &'static str) -> PathBuf
         }
     }
 
-    let mut path = path.as_os_str().to_str().unwrap().to_string();
+    let mut path = path.to_str().unwrap().to_string();
     path.push('.');
     path.push_str(extension);
     PathBuf::from(path)

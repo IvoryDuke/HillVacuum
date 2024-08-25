@@ -1,2 +1,2 @@
 ### Quick prop subtool
-Selects the prop placed in the temporary slot.
+Paints the prop stored in the quick slot, if any. After the `Left mouse` is released it is automatically deselected.

@@ -1,0 +1,1 @@
+Alt + directional key or cursor drag

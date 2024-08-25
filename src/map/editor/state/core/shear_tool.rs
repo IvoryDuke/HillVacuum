@@ -51,7 +51,7 @@ enum Status
 {
     /// Shearing by keyboard.
     Keyboard,
-    /// Shearing by mouse drag.
+    /// Shearing by cursor drag.
     Drag(CursorDelta, Option<ShearInfo>, HvVec<(Id, ConvexPolygon)>)
 }
 

@@ -1,2 +1,2 @@
 ### Vertexes merge subtool
-Executes the selected vertexes merge.
+Generates a new brush from the selected vertexes, if there are more than 3.

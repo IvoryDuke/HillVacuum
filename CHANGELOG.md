@@ -48,7 +48,7 @@ Fixed a crash that could occur on shutdown on some computers.
 - Fixed height tooltip of the highlighted entity drawn slightly off-center;
 - fixed sprites not being rendered when picking the brushes to spawn after a clip;
 - fixed extrusion/intrusion not being initiated right after `Alt` clicking on a previously non-selected side;
-- fixed vertexes/nodes selection when the area described by the mouse drag includes all of the surface of the owning entity.
+- fixed vertexes/nodes selection when the area described by the cursor drag includes all of the surface of the owning entity.
 
 ## 0.6.1
 

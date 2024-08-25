@@ -1,6 +1,6 @@
 use std::{fs::File, io::Write};
 
-use hill_vacuum_shared::{process_manual, ManualItem, NextValue};
+use hill_vacuum_shared::{process_docs, ManualItem, NextValue};
 
 fn main()
 {
@@ -69,9 +69,11 @@ fn main()
     write(&mut f, &readme);
 
     let mut f = File::create("MANUAL.md").unwrap();
+    let path = std::env::current_dir().unwrap();
+    let path = path.to_str().unwrap();
 
-    let manual = process_manual(
-        |_, _| {},
+    let manual = process_docs(
+        |_| {},
         |string, name, item| {
             string.push_str("## ");
             string.push_str(name);
@@ -109,12 +111,16 @@ fn main()
 
             let mut lines = file.lines();
             string.push_str(lines.next_value());
-            string.push('\n');
 
             if let ManualItem::Tool = item
             {
+                string.push_str(" (");
+                string.push_str(&std::fs::read_to_string(format!("{path}/docs/subtools binds/{name}.md")).unwrap());
+                string.push_str(")  \n");
                 push_manual_icon(string, name);
             }
+            
+            string.push('\n');
 
             for line in lines
             {
@@ -124,7 +130,7 @@ fn main()
 
             string.push('\n');
         },
-        |string| string.push_str("&nbsp;\n\n")
+        |string, _| string.push_str("&nbsp;\n\n")
     );
 
     write(&mut f, &manual);
@@ -142,14 +148,14 @@ fn main()
         )
         .unwrap()
         .replace_all(&manual, "![$1](images/$1.svg){ width=40 height=40 }")
-        .replace(
-            "Erases the brush being drawn.\n\n&nbsp;",
-            "Erases the brush being drawn.\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;"
-        )
-        .replace(
-            "over a common area they are erased from the map.\n\n&nbsp;",
-            "over a common area they are erased from the map.\n\n&nbsp;\n\n&nbsp;"
-        )
+        // .replace(
+        //     "Erases the brush being drawn.\n\n&nbsp;",
+        //     "Erases the brush being drawn.\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;"
+        // )
+        // .replace(
+        //     "over a common area they are erased from the map.\n\n&nbsp;",
+        //     "over a common area they are erased from the map.\n\n&nbsp;\n\n&nbsp;"
+        // )
     );
 
     _ = std::process::Command::new("pandoc")

@@ -1448,10 +1448,7 @@ impl<'a> MeshGenerator<'a>
     /// Sets the UV coordinates to the one of a thing.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    pub fn set_thing_uv(&mut self, texture: &str)
-    {
-        self.3.extend(self.thing_uv(texture));
-    }
+    pub fn set_thing_uv(&mut self, texture: &str) { self.3.extend(self.thing_uv(texture)); }
 
     #[allow(clippy::cast_precision_loss)]
     #[inline]

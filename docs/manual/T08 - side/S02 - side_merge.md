@@ -1,2 +1,2 @@
 ### Sides merge subtool
-Executes the selected sides merge.
+Generates a new brush from the selected sides, if there are more than 2.

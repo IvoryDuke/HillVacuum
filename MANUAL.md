@@ -202,8 +202,13 @@ Erases the brush being drawn.
 ## Thing tool
 <img src="images/thing.svg" alt="thing" height="48" width="48"/>  
 
-### Pivot
-Determines how the selected thing is spawned on the map with respect to the mouse position. For example, if the pivot is set to TopLeft the thing is spawned with its top left corner placed at the mouse position.
+### INFO
+The pivot determines how the selected things are spawned on the map with respect to the mouse position. For example, if the pivot is set to `TopLeft` the thing is spawned with its top left corner placed at the mouse position.
+
+### Thing change subtool (Alt + Left mouse)  
+<img src="images/thing_change.svg" alt="thing_change" height="48" width="48"/>  
+
+Allows to change the selected things placed on the map to the thing clicked in the UI.
 
 ### Left mouse
 Spawn the selected thing based on the selected pivot.  
@@ -218,10 +223,6 @@ Sets the pivot to the next possible value. If `Alt` is pressed as well it is set
 ### Backspace
 Deletes all drawn things.
 
-### Thing change subtool
-<img src="images/thing_change.svg" alt="thing_change" height="48" width="48"/>  
-Allows to change the selected things placed on the map to the thing clicked in the UI.
-
 &nbsp;
 
 ## Entity tool
@@ -230,8 +231,13 @@ Allows to change the selected things placed on the map to the thing clicked in t
 ### INFO
 Brushes can be tied together into a group through the Anchor subtool. This establishes a owner-anchored relation between the brushes. An "owner" brush can have an unlimited amount of brushes tied to it. A brush that is anchored can have none.  
 
+### Drag spawn subtool (Alt + directional key or cursor drag)  
+<img src="images/entity_drag_spawn.svg" alt="entity_drag_spawn" height="48" width="48"/>  
+
+Selecting it and then pressing a directional key, or left clicking and dragging with the cursor a selected brush, spawns copies of the selected entities in the desired direction.
+
 ### Left mouse
-If there is a non-selected entity beneath the cursor, it is be exclusively selected. If there is no entity, all entities are deselected when the mouse button is released.  
+If there is a non-selected entity beneath the cursor, it is exclusively selected. If there is no entity, all entities are deselected when the mouse button is released.  
 Clicking brush while holding `Ctrl` causes all anchored brushes to be selected as well.
 
 ### Shift + Left mouse
@@ -247,28 +253,14 @@ Pressing `Ctrl` all anchored brushes are selected as well.
 Same as `Left mouse + drag`, except the entities within the boundary of the drag selection are added to the selected brushes, if they are not already selected.  
 Pressing `Ctrl` all anchored brushes are selected as well.
 
-### Alt + Left mouse + cursor drag
-If there is a selected entity beneath the cursor, copies of the selected entities are spawned in the direction the cursor is moved.
-
 ### Up/Down/Left/Right
 Moves the selected entities one grid square away in the pressed direction.
-
-### Alt + Up/Down/Left/Right
-Creates copies of the selected entities one grid square away in the pressed direction.
 
 ### Backspace
 Deletes the selected entities, or the textures of the selected brushes if the editing target is set to `Texture`.
 
 ### Right mouse
-Clicking a brush with no path and not anchored allows to anchor it to another brush. Clicking on an anchored brush disanchors it.
-
-### Drag spawn subtool
-<img src="images/entity_drag_spawn.svg" alt="entity_drag_spawn" height="48" width="48"/>  
-Selecting it and then pressing a directional key, or left clicking and dragging with the cursor a selected brush, spawns copies of the selected entities in the direction the cursor is moved.
-
-### Anchor subtool
-<img src="images/entity_anchor.svg" alt="entity_anchor" height="48" width="48"/>  
-Toggles the brush anchor routine.
+Clicking a brush with no path and not anchored, allows to anchor it to another brush by then clicking the latter. Clicking on an anchored brush disanchors it.
 
 ### TEXTURE EDITING
 Target:  
@@ -280,6 +272,27 @@ Target:
 
 ## Vertex tool
 <img src="images/vertex.svg" alt="vertex" height="48" width="48"/>  
+
+### Vertex insertion subtool (Alt + Left mouse)  
+<img src="images/vertex_insert.svg" alt="vertex_insert" height="48" width="48"/>  
+
+Selecting it and then left clicking on the side of a selected brush inserts a new vertex on the line that passes through the cursor position. Such vertex can then be dragged around as long as it does not cause the resulting shape to be concave.
+
+### Vertexes merge subtool (Alt + Merge tool bind)  
+<img src="images/vertex_merge.svg" alt="vertex_merge" height="48" width="48"/>  
+
+Generates a new brush from the selected vertexes, if there are more than 3.
+
+### Vertexes split subtool (Enter)  
+<img src="images/vertex_split.svg" alt="vertex_split" height="48" width="48"/>  
+
+If there are only two selected vertexes on each selected brush that has selected vertexes, splits them in two using the line passing through the vertexes as clip line.  
+It fails if at least one brush is a triangle or the selected vertexes are consecutive.
+
+### Polygon to path subtool (Alt + Left mouse)  
+<img src="images/vertex_polygon_to_path.svg" alt="vertex_polygon_to_path" height="48" width="48"/>  
+
+After being enabled, vertexes of the selected brushes can be clicked in sequence with the `Left mouse`  to create a path which can then be assigned to an entity by pressing `Enter`.
 
 ### Left mouse
 If there is a non-selected vertex beneath the cursor, it is exclusively selected. If there is no vertex underneath, when the mouse button is released all selected vertexes are deselected.
@@ -294,44 +307,29 @@ If there is no vertex, a drag selection is initiated. When the mouse button is r
 ### Shift + Left mouse + cursor drag
 Same as `Left mouse + cursor drag`, except the vertexes within the boundary of the drag selection are added to the selected brushes if they are not already selected.
 
-### Alt + Left mouse
-Inserts a new vertex on the line that passes through the cursor position. Such vertex can then be dragged around as long as it does not cause the resulting shape to be concave.  
-
 ### Up/Down/Left/Right
 Moves the selected vertexes one grid square away in the pressed direction, unless the move generates at least one illegally shaped brush.  
 If a moved vertex overlaps a non selected one, it is selected as well.
 
-### Enter
-If there are only two selected vertexes on each selected brush that has selected vertexes, splits them in two using the line passing through the vertexes as clip line.  
-It fails if at least one brush is a triangle or the selected vertexes are consecutive.  
-Otherwise, if the polygon to path subtool is enabled, pressing it finalizes the path creation and the generated path can be assigned to an entity.
-
 ### Backspace
 Deletes all selected vertexes, unless there is at least one brush that would become a point or line, or be erased, if such vertexes were deleted.
-
-### Alt + Merge tool bind
-Generates a new brush from the selected vertexes, if there are more than 3.
-
-### Vertex insertion subtool
-<img src="images/vertex_insert.svg" alt="vertex_insert" height="48" width="48"/>  
-Selecting it and then left clicking on the side of a selected brush enables vertex insertion.
-
-### Vertexes merge subtool
-<img src="images/vertex_merge.svg" alt="vertex_merge" height="48" width="48"/>  
-Executes the selected vertexes merge.
-
-### Vertexes split subtool
-<img src="images/vertex_split.svg" alt="vertex_split" height="48" width="48"/>  
-Executes the brushes' split.
-
-### Polygon to path subtool
-<img src="images/vertex_polygon_to_path.svg" alt="vertex_polygon_to_path" height="48" width="48"/>  
-After being enabled, vertexes of the selected brushes can be clicked in sequence to create a path which can then be assigned to an entity by pressing `Enter`.
 
 &nbsp;
 
 ## Side tool
 <img src="images/side.svg" alt="side" height="48" width="48"/>  
+
+### Side xtrusion subtool (Alt + Left mouse + cursor drag)  
+<img src="images/side_xtrusion.svg" alt="side_xtrusion" height="48" width="48"/>  
+
+Selecting it and then left clicking on a selected side of starts the xtrusion process.
+If the cursor is moved away from the brush, the side is extruded, generating a new brush. Otherwise the brush is split in two by a line with the same slope as the selected side.  
+Both extrusion and intrusion can be executed on multiple selected sides, as long as they all have the same slope.
+
+### Sides merge subtool (Alt + Merge tool bind)  
+<img src="images/side_merge.svg" alt="side_merge" height="48" width="48"/>  
+
+Generates a new brush from the selected sides, if there are more than 2.
 
 ### Left mouse
 If there is a non-selected side beneath the cursor, it is exclusively selected. If there is no side underneath, when the mouse button is released, all selected sides they are deselected.
@@ -347,28 +345,12 @@ If a moved side overlaps a non selected one, this side is selected as well.
 ### Shift + Left mouse + cursor drag
 Same as `Left mouse + cursor drag`, except the sides within the boundary of the drag selection are added to the selected brushes if they are not already selected.
 
-### Alt + Left mouse + cursor drag
-If a selected side is clicked it initiates the xtrusion process on the selected side.
-If the cursor is moved away from the brush, the side is extruded, generating a new brush. Otherwise the brush is split in two by a line with the same slope as the selected side.  
-Both extrusion and intrusion can be executed on multiple selected sides, as long as they all have the same slope.
-
 ### Up/Down/Left/Right
 Moves the selected sides one grid square away in the pressed direction, unless the move generates at least one illegally shaped brush.  
 If a moved side overlaps a non selected one, this side is selected as well.
 
 ### Backspace
 Deletes all selected sides, unless there is at least one brush that would become a point or line if such sides were deleted.
-
-### Alt + Merge tool bind
-Generates a new brush from the selected sides, if there are more than 2.
-
-### Side xtrusion subtool
-<img src="images/side_xtrusion.svg" alt="side_xtrusion" height="48" width="48"/>  
-Selecting it and then left clicking on a selected side of starts the xtrusion process.
-
-### Sides merge subtool
-<img src="images/side_merge.svg" alt="side_merge" height="48" width="48"/>  
-Executes the selected sides merge.
 
 &nbsp;
 
@@ -391,11 +373,13 @@ Quick snap: snaps the entities to a two-units size grid.
 ## Clip tool
 <img src="images/clip.svg" alt="clip" height="48" width="48"/>  
 
+### Side clip subtool (Alt + Left mouse)  
+<img src="images/clip_side.svg" alt="clip_side" height="48" width="48"/>  
+
+After selectig it, if there is a side of a selected brush beneath the cursor all brushes are clipped by the line passing through the vertexes of such side. Can only be enabled when there are two or more selected brushes.
+
 ### Left mouse
 Places the points through which the clipping line passes.
-
-### Alt + Left mouse
-If there is a side of a selected brush beneath the cursor, and there are two or more selected brushes, all brushes are clipped by the line passing through the vertexes of such side.
 
 ### Tab
 Changes the brushes that are spawned after the clip has been executed.  
@@ -403,10 +387,6 @@ By default, both brushes on the right and left of the clip line are spawned, but
 
 ### Enter
 Confirms the clip.
-
-### Side clip subtool
-<img src="images/clip_side.svg" alt="clip_side" height="48" width="48"/>  
-Selecting it allows to choose the side of the brush to be used as clipping line. Can only be enabled when there are two or more selected brushes.
 
 &nbsp;
 
@@ -465,18 +445,16 @@ Changes the outline's selected side. The selection order is clockwise. If `Alt` 
 ## Rotate tool
 <img src="images/rotate.svg" alt="rotate" height="48" width="48"/>  
 
+### Pivot subtool (Alt + directional key or cursor drag)  
+<img src="images/rotate_pivot.svg" alt="rotate_pivot" height="48" width="48"/>  
+
+While enabled, the position of the rotation pivot can be changed by either pressing the directional keys or clicking with `Left mouse`.
+
 ### Left mouse + cursor drag
 Drags to the mouse cursor position, if the rotation pivot is clicked. Otherwise rotates the selected brushes around the pivot by the selected angle snap.
 
 ### Left/Right
 Rotates the selected brush in clockwise (`Right`) or counterclokwise (`Left`) direction by the set angle.
-
-### Alt + Up/Down/Left/Right
-Moves the rotation pivot a grid square away in the pressed direction.
-
-### Pivot subtool
-<img src="images/rotate_pivot.svg" alt="rotate_pivot" height="48" width="48"/>  
-While enabled, the position of the rotation pivot can be changed by either pressing the directional keys or left clicking with the mouse.
 
 ### TEXTURE EDITING
 Target:  
@@ -496,7 +474,7 @@ Creates mirrored copies of the selected brushes in the pressed direction.
 Target:  
 - `Entity`, only flips the polygons;  
 - `Entity+Tex`, flips both polygons and textures;  
-- `Texture`, only flips  the textures.
+- `Texture`, only flips the textures.
 
 &nbsp;
 
@@ -534,31 +512,26 @@ Executes the subtraction.
 When created, the props can be stored in slots displayed in the UI gallery at the bottom of the screen (such gallery is not shown if there are no stored props).  
 Props can either be stored in a numbered slot by specifying its number in the window that pops up during the prop creation process, or in the quick slot by not typing any number. Only one prop can be placed in the quick slot.
 
-### Enter
-Initiates the prop creation process. A prop is generated from the selected entities, and after a pivot is chosen it can be stored in the specified slot and later be painted around the map after being selected.  
+### Prop creation subtool (Enter)  
+<img src="images/paint_creation.svg" alt="paint_creation" height="48" width="48"/>  
+
+Initiates the prop creation process. A prop is generated from the selected entities, and after a pivot is chosen by clicking with the `Left mouse` within the borders of the outline, it can be stored in the specified slot and later be painted around the map after being selected.  
 If no slot number is specified the prop is stored in a temporary slot.
 
-### Alt + Enter
-Selects the prop placed in the temporary slot. After drawing it on the map it is automatically deselected.
+### Quick prop subtool (Alt + Left mouse + cursor drag)  
+<img src="images/paint_quick.svg" alt="paint_quick" height="48" width="48"/>  
+
+Paints the prop stored in the quick slot, if any. After the `Left mouse` is released it is automatically deselected.
 
 ### Left mouse
 Paints the prop in the selected slot, if any, so that its pivot coincide with the cursor position.  
-If a prop in the UI gallery at the bottom of the screen is clicked, it is selected as the prop to be painted.  
-After the prop creation process is initiated, clicking within the borders of the prop outline sets its pivot.
+If a prop in the UI gallery at the bottom of the screen is clicked, it is selected as the prop to be painted.
 
 ### Left mouse + cursor drag
 Paints the prop in the selected slot around the map.
 
 ### Backspace
 Removes the prop in the selected slot.
-
-### Prop creation subtool
-<img src="images/paint_creation.svg" alt="paint_creation" height="48" width="48"/>  
-Initiates the prop creation process.
-
-### Quick prop subtool
-<img src="images/paint_quick.svg" alt="paint_quick" height="48" width="48"/>  
-Selects the prop placed in the temporary slot.
 
 &nbsp;
 
@@ -571,15 +544,23 @@ When enabled, the entities are split in three groups:
 - entities that are selected, but do not have a path and are not anchored to another brush. Therefore they are entities which can have a path;  
 - all other cases, entities that are not selected and/or cannot have a path.  
 
-### Alt + Left mouse
-If an entity that can have a path is clicked the path creation is enabled.  
-Otherwise, if a node is clicked, inserts a new node in the path of the clicked node, after such node. The node can then be dragged around as long as it does not cause the resulting path to have consecutive overlapping nodes.  
+### Path free draw subtool (Alt + Left mouse)  
+<img src="images/path_free_draw.svg" alt="path_free_draw" height="48" width="48"/>  
+
+Selecting it and then clicking an entity that can have a path enables the path creation. Nodes can be added by pressing the `Left mouse` and can be removed by pressing the `Right mouse`. `Enter` concludes the process. 
+
+### Insert node subtool (Alt + Left mouse)  
+<img src="images/path_insert_node.svg" alt="path_insert_node" height="48" width="48"/>  
+
+After selecting it, if a node is clicked, it inserts a new node in the path of the clicked node, after such node. The node can then be dragged around as long as it does not cause the resulting path to have consecutive overlapping nodes. 
+
+### Movement simulation subtool (Enter)  
+<img src="images/path_simulation.svg" alt="path_simulation" height="48" width="48"/>  
+
+Selecting it starts the movement simulation. The selected entities with a path are moved around the map according to their parameters. Pressing `Enter` a second time pauses the simulation and pressing `Esc` concludes it.
 
 ### Left mouse
-If path creation is enabled a new node is placed. Otherwise, if a non-selected node is clicked, it is exclusively selected.
-
-### Right mouse
-While creating a new path, clicking on a node removes it.
+If a non-selected node is clicked, it is exclusively selected.
 
 ### Shift + Left mouse
 Clicking a node toggles its selection status.
@@ -598,24 +579,6 @@ Deletes the paths of the selected entities.
 
 ### Up/Down/Left/Right
 Moves all selected nodes a grid square away in the pressed direction.
-
-### Enter
-If there is an ongoing path creation it ends it, otherwise toggles and pauses the moving platforms movement simulation.
-
-### Esc
-Exits path creation and movement simulation.
-
-### Path free draw subtool
-<img src="images/path_free_draw.svg" alt="path_free_draw" height="48" width="48"/>  
-Selecting it and then left clicking a brush with no path and not anchored starts the path drawing process.
-
-### Insert node subtool
-<img src="images/path_insert_node.svg" alt="path_insert_node" height="48" width="48"/>  
-Selecting it and then left clicking a node starts the node insertion process.
-
-### Movement simulation subtool
-<img src="images/path_simulation.svg" alt="path_simulation" height="48" width="48"/>  
-Selecting it starts the movement simulation.
 
 &nbsp;
 

@@ -283,7 +283,7 @@ fn save_config(
         config
             .open_file
             .path()
-            .map(|path| path.as_os_str().to_str().unwrap().to_string())
+            .map(|path| path.to_str().unwrap().to_string())
     );
 
     ini_config.0.set(
@@ -292,7 +292,7 @@ fn save_config(
         config
             .exporter
             .as_ref()
-            .map(|path| path.as_os_str().to_str().unwrap().to_owned())
+            .map(|path| path.to_str().unwrap().to_owned())
     );
 
     config.binds.save(&mut ini_config);

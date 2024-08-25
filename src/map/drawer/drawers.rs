@@ -1375,12 +1375,15 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
             },
             None =>
             {
-                mesh_generator.push_positions(thing_texture_hull(
-                    self.resources,
-                    self.grid,
-                    thing,
-                    catalog.texture(thing.thing())
-                ).vertexes());
+                mesh_generator.push_positions(
+                    thing_texture_hull(
+                        self.resources,
+                        self.grid,
+                        thing,
+                        catalog.texture(thing.thing())
+                    )
+                    .vertexes()
+                );
                 mesh_generator.set_thing_uv(texture);
                 self.resources.texture_materials(texture)
             }

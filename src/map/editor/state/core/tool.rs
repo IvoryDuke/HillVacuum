@@ -3,8 +3,6 @@
 //
 //=======================================================================//
 
-use std::borrow::Cow;
-
 use bevy::input::{keyboard::KeyCode, ButtonInput};
 use bevy_egui::egui;
 use glam::Vec2;
@@ -1743,8 +1741,6 @@ pub(in crate::map::editor::state) enum SubTool
 {
     /// Entity tool drag spawn.
     EntityDragSpawn,
-    /// Entity tool brush anchor.
-    EntityAnchor,
     /// Vertex tool new vertex insert.
     VertexInsert,
     /// Vertex tool merge.
@@ -1777,42 +1773,10 @@ pub(in crate::map::editor::state) enum SubTool
 
 impl SubTool
 {
-    /// The key combination required to use the subtool.
-    #[inline]
-    #[must_use]
-    fn key_combo(self, binds: &BindsKeyCodes) -> Cow<str>
-    {
-        match self
-        {
-            Self::EntityDragSpawn | Self::SideXtrusion | Self::RotatePivot =>
-            {
-                Cow::Borrowed("Alt + directional key or mouse drag")
-            },
-            Self::VertexMerge | Self::SideMerge =>
-            {
-                Cow::Owned(format!("Alt + {}", Tool::Merge.keycode_str(binds)))
-            },
-            Self::ClipSide => Cow::Borrowed("Alt"),
-            Self::EntityAnchor => Cow::Borrowed("Right mouse click"),
-            Self::VertexInsert | Self::PathFreeDraw | Self::PathInsertNode | Self::ThingChange =>
-            {
-                Cow::Borrowed("Alt + left mouse click")
-            },
-            Self::PathSimulation | Self::VertexSplit | Self::PaintCreation =>
-            {
-                Cow::Borrowed("Enter")
-            },
-            Self::VertexPolygonToPath => Cow::Borrowed("Alt + Enter"),
-            Self::PaintQuick => Cow::Borrowed("Alt + mouse drag")
-        }
-    }
-
     #[inline]
     #[must_use]
     const fn conditions_met(self, change_conditions: &ChangeConditions) -> bool
     {
-        use crate::map::editor::state::editor_state::TargetSwitch;
-
         if let Self::PathSimulation = self
         {
             return (change_conditions.path_simulation_active ||
@@ -1832,11 +1796,6 @@ impl SubTool
             {
                 change_conditions.selected_brushes_amount + change_conditions.selected_things_amount !=
                     0
-            },
-            Self::EntityAnchor =>
-            {
-                change_conditions.selected_brushes_amount > 1 &&
-                    !matches!(change_conditions.settings.target_switch(), TargetSwitch::Texture)
             },
             Self::VertexSplit => change_conditions.split_available,
             Self::VertexPolygonToPath => Tool::Path.conditions_met(change_conditions),
@@ -1878,8 +1837,7 @@ pub(in crate::map::editor::state) struct ChangeConditions
     things_amount: usize,
     selected_things_amount: usize,
     selected_platforms_amount: usize,
-    any_selected_possible_platforms: bool,
-    settings: ToolsSettings
+    any_selected_possible_platforms: bool
 }
 
 impl ChangeConditions
@@ -1891,8 +1849,7 @@ impl ChangeConditions
         clipboard: &Clipboard,
         core: &Core,
         things_catalog: &ThingsCatalog,
-        manager: &EntitiesManager,
-        settings: &ToolsSettings
+        manager: &EntitiesManager
     ) -> Self
     {
         Self {
@@ -1909,7 +1866,6 @@ impl ChangeConditions
             brushes_amount: manager.brushes_amount(),
             selected_platforms_amount: manager.selected_moving_amount(),
             any_selected_possible_platforms: manager.any_selected_possible_moving(),
-            settings: *settings,
             things_catalog_empty: things_catalog.is_empty(),
             things_amount: manager.things_amount(),
             selected_things_amount: manager.selected_things_amount(),

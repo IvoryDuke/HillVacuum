@@ -47,9 +47,9 @@ enum Status
 {
     /// Scaling with the keyboard.
     Keyboard,
-    /// Scaling with mouse drag.
+    /// Scaling with cursor drag.
     Drag(HvVec<(Id, ConvexPolygon)>, Vec2, Hull),
-    /// Scaling textures with mouse drag.
+    /// Scaling textures with cursor drag.
     DragTextures(HvVec<(Id, (f32, f32))>, Vec2, Hull)
 }
 
@@ -570,7 +570,7 @@ impl ScaleTool
         }
     }
 
-    /// Finalizes a mouse drag scale.
+    /// Finalizes a cursor drag scale.
     #[inline]
     pub fn finalize_drag_scale(
         &mut self,

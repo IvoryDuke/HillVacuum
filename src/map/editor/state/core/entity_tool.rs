@@ -70,9 +70,7 @@ enum Status
     /// Anchoring a brush to another.
     Anchor(Id, Option<Id>),
     /// Attempting a drag spawn from the UI.
-    DragSpawnUi(Option<ItemBeneathCursor>),
-    /// Attempting a brush anchoring from the UI.
-    AnchorUi(Option<Id>)
+    DragSpawnUi(Option<ItemBeneathCursor>)
 }
 
 impl Default for Status
@@ -92,7 +90,6 @@ impl EnabledTool for Status
         tool == match self
         {
             Status::DragSpawnUi(_) => SubTool::EntityDragSpawn,
-            Status::AnchorUi(_) => SubTool::EntityAnchor,
             _ => return false
         }
     }
@@ -404,7 +401,7 @@ impl DisableSubtool for EntityTool
     #[inline]
     fn disable_subtool(&mut self)
     {
-        if matches!(self.0, Status::Anchor(..) | Status::DragSpawnUi(_) | Status::AnchorUi(_))
+        if matches!(self.0, Status::Anchor(..) | Status::DragSpawnUi(_))
         {
             self.0 = Status::default();
         }
@@ -706,7 +703,7 @@ impl EntityTool
 
                 *hgl_e = brush_id.into();
 
-                if !inputs.left_mouse.just_pressed()
+                if !inputs.right_mouse.just_pressed()
                 {
                     return;
                 }
@@ -746,48 +743,6 @@ impl EntityTool
                     self.0 =
                         Status::PreDrag(Self::cursor_pos(bundle.cursor), item_beneath_cursor, true);
                 }
-            },
-            Status::AnchorUi(hgl_e) =>
-            {
-                *hgl_e = None;
-
-                let brush_beneath_cursor = self.1.brush_beneath_cursor(
-                    bundle.drawing_resources,
-                    manager,
-                    bundle.cursor,
-                    inputs
-                );
-                let id = return_if_none!(brush_beneath_cursor).id();
-
-                if !manager.is_selected(id)
-                {
-                    return;
-                }
-
-                let brush = manager.brush(id);
-
-                if !brush.anchorable()
-                {
-                    return;
-                }
-
-                *hgl_e = id.into();
-
-                if !inputs.left_mouse.just_pressed()
-                {
-                    return;
-                }
-
-                self.0 = if let Some(owner) = brush.anchored()
-                {
-                    manager.disanchor(owner, id);
-                    edits_history.disanchor(owner, id);
-                    Status::default()
-                }
-                else
-                {
-                    Status::Anchor(id, None)
-                };
             }
         };
     }
@@ -1047,8 +1002,7 @@ impl EntityTool
 
                 return;
             },
-            Status::DragSpawnUi(hgl_e) => *hgl_e,
-            Status::AnchorUi(hgl_e) => (*hgl_e).map(ItemBeneathCursor::Polygon)
+            Status::DragSpawnUi(hgl_e) => *hgl_e
         };
 
         let hgl_e = match hgl_e
@@ -1167,18 +1121,7 @@ impl EntityTool
             bundle,
             buttons,
             tool_change_conditions,
-            (
-                EntityDragSpawn,
-                Status::DragSpawnUi(None),
-                Status::DragSpawnUi(_),
-                Status::AnchorUi(_)
-            ),
-            (
-                EntityAnchor,
-                Status::AnchorUi(None),
-                Status::AnchorUi(_),
-                Status::DragSpawnUi(_)
-            )
+            (EntityDragSpawn, Status::DragSpawnUi(None), Status::DragSpawnUi(_))
         );
     }
 }

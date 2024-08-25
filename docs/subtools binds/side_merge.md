@@ -1,0 +1,1 @@
+Alt + Merge tool bind

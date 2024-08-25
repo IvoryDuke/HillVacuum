@@ -76,6 +76,7 @@ use crate::{
 //=======================================================================//
 
 /// The state of the tool.
+#[must_use]
 #[derive(Debug)]
 enum Status
 {
@@ -105,7 +106,6 @@ enum Status
 impl Default for Status
 {
     #[inline]
-    #[must_use]
     fn default() -> Self { Self::Inactive(Rect::default()) }
 }
 
@@ -417,7 +417,7 @@ impl VertexTool
                         }
                         else if inputs.alt_pressed()
                         {
-                            if let Some(s) = Self::initialize_new_vertex_insertion(
+                            if let Some(s) = Self::alt_vertex_left_mouse(
                                 manager,
                                 cursor_pos,
                                 bundle.camera.scale()
@@ -575,11 +575,7 @@ impl VertexTool
                 if inputs.left_mouse.just_pressed()
                 {
                     self.0 = return_if_none!(
-                        Self::initialize_new_vertex_insertion(
-                            manager,
-                            cursor_pos,
-                            bundle.camera.scale()
-                        ),
+                        Self::alt_vertex_left_mouse(manager, cursor_pos, bundle.camera.scale()),
                         None
                     );
                 }
@@ -648,12 +644,20 @@ impl VertexTool
 
     /// Initializes the insertion of a new vertex.
     #[inline]
-    fn initialize_new_vertex_insertion(
+    fn alt_vertex_left_mouse(
         manager: &EntitiesManager,
         cursor_pos: Vec2,
         camera_scale: f32
     ) -> Option<Status>
     {
+        if let Some(pos) = manager
+            .selected_brushes_at_pos(cursor_pos, camera_scale)
+            .iter()
+            .find_map(|brush| brush.nearby_vertex(cursor_pos, camera_scale))
+        {
+            return Status::PolygonToPath(PathCreation::Point(pos)).into();
+        }
+
         let (id, index) = manager
             .selected_brushes_at_pos(cursor_pos, camera_scale)
             .iter()
@@ -663,11 +667,12 @@ impl VertexTool
                     .map(|idx| (brush.id(), idx))
             })?;
 
-        Some(Status::NewVertex {
+        Status::NewVertex {
             identifier: id,
             index,
             vx: cursor_pos
-        })
+        }
+        .into()
     }
 
     /// Exclusively selects the vertexes whose highlight is beneath `cursor_pos`.
