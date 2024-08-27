@@ -819,8 +819,7 @@ impl FreeDrawCursorPolygon
                     window,
                     camera,
                     egui_context,
-                    drawer.color_resources(),
-                    drawer.grid(),
+                    drawer,
                     *p,
                     label,
                     &mut String::with_capacity(6)
@@ -842,17 +841,7 @@ impl FreeDrawCursorPolygon
                 for vx in [start, end]
                 {
                     let label = return_if_none!(drawer.vx_tooltip_label(*vx));
-
-                    free_draw_tooltip(
-                        window,
-                        camera,
-                        egui_context,
-                        drawer.color_resources(),
-                        drawer.grid(),
-                        *vx,
-                        label,
-                        &mut text
-                    );
+                    free_draw_tooltip(window, camera, egui_context, drawer, *vx, label, &mut text);
                 }
             },
             Status::Polygon(poly) =>

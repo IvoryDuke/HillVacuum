@@ -209,10 +209,6 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     //==============================================================
     // Mesh creation
 
-    /// Returns a reference to the [`ColorResources`].
-    #[inline]
-    pub const fn color_resources(&self) -> &ColorResources { self.color_resources }
-
     /// Returns the [`egui::Color32`] associated with [`Color`].
     #[inline]
     #[must_use]
@@ -220,6 +216,10 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     {
         self.color_resources.egui_color(color)
     }
+
+    #[inline]
+    #[must_use]
+    pub fn tooltip_text_color(&self) -> egui::Color32 { self.color_resources.tooltip_text_color() }
 
     /// Queues a new [`Mesh`] to spawn.
     #[inline]
@@ -611,7 +611,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     )
     {
         /// The color of the text of the tooltip showing the size of the hull.
-        const TOOLTIP_TEXT_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 165, 0);
+        const HULL_TOOLTIP_TEXT_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 165, 0);
 
         let window_hull = camera.viewport(window, self.grid);
 
@@ -645,7 +645,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
                 Vec2::new(hull.right(), (hull.bottom() + hull.top()) / 2f32)
             ),
             egui::Vec2::new(4f32, 0f32),
-            TOOLTIP_TEXT_COLOR,
+            HULL_TOOLTIP_TEXT_COLOR,
             egui::Color32::from_black_alpha(0),
             0f32
         );
@@ -663,7 +663,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
                 Vec2::new((hull.left() + hull.right()) / 2f32, hull.top())
             ),
             egui::Vec2::new(0f32, -4f32),
-            TOOLTIP_TEXT_COLOR,
+            HULL_TOOLTIP_TEXT_COLOR,
             egui::Color32::from_black_alpha(0),
             0f32
         );

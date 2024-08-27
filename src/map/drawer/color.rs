@@ -142,7 +142,9 @@ pub(crate) enum Color
     /// The color of the [`Hull`] of the cursor cursor polygons of the draw tools.
     CursorPolygonHull,
     /// The color drawn on top of an entity that caused an edit to fail.
-    ErrorHighlight
+    ErrorHighlight,
+    /// The color of the text of the tooltips.
+    TooltipText
 }
 
 impl Color
@@ -174,7 +176,8 @@ impl Color
         CursorPolygonHull,
         DefaultCursor,
         ToolCursor | CursorPolygon,
-        ErrorHighlight
+        ErrorHighlight,
+        TooltipText
     );
 
     /// Returns an iterator to the [`Color`]s that can be customized.
@@ -210,7 +213,7 @@ impl Color
 
         match self
         {
-            Self::Clear => BevyColor::Srgba(css::BLACK),
+            Self::Clear | Self::TooltipText => BevyColor::Srgba(css::BLACK),
             Self::SoftGridLines => BevyColor::srgb(0.12, 0.2, 0.3),
             Self::GridLines => BevyColor::srgb(0.3, 0.3, 0.3),
             Self::OriginGridLines => BevyColor::Srgba(css::WHITE),
@@ -362,7 +365,7 @@ impl ColorResources
     {
         for color in Color::customizable_colors()
         {
-            let bevy_color = match ini.get(INI_SECTION, color.config_file_key())
+            let rgb = match ini.get(INI_SECTION, color.config_file_key())
             {
                 Some(string) =>
                 {
@@ -371,7 +374,7 @@ impl ColorResources
                     /// `color` is returned.
                     #[inline]
                     #[must_use]
-                    fn parse(color: Color, string: &str) -> BevyColor
+                    fn parse(string: &str) -> Option<[f32; 3]>
                     {
                         let mut vs = hv_vec![];
 
@@ -382,7 +385,7 @@ impl ColorResources
 
                         if vs.len() != 3
                         {
-                            return color.default_bevy_color();
+                            return None;
                         }
 
                         let mut rgb = [0f32; 3];
@@ -392,19 +395,18 @@ impl ColorResources
                             match v.parse::<f32>()
                             {
                                 Ok(v) => *c = v.clamp(0f32, 1f32),
-                                Err(_) => return color.default_bevy_color()
+                                Err(_) => return None
                             };
                         }
 
-                        BevyColor::from_array(&rgb)
+                        rgb.into()
                     }
 
-                    parse(color, &string)
+                    parse(&string).unwrap_or(color.default_bevy_color().to_rgb())
                 },
-                None => color.default_bevy_color()
+                None => color.default_bevy_color().to_rgb()
             };
-
-            let rgb = bevy_color.to_rgb();
+            let bevy_color = BevyColor::from_array(&rgb);
 
             self.colors.insert(color, Slot {
                 rgb,
@@ -469,13 +471,18 @@ impl ColorResources
                 Color::PathNode |
                     Color::SelectedVertex |
                     Color::HighlightedPath |
-                    Color::CursorPolygon
+                    Color::CursorPolygon |
+                    Color::TooltipText
             ),
             "Color does not have an associated egui color."
         );
 
         self.get(color).egui_color
     }
+
+    #[inline]
+    #[must_use]
+    pub fn tooltip_text_color(&self) -> egui::Color32 { self.get(Color::TooltipText).egui_color }
 
     /// The associated line [`bevy::color::Color`] and draw height.
     #[inline]

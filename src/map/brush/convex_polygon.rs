@@ -52,7 +52,7 @@ pub(in crate::map) mod ui_mod
             brush::{Brush, ClipResult, ShatterResult},
             drawer::{
                 animation::{Animator, Timing},
-                color::{Color, ColorResources},
+                color::Color,
                 drawers::{EditDrawer, MapPreviewDrawer},
                 drawing_resources::DrawingResources,
                 texture::{Sprite, TextureInterfaceExtra, TextureRotation, TextureScale}
@@ -4371,17 +4371,7 @@ pub(in crate::map) mod ui_mod
             for vx in self.vertexes()
             {
                 let label = return_if_none!(drawer.vx_tooltip_label(vx));
-
-                free_draw_tooltip(
-                    window,
-                    camera,
-                    egui_context,
-                    drawer.color_resources(),
-                    drawer.grid(),
-                    vx,
-                    label,
-                    &mut text
-                );
+                free_draw_tooltip(window, camera, egui_context, drawer, vx, label, &mut text);
             }
         }
 
@@ -4477,25 +4467,29 @@ pub(in crate::map) mod ui_mod
                             continue;
                         }
 
+                        let label = return_if_none!(drawer.vx_tooltip_label(svx_i.vec));
+
                         vertex_tooltip(
                             window,
                             camera,
                             egui_context,
-                            drawer.grid(),
+                            drawer,
                             svx_j.vec,
-                            continue_if_none!(drawer.vx_tooltip_label(svx_j.vec)),
+                            label,
                             &mut vx_coordinates
                         );
 
                         if !svx_i.selected
                         {
+                            let label = return_if_none!(drawer.vx_tooltip_label(svx_i.vec));
+
                             vertex_tooltip(
                                 window,
                                 camera,
                                 egui_context,
-                                drawer.grid(),
+                                drawer,
                                 svx_i.vec,
-                                continue_if_none!(drawer.vx_tooltip_label(svx_i.vec)),
+                                label,
                                 &mut vx_coordinates
                             );
                         }
@@ -4525,13 +4519,15 @@ pub(in crate::map) mod ui_mod
 
                     for svx in self.vertexes.iter().filter(|svx| svx.selected)
                     {
+                        let label = return_if_none!(drawer.vx_tooltip_label(svx.vec));
+
                         vertex_tooltip(
                             window,
                             camera,
                             egui_context,
-                            drawer.grid(),
+                            drawer,
                             svx.vec,
-                            continue_if_none!(drawer.vx_tooltip_label(svx.vec)),
+                            label,
                             &mut vx_coordinates
                         );
                     }
@@ -4567,19 +4563,6 @@ pub(in crate::map) mod ui_mod
 
                     declare_tooltip_string!(vx_coordinates);
 
-                    for svx in self.vertexes.iter().filter(|svx| svx.selected)
-                    {
-                        vertex_tooltip(
-                            window,
-                            camera,
-                            egui_context,
-                            drawer.grid(),
-                            svx.vec,
-                            continue_if_none!(drawer.vx_tooltip_label(svx.vec)),
-                            &mut vx_coordinates
-                        );
-                    }
-
                     // Draw the tooltip.
                     draw_tooltip_x_centered_above_pos(
                         egui_context,
@@ -4587,10 +4570,25 @@ pub(in crate::map) mod ui_mod
                         format!("{} {}", new_vx.x, new_vx.y).as_str(),
                         camera.to_egui_coordinates(window, drawer.grid(), *new_vx),
                         TOOLTIP_OFFSET,
-                        egui::Color32::BLACK,
-                        egui::Color32::RED,
+                        drawer.tooltip_text_color(),
+                        drawer.egui_color(Color::SelectedVertex),
                         3f32
                     );
+
+                    for svx in self.vertexes.iter().filter(|svx| svx.selected)
+                    {
+                        let label = return_if_none!(drawer.vx_tooltip_label(svx.vec));
+
+                        vertex_tooltip(
+                            window,
+                            camera,
+                            egui_context,
+                            drawer,
+                            svx.vec,
+                            label,
+                            &mut vx_coordinates
+                        );
+                    }
                 }
             }
         }
@@ -4878,7 +4876,7 @@ pub(in crate::map) mod ui_mod
         window: &Window,
         camera: &Transform,
         egui_context: &egui::Context,
-        grid: Grid,
+        drawer: &EditDrawer,
         pos: Vec2,
         label: &'static str,
         text: &mut String
@@ -4888,12 +4886,12 @@ pub(in crate::map) mod ui_mod
             window,
             camera,
             egui_context,
-            grid,
+            drawer.grid(),
             pos,
             label,
             text,
-            egui::Color32::BLACK,
-            egui::Color32::RED
+            drawer.tooltip_text_color(),
+            drawer.egui_color(Color::SelectedVertex)
         );
     }
 
@@ -4904,8 +4902,7 @@ pub(in crate::map) mod ui_mod
         window: &Window,
         camera: &Transform,
         egui_context: &egui::Context,
-        color_resources: &ColorResources,
-        grid: Grid,
+        drawer: &EditDrawer,
         pos: Vec2,
         label: &'static str,
         text: &mut String
@@ -4915,12 +4912,12 @@ pub(in crate::map) mod ui_mod
             window,
             camera,
             egui_context,
-            grid,
+            drawer.grid(),
             pos,
             label,
             text,
-            egui::Color32::BLACK,
-            color_resources.egui_color(Color::CursorPolygon)
+            drawer.tooltip_text_color(),
+            drawer.egui_color(Color::CursorPolygon)
         );
     }
 }
