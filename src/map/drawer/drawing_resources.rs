@@ -1405,7 +1405,6 @@ impl<'a> MeshGenerator<'a>
     )
     {
         let uvs = self.sprite_uv(texture, settings);
-        println!("{uvs:?}");
         self.3.extend(uvs);
     }
 

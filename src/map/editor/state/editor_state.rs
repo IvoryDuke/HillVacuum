@@ -1290,10 +1290,7 @@ impl State
 
         if target.is_new()
         {
-            bundle
-                .config
-                .open_file
-                .update(path.clone(), bundle.window);
+            bundle.config.open_file.update(path.clone(), bundle.window);
         }
 
         self.edits_history.reset_last_save_edit();

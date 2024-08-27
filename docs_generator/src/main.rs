@@ -115,11 +115,14 @@ fn main()
             if let ManualItem::Tool = item
             {
                 string.push_str(" (");
-                string.push_str(&std::fs::read_to_string(format!("{path}/docs/subtools binds/{name}.md")).unwrap());
+                string.push_str(
+                    &std::fs::read_to_string(format!("{path}/docs/subtools binds/{name}.md"))
+                        .unwrap()
+                );
                 string.push_str(")  \n");
                 push_manual_icon(string, name);
             }
-            
+
             string.push('\n');
 
             for line in lines
@@ -148,14 +151,18 @@ fn main()
         )
         .unwrap()
         .replace_all(&manual, "![$1](images/$1.svg){ width=40 height=40 }")
-        // .replace(
-        //     "Erases the brush being drawn.\n\n&nbsp;",
-        //     "Erases the brush being drawn.\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;"
-        // )
-        // .replace(
-        //     "over a common area they are erased from the map.\n\n&nbsp;",
-        //     "over a common area they are erased from the map.\n\n&nbsp;\n\n&nbsp;"
-        // )
+        .replace(
+            "Erases the brush being drawn.\n\n&nbsp;",
+            "Erases the brush being drawn.\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;"
+        )
+        .replace(
+            "or a point inside the brush's area.\n\n&nbsp;",
+            "or a point inside the brush's area."
+        )
+        .replace(
+            "only flips the textures.\n\n&nbsp;",
+            "only flips the textures.\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;"
+        )
     );
 
     _ = std::process::Command::new("pandoc")

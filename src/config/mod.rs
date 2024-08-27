@@ -280,19 +280,13 @@ fn save_config(
     ini_config.0.set(
         OPEN_FILE_SECTION,
         OPEN_FILE_FIELD,
-        config
-            .open_file
-            .path()
-            .map(|path| path.to_str().unwrap().to_string())
+        config.open_file.path().map(|path| path.to_str().unwrap().to_string())
     );
 
     ini_config.0.set(
         EXPORTER_SECTION,
         EXPORTER_FIELD,
-        config
-            .exporter
-            .as_ref()
-            .map(|path| path.to_str().unwrap().to_owned())
+        config.exporter.as_ref().map(|path| path.to_str().unwrap().to_owned())
     );
 
     config.binds.save(&mut ini_config);
