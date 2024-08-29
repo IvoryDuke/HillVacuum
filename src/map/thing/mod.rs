@@ -822,7 +822,7 @@ pub mod ui_mod
                 thing.name(),
                 self.data.hull.center(),
                 Vec2::new(0f32, -(offset / camera.scale() + 8f32)),
-                egui::Color32::BLACK,
+                drawer.tooltip_text_color(),
                 egui::Color32::WHITE
             );
         }
