@@ -1072,7 +1072,6 @@ impl EntityTool
                     thing.draw_highlighted_selected(
                         bundle.window,
                         bundle.camera,
-                        bundle.egui_context,
                         &mut bundle.drawer,
                         bundle.things_catalog
                     );
@@ -1083,7 +1082,6 @@ impl EntityTool
                     thing.draw_highlighted_non_selected(
                         bundle.window,
                         bundle.camera,
-                        bundle.egui_context,
                         &mut bundle.drawer,
                         bundle.things_catalog
                     );
@@ -1094,12 +1092,9 @@ impl EntityTool
 
         if bundle.drawer.show_tooltips()
         {
-            bundle.drawer.hull_extensions(
-                &return_if_none!(hull),
-                bundle.window,
-                bundle.camera,
-                bundle.egui_context
-            );
+            bundle
+                .drawer
+                .hull_extensions(&return_if_none!(hull), bundle.window, bundle.camera);
         }
     }
 

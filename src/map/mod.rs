@@ -948,10 +948,7 @@ pub(in crate::map) mod ui_mod
         mut key_inputs: ResMut<ButtonInput<KeyCode>>,
         time: Res<Time>,
         mut close_events: EventReader<WindowCloseRequested>,
-        mut egui_contexts: Query<
-            (&'static mut EguiContext, Option<&'static PrimaryWindow>),
-            With<Window>
-        >,
+        mut egui_context: Query<&'static mut EguiContext, With<PrimaryWindow>>,
         mut user_textures: ResMut<EguiUserTextures>,
         mut editor: NonSendMut<Editor>,
         mut config: ResMut<Config>,
@@ -960,12 +957,8 @@ pub(in crate::map) mod ui_mod
     )
     {
         let mut window = return_if_err!(window.get_single_mut());
-        let egui_context = egui_contexts
-            .iter_mut()
-            .find_map(|(ctx, pw)| pw.map(|_| ctx))
-            .unwrap()
-            .into_inner()
-            .get_mut();
+        let mut egui_context = egui_context.single_mut();
+        let egui_context = egui_context.get_mut();
         let mut camera = camera.single_mut();
 
         if close_events.read().next().is_some() &&
@@ -1050,7 +1043,7 @@ pub(in crate::map) mod ui_mod
         paint_tool_camera: PaintToolCameraQuery,
         mut meshes: ResMut<Assets<Mesh>>,
         time: Res<Time>,
-        mut egui_context: EguiContexts,
+        mut egui_context: Query<&'static mut EguiContext, With<PrimaryWindow>>,
         meshes_query: Query<Entity, With<Mesh2dHandle>>,
         mut editor: NonSendMut<Editor>,
         config: Res<Config>
@@ -1064,7 +1057,7 @@ pub(in crate::map) mod ui_mod
             paint_tool_camera.single(),
             &time,
             &mut meshes,
-            egui_context.ctx_mut(),
+            egui_context.single_mut().get_mut(),
             &meshes_query,
             &config.colors
         );

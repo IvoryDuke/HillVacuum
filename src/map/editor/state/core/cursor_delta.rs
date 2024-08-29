@@ -157,7 +157,6 @@ impl CursorDelta
 
         let DrawBundle {
             window,
-            egui_context,
             drawer,
             camera,
             ..
@@ -172,7 +171,6 @@ impl CursorDelta
             drawer.draw_tooltip_x_centered_above_pos(
                 window,
                 camera,
-                egui_context,
                 Self::X_DELTA,
                 #[allow(clippy::cast_possible_truncation)]
                 &format!("{}", self.delta.x as i16),
@@ -191,7 +189,6 @@ impl CursorDelta
         drawer.draw_tooltip_y_centered(
             window,
             camera,
-            egui_context,
             Self::Y_DELTA,
             #[allow(clippy::cast_possible_truncation)]
             format!("{}", self.delta.y as i8).as_str(),

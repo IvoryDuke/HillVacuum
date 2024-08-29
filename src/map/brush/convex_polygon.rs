@@ -4343,13 +4343,7 @@ pub(in crate::map) mod ui_mod
 
         /// Draws the polygon.
         #[inline]
-        pub fn draw_free_draw(
-            &self,
-            window: &Window,
-            camera: &Transform,
-            drawer: &mut EditDrawer,
-            egui_context: &egui::Context
-        )
+        pub fn draw_free_draw(&self, window: &Window, camera: &Transform, drawer: &mut EditDrawer)
         {
             drawer.sides(self.vertexes(), Color::CursorPolygon);
 
@@ -4358,17 +4352,12 @@ pub(in crate::map) mod ui_mod
                 drawer.square_highlight(vx, Color::CursorPolygon);
             }
 
-            if !drawer.show_tooltips()
-            {
-                return;
-            }
-
             let mut text = String::with_capacity(6);
 
             for vx in self.vertexes()
             {
                 let label = return_if_none!(drawer.vx_tooltip_label(vx));
-                free_draw_tooltip(window, camera, egui_context, drawer, vx, label, &mut text);
+                free_draw_tooltip(window, camera, drawer, vx, label, &mut text);
             }
         }
 
@@ -4431,7 +4420,6 @@ pub(in crate::map) mod ui_mod
             window: &Window,
             camera: &Transform,
             drawer: &mut EditDrawer,
-            egui_context: &egui::Context,
             hgl_mode: &VertexHighlightMode
         )
         {
@@ -4446,11 +4434,6 @@ pub(in crate::map) mod ui_mod
                 VertexHighlightMode::Side =>
                 {
                     self.draw_side_mode(camera, drawer);
-
-                    if !drawer.show_tooltips()
-                    {
-                        return;
-                    }
 
                     declare_tooltip_string!(vx_coordinates);
 
@@ -4468,7 +4451,6 @@ pub(in crate::map) mod ui_mod
                         vertex_tooltip(
                             window,
                             camera,
-                            egui_context,
                             drawer,
                             svx_j.vec,
                             label,
@@ -4482,7 +4464,6 @@ pub(in crate::map) mod ui_mod
                             vertex_tooltip(
                                 window,
                                 camera,
-                                egui_context,
                                 drawer,
                                 svx_i.vec,
                                 label,
@@ -4506,26 +4487,13 @@ pub(in crate::map) mod ui_mod
                         drawer.square_highlight(svx.vec, Color::NonSelectedVertex);
                     }
 
-                    if !drawer.show_tooltips()
-                    {
-                        return;
-                    }
-
                     declare_tooltip_string!(vx_coordinates);
 
                     for svx in self.vertexes.iter().filter(|svx| svx.selected)
                     {
                         let label = return_if_none!(drawer.vx_tooltip_label(svx.vec));
 
-                        vertex_tooltip(
-                            window,
-                            camera,
-                            egui_context,
-                            drawer,
-                            svx.vec,
-                            label,
-                            &mut vx_coordinates
-                        );
+                        vertex_tooltip(window, camera, drawer, svx.vec, label, &mut vx_coordinates);
                     }
                 },
                 VertexHighlightMode::NewVertex(new_vx, idx) =>
@@ -4552,18 +4520,12 @@ pub(in crate::map) mod ui_mod
 
                     drawer.square_highlight(*new_vx, Color::SelectedVertex);
 
-                    if !drawer.show_tooltips()
-                    {
-                        return;
-                    }
-
                     declare_tooltip_string!(vx_coordinates);
 
                     // Draw the tooltip.
                     drawer.draw_tooltip_x_centered_above_pos(
                         window,
                         camera,
-                        egui_context,
                         NEW_VX,
                         format!("{} {}", new_vx.x, new_vx.y).as_str(),
                         *new_vx,
@@ -4576,15 +4538,7 @@ pub(in crate::map) mod ui_mod
                     {
                         let label = return_if_none!(drawer.vx_tooltip_label(svx.vec));
 
-                        vertex_tooltip(
-                            window,
-                            camera,
-                            egui_context,
-                            drawer,
-                            svx.vec,
-                            label,
-                            &mut vx_coordinates
-                        );
+                        vertex_tooltip(window, camera, drawer, svx.vec, label, &mut vx_coordinates);
                     }
                 }
             }
@@ -4842,7 +4796,6 @@ pub(in crate::map) mod ui_mod
     pub fn vx_tooltip(
         window: &Window,
         camera: &Transform,
-        egui_context: &egui::Context,
         drawer: &EditDrawer,
         pos: Vec2,
         label: &'static str,
@@ -4857,7 +4810,6 @@ pub(in crate::map) mod ui_mod
         drawer.draw_tooltip_x_centered_above_pos(
             window,
             camera,
-            egui_context,
             label,
             text,
             pos,
@@ -4873,7 +4825,6 @@ pub(in crate::map) mod ui_mod
     pub(in crate::map) fn vertex_tooltip(
         window: &Window,
         camera: &Transform,
-        egui_context: &egui::Context,
         drawer: &EditDrawer,
         pos: Vec2,
         label: &'static str,
@@ -4883,7 +4834,6 @@ pub(in crate::map) mod ui_mod
         vx_tooltip(
             window,
             camera,
-            egui_context,
             drawer,
             pos,
             label,
@@ -4899,7 +4849,6 @@ pub(in crate::map) mod ui_mod
     pub(in crate::map) fn free_draw_tooltip(
         window: &Window,
         camera: &Transform,
-        egui_context: &egui::Context,
         drawer: &EditDrawer,
         pos: Vec2,
         label: &'static str,
@@ -4909,7 +4858,6 @@ pub(in crate::map) mod ui_mod
         vx_tooltip(
             window,
             camera,
-            egui_context,
             drawer,
             pos,
             label,

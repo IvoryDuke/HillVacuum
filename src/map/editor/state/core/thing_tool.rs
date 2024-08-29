@@ -178,7 +178,6 @@ impl ThingTool
             drawer,
             window,
             camera,
-            egui_context,
             things_catalog,
             ..
         } = bundle;
@@ -196,17 +195,11 @@ impl ThingTool
 
             if !manager.is_selected(id)
             {
-                thing.draw_non_selected(window, camera, egui_context, drawer, things_catalog);
+                thing.draw_non_selected(window, camera, drawer, things_catalog);
             }
             else if self.drawn_things.contains(&id)
             {
-                thing.draw_highlighted_selected(
-                    window,
-                    camera,
-                    egui_context,
-                    drawer,
-                    things_catalog
-                );
+                thing.draw_highlighted_selected(window, camera, drawer, things_catalog);
                 iterated_drawn += 1;
 
                 if iterated_drawn == drawn_len
@@ -216,7 +209,7 @@ impl ThingTool
             }
             else
             {
-                thing.draw_selected(window, camera, egui_context, drawer, things_catalog);
+                thing.draw_selected(window, camera, drawer, things_catalog);
             }
         }
 
@@ -226,11 +219,11 @@ impl ThingTool
 
             if manager.is_selected(id)
             {
-                thing.draw_selected(window, camera, egui_context, drawer, things_catalog);
+                thing.draw_selected(window, camera, drawer, things_catalog);
             }
             else
             {
-                thing.draw_non_selected(window, camera, egui_context, drawer, things_catalog);
+                thing.draw_non_selected(window, camera, drawer, things_catalog);
             }
         }
 

@@ -966,7 +966,6 @@ impl VertexTool
 
             let DrawBundle {
                 window,
-                egui_context,
                 drawer,
                 camera,
                 ..
@@ -978,7 +977,6 @@ impl VertexTool
                     window,
                     camera,
                     drawer,
-                    egui_context,
                     &VertexHighlightMode::Vertex
                 );
             }
@@ -1005,7 +1003,6 @@ impl VertexTool
 
                 let DrawBundle {
                     window,
-                    egui_context,
                     drawer,
                     camera,
                     ..
@@ -1016,7 +1013,6 @@ impl VertexTool
                     window,
                     camera,
                     drawer,
-                    egui_context,
                     &VertexHighlightMode::NewVertex(*vx, *index)
                 );
 
@@ -1026,7 +1022,6 @@ impl VertexTool
                         window,
                         camera,
                         drawer,
-                        egui_context,
                         &VertexHighlightMode::Vertex
                     );
                 }
@@ -1039,7 +1034,6 @@ impl VertexTool
                     drawer,
                     camera,
                     window,
-                    egui_context,
                     ..
                 } = bundle;
 
@@ -1053,7 +1047,7 @@ impl VertexTool
                     }
                 }
 
-                path.draw(window, camera, egui_context, drawer, Vec2::ZERO);
+                path.draw(window, camera, drawer, Vec2::ZERO);
             }
         };
     }

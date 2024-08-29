@@ -1417,7 +1417,6 @@ impl ActiveTool
                         thing.draw_opaque(
                             bundle.window,
                             bundle.camera,
-                            bundle.egui_context,
                             &mut bundle.drawer,
                             bundle.things_catalog
                         );

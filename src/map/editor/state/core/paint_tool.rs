@@ -407,7 +407,7 @@ impl PaintTool
     fn prop_creation_window(
         &mut self,
         window: &Window,
-        egui_context: &mut egui::Context,
+        egui_context: &egui::Context,
         clipboard: &Clipboard,
         texture: egui::TextureId
     )

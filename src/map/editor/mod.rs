@@ -101,7 +101,7 @@ struct StateUpdateBundle<'world, 'state, 'a, 'b, 'c>
     delta_time:         f32,
     mouse_buttons:      &'a ButtonInput<MouseButton>,
     key_inputs:         &'a mut ButtonInput<KeyCode>,
-    egui_context:       &'a mut egui::Context,
+    egui_context:       &'a egui::Context,
     user_textures:      &'a mut EguiUserTextures,
     config:             &'a mut Config,
     cursor:             &'b Cursor,
@@ -142,7 +142,6 @@ struct DrawBundle<'world, 'state, 'w, 's, 'a, 'b, 'c>
 {
     window:            &'a Window,
     delta_time:        f32,
-    egui_context:      &'a mut egui::Context,
     drawer:            EditDrawer<'w, 's, 'a>,
     camera:            &'a Transform,
     prop_cameras:      &'a PropCameras<'world, 'state, 'c>,
@@ -159,7 +158,7 @@ struct DrawBundle<'world, 'state, 'w, 's, 'a, 'b, 'c>
 struct DrawBundleMapPreview<'w, 's, 'a, 'b>
 {
     window:         &'a Window,
-    egui_context:   &'a mut egui::Context,
+    egui_context:   &'a egui::Context,
     drawer:         MapPreviewDrawer<'w, 's, 'a>,
     things_catalog: &'b ThingsCatalog,
     camera:         &'a Transform
@@ -311,7 +310,7 @@ impl Editor
         camera: &mut Transform,
         prop_cameras: &mut PropCamerasMut,
         time: &Time,
-        egui_context: &mut egui::Context,
+        egui_context: &egui::Context,
         user_textures: &mut EguiUserTextures,
         mouse_buttons: &ButtonInput<MouseButton>,
         mouse_wheel: &mut EventReader<MouseWheel>,
@@ -623,7 +622,7 @@ impl Editor
         camera: &mut Transform,
         prop_cameras: &mut PropCamerasMut,
         time: &Time,
-        egui_context: &mut egui::Context,
+        egui_context: &egui::Context,
         user_textures: &mut EguiUserTextures,
         mouse_buttons: &ButtonInput<MouseButton>,
         key_inputs: &mut ButtonInput<KeyCode>,
@@ -677,7 +676,7 @@ impl Editor
         paint_tool_camera: &Transform,
         time: &Time,
         meshes: &mut Assets<Mesh>,
-        egui_context: &mut egui::Context,
+        egui_context: &egui::Context,
         meshes_query: &Query<Entity, With<Mesh2dHandle>>,
         color_resources: &ColorResources
     )
@@ -708,12 +707,12 @@ impl Editor
         self.state.draw(&mut DrawBundle {
             window,
             delta_time: time.delta_seconds(),
-            egui_context,
             drawer: EditDrawer::new(
                 commands,
                 prop_cameras,
                 meshes,
                 meshes_query,
+                egui_context,
                 &mut self.drawing_resources,
                 color_resources,
                 self.state.tools_settings(),

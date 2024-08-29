@@ -1085,7 +1085,6 @@ impl PathTool
     {
         let DrawBundle {
             window,
-            egui_context,
             drawer,
             camera,
             cursor,
@@ -1108,7 +1107,6 @@ impl PathTool
                         entity.draw_path(
                             window,
                             camera,
-                            egui_context,
                             drawer
                         );
                     }
@@ -1147,7 +1145,6 @@ impl PathTool
                         thing.draw_selected(
                             window,
                             camera,
-                            egui_context,
                             drawer,
                             things_catalog
                         );
@@ -1157,7 +1154,7 @@ impl PathTool
                         thing.draw_non_selected(
                             window,
                             camera,
-                            egui_context,drawer,
+                            drawer,
                             things_catalog
                         );
                     }
@@ -1166,7 +1163,6 @@ impl PathTool
                         thing.draw_opaque(
                             window,
                             camera,
-                            egui_context,
                             drawer,
                             things_catalog
                         );
@@ -1193,7 +1189,6 @@ impl PathTool
                             manager.moving(id).draw_highlighted_with_path_nodes(
                                 window,
                                 camera,
-                                egui_context,
                                 brushes,
                                 things_catalog,
                                 drawer
@@ -1206,7 +1201,6 @@ impl PathTool
                                 manager.thing(id).draw_highlighted_non_selected(
                                     window,
                                     camera,
-                                    egui_context,
                                     drawer,
                                     things_catalog
                                 );
@@ -1221,7 +1215,6 @@ impl PathTool
                             manager.moving(id).draw_with_highlighted_path_node(
                                 window,
                                 camera,
-                                egui_context,
                                 brushes,
                                 things_catalog,
                                 drawer,
@@ -1264,13 +1257,7 @@ impl PathTool
                         let center = if manager.is_thing(*id)
                         {
                             let thing = manager.thing(*id);
-                            thing.draw_highlighted_selected(
-                                window,
-                                camera,
-                                egui_context,
-                                drawer,
-                                things_catalog
-                            );
+                            thing.draw_highlighted_selected(window, camera, drawer, things_catalog);
                             thing.center()
                         }
                         else
@@ -1280,14 +1267,13 @@ impl PathTool
                             brush.center()
                         };
 
-                        path.draw_with_knot(window, camera, egui_context, drawer, center);
+                        path.draw_with_knot(window, camera, drawer, center);
                     },
                     PathEditing::InsertNode { pos, index } =>
                     {
                         manager.moving(*id).draw_with_path_node_addition(
                             window,
                             camera,
-                            egui_context,
                             brushes,
                             things_catalog,
                             drawer,
@@ -1306,7 +1292,6 @@ impl PathTool
                     manager.moving(simulator.id()).draw_movement_simulation(
                         window,
                         camera,
-                        egui_context,
                         brushes,
                         things_catalog,
                         drawer,
@@ -1351,7 +1336,7 @@ impl PathTool
                     .iter()
                     .filter(|thing| !is_moving(manager, thing.id()))
                 {
-                    thing.draw_opaque(window, camera, egui_context, drawer, things_catalog);
+                    thing.draw_opaque(window, camera, drawer, things_catalog);
                 }
             },
             Status::FreeDrawUi(hgl_e) =>
@@ -1363,7 +1348,6 @@ impl PathTool
                         manager.thing(*hgl_e).draw_highlighted_non_selected(
                             window,
                             camera,
-                            egui_context,
                             drawer,
                             things_catalog
                         );

@@ -795,7 +795,6 @@ impl FreeDrawCursorPolygon
     {
         let DrawBundle {
             window,
-            egui_context,
             drawer,
             camera,
             ..
@@ -807,23 +806,8 @@ impl FreeDrawCursorPolygon
             Status::Point(p) =>
             {
                 drawer.square_highlight(*p, Color::CursorPolygon);
-
-                if !drawer.show_tooltips()
-                {
-                    return;
-                }
-
                 let label = return_if_none!(drawer.vx_tooltip_label(*p));
-
-                free_draw_tooltip(
-                    window,
-                    camera,
-                    egui_context,
-                    drawer,
-                    *p,
-                    label,
-                    &mut String::with_capacity(6)
-                );
+                free_draw_tooltip(window, camera, drawer, *p, label, &mut String::new());
             },
             Status::Line([start, end]) =>
             {
@@ -831,23 +815,15 @@ impl FreeDrawCursorPolygon
                 drawer.square_highlight(*start, Color::CursorPolygon);
                 drawer.square_highlight(*end, Color::CursorPolygon);
 
-                if !drawer.show_tooltips()
-                {
-                    return;
-                }
-
-                let mut text = String::with_capacity(6);
+                let mut text = String::new();
 
                 for vx in [start, end]
                 {
                     let label = return_if_none!(drawer.vx_tooltip_label(*vx));
-                    free_draw_tooltip(window, camera, egui_context, drawer, *vx, label, &mut text);
+                    free_draw_tooltip(window, camera, drawer, *vx, label, &mut text);
                 }
             },
-            Status::Polygon(poly) =>
-            {
-                poly.draw_free_draw(window, camera, drawer, egui_context);
-            }
+            Status::Polygon(poly) => poly.draw_free_draw(window, camera, drawer)
         };
     }
 }

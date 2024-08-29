@@ -6,7 +6,6 @@
 use std::fmt::Write;
 
 use bevy::{transform::components::Transform, window::Window};
-use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_shared::{match_or_panic, return_if_none};
 
@@ -186,13 +185,7 @@ impl PathCreation
 
     /// Draws the tooltip of a [`Node`].
     #[inline]
-    fn draw_point_tooltip(
-        window: &Window,
-        camera: &Transform,
-        egui_context: &egui::Context,
-        drawer: &mut EditDrawer,
-        pos: Vec2
-    )
+    fn draw_point_tooltip(window: &Window, camera: &Transform, drawer: &mut EditDrawer, pos: Vec2)
     {
         let label = return_if_none!(drawer.vx_tooltip_label(pos));
         let mut tooltip_text = String::with_capacity(4);
@@ -201,7 +194,6 @@ impl PathCreation
         node_tooltip(
             window,
             camera,
-            egui_context,
             drawer,
             pos,
             label,
@@ -216,7 +208,6 @@ impl PathCreation
         &self,
         window: &Window,
         camera: &Transform,
-        egui_context: &egui::Context,
         drawer: &mut EditDrawer,
         center: Vec2
     )
@@ -229,29 +220,18 @@ impl PathCreation
                 drawer.square_highlight(center, Color::CursorPolygon);
                 drawer.square_highlight(*p, Color::CursorPolygon);
                 drawer.line(center, *p, Color::CursorPolygon);
-
-                if drawer.show_tooltips()
-                {
-                    Self::draw_point_tooltip(window, camera, egui_context, drawer, *p);
-                }
+                Self::draw_point_tooltip(window, camera, drawer, *p);
             },
             Self::Path(path) =>
             {
-                path.draw_free_draw_with_knot(window, camera, egui_context, drawer, center);
+                path.draw_free_draw_with_knot(window, camera, drawer, center);
             }
         };
     }
 
     /// Draws the [`Path`] being drawn.
     #[inline]
-    pub fn draw(
-        &self,
-        window: &Window,
-        camera: &Transform,
-        egui_context: &egui::Context,
-        drawer: &mut EditDrawer,
-        center: Vec2
-    )
+    pub fn draw(&self, window: &Window, camera: &Transform, drawer: &mut EditDrawer, center: Vec2)
     {
         match self
         {
@@ -259,15 +239,11 @@ impl PathCreation
             Self::Point(p) =>
             {
                 drawer.square_highlight(*p, Color::CursorPolygon);
-
-                if drawer.show_tooltips()
-                {
-                    Self::draw_point_tooltip(window, camera, egui_context, drawer, *p);
-                }
+                Self::draw_point_tooltip(window, camera, drawer, *p);
             },
             Self::Path(path) =>
             {
-                path.draw_free_draw(window, camera, egui_context, drawer, center);
+                path.draw_free_draw(window, camera, drawer, center);
             }
         };
     }

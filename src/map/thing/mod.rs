@@ -443,16 +443,13 @@ pub mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             _: Brushes,
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer
         )
         {
-            self.draw_highlighted_selected(window, camera, egui_context, drawer, catalog);
-            self.path()
-                .unwrap()
-                .draw(window, camera, egui_context, drawer, self.center());
+            self.draw_highlighted_selected(window, camera, drawer, catalog);
+            self.path().unwrap().draw(window, camera, drawer, self.center());
         }
 
         #[inline]
@@ -460,18 +457,16 @@ pub mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             _: Brushes,
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer,
             highlighted_node: usize
         )
         {
-            self.draw_highlighted_selected(window, camera, egui_context, drawer, catalog);
+            self.draw_highlighted_selected(window, camera, drawer, catalog);
             self.path().unwrap().draw_with_highlighted_path_node(
                 window,
                 camera,
-                egui_context,
                 drawer,
                 self.center(),
                 highlighted_node
@@ -483,7 +478,6 @@ pub mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             _: Brushes,
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer,
@@ -491,11 +485,10 @@ pub mod ui_mod
             index: usize
         )
         {
-            self.draw_highlighted_selected(window, camera, egui_context, drawer, catalog);
+            self.draw_highlighted_selected(window, camera, drawer, catalog);
             self.path().unwrap().draw_with_node_insertion(
                 window,
                 camera,
-                egui_context,
                 drawer,
                 pos,
                 index,
@@ -508,7 +501,6 @@ pub mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             _: Brushes,
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer,
@@ -531,7 +523,6 @@ pub mod ui_mod
             self.path().unwrap().draw_movement_simulation(
                 window,
                 camera,
-                egui_context,
                 drawer,
                 self.data.pos,
                 movement_vec
@@ -725,13 +716,12 @@ pub mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             catalog: &ThingsCatalog
         )
         {
             drawer.thing(catalog, self, Color::NonSelectedEntity);
-            self.tooltip(window, camera, egui_context, catalog, drawer);
+            self.tooltip(window, camera, catalog, drawer);
         }
 
         /// Draws `self` with the selected color.
@@ -740,13 +730,12 @@ pub mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             catalog: &ThingsCatalog
         )
         {
             drawer.thing(catalog, self, Color::SelectedEntity);
-            self.tooltip(window, camera, egui_context, catalog, drawer);
+            self.tooltip(window, camera, catalog, drawer);
         }
 
         /// Draws `self` with the highlighted non selected color.
@@ -755,13 +744,12 @@ pub mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             catalog: &ThingsCatalog
         )
         {
             drawer.thing(catalog, self, Color::HighlightedNonSelectedEntity);
-            self.tooltip(window, camera, egui_context, catalog, drawer);
+            self.tooltip(window, camera, catalog, drawer);
         }
 
         /// Draws `self` with the highlighted selected color.
@@ -770,13 +758,12 @@ pub mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             catalog: &ThingsCatalog
         )
         {
             drawer.thing(catalog, self, Color::HighlightedSelectedEntity);
-            self.tooltip(window, camera, egui_context, catalog, drawer);
+            self.tooltip(window, camera, catalog, drawer);
         }
 
         /// Draws `self` with the opaque color.
@@ -785,13 +772,12 @@ pub mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             catalog: &ThingsCatalog
         )
         {
             drawer.thing(catalog, self, Color::OpaqueEntity);
-            self.tooltip(window, camera, egui_context, catalog, drawer);
+            self.tooltip(window, camera, catalog, drawer);
         }
 
         /// Draws `self` as it would appear in a map.
@@ -806,21 +792,16 @@ pub mod ui_mod
             drawer.thing(catalog, self, animators);
         }
 
+        #[allow(clippy::cast_precision_loss)]
         #[inline]
         fn tooltip(
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer
         )
         {
-            if !drawer.show_tooltips()
-            {
-                return;
-            }
-
             let label = return_if_none!(drawer.tooltip_label());
             let thing = catalog.thing_or_error(self.data.thing);
             let grid = drawer.grid();
@@ -837,7 +818,6 @@ pub mod ui_mod
             drawer.draw_tooltip_x_centered_above_pos(
                 window,
                 camera,
-                egui_context,
                 label,
                 thing.name(),
                 self.data.hull.center(),

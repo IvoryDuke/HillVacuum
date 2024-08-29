@@ -313,7 +313,7 @@ impl TextureLoader
     /// The UI showing the texture loading progress.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    pub fn ui(&self, window: &Window, egui_context: &mut egui::Context)
+    pub fn ui(&self, window: &Window, egui_context: &egui::Context)
     {
         let mut ui_window = centered_window(window, "Loading textures...");
 

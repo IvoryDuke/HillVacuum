@@ -1240,7 +1240,6 @@ impl SideTool
                     bundle.window,
                     bundle.camera,
                     &mut bundle.drawer,
-                    bundle.egui_context,
                     &VertexHighlightMode::Side
                 );
             }
@@ -1286,7 +1285,6 @@ impl SideTool
                                 bundle.window,
                                 bundle.camera,
                                 &mut bundle.drawer,
-                                bundle.egui_context,
                                 &VertexHighlightMode::Side
                             );
                         }

@@ -69,7 +69,6 @@ pub(in crate::map) mod ui_mod
 
     use arrayvec::ArrayVec;
     use bevy::{transform::components::Transform, window::Window};
-    use bevy_egui::egui;
     use glam::Vec2;
     use hill_vacuum_shared::{return_if_no_match, return_if_none};
     use serde::{Deserialize, Serialize};
@@ -1030,16 +1029,13 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             brushes: Brushes,
             _: &ThingsCatalog,
             drawer: &mut EditDrawer
         )
         {
             self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
-            self.path()
-                .unwrap()
-                .draw(window, camera, egui_context, drawer, self.center());
+            self.path().unwrap().draw(window, camera, drawer, self.center());
             self.draw_anchored_brushes(camera, brushes, drawer, Self::draw_highlighted_selected);
         }
 
@@ -1048,7 +1044,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             brushes: Brushes,
             _: &ThingsCatalog,
             drawer: &mut EditDrawer,
@@ -1059,7 +1054,6 @@ pub(in crate::map) mod ui_mod
             self.path().unwrap().draw_with_highlighted_path_node(
                 window,
                 camera,
-                egui_context,
                 drawer,
                 self.center(),
                 highlighted_node
@@ -1072,7 +1066,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             brushes: Brushes,
             _: &ThingsCatalog,
             drawer: &mut EditDrawer,
@@ -1084,7 +1077,6 @@ pub(in crate::map) mod ui_mod
             self.path().unwrap().draw_with_node_insertion(
                 window,
                 camera,
-                egui_context,
                 drawer,
                 pos,
                 index,
@@ -1098,7 +1090,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             brushes: Brushes,
             _: &ThingsCatalog,
             drawer: &mut EditDrawer,
@@ -1116,7 +1107,6 @@ pub(in crate::map) mod ui_mod
             self.path().unwrap().draw_movement_simulation(
                 window,
                 camera,
-                egui_context,
                 drawer,
                 center,
                 movement_vec
@@ -2759,17 +2749,12 @@ pub(in crate::map) mod ui_mod
             window: &Window,
             camera: &Transform,
             drawer: &mut EditDrawer,
-            egui_context: &egui::Context,
             hgl_mode: &VertexHighlightMode
         )
         {
-            self.data.polygon.draw_with_vertex_highlight(
-                window,
-                camera,
-                drawer,
-                egui_context,
-                hgl_mode
-            );
+            self.data
+                .polygon
+                .draw_with_vertex_highlight(window, camera, drawer, hgl_mode);
         }
 
         /// Draws the polygon with a solid color.

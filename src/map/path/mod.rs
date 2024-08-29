@@ -601,17 +601,9 @@ pub(in crate::map) mod ui_mod
         /// # Panics
         /// Panics if the entity has no [`Path`].
         #[inline]
-        fn draw_path(
-            &self,
-            window: &Window,
-            camera: &Transform,
-            egui_context: &egui::Context,
-            drawer: &mut EditDrawer
-        )
+        fn draw_path(&self, window: &Window, camera: &Transform, drawer: &mut EditDrawer)
         {
-            self.path()
-                .unwrap()
-                .draw(window, camera, egui_context, drawer, self.center());
+            self.path().unwrap().draw(window, camera, drawer, self.center());
         }
 
         /// Draws the [`Path`] with semitransparent materials.
@@ -630,7 +622,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             brushes: Brushes,
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer
@@ -643,7 +634,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             brushes: Brushes,
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer,
@@ -657,7 +647,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             brushes: Brushes,
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer,
@@ -672,7 +661,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             brushes: Brushes,
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer,
@@ -2644,7 +2632,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             center: Vec2,
             color: Color,
@@ -2655,15 +2642,7 @@ pub(in crate::map) mod ui_mod
 
             if drawer.show_tooltips()
             {
-                self.tooltips(
-                    window,
-                    camera,
-                    egui_context,
-                    drawer,
-                    center,
-                    color,
-                    highlighted_node
-                );
+                self.tooltips(window, camera, drawer, center, color, highlighted_node);
             }
         }
 
@@ -2673,22 +2652,13 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             center: Vec2
         )
         {
             self.draw_knot(drawer, center, Color::BrushAnchor.into());
 
-            self.draw_with_color(
-                window,
-                camera,
-                egui_context,
-                drawer,
-                center,
-                Color::PathNode,
-                None
-            );
+            self.draw_with_color(window, camera, drawer, center, Color::PathNode, None);
         }
 
         #[inline]
@@ -2713,7 +2683,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             center: Vec2,
             highlighted_node: usize
@@ -2724,7 +2693,6 @@ pub(in crate::map) mod ui_mod
             self.draw_with_color(
                 window,
                 camera,
-                egui_context,
                 drawer,
                 center,
                 Color::HighlightedPath,
@@ -2748,7 +2716,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             pos: Vec2,
             index: usize,
@@ -2759,15 +2726,7 @@ pub(in crate::map) mod ui_mod
 
             if !self.is_node_at_index_valid(pos, index, center)
             {
-                self.draw_with_color(
-                    window,
-                    camera,
-                    egui_context,
-                    drawer,
-                    center,
-                    Color::HighlightedPath,
-                    None
-                );
+                self.draw_with_color(window, camera, drawer, center, Color::HighlightedPath, None);
 
                 return;
             }
@@ -2812,7 +2771,6 @@ pub(in crate::map) mod ui_mod
                     self.bucket_tooltip(
                         window,
                         camera,
-                        egui_context,
                         drawer,
                         center,
                         Color::HighlightedPath,
@@ -2855,15 +2813,7 @@ pub(in crate::map) mod ui_mod
 
             tooltip_text.push_str(INDEXES[index]);
 
-            Self::tooltip(
-                window,
-                camera,
-                egui_context,
-                drawer,
-                pos,
-                &mut tooltip_text,
-                Color::HighlightedPath
-            );
+            Self::tooltip(window, camera, drawer, pos, &mut tooltip_text, Color::HighlightedPath);
         }
 
         /// Draws the path being free drawn.
@@ -2872,13 +2822,12 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             center: Vec2
         )
         {
             self.draw_knot(drawer, center, Color::CursorPolygon.into());
-            self.draw_free_draw(window, camera, egui_context, drawer, center);
+            self.draw_free_draw(window, camera, drawer, center);
         }
 
         /// Draws the [`Path`] in free draw mode.
@@ -2887,7 +2836,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             center: Vec2
         )
@@ -2906,7 +2854,6 @@ pub(in crate::map) mod ui_mod
                 self.regular_bucket_tooltip(
                     window,
                     camera,
-                    egui_context,
                     drawer,
                     center,
                     Color::CursorPolygon,
@@ -2922,7 +2869,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             center: Vec2,
             movement_vec: Vec2
@@ -2934,15 +2880,7 @@ pub(in crate::map) mod ui_mod
             drawer.square_highlight(end, Color::BrushAnchor);
             drawer.line(start, end, Color::BrushAnchor);
 
-            self.draw_with_color(
-                window,
-                camera,
-                egui_context,
-                drawer,
-                center,
-                Color::PathNode,
-                None
-            );
+            self.draw_with_color(window, camera, drawer, center, Color::PathNode, None);
         }
 
         /// Extends `tooltip_text` with a comma, whatever is inserted by `f` and the string
@@ -2982,7 +2920,6 @@ pub(in crate::map) mod ui_mod
         fn tooltip(
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             pos: Vec2,
             text: &mut String,
@@ -2991,16 +2928,7 @@ pub(in crate::map) mod ui_mod
         {
             let label = return_if_none!(drawer.vx_tooltip_label(pos));
             write!(text, ": {}", pos.necessary_precision_value()).ok();
-            node_tooltip(
-                window,
-                camera,
-                egui_context,
-                drawer,
-                pos,
-                label,
-                text,
-                drawer.egui_color(color)
-            );
+            node_tooltip(window, camera, drawer, pos, label, text, drawer.egui_color(color));
             text.clear();
         }
 
@@ -3010,7 +2938,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             center: Vec2,
             color: Color,
@@ -3034,7 +2961,7 @@ pub(in crate::map) mod ui_mod
                 index_func(tooltip_text, &nodes.nth(*idx), *idx);
             }
 
-            Self::tooltip(window, camera, egui_context, drawer, pos, tooltip_text, color);
+            Self::tooltip(window, camera, drawer, pos, tooltip_text, color);
         }
 
         /// Draws a standard bucket tooltip.
@@ -3043,7 +2970,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             center: Vec2,
             color: Color,
@@ -3055,7 +2981,6 @@ pub(in crate::map) mod ui_mod
             self.bucket_tooltip(
                 window,
                 camera,
-                egui_context,
                 drawer,
                 center,
                 color,
@@ -3073,7 +2998,6 @@ pub(in crate::map) mod ui_mod
             &self,
             window: &Window,
             camera: &Transform,
-            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             center: Vec2,
             color: Color,
@@ -3090,7 +3014,6 @@ pub(in crate::map) mod ui_mod
                     self.regular_bucket_tooltip(
                         window,
                         camera,
-                        egui_context,
                         drawer,
                         center,
                         color,
@@ -3104,7 +3027,6 @@ pub(in crate::map) mod ui_mod
                 self.bucket_tooltip(
                     window,
                     camera,
-                    egui_context,
                     drawer,
                     center,
                     color,
@@ -3139,7 +3061,6 @@ pub(in crate::map) mod ui_mod
                 self.regular_bucket_tooltip(
                     window,
                     camera,
-                    egui_context,
                     drawer,
                     center,
                     color,
@@ -3160,7 +3081,6 @@ pub(in crate::map) mod ui_mod
     pub(in crate::map) fn node_tooltip(
         window: &Window,
         camera: &Transform,
-        egui_context: &egui::Context,
         drawer: &EditDrawer,
         pos: Vec2,
         label: &'static str,
@@ -3171,7 +3091,6 @@ pub(in crate::map) mod ui_mod
         drawer.draw_tooltip_x_centered_above_pos(
             window,
             camera,
-            egui_context,
             label,
             text,
             pos,

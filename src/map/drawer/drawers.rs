@@ -133,6 +133,7 @@ pub(in crate::map) struct EditDrawer<'w, 's, 'a>
     commands:               &'a mut Commands<'w, 's>,
     /// The created [`Mesh`]es.
     meshes:                 &'a mut Assets<Mesh>,
+    egui_context:           &'a egui::Context,
     /// The resources required to draw things.
     resources:              &'a mut DrawingResources,
     /// The color resources.
@@ -152,7 +153,23 @@ pub(in crate::map) struct EditDrawer<'w, 's, 'a>
 impl<'w: 'a, 's: 'a, 'a> Drop for EditDrawer<'w, 's, 'a>
 {
     #[inline]
-    fn drop(&mut self) { self.resources.spawn_meshes(self.commands); }
+    fn drop(&mut self)
+    {
+        const COORDINATE: f32 = crate::map::MAP_SIZE * 20f32;
+
+        for label in self.resources.leftover_labels()
+        {
+            self.draw_tooltip(
+                label,
+                "",
+                egui::Pos2::new(COORDINATE, COORDINATE),
+                egui::Color32::WHITE,
+                egui::Color32::WHITE
+            );
+        }
+
+        self.resources.spawn_meshes(self.commands);
+    }
 }
 
 impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
@@ -169,6 +186,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         prop_cameras: &PropCameras,
         meshes: &'a mut Assets<Mesh>,
         meshes_query: &Query<Entity, With<Mesh2dHandle>>,
+        egui_context: &'a egui::Context,
         resources: &'a mut DrawingResources,
         color_resources: &'a ColorResources,
         settings: &ToolsSettings,
@@ -197,6 +215,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         Self {
             commands,
             meshes,
+            egui_context,
             resources,
             color_resources,
             grid,
@@ -213,6 +232,10 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
     #[inline]
     pub const fn resources(&self) -> &DrawingResources { self.resources }
+
+    #[inline]
+    #[must_use]
+    pub const fn egui_context(&self) -> &egui::Context { self.egui_context }
 
     //==============================================================
     // Mesh creation
@@ -614,13 +637,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
     /// Draws the line extensions of `hull`.
     #[inline]
-    pub fn hull_extensions(
-        &mut self,
-        hull: &Hull,
-        window: &Window,
-        camera: &Transform,
-        egui_context: &egui::Context
-    )
+    pub fn hull_extensions(&mut self, hull: &Hull, window: &Window, camera: &Transform)
     {
         /// The color of the text of the tooltip showing the size of the hull.
         const HULL_TOOLTIP_TEXT_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 165, 0);
@@ -650,7 +667,6 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.draw_tooltip_y_centered(
             window,
             camera,
-            egui_context,
             HULL_HEIGHT_LABEL,
             value.as_str(),
             Vec2::new(hull.right(), (hull.bottom() + hull.top()) / 2f32),
@@ -665,7 +681,6 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.draw_tooltip_x_centered_above_pos(
             window,
             camera,
-            egui_context,
             HULL_WIDTH_LABEL,
             value.as_str(),
             Vec2::new((hull.left() + hull.right()) / 2f32, hull.top()),
@@ -885,6 +900,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     }
 
     /// Draws `thing`.
+    #[allow(clippy::cast_precision_loss)]
     #[inline]
     pub fn thing<T: ThingInterface + EntityHull>(
         &mut self,
@@ -1143,39 +1159,30 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     #[must_use]
     pub fn vx_tooltip_label(&mut self, pos: Vec2) -> Option<&'static str>
     {
+        if !self.show_tooltips
+        {
+            return None;
+        }
+
         self.resources.vx_tooltip_label(pos)
     }
 
     #[inline]
     #[must_use]
-    pub fn tooltip_label(&mut self) -> Option<&'static str> { self.resources.tooltip_label() }
-
-    /// Renders one tooltip for each label that has not been utilized this frame, to fix an egui
-    /// issue where the first queued tooltip is not rendered during the frame where the amount of
-    /// tooltips to render increases from the previous frame.
-    #[inline]
-    pub fn render_leftover_labels(&mut self, egui_context: &egui::Context)
+    pub fn tooltip_label(&mut self) -> Option<&'static str>
     {
-        const COORDINATE: f32 = crate::map::MAP_SIZE * 20f32;
-
-        for label in self.resources.leftover_labels()
+        if !self.show_tooltips
         {
-            self.draw_tooltip(
-                egui_context,
-                label,
-                "",
-                egui::Pos2::new(COORDINATE, COORDINATE),
-                egui::Color32::WHITE,
-                egui::Color32::WHITE
-            );
+            return None;
         }
+
+        self.resources.tooltip_label()
     }
 
     /// Draws a tooltip an position 'pos'.
     #[inline]
     pub fn draw_tooltip(
         &self,
-        egui_context: &egui::Context,
         label: &'static str,
         text: &str,
         pos: egui::Pos2,
@@ -1188,7 +1195,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             .order(egui::Order::Background)
             .constrain(false)
             .movable(false)
-            .show(egui_context, |ui| {
+            .show(self.egui_context, |ui| {
                 egui::Frame::none()
                     .fill(fill_color)
                     .inner_margin(TOOLTIP_ROUNDING)
@@ -1224,7 +1231,6 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         &self,
         window: &Window,
         camera: &Transform,
-        egui_context: &egui::Context,
         label: &'static str,
         text: &str,
         pos: Vec2,
@@ -1236,7 +1242,6 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         offset.y -= TOOLTIP_FONT_SIZE / 1.75;
 
         self.draw_tooltip(
-            egui_context,
             label,
             text,
             camera.to_egui_coordinates(window, self.grid, pos) + egui::vec2(offset.x, offset.y),
@@ -1252,7 +1257,6 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         &self,
         window: &Window,
         camera: &Transform,
-        egui_context: &egui::Context,
         label: &'static str,
         text: &str,
         pos: Vec2,
@@ -1262,7 +1266,6 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     )
     {
         self.draw_tooltip(
-            egui_context,
             label,
             text,
             camera.to_egui_coordinates(window, self.grid, pos) +

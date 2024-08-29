@@ -676,7 +676,7 @@ impl Ui
         }
 
         // Panels.
-        let us_context = unsafe { std::ptr::from_mut(bundle.egui_context).as_mut().unwrap() };
+        let us_context = unsafe { std::ptr::from_ref(bundle.egui_context).as_ref().unwrap() };
 
         self.right_panel_layer_id = egui::SidePanel::right("subtools")
             .resizable(false)

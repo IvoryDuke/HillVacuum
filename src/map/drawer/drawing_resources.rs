@@ -1080,7 +1080,7 @@ impl TooltipLabelGenerator
     pub fn leftover_labels(&mut self) -> impl Iterator<Item = &'static str>
     {
         let iter = Self::VX_LABELS[self.vx_labels_index..Self::VX_LABELS.len()]
-            .into_iter()
+            .iter()
             .copied();
         self.vx_labels_index = Self::VX_LABELS.len();
         iter

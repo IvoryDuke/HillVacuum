@@ -2544,8 +2544,7 @@ impl State
                 .square_highlight(bundle.cursor.world_snapped(), Color::DefaultCursor);
         }
 
-        self.ui.frame_end_update(bundle.egui_context);
-        bundle.drawer.render_leftover_labels(bundle.egui_context);
+        self.ui.frame_end_update(bundle.drawer.egui_context());
     }
 
     /// Draws the map preview.
