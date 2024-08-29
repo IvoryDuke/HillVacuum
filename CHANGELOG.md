@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.6
+
+### Changes
+- Customized colors now also change the color of the related tooltips;
+- added option to customize tooltips font color;
+- added a tooltip on top of all Things that displays their names;
+- remove Anchor subtool. The hardcoe bind associated to anchoring brushes is `Right mouse`, having to enable a subtool an then clicking with the `Left mouse` increased the complexity instead of lowering it;
+- partial documentation revamp.
+
 ## 0.6.5
 
 ### Changes
