@@ -292,7 +292,7 @@ impl DrawTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager, show_tooltips: bool)
+    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
     {
         let DrawBundle {
             drawer,
@@ -351,7 +351,7 @@ impl DrawTool
             Shape::Square(cb) => cb.draw(drawer),
             Shape::Triangle(cb) => cb.draw(drawer),
             Shape::Circle(cb) => cb.draw(drawer),
-            Shape::FreeDraw(cb) => cb.draw(bundle, show_tooltips)
+            Shape::FreeDraw(cb) => cb.draw(bundle)
         };
     }
 

@@ -1033,19 +1033,13 @@ pub(in crate::map) mod ui_mod
             egui_context: &egui::Context,
             brushes: Brushes,
             _: &ThingsCatalog,
-            drawer: &mut EditDrawer,
-            show_tooltips: bool
+            drawer: &mut EditDrawer
         )
         {
             self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
-            self.path().unwrap().draw(
-                window,
-                camera,
-                egui_context,
-                drawer,
-                self.center(),
-                show_tooltips
-            );
+            self.path()
+                .unwrap()
+                .draw(window, camera, egui_context, drawer, self.center());
             self.draw_anchored_brushes(camera, brushes, drawer, Self::draw_highlighted_selected);
         }
 
@@ -1058,8 +1052,7 @@ pub(in crate::map) mod ui_mod
             brushes: Brushes,
             _: &ThingsCatalog,
             drawer: &mut EditDrawer,
-            highlighted_node: usize,
-            show_tooltips: bool
+            highlighted_node: usize
         )
         {
             self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
@@ -1069,8 +1062,7 @@ pub(in crate::map) mod ui_mod
                 egui_context,
                 drawer,
                 self.center(),
-                highlighted_node,
-                show_tooltips
+                highlighted_node
             );
             self.draw_anchored_brushes(camera, brushes, drawer, Self::draw_selected);
         }
@@ -1085,8 +1077,7 @@ pub(in crate::map) mod ui_mod
             _: &ThingsCatalog,
             drawer: &mut EditDrawer,
             pos: Vec2,
-            index: usize,
-            show_tooltips: bool
+            index: usize
         )
         {
             self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
@@ -1097,8 +1088,7 @@ pub(in crate::map) mod ui_mod
                 drawer,
                 pos,
                 index,
-                self.center(),
-                show_tooltips
+                self.center()
             );
             self.draw_anchored_brushes(camera, brushes, drawer, Self::draw_selected);
         }
@@ -1112,7 +1102,6 @@ pub(in crate::map) mod ui_mod
             brushes: Brushes,
             _: &ThingsCatalog,
             drawer: &mut EditDrawer,
-            show_tooltips: bool,
             simulator: &MovementSimulator
         )
         {
@@ -1130,8 +1119,7 @@ pub(in crate::map) mod ui_mod
                 egui_context,
                 drawer,
                 center,
-                movement_vec,
-                show_tooltips
+                movement_vec
             );
 
             let anchors = return_if_none!(self.anchors_iter());
@@ -2772,8 +2760,7 @@ pub(in crate::map) mod ui_mod
             camera: &Transform,
             drawer: &mut EditDrawer,
             egui_context: &egui::Context,
-            hgl_mode: &VertexHighlightMode,
-            show_tooltips: bool
+            hgl_mode: &VertexHighlightMode
         )
         {
             self.data.polygon.draw_with_vertex_highlight(
@@ -2781,8 +2768,7 @@ pub(in crate::map) mod ui_mod
                 camera,
                 drawer,
                 egui_context,
-                hgl_mode,
-                show_tooltips
+                hgl_mode
             );
         }
 

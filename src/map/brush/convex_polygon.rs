@@ -107,13 +107,11 @@ pub(in crate::map) mod ui_mod
                 prev,
                 prev_element,
                 prev_element_n_steps,
-                Camera,
                 NoneIfEmpty,
                 PointInsideUiHighlight,
                 VX_HGL_SIDE,
                 VX_HGL_SIDE_SQUARED
-            },
-            tooltips::draw_tooltip_x_centered_above_pos
+            }
         },
         Animation,
         Hull,
@@ -4350,8 +4348,7 @@ pub(in crate::map) mod ui_mod
             window: &Window,
             camera: &Transform,
             drawer: &mut EditDrawer,
-            egui_context: &egui::Context,
-            show_tooltips: bool
+            egui_context: &egui::Context
         )
         {
             drawer.sides(self.vertexes(), Color::CursorPolygon);
@@ -4361,7 +4358,7 @@ pub(in crate::map) mod ui_mod
                 drawer.square_highlight(vx, Color::CursorPolygon);
             }
 
-            if !show_tooltips
+            if !drawer.show_tooltips()
             {
                 return;
             }
@@ -4435,8 +4432,7 @@ pub(in crate::map) mod ui_mod
             camera: &Transform,
             drawer: &mut EditDrawer,
             egui_context: &egui::Context,
-            hgl_mode: &VertexHighlightMode,
-            show_tooltips: bool
+            hgl_mode: &VertexHighlightMode
         )
         {
             macro_rules! declare_tooltip_string {
@@ -4451,7 +4447,7 @@ pub(in crate::map) mod ui_mod
                 {
                     self.draw_side_mode(camera, drawer);
 
-                    if !show_tooltips
+                    if !drawer.show_tooltips()
                     {
                         return;
                     }
@@ -4510,7 +4506,7 @@ pub(in crate::map) mod ui_mod
                         drawer.square_highlight(svx.vec, Color::NonSelectedVertex);
                     }
 
-                    if !show_tooltips
+                    if !drawer.show_tooltips()
                     {
                         return;
                     }
@@ -4556,7 +4552,7 @@ pub(in crate::map) mod ui_mod
 
                     drawer.square_highlight(*new_vx, Color::SelectedVertex);
 
-                    if !show_tooltips
+                    if !drawer.show_tooltips()
                     {
                         return;
                     }
@@ -4564,15 +4560,16 @@ pub(in crate::map) mod ui_mod
                     declare_tooltip_string!(vx_coordinates);
 
                     // Draw the tooltip.
-                    draw_tooltip_x_centered_above_pos(
+                    drawer.draw_tooltip_x_centered_above_pos(
+                        window,
+                        camera,
                         egui_context,
                         NEW_VX,
                         format!("{} {}", new_vx.x, new_vx.y).as_str(),
-                        camera.to_egui_coordinates(window, drawer.grid(), *new_vx),
+                        *new_vx,
                         TOOLTIP_OFFSET,
                         drawer.tooltip_text_color(),
-                        drawer.egui_color(Color::SelectedVertex),
-                        3f32
+                        drawer.egui_color(Color::SelectedVertex)
                     );
 
                     for svx in self.vertexes.iter().filter(|svx| svx.selected)
@@ -4846,7 +4843,7 @@ pub(in crate::map) mod ui_mod
         window: &Window,
         camera: &Transform,
         egui_context: &egui::Context,
-        grid: Grid,
+        drawer: &EditDrawer,
         pos: Vec2,
         label: &'static str,
         text: &mut String,
@@ -4857,15 +4854,16 @@ pub(in crate::map) mod ui_mod
         text.clear();
         write!(text, "{}", pos.necessary_precision_value()).ok();
 
-        draw_tooltip_x_centered_above_pos(
+        drawer.draw_tooltip_x_centered_above_pos(
+            window,
+            camera,
             egui_context,
             label,
             text,
-            camera.to_egui_coordinates(window, grid, pos),
+            pos,
             TOOLTIP_OFFSET,
             text_color,
-            fill_color,
-            3f32
+            fill_color
         );
     }
 
@@ -4886,7 +4884,7 @@ pub(in crate::map) mod ui_mod
             window,
             camera,
             egui_context,
-            drawer.grid(),
+            drawer,
             pos,
             label,
             text,
@@ -4912,7 +4910,7 @@ pub(in crate::map) mod ui_mod
             window,
             camera,
             egui_context,
-            drawer.grid(),
+            drawer,
             pos,
             label,
             text,

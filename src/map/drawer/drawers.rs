@@ -46,8 +46,7 @@ use crate::{
             lines_and_segments::{line_equation, LineEquation},
             points::rotate_point
         },
-        misc::{Camera, VX_HGL_SIDE},
-        tooltips::{draw_tooltip_x_centered_above_pos, draw_tooltip_y_centered}
+        misc::{Camera, VX_HGL_SIDE}
     },
     Animation,
     TextureInterface
@@ -60,6 +59,12 @@ use crate::{
 
 pub(in crate::map::drawer) const HULL_HEIGHT_LABEL: &str = "hull_height";
 pub(in crate::map::drawer) const HULL_WIDTH_LABEL: &str = "hull_width";
+/// The size of the tooltips' font.
+const TOOLTIP_FONT_SIZE: f32 = 13f32;
+/// The coefficient the tooltip's text needs to be offset to be spawned centered with respect to a
+/// certain coordinate.
+const TEXT_WIDTH_X_CENTER_COEFFICIENT: f32 = TOOLTIP_FONT_SIZE / 3.25;
+const TOOLTIP_ROUNDING: f32 = 3f32;
 
 //=======================================================================//
 // TRAITS
@@ -140,7 +145,8 @@ pub(in crate::map) struct EditDrawer<'w, 's, 'a>
     /// Whether the collision overlay of the brushes should be shown.
     show_collision_overlay: bool,
     /// Whether parallax is enabled.
-    parallax_enabled:       bool
+    parallax_enabled:       bool,
+    show_tooltips:          bool
 }
 
 impl<'w: 'a, 's: 'a, 'a> Drop for EditDrawer<'w, 's, 'a>
@@ -170,7 +176,8 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         mut elapsed_time: f32,
         camera_scale: f32,
         paint_tool_camera_scale: f32,
-        show_collision_overlay: bool
+        show_collision_overlay: bool,
+        show_tooltips: bool
     ) -> Self
     {
         resources.setup_frame(
@@ -196,7 +203,8 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             camera_scale,
             elapsed_time,
             parallax_enabled: settings.parallax_enabled,
-            show_collision_overlay
+            show_collision_overlay,
+            show_tooltips
         }
     }
 
@@ -326,6 +334,10 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
     #[inline]
     pub const fn grid(&self) -> Grid { self.grid }
+
+    #[inline]
+    #[must_use]
+    pub const fn show_tooltips(&self) -> bool { self.show_tooltips }
 
     //==============================================================
     // Draw
@@ -635,37 +647,31 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
         let mut value = format!("{}", hull.height());
 
-        draw_tooltip_y_centered(
+        self.draw_tooltip_y_centered(
+            window,
+            camera,
             egui_context,
             HULL_HEIGHT_LABEL,
             value.as_str(),
-            camera.to_egui_coordinates(
-                window,
-                self.grid,
-                Vec2::new(hull.right(), (hull.bottom() + hull.top()) / 2f32)
-            ),
-            egui::Vec2::new(4f32, 0f32),
+            Vec2::new(hull.right(), (hull.bottom() + hull.top()) / 2f32),
+            Vec2::new(4f32, 0f32),
             HULL_TOOLTIP_TEXT_COLOR,
-            egui::Color32::from_black_alpha(0),
-            0f32
+            egui::Color32::from_black_alpha(0)
         );
 
         value.clear();
         write!(&mut value, "{}", hull.width()).ok();
 
-        draw_tooltip_x_centered_above_pos(
+        self.draw_tooltip_x_centered_above_pos(
+            window,
+            camera,
             egui_context,
             HULL_WIDTH_LABEL,
             value.as_str(),
-            camera.to_egui_coordinates(
-                window,
-                self.grid,
-                Vec2::new((hull.left() + hull.right()) / 2f32, hull.top())
-            ),
-            egui::Vec2::new(0f32, -4f32),
+            Vec2::new((hull.left() + hull.right()) / 2f32, hull.top()),
+            Vec2::new(0f32, -4f32),
             HULL_TOOLTIP_TEXT_COLOR,
-            egui::Color32::from_black_alpha(0),
-            0f32
+            egui::Color32::from_black_alpha(0)
         );
     }
 
@@ -1054,21 +1060,23 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(mesh, self.color_resources.polygon_material(color), color.entity_height());
 
         // Angle indicator.
+        let preview = catalog.thing_or_error(thing.thing()).preview();
         let angle = thing.angle_f32().to_radians();
         let hull = thing.hull();
         let half_side = (hull.width().min(hull.height()) / 2f32).min(64f32);
-        let center = self.grid.transform_point(hull.center());
-        let mut hull = Hull::new(
+        let mut center = self.grid.transform_point(hull.center());
+
+        if self.grid.isometric()
+        {
+            center.y += (self.resources.texture_or_error(preview).size().y / 2) as f32;
+        }
+
+        let hull = Hull::new(
             center.y + half_side,
             center.y - half_side,
             center.x - half_side,
             center.x + half_side
         );
-
-        if self.grid.isometric()
-        {
-            hull += Vec2::new(0f32, thing.hull().half_height());
-        }
 
         let half_width = hull.half_width();
         let distance = half_width * 0.75;
@@ -1115,13 +1123,12 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         }
 
         // Texture
-        let name = catalog.texture(thing.thing());
-        let vxs = thing_texture_hull(self.resources, self.grid, thing, name);
+        let vxs = thing_texture_hull(self.resources, self.grid, thing, preview);
 
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(4);
         mesh_generator.push_positions(vxs.rectangle());
-        mesh_generator.set_thing_uv(name);
+        mesh_generator.set_thing_uv(preview);
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
         self.resources
@@ -1129,7 +1136,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     }
 
     //==============================================================
-    // Misc
+    // Tooltips
 
     /// Returns a static `str` to be used as tooltip label for `pos`.
     #[inline]
@@ -1139,13 +1146,133 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.resources.vx_tooltip_label(pos)
     }
 
+    #[inline]
+    #[must_use]
+    pub fn tooltip_label(&mut self) -> Option<&'static str> { self.resources.tooltip_label() }
+
     /// Renders one tooltip for each label that has not been utilized this frame, to fix an egui
     /// issue where the first queued tooltip is not rendered during the frame where the amount of
     /// tooltips to render increases from the previous frame.
     #[inline]
     pub fn render_leftover_labels(&mut self, egui_context: &egui::Context)
     {
-        self.resources.render_leftover_labels(egui_context);
+        const COORDINATE: f32 = crate::map::MAP_SIZE * 20f32;
+
+        for label in self.resources.leftover_labels()
+        {
+            self.draw_tooltip(
+                egui_context,
+                label,
+                "",
+                egui::Pos2::new(COORDINATE, COORDINATE),
+                egui::Color32::WHITE,
+                egui::Color32::WHITE
+            );
+        }
+    }
+
+    /// Draws a tooltip an position 'pos'.
+    #[inline]
+    pub fn draw_tooltip(
+        &self,
+        egui_context: &egui::Context,
+        label: &'static str,
+        text: &str,
+        pos: egui::Pos2,
+        text_color: egui::Color32,
+        fill_color: egui::Color32
+    )
+    {
+        egui::Area::new(label.into())
+            .fixed_pos(pos)
+            .order(egui::Order::Background)
+            .constrain(false)
+            .movable(false)
+            .show(egui_context, |ui| {
+                egui::Frame::none()
+                    .fill(fill_color)
+                    .inner_margin(TOOLTIP_ROUNDING)
+                    .outer_margin(0f32)
+                    .rounding(TOOLTIP_ROUNDING)
+                    .show(ui, |ui| {
+                        ui.add(
+                            egui::Label::new(
+                                egui::RichText::new(text)
+                                    .color(text_color)
+                                    .text_style(egui::TextStyle::Monospace)
+                                    .size(TOOLTIP_FONT_SIZE)
+                            )
+                            .extend()
+                        );
+                    });
+            });
+    }
+
+    /// Returns the amount a tooltip needs to be horizontally offset to be centered with respect to
+    /// a certain coordinate.
+    #[allow(clippy::cast_precision_loss)]
+    #[inline]
+    #[must_use]
+    fn x_center_text_offset(text: &str) -> f32
+    {
+        text.len() as f32 * TEXT_WIDTH_X_CENTER_COEFFICIENT
+    }
+
+    /// Draws a tooltip with center latitude equal to `pos.y`.
+    #[inline]
+    pub fn draw_tooltip_y_centered(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        egui_context: &egui::Context,
+        label: &'static str,
+        text: &str,
+        pos: Vec2,
+        mut offset: Vec2,
+        text_color: egui::Color32,
+        fill_color: egui::Color32
+    )
+    {
+        offset.y -= TOOLTIP_FONT_SIZE / 1.75;
+
+        self.draw_tooltip(
+            egui_context,
+            label,
+            text,
+            camera.to_egui_coordinates(window, self.grid, pos) + egui::vec2(offset.x, offset.y),
+            text_color,
+            fill_color
+        );
+    }
+
+    /// Draws a tooltip with center at longitude `pos.x` with the bottom
+    /// of the frame lying right above `pos.y`.
+    #[inline]
+    pub fn draw_tooltip_x_centered_above_pos(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        egui_context: &egui::Context,
+        label: &'static str,
+        text: &str,
+        pos: Vec2,
+        offset: Vec2,
+        text_color: egui::Color32,
+        fill_color: egui::Color32
+    )
+    {
+        self.draw_tooltip(
+            egui_context,
+            label,
+            text,
+            camera.to_egui_coordinates(window, self.grid, pos) +
+                egui::vec2(
+                    offset.x - Self::x_center_text_offset(text) - TOOLTIP_ROUNDING,
+                    offset.y - TOOLTIP_FONT_SIZE - TOOLTIP_ROUNDING * 2f32
+                ),
+            text_color,
+            fill_color
+        );
     }
 }
 

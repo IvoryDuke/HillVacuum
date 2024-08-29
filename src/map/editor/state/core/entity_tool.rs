@@ -920,13 +920,7 @@ impl EntityTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(
-        &self,
-        bundle: &mut DrawBundle,
-        manager: &EntitiesManager,
-        settings: &ToolsSettings,
-        show_tooltips: bool
-    )
+    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager, settings: &ToolsSettings)
     {
         let texture_editing = settings.texture_editing();
 
@@ -1075,18 +1069,30 @@ impl EntityTool
 
                 if manager.is_selected(id)
                 {
-                    thing.draw_highlighted_selected(&mut bundle.drawer, bundle.things_catalog);
+                    thing.draw_highlighted_selected(
+                        bundle.window,
+                        bundle.camera,
+                        bundle.egui_context,
+                        &mut bundle.drawer,
+                        bundle.things_catalog
+                    );
                     thing.hull().into()
                 }
                 else
                 {
-                    thing.draw_highlighted_non_selected(&mut bundle.drawer, bundle.things_catalog);
+                    thing.draw_highlighted_non_selected(
+                        bundle.window,
+                        bundle.camera,
+                        bundle.egui_context,
+                        &mut bundle.drawer,
+                        bundle.things_catalog
+                    );
                     None
                 }
             }
         };
 
-        if show_tooltips
+        if bundle.drawer.show_tooltips()
         {
             bundle.drawer.hull_extensions(
                 &return_if_none!(hull),

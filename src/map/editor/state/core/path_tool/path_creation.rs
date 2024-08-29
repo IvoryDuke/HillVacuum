@@ -218,7 +218,6 @@ impl PathCreation
         camera: &Transform,
         egui_context: &egui::Context,
         drawer: &mut EditDrawer,
-        show_tooltips: bool,
         center: Vec2
     )
     {
@@ -231,21 +230,14 @@ impl PathCreation
                 drawer.square_highlight(*p, Color::CursorPolygon);
                 drawer.line(center, *p, Color::CursorPolygon);
 
-                if show_tooltips
+                if drawer.show_tooltips()
                 {
                     Self::draw_point_tooltip(window, camera, egui_context, drawer, *p);
                 }
             },
             Self::Path(path) =>
             {
-                path.draw_free_draw_with_knot(
-                    window,
-                    camera,
-                    egui_context,
-                    drawer,
-                    center,
-                    show_tooltips
-                );
+                path.draw_free_draw_with_knot(window, camera, egui_context, drawer, center);
             }
         };
     }
@@ -258,7 +250,6 @@ impl PathCreation
         camera: &Transform,
         egui_context: &egui::Context,
         drawer: &mut EditDrawer,
-        show_tooltips: bool,
         center: Vec2
     )
     {
@@ -269,14 +260,14 @@ impl PathCreation
             {
                 drawer.square_highlight(*p, Color::CursorPolygon);
 
-                if show_tooltips
+                if drawer.show_tooltips()
                 {
                     Self::draw_point_tooltip(window, camera, egui_context, drawer, *p);
                 }
             },
             Self::Path(path) =>
             {
-                path.draw_free_draw(window, camera, egui_context, drawer, center, show_tooltips);
+                path.draw_free_draw(window, camera, egui_context, drawer, center);
             }
         };
     }

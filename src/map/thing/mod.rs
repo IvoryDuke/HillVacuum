@@ -196,7 +196,8 @@ pub mod ui_mod
         utils::{
             hull::EntityHull,
             identifiers::{EntityCenter, EntityId},
-            math::AroundEqual
+            math::AroundEqual,
+            misc::Camera
         },
         Hull,
         Id,
@@ -445,19 +446,13 @@ pub mod ui_mod
             egui_context: &egui::Context,
             _: Brushes,
             catalog: &ThingsCatalog,
-            drawer: &mut EditDrawer,
-            show_tooltips: bool
+            drawer: &mut EditDrawer
         )
         {
-            self.draw_highlighted_selected(drawer, catalog);
-            self.path().unwrap().draw(
-                window,
-                camera,
-                egui_context,
-                drawer,
-                self.center(),
-                show_tooltips
-            );
+            self.draw_highlighted_selected(window, camera, egui_context, drawer, catalog);
+            self.path()
+                .unwrap()
+                .draw(window, camera, egui_context, drawer, self.center());
         }
 
         #[inline]
@@ -469,19 +464,17 @@ pub mod ui_mod
             _: Brushes,
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer,
-            highlighted_node: usize,
-            show_tooltips: bool
+            highlighted_node: usize
         )
         {
-            self.draw_highlighted_selected(drawer, catalog);
+            self.draw_highlighted_selected(window, camera, egui_context, drawer, catalog);
             self.path().unwrap().draw_with_highlighted_path_node(
                 window,
                 camera,
                 egui_context,
                 drawer,
                 self.center(),
-                highlighted_node,
-                show_tooltips
+                highlighted_node
             );
         }
 
@@ -495,11 +488,10 @@ pub mod ui_mod
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer,
             pos: Vec2,
-            index: usize,
-            show_tooltips: bool
+            index: usize
         )
         {
-            self.draw_highlighted_selected(drawer, catalog);
+            self.draw_highlighted_selected(window, camera, egui_context, drawer, catalog);
             self.path().unwrap().draw_with_node_insertion(
                 window,
                 camera,
@@ -507,8 +499,7 @@ pub mod ui_mod
                 drawer,
                 pos,
                 index,
-                self.center(),
-                show_tooltips
+                self.center()
             );
         }
 
@@ -521,7 +512,6 @@ pub mod ui_mod
             _: Brushes,
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer,
-            show_tooltips: bool,
             simulator: &MovementSimulator
         )
         {
@@ -544,8 +534,7 @@ pub mod ui_mod
                 egui_context,
                 drawer,
                 self.data.pos,
-                movement_vec,
-                show_tooltips
+                movement_vec
             );
         }
 
@@ -732,41 +721,77 @@ pub mod ui_mod
 
         /// Draws `self` with the non selected color.
         #[inline]
-        pub fn draw_non_selected(&self, drawer: &mut EditDrawer, catalog: &ThingsCatalog)
+        pub fn draw_non_selected(
+            &self,
+            window: &Window,
+            camera: &Transform,
+            egui_context: &egui::Context,
+            drawer: &mut EditDrawer,
+            catalog: &ThingsCatalog
+        )
         {
             drawer.thing(catalog, self, Color::NonSelectedEntity);
+            self.tooltip(window, camera, egui_context, catalog, drawer);
         }
 
         /// Draws `self` with the selected color.
         #[inline]
-        pub fn draw_selected(&self, drawer: &mut EditDrawer, catalog: &ThingsCatalog)
+        pub fn draw_selected(
+            &self,
+            window: &Window,
+            camera: &Transform,
+            egui_context: &egui::Context,
+            drawer: &mut EditDrawer,
+            catalog: &ThingsCatalog
+        )
         {
             drawer.thing(catalog, self, Color::SelectedEntity);
+            self.tooltip(window, camera, egui_context, catalog, drawer);
         }
 
         /// Draws `self` with the highlighted non selected color.
         #[inline]
         pub fn draw_highlighted_non_selected(
             &self,
+            window: &Window,
+            camera: &Transform,
+            egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             catalog: &ThingsCatalog
         )
         {
             drawer.thing(catalog, self, Color::HighlightedNonSelectedEntity);
+            self.tooltip(window, camera, egui_context, catalog, drawer);
         }
 
         /// Draws `self` with the highlighted selected color.
         #[inline]
-        pub fn draw_highlighted_selected(&self, drawer: &mut EditDrawer, catalog: &ThingsCatalog)
+        pub fn draw_highlighted_selected(
+            &self,
+            window: &Window,
+            camera: &Transform,
+            egui_context: &egui::Context,
+            drawer: &mut EditDrawer,
+            catalog: &ThingsCatalog
+        )
         {
             drawer.thing(catalog, self, Color::HighlightedSelectedEntity);
+            self.tooltip(window, camera, egui_context, catalog, drawer);
         }
 
         /// Draws `self` with the opaque color.
         #[inline]
-        pub fn draw_opaque(&self, drawer: &mut EditDrawer, catalog: &ThingsCatalog)
+        pub fn draw_opaque(
+            &self,
+            window: &Window,
+            camera: &Transform,
+            egui_context: &egui::Context,
+            drawer: &mut EditDrawer,
+            catalog: &ThingsCatalog
+        )
         {
             drawer.thing(catalog, self, Color::OpaqueEntity);
+            self.tooltip(window, camera, egui_context, catalog, drawer);
         }
 
         /// Draws `self` as it would appear in a map.
@@ -779,6 +804,47 @@ pub mod ui_mod
         )
         {
             drawer.thing(catalog, self, animators);
+        }
+
+        #[inline]
+        fn tooltip(
+            &self,
+            window: &Window,
+            camera: &Transform,
+            egui_context: &egui::Context,
+            catalog: &ThingsCatalog,
+            drawer: &mut EditDrawer
+        )
+        {
+            if !drawer.show_tooltips()
+            {
+                return;
+            }
+
+            let label = return_if_none!(drawer.tooltip_label());
+            let thing = catalog.thing_or_error(self.data.thing);
+            let grid = drawer.grid();
+
+            let offset = if grid.isometric()
+            {
+                drawer.resources().texture_or_error(thing.preview()).size().y as f32
+            }
+            else
+            {
+                self.data.hull.half_height()
+            };
+
+            drawer.draw_tooltip_x_centered_above_pos(
+                window,
+                camera,
+                egui_context,
+                label,
+                thing.name(),
+                self.data.hull.center(),
+                Vec2::new(0f32, -(offset / camera.scale() + 8f32)),
+                egui::Color32::BLACK,
+                egui::Color32::WHITE
+            );
         }
     }
 

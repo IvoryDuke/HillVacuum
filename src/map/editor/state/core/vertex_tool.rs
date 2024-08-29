@@ -953,14 +953,13 @@ impl VertexTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager, show_tooltips: bool)
+    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
     {
         /// Draws the selected and non selected brushes.
         #[inline]
         fn draw_selected_and_non_selected_brushes(
             bundle: &mut DrawBundle,
-            manager: &EntitiesManager,
-            show_tooltips: bool
+            manager: &EntitiesManager
         )
         {
             draw_non_selected_brushes(bundle, manager);
@@ -980,8 +979,7 @@ impl VertexTool
                     camera,
                     drawer,
                     egui_context,
-                    &VertexHighlightMode::Vertex,
-                    show_tooltips
+                    &VertexHighlightMode::Vertex
                 );
             }
         }
@@ -990,12 +988,12 @@ impl VertexTool
         {
             Status::Inactive(ds) =>
             {
-                draw_selected_and_non_selected_brushes(bundle, manager, show_tooltips);
+                draw_selected_and_non_selected_brushes(bundle, manager);
                 bundle.drawer.hull(&return_if_none!(ds.hull()), Color::Hull);
             },
             Status::Drag(..) | Status::PreDrag(_) | Status::NewVertexUi =>
             {
-                draw_selected_and_non_selected_brushes(bundle, manager, show_tooltips);
+                draw_selected_and_non_selected_brushes(bundle, manager);
             },
             Status::NewVertex {
                 identifier,
@@ -1019,8 +1017,7 @@ impl VertexTool
                     camera,
                     drawer,
                     egui_context,
-                    &VertexHighlightMode::NewVertex(*vx, *index),
-                    show_tooltips
+                    &VertexHighlightMode::NewVertex(*vx, *index)
                 );
 
                 for id in manager.selected_brushes_ids().copied().filter_set(*identifier)
@@ -1030,8 +1027,7 @@ impl VertexTool
                         camera,
                         drawer,
                         egui_context,
-                        &VertexHighlightMode::Vertex,
-                        show_tooltips
+                        &VertexHighlightMode::Vertex
                     );
                 }
             },
@@ -1057,7 +1053,7 @@ impl VertexTool
                     }
                 }
 
-                path.draw(window, camera, egui_context, drawer, show_tooltips, Vec2::ZERO);
+                path.draw(window, camera, egui_context, drawer, Vec2::ZERO);
             }
         };
     }

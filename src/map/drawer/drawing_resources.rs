@@ -53,15 +53,13 @@ use crate::{
             Placeholder
         },
         indexed_map::IndexedMap,
-        thing::{catalog::ThingsCatalog, ThingInterface},
-        MAP_SIZE
+        thing::{catalog::ThingsCatalog, ThingInterface}
     },
     utils::{
         containers::{hv_hash_map, hv_hash_set, hv_vec},
         hull::Hull,
         math::{points::rotate_point_around_origin, HashVec2},
-        misc::{vertex_highlight_square, AssertedInsertRemove, Camera},
-        tooltips::draw_tooltip
+        misc::{vertex_highlight_square, AssertedInsertRemove, Camera}
     },
     HvHashMap,
     HvHashSet,
@@ -544,6 +542,10 @@ impl DrawingResources
         self.tt_label_gen.vx_label(pos)
     }
 
+    #[inline]
+    #[must_use]
+    pub fn tooltip_label(&mut self) -> Option<&'static str> { self.tt_label_gen.label() }
+
     /// Returns the [`egui::TextureId`], size, and size [`String`] of the texture named `name`.
     #[inline]
     #[must_use]
@@ -986,9 +988,9 @@ impl DrawingResources
     /// issue where the first queued tooltip is not rendered during the frame where the amount of
     /// tooltips to render increases from the previous frame.
     #[inline]
-    pub fn render_leftover_labels(&mut self, egui_context: &egui::Context)
+    pub fn leftover_labels(&mut self) -> impl Iterator<Item = &'static str>
     {
-        self.tt_label_gen.render_leftover_labels(egui_context);
+        self.tt_label_gen.leftover_labels()
     }
 
     //==============================================================
@@ -1057,28 +1059,31 @@ impl TooltipLabelGenerator
         Some(value)
     }
 
+    #[inline]
+    #[must_use]
+    pub fn label(&mut self) -> Option<&'static str>
+    {
+        if self.vx_labels_index == Self::VX_LABELS.len()
+        {
+            return None;
+        }
+
+        let value = Self::VX_LABELS[self.vx_labels_index];
+        self.vx_labels_index += 1;
+        Some(value)
+    }
+
     /// Renders one tooltip for each label that has not been utilized this frame, to fix an egui
     /// issue where the first queued tooltip is not rendered during the frame where the amount of
     /// tooltips to render has increased from the previous frame.
     #[inline]
-    pub fn render_leftover_labels(&mut self, egui_context: &egui::Context)
+    pub fn leftover_labels(&mut self) -> impl Iterator<Item = &'static str>
     {
-        const COORDINATE: f32 = MAP_SIZE * 20f32;
-        const POS: egui::Pos2 = egui::Pos2::new(COORDINATE, COORDINATE);
-
-        for i in self.vx_labels_index..Self::VX_LABELS.len()
-        {
-            draw_tooltip(
-                egui_context,
-                Self::VX_LABELS[i],
-                "",
-                POS,
-                egui::Color32::WHITE,
-                egui::Color32::WHITE,
-                0f32,
-                0f32
-            );
-        }
+        let iter = Self::VX_LABELS[self.vx_labels_index..Self::VX_LABELS.len()]
+            .into_iter()
+            .copied();
+        self.vx_labels_index = Self::VX_LABELS.len();
+        iter
     }
 }
 

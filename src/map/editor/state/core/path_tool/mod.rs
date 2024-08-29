@@ -1081,7 +1081,7 @@ impl PathTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager, show_tooltips: bool)
+    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
     {
         let DrawBundle {
             window,
@@ -1109,8 +1109,7 @@ impl PathTool
                             window,
                             camera,
                             egui_context,
-                            drawer,
-                            show_tooltips
+                            drawer
                         );
                     }
                     else
@@ -1145,15 +1144,32 @@ impl PathTool
 
                     if manager.is_selected_moving(id)
                     {
-                        thing.draw_selected(drawer, things_catalog);
+                        thing.draw_selected(
+                            window,
+                            camera,
+                            egui_context,
+                            drawer,
+                            things_catalog
+                        );
                     }
                     else if manager.is_selected(id)
                     {
-                        thing.draw_non_selected(drawer, things_catalog);
+                        thing.draw_non_selected(
+                            window,
+                            camera,
+                            egui_context,drawer,
+                            things_catalog
+                        );
                     }
                     else
                     {
-                        thing.draw_opaque(drawer, things_catalog);
+                        thing.draw_opaque(
+                            window,
+                            camera,
+                            egui_context,
+                            drawer,
+                            things_catalog
+                        );
                     }
                 }
             }};
@@ -1180,17 +1196,20 @@ impl PathTool
                                 egui_context,
                                 brushes,
                                 things_catalog,
-                                drawer,
-                                show_tooltips
+                                drawer
                             );
                         },
                         ItemBeneathCursor::PossibleMoving(id) =>
                         {
                             if manager.is_thing(id)
                             {
-                                manager
-                                    .thing(id)
-                                    .draw_highlighted_non_selected(drawer, things_catalog);
+                                manager.thing(id).draw_highlighted_non_selected(
+                                    window,
+                                    camera,
+                                    egui_context,
+                                    drawer,
+                                    things_catalog
+                                );
                             }
                             else
                             {
@@ -1206,8 +1225,7 @@ impl PathTool
                                 brushes,
                                 things_catalog,
                                 drawer,
-                                usize::from(idx),
-                                show_tooltips
+                                usize::from(idx)
                             );
                         }
                     };
@@ -1246,7 +1264,13 @@ impl PathTool
                         let center = if manager.is_thing(*id)
                         {
                             let thing = manager.thing(*id);
-                            thing.draw_highlighted_selected(drawer, things_catalog);
+                            thing.draw_highlighted_selected(
+                                window,
+                                camera,
+                                egui_context,
+                                drawer,
+                                things_catalog
+                            );
                             thing.center()
                         }
                         else
@@ -1256,14 +1280,7 @@ impl PathTool
                             brush.center()
                         };
 
-                        path.draw_with_knot(
-                            window,
-                            camera,
-                            egui_context,
-                            drawer,
-                            show_tooltips,
-                            center
-                        );
+                        path.draw_with_knot(window, camera, egui_context, drawer, center);
                     },
                     PathEditing::InsertNode { pos, index } =>
                     {
@@ -1275,8 +1292,7 @@ impl PathTool
                             things_catalog,
                             drawer,
                             *pos,
-                            *index as usize,
-                            show_tooltips
+                            *index as usize
                         );
                     }
                 }
@@ -1294,7 +1310,6 @@ impl PathTool
                         brushes,
                         things_catalog,
                         drawer,
-                        show_tooltips,
                         simulator
                     );
                 }
@@ -1336,7 +1351,7 @@ impl PathTool
                     .iter()
                     .filter(|thing| !is_moving(manager, thing.id()))
                 {
-                    thing.draw_opaque(drawer, things_catalog);
+                    thing.draw_opaque(window, camera, egui_context, drawer, things_catalog);
                 }
             },
             Status::FreeDrawUi(hgl_e) =>
@@ -1345,9 +1360,13 @@ impl PathTool
                 {
                     if manager.is_thing(*hgl_e)
                     {
-                        manager
-                            .thing(*hgl_e)
-                            .draw_highlighted_non_selected(drawer, things_catalog);
+                        manager.thing(*hgl_e).draw_highlighted_non_selected(
+                            window,
+                            camera,
+                            egui_context,
+                            drawer,
+                            things_catalog
+                        );
                     }
                     else
                     {
@@ -1363,15 +1382,7 @@ impl PathTool
             },
             Status::PathConnection(path, hgl_e) =>
             {
-                path.as_ref().unwrap().draw(
-                    window,
-                    camera,
-                    egui_context,
-                    drawer,
-                    cursor.world(),
-                    false
-                );
-
+                path.as_ref().unwrap().draw_no_tooltips(drawer, cursor.world());
                 draw_entities_with_highlight!(hgl_e);
             }
         };

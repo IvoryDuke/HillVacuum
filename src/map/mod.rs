@@ -352,7 +352,7 @@ pub(in crate::map) mod ui_mod
         ])
     };
     /// The general offset of the tooltips.
-    pub(in crate::map) const TOOLTIP_OFFSET: egui::Vec2 = egui::Vec2::new(0f32, -12.5);
+    pub(in crate::map) const TOOLTIP_OFFSET: Vec2 = Vec2::new(0f32, -12.5);
     /// The rows of cameras used to take screenshots of the props placed around the map area.
     pub(in crate::map) const PROP_CAMERAS_ROWS: usize = 2;
     /// The amount of prop screenshot taking cameras placed around the map.

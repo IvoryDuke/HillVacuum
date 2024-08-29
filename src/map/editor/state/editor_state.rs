@@ -883,6 +883,10 @@ impl State
     #[must_use]
     pub const fn show_collision_overlay(&self) -> bool { self.show_collision }
 
+    #[inline]
+    #[must_use]
+    pub const fn show_tooltips(&self) -> bool { self.show_tooltips }
+
     /// Checks whether any hardcoded keyboard input was pressed and executes the necessary piece of
     /// code. Returns true if that was the case.
     #[inline]
@@ -2529,13 +2533,8 @@ impl State
     {
         self.clipboard.draw_props_to_photograph(bundle, self.grid);
         bundle.drawer.grid_lines(bundle.window, bundle.camera);
-        self.core.draw_active_tool(
-            bundle,
-            &self.manager,
-            self.grid,
-            &self.tools_settings,
-            self.show_tooltips
-        );
+        self.core
+            .draw_active_tool(bundle, &self.manager, self.grid, &self.tools_settings);
         self.manager.draw_error_highlight(bundle);
 
         if self.show_cursor

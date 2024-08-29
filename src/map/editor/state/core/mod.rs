@@ -1091,11 +1091,10 @@ impl Core
         bundle: &mut DrawBundle,
         manager: &EntitiesManager,
         grid: Grid,
-        settings: &ToolsSettings,
-        show_tooltips: bool
+        settings: &ToolsSettings
     )
     {
-        self.active_tool.draw(bundle, manager, grid, settings, show_tooltips);
+        self.active_tool.draw(bundle, manager, grid, settings);
     }
 
     /// Draws the map preview.

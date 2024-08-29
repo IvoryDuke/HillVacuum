@@ -12,11 +12,7 @@ use crate::{
         drawer::color::Color,
         editor::{cursor::Cursor, state::grid::Grid, DrawBundle}
     },
-    utils::{
-        math::AroundEqual,
-        misc::Camera,
-        tooltips::{draw_tooltip_x_centered_above_pos, draw_tooltip_y_centered}
-    }
+    utils::math::AroundEqual
 };
 
 //=======================================================================//
@@ -173,20 +169,17 @@ impl CursorDelta
 
         if self.delta.x != 0f32
         {
-            draw_tooltip_x_centered_above_pos(
+            drawer.draw_tooltip_x_centered_above_pos(
+                window,
+                camera,
                 egui_context,
                 Self::X_DELTA,
                 #[allow(clippy::cast_possible_truncation)]
                 &format!("{}", self.delta.x as i16),
-                camera.to_egui_coordinates(
-                    window,
-                    drawer.grid(),
-                    Vec2::new(self.origin.x + self.delta.x / 2f32, self.origin.y)
-                ),
-                egui::Vec2::new(0f32, -4f32),
+                Vec2::new(self.origin.x + self.delta.x / 2f32, self.origin.y),
+                Vec2::new(0f32, -4f32),
                 TOOLTIP_TEXT_COLOR,
-                egui::Color32::TRANSPARENT,
-                0f32
+                egui::Color32::TRANSPARENT
             );
         }
 
@@ -195,20 +188,17 @@ impl CursorDelta
             return;
         }
 
-        draw_tooltip_y_centered(
+        drawer.draw_tooltip_y_centered(
+            window,
+            camera,
             egui_context,
             Self::Y_DELTA,
             #[allow(clippy::cast_possible_truncation)]
             format!("{}", self.delta.y as i8).as_str(),
-            camera.to_egui_coordinates(
-                window,
-                drawer.grid(),
-                Vec2::new(p.x, p.y - self.delta.y / 2f32)
-            ),
-            egui::Vec2::new(4f32, 0f32),
+            Vec2::new(p.x, p.y - self.delta.y / 2f32),
+            Vec2::new(4f32, 0f32),
             TOOLTIP_TEXT_COLOR,
-            egui::Color32::from_black_alpha(0),
-            0f32
+            egui::Color32::from_black_alpha(0)
         );
     }
 }

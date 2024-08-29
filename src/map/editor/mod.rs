@@ -721,7 +721,8 @@ impl Editor
                 elapsed_time,
                 camera.scale(),
                 paint_tool_camera.scale(),
-                self.state.show_collision_overlay()
+                self.state.show_collision_overlay(),
+                self.state.show_tooltips()
             ),
             camera,
             prop_cameras,

@@ -791,7 +791,7 @@ impl FreeDrawCursorPolygon
 
     /// Draws the polygon being drawn.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, show_tooltips: bool)
+    pub fn draw(&self, bundle: &mut DrawBundle)
     {
         let DrawBundle {
             window,
@@ -808,7 +808,7 @@ impl FreeDrawCursorPolygon
             {
                 drawer.square_highlight(*p, Color::CursorPolygon);
 
-                if !show_tooltips
+                if !drawer.show_tooltips()
                 {
                     return;
                 }
@@ -831,7 +831,7 @@ impl FreeDrawCursorPolygon
                 drawer.square_highlight(*start, Color::CursorPolygon);
                 drawer.square_highlight(*end, Color::CursorPolygon);
 
-                if !show_tooltips
+                if !drawer.show_tooltips()
                 {
                     return;
                 }
@@ -846,7 +846,7 @@ impl FreeDrawCursorPolygon
             },
             Status::Polygon(poly) =>
             {
-                poly.draw_free_draw(window, camera, drawer, egui_context, show_tooltips);
+                poly.draw_free_draw(window, camera, drawer, egui_context);
             }
         };
     }

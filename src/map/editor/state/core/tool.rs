@@ -1367,8 +1367,7 @@ impl ActiveTool
         bundle: &mut DrawBundle,
         manager: &EntitiesManager,
         grid: Grid,
-        settings: &ToolsSettings,
-        show_tooltips: bool
+        settings: &ToolsSettings
     )
     {
         /// Draws the tool.
@@ -1378,8 +1377,7 @@ impl ActiveTool
             bundle: &mut DrawBundle,
             manager: &EntitiesManager,
             grid: Grid,
-            settings: &ToolsSettings,
-            show_tooltips: bool
+            settings: &ToolsSettings
         )
         {
             #[inline]
@@ -1416,7 +1414,13 @@ impl ActiveTool
                         .visible_things(bundle.window, bundle.camera, bundle.drawer.grid())
                         .iter()
                     {
-                        thing.draw_opaque(&mut bundle.drawer, bundle.things_catalog);
+                        thing.draw_opaque(
+                            bundle.window,
+                            bundle.camera,
+                            bundle.egui_context,
+                            &mut bundle.drawer,
+                            bundle.things_catalog
+                        );
                     }
                 }
             };
@@ -1424,15 +1428,15 @@ impl ActiveTool
             // Brushes
             match tool
             {
-                ActiveTool::Draw(t) => t.draw(bundle, manager, show_tooltips),
+                ActiveTool::Draw(t) => t.draw(bundle, manager),
                 ActiveTool::Entity(t) =>
                 {
-                    t.draw(bundle, manager, settings, show_tooltips);
+                    t.draw(bundle, manager, settings);
                     paths(bundle, manager);
                     return;
                 },
-                ActiveTool::Vertex(t) => t.draw(bundle, manager, show_tooltips),
-                ActiveTool::Side(t) => t.draw(bundle, manager, show_tooltips),
+                ActiveTool::Vertex(t) => t.draw(bundle, manager),
+                ActiveTool::Side(t) => t.draw(bundle, manager),
                 ActiveTool::Clip(t) => t.draw(bundle, manager),
                 ActiveTool::Shatter(t) => t.draw(bundle, manager),
                 ActiveTool::Subtract(t) => t.draw(bundle, manager),
@@ -1442,7 +1446,7 @@ impl ActiveTool
                 ActiveTool::Flip(t) => t.draw(bundle, manager),
                 ActiveTool::Path(t) =>
                 {
-                    t.draw(bundle, manager, show_tooltips);
+                    t.draw(bundle, manager);
 
                     if t.simulation_active()
                     {
@@ -1464,9 +1468,9 @@ impl ActiveTool
             Self::Zoom(t) =>
             {
                 t.draw(bundle);
-                draw_tool(&t.previous_active_tool, bundle, manager, grid, settings, show_tooltips);
+                draw_tool(&t.previous_active_tool, bundle, manager, grid, settings);
             },
-            _ => draw_tool(self, bundle, manager, grid, settings, show_tooltips)
+            _ => draw_tool(self, bundle, manager, grid, settings)
         };
     }
 

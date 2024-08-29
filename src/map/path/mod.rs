@@ -184,15 +184,13 @@ pub(in crate::map) mod ui_mod
                 next,
                 prev,
                 AssertedInsertRemove,
-                Camera,
                 NoneIfEmpty,
                 PointInsideUiHighlight,
                 TakeValue,
                 Toggle,
                 VX_HGL_SIDE
             },
-            overall_value::OverallValueInterface,
-            tooltips::draw_tooltip_x_centered_above_pos
+            overall_value::OverallValueInterface
         },
         Hull,
         HvHashMap,
@@ -608,18 +606,12 @@ pub(in crate::map) mod ui_mod
             window: &Window,
             camera: &Transform,
             egui_context: &egui::Context,
-            drawer: &mut EditDrawer,
-            show_tooltips: bool
+            drawer: &mut EditDrawer
         )
         {
-            self.path().unwrap().draw(
-                window,
-                camera,
-                egui_context,
-                drawer,
-                self.center(),
-                show_tooltips
-            );
+            self.path()
+                .unwrap()
+                .draw(window, camera, egui_context, drawer, self.center());
         }
 
         /// Draws the [`Path`] with semitransparent materials.
@@ -641,8 +633,7 @@ pub(in crate::map) mod ui_mod
             egui_context: &egui::Context,
             brushes: Brushes,
             catalog: &ThingsCatalog,
-            drawer: &mut EditDrawer,
-            show_tooltips: bool
+            drawer: &mut EditDrawer
         );
 
         /// Draws the entity highlighted with an highlighted [`Path`] and marked `highlighted_node`.
@@ -656,8 +647,7 @@ pub(in crate::map) mod ui_mod
             brushes: Brushes,
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer,
-            highlighted_node: usize,
-            show_tooltips: bool
+            highlighted_node: usize
         );
 
         /// Draws the entity and its [`Path`] with an extra node.
@@ -672,8 +662,7 @@ pub(in crate::map) mod ui_mod
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer,
             pos: Vec2,
-            index: usize,
-            show_tooltips: bool
+            index: usize
         );
 
         /// Draws the movement simulation.
@@ -687,7 +676,6 @@ pub(in crate::map) mod ui_mod
             brushes: Brushes,
             catalog: &ThingsCatalog,
             drawer: &mut EditDrawer,
-            show_tooltips: bool,
             simulator: &MovementSimulator
         );
 
@@ -2660,13 +2648,12 @@ pub(in crate::map) mod ui_mod
             drawer: &mut EditDrawer,
             center: Vec2,
             color: Color,
-            show_tooltips: bool,
             highlighted_node: Option<usize>
         )
         {
             self.draw_nodes(drawer, center, color);
 
-            if show_tooltips
+            if drawer.show_tooltips()
             {
                 self.tooltips(
                     window,
@@ -2688,8 +2675,7 @@ pub(in crate::map) mod ui_mod
             camera: &Transform,
             egui_context: &egui::Context,
             drawer: &mut EditDrawer,
-            center: Vec2,
-            show_tooltips: bool
+            center: Vec2
         )
         {
             self.draw_knot(drawer, center, Color::BrushAnchor.into());
@@ -2701,9 +2687,15 @@ pub(in crate::map) mod ui_mod
                 drawer,
                 center,
                 Color::PathNode,
-                show_tooltips,
                 None
             );
+        }
+
+        #[inline]
+        pub(in crate::map) fn draw_no_tooltips(&self, drawer: &mut EditDrawer, center: Vec2)
+        {
+            self.draw_knot(drawer, center, Color::BrushAnchor.into());
+            self.draw_nodes(drawer, center, Color::PathNode);
         }
 
         /// Draws the [`Path`] for the [`Prop`] screenshot.
@@ -2724,8 +2716,7 @@ pub(in crate::map) mod ui_mod
             egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             center: Vec2,
-            highlighted_node: usize,
-            show_tooltips: bool
+            highlighted_node: usize
         )
         {
             self.draw_knot(drawer, center, Color::HighlightedPath.into());
@@ -2737,7 +2728,6 @@ pub(in crate::map) mod ui_mod
                 drawer,
                 center,
                 Color::HighlightedPath,
-                show_tooltips,
                 highlighted_node.into()
             );
         }
@@ -2762,8 +2752,7 @@ pub(in crate::map) mod ui_mod
             drawer: &mut EditDrawer,
             pos: Vec2,
             index: usize,
-            center: Vec2,
-            show_tooltips: bool
+            center: Vec2
         )
         {
             self.draw_knot(drawer, center, Color::HighlightedPath.into());
@@ -2777,7 +2766,6 @@ pub(in crate::map) mod ui_mod
                     drawer,
                     center,
                     Color::HighlightedPath,
-                    show_tooltips,
                     None
                 );
 
@@ -2809,7 +2797,7 @@ pub(in crate::map) mod ui_mod
                 }
             }
 
-            if !show_tooltips
+            if !drawer.show_tooltips()
             {
                 return;
             }
@@ -2886,12 +2874,11 @@ pub(in crate::map) mod ui_mod
             camera: &Transform,
             egui_context: &egui::Context,
             drawer: &mut EditDrawer,
-            center: Vec2,
-            show_tooltips: bool
+            center: Vec2
         )
         {
             self.draw_knot(drawer, center, Color::CursorPolygon.into());
-            self.draw_free_draw(window, camera, egui_context, drawer, center, show_tooltips);
+            self.draw_free_draw(window, camera, egui_context, drawer, center);
         }
 
         /// Draws the [`Path`] in free draw mode.
@@ -2902,13 +2889,12 @@ pub(in crate::map) mod ui_mod
             camera: &Transform,
             egui_context: &egui::Context,
             drawer: &mut EditDrawer,
-            center: Vec2,
-            show_tooltips: bool
+            center: Vec2
         )
         {
             self.draw_nodes(drawer, center, Color::CursorPolygon);
 
-            if !show_tooltips
+            if !drawer.show_tooltips()
             {
                 return;
             }
@@ -2939,8 +2925,7 @@ pub(in crate::map) mod ui_mod
             egui_context: &egui::Context,
             drawer: &mut EditDrawer,
             center: Vec2,
-            movement_vec: Vec2,
-            show_tooltips: bool
+            movement_vec: Vec2
         )
         {
             let start = center + movement_vec;
@@ -2956,7 +2941,6 @@ pub(in crate::map) mod ui_mod
                 drawer,
                 center,
                 Color::PathNode,
-                show_tooltips,
                 None
             );
         }
@@ -3184,15 +3168,16 @@ pub(in crate::map) mod ui_mod
         fill_color: egui::Color32
     )
     {
-        draw_tooltip_x_centered_above_pos(
+        drawer.draw_tooltip_x_centered_above_pos(
+            window,
+            camera,
             egui_context,
             label,
             text,
-            camera.to_egui_coordinates(window, drawer.grid(), pos),
+            pos,
             TOOLTIP_OFFSET,
             drawer.tooltip_text_color(),
-            fill_color,
-            3f32
+            fill_color
         );
     }
 

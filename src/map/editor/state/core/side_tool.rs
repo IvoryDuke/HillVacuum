@@ -1228,15 +1228,11 @@ impl SideTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager, show_tooltips: bool)
+    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
     {
         /// Draws the selected brushes.
         #[inline]
-        fn draw_selected_brushes(
-            bundle: &mut DrawBundle,
-            manager: &EntitiesManager,
-            show_tooltips: bool
-        )
+        fn draw_selected_brushes(bundle: &mut DrawBundle, manager: &EntitiesManager)
         {
             for brush in manager.selected_brushes()
             {
@@ -1245,8 +1241,7 @@ impl SideTool
                     bundle.camera,
                     &mut bundle.drawer,
                     bundle.egui_context,
-                    &VertexHighlightMode::Side,
-                    show_tooltips
+                    &VertexHighlightMode::Side
                 );
             }
         }
@@ -1257,7 +1252,7 @@ impl SideTool
         {
             Status::Inactive(ds) =>
             {
-                draw_selected_brushes(bundle, manager, show_tooltips);
+                draw_selected_brushes(bundle, manager);
 
                 if let Some(hull) = ds.hull()
                 {
@@ -1266,7 +1261,7 @@ impl SideTool
             },
             Status::Drag(..) | Status::PreDrag(_) | Status::XtrusionUi =>
             {
-                draw_selected_brushes(bundle, manager, show_tooltips);
+                draw_selected_brushes(bundle, manager);
             },
             Status::Xtrusion { mode, .. } =>
             {
@@ -1274,7 +1269,7 @@ impl SideTool
                 {
                     XtrusionMode::Xtrusion(_) =>
                     {
-                        draw_selected_brushes(bundle, manager, show_tooltips);
+                        draw_selected_brushes(bundle, manager);
                     },
                     XtrusionMode::Intrusion { payloads, results } =>
                     {
@@ -1292,8 +1287,7 @@ impl SideTool
                                 bundle.camera,
                                 &mut bundle.drawer,
                                 bundle.egui_context,
-                                &VertexHighlightMode::Side,
-                                show_tooltips
+                                &VertexHighlightMode::Side
                             );
                         }
 
@@ -1307,7 +1301,7 @@ impl SideTool
                     },
                     XtrusionMode::Extrusion(polygons) =>
                     {
-                        draw_selected_brushes(bundle, manager, show_tooltips);
+                        draw_selected_brushes(bundle, manager);
 
                         for (_, _, cp) in polygons
                         {
