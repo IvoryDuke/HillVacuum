@@ -3,8 +3,8 @@
 //
 //=======================================================================//
 
+use arrayvec::ArrayVec;
 use glam::Vec2;
-use hill_vacuum_proc_macros::EnumIter;
 
 use super::{node::Square, QuadTree};
 
@@ -14,17 +14,17 @@ use super::{node::Square, QuadTree};
 //=======================================================================//
 
 /// The cardinality of a subnode.
-#[derive(EnumIter, Clone, Copy)]
-enum Cardinality
+#[derive(Debug, Clone, Copy)]
+pub(in crate::map::editor::state::manager::quad_tree) enum Cardinality
 {
     /// North-West.
-    NorthWest,
+    NorthWest(usize),
     /// South-West.
-    SouthWest,
+    SouthWest(usize),
     /// South-East.
-    SouthEast,
+    SouthEast(usize),
     /// North-East.
-    NorthEast
+    NorthEast(usize)
 }
 
 impl Cardinality
@@ -33,18 +33,30 @@ impl Cardinality
     /// `cardinality` of `self`.
     #[inline]
     #[must_use]
-    fn subsquare(self, square: &Square) -> Square
+    fn subsquare(&self, square: &Square) -> Square
     {
         let top_left = square.top_left();
         let size = square.size() / 2f32;
 
         match self
         {
-            Self::NorthWest => Square::new(top_left, size),
-            Self::SouthWest => Square::new(top_left + Vec2::new(0f32, -size), size),
-            Self::SouthEast => Square::new(top_left + Vec2::new(size, -size), size),
-            Self::NorthEast => Square::new(top_left + Vec2::new(size, 0f32), size)
+            Self::NorthWest(_) => Square::new(top_left, size),
+            Self::SouthWest(_) => Square::new(top_left + Vec2::new(0f32, -size), size),
+            Self::SouthEast(_) => Square::new(top_left + Vec2::new(size, -size), size),
+            Self::NorthEast(_) => Square::new(top_left + Vec2::new(size, 0f32), size)
         }
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn index(&self) -> usize
+    {
+        let (Self::NorthEast(idx) |
+        Self::NorthWest(idx) |
+        Self::SouthEast(idx) |
+        Self::SouthWest(idx)) = self;
+
+        *idx
     }
 }
 
@@ -55,15 +67,15 @@ impl Cardinality
 
 /// The indexes of the subnodes of a partitioned [`Node`].
 #[derive(Debug)]
-pub(in crate::map::editor::state::manager::quad_tree) struct Subnodes([usize; 4]);
+pub(in crate::map::editor::state::manager::quad_tree) struct Subnodes([Cardinality; 4]);
 
 impl<'a> IntoIterator for &'a Subnodes
 {
-    type IntoIter = std::array::IntoIter<usize, 4>;
-    type Item = usize;
+    type IntoIter = std::slice::Iter<'a, Cardinality>;
+    type Item = &'a Cardinality;
 
     #[inline]
-    fn into_iter(self) -> Self::IntoIter { self.0.into_iter() }
+    fn into_iter(self) -> Self::IntoIter { self.0.iter() }
 }
 
 impl Subnodes
@@ -73,18 +85,37 @@ impl Subnodes
     #[must_use]
     pub fn new(quad_tree: &mut QuadTree, index: usize) -> Self
     {
-        let mut subnodes = Subnodes([0; 4]);
+        let mut subnodes = Subnodes([
+            Cardinality::NorthWest(0),
+            Cardinality::SouthWest(0),
+            Cardinality::SouthEast(0),
+            Cardinality::NorthEast(0)
+        ]);
         let square = quad_tree.node(index).square();
 
-        for (node_index, cardinality) in subnodes.0.iter_mut().zip(Cardinality::iter())
+        for cardinality in &mut subnodes.0
         {
-            *node_index = quad_tree.insert_node(&cardinality.subsquare(&square));
+            let node_idx = quad_tree.insert_node(&cardinality.subsquare(&square));
+            let (Cardinality::NorthEast(idx) |
+            Cardinality::NorthWest(idx) |
+            Cardinality::SouthEast(idx) |
+            Cardinality::SouthWest(idx)) = cardinality;
+
+            *idx = node_idx;
         }
 
         subnodes
     }
 
-    /// Returns an iterator to the indexes of the subnodes.
     #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = usize> + Clone { self.0.into_iter() }
+    pub fn indexes(&self) -> impl Iterator<Item = usize> + Clone
+    {
+        self.0
+            .iter()
+            .map(Cardinality::index)
+            .collect::<ArrayVec<_, 4>>()
+            .into_inner()
+            .unwrap()
+            .into_iter()
+    }
 }

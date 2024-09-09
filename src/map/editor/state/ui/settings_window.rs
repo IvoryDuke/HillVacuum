@@ -231,50 +231,53 @@ impl SettingsWindow
 
                         let mut iter = Bind::iter();
 
-                        if let Some((b, blink)) = self.bind_edit.update(*delta_time)
+                        match self.bind_edit.update(*delta_time)
                         {
-                            for bind in &mut iter
+                            Some((b, blink)) =>
                             {
-                                if bind == b
+                                for bind in &mut iter
                                 {
-                                    for k in key_inputs.get_just_pressed()
+                                    if bind == b
                                     {
-                                        if bind.set_bind(*k, binds)
+                                        for k in key_inputs.get_just_pressed()
                                         {
-                                            self.bind_edit.reset();
-                                            break;
+                                            if bind.set_bind(*k, binds)
+                                            {
+                                                self.bind_edit.reset();
+                                                break;
+                                            }
                                         }
+    
+                                        bind_button(ui, bind.label(), blink);
+                                        break;
                                     }
-
-                                    bind_button(ui, bind.label(), blink);
-                                    break;
+    
+                                    bind_button(ui, bind.label(), bind.keycode_str(binds));
                                 }
-
-                                bind_button(ui, bind.label(), bind.keycode_str(binds));
-                            }
-
-                            for bind in iter
+    
+                                for bind in iter
+                                {
+                                    bind_button(ui, bind.label(), bind.keycode_str(binds));
+                                }
+                            },
+                            None =>
                             {
-                                bind_button(ui, bind.label(), bind.keycode_str(binds));
-                            }
+                                for bind in iter
+                                {
+                                    let response = bind_button(ui, bind.label(), bind.keycode_str(binds));
 
-                            return;
-                        }
-
-                        for bind in iter
-                        {
-                            let response = bind_button(ui, bind.label(), bind.keycode_str(binds));
-
-                            if response.clicked()
-                            {
-                                self.bind_edit.initialize(bind);
+                                    if response.clicked()
+                                    {
+                                        self.bind_edit.initialize(bind);
+                                    }
+                                    else if response.hovered() &&
+                                        key_inputs.just_pressed(KeyCode::Backspace)
+                                    {
+                                        bind.unbind(binds);
+                                    }
+                                }
                             }
-                            else if response.hovered() &&
-                                key_inputs.just_pressed(KeyCode::Backspace)
-                            {
-                                bind.unbind(binds);
-                            }
-                        }
+                        };
 
                         if ui.button("Reset to default").clicked()
                         {

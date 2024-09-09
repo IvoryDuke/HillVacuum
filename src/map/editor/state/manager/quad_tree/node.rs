@@ -260,7 +260,7 @@ impl Node
             {
                 insert_hulls!(identifiers, ints);
 
-                for node_index in subnodes.iter()
+                for node_index in subnodes.indexes()
                 {
                     if Self::entities_at_pos(quad_tree, identifiers, node_index, pos)
                     {
@@ -302,7 +302,7 @@ impl Node
                 // Create the subnodes
                 let vertexes = std::mem::take(vertexes).into_iter();
                 let subnodes = Subnodes::new(quad_tree, index);
-                let subnodes_iter = subnodes.iter();
+                let subnodes_iter = subnodes.indexes();
                 let split_segments = quad_tree.node(index).square().split_segments();
 
                 // Calculate the intersections of the vertexes.
@@ -331,7 +331,7 @@ impl Node
                 quad_tree.node_mut(index).content = Content::Subnodes(subnodes, intersections);
                 subnodes_iter
             },
-            Content::Subnodes(subnodes, _) => subnodes.iter()
+            Content::Subnodes(subnodes, _) => subnodes.indexes()
         };
 
         // Insert the vertex without worrying about intersections.
@@ -373,7 +373,7 @@ impl Node
             ints.insert(identifier, iter.next_value(), &sides.corner());
         }
 
-        for node_index in quad_tree.node(index).subnodes()
+        for node_index in quad_tree.node(index).subnodes().indexes()
         {
             Self::insert_intersections(quad_tree, node_index, identifier, sides, hull);
         }
@@ -396,7 +396,7 @@ impl Node
         {
             Content::None => return RemoveResult::None,
             Content::Vertexes(vertexes) => return vertexes.remove(pos, identifier),
-            Content::Subnodes(subnodes, _) => subnodes.iter()
+            Content::Subnodes(subnodes, _) => subnodes.indexes()
         };
 
         for node_index in &mut subnodes
@@ -408,7 +408,7 @@ impl Node
                 let node = quad_tree.node(index);
                 let mut vertexes_count = 0;
 
-                for sub_node_index in node.subnodes()
+                for sub_node_index in node.subnodes().indexes()
                 {
                     vertexes_count += match &quad_tree.node(sub_node_index).content
                     {
@@ -425,7 +425,7 @@ impl Node
 
                 let mut vertexes = Vertexes::default();
 
-                for sub_node_index in node.subnodes()
+                for sub_node_index in node.subnodes().indexes()
                 {
                     for vx in continue_if_none!(quad_tree.remove_node(sub_node_index))
                     {
@@ -486,7 +486,7 @@ impl Node
 
         return_if_no_match!(&mut node.content, Content::Subnodes(_, ints), ints).remove(identifier);
 
-        for node_index in quad_tree.node(index).subnodes()
+        for node_index in quad_tree.node(index).subnodes().indexes()
         {
             Self::remove_intersections(quad_tree, node_index, identifier, hull);
         }
@@ -516,7 +516,7 @@ impl Node
             {
                 insert_hulls!(identifiers, ints);
 
-                for subnode_index in subnodes.iter()
+                for subnode_index in subnodes.indexes()
                 {
                     Self::intersect_range(quad_tree, subnode_index, identifiers, range);
                 }
