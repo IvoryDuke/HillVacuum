@@ -1485,8 +1485,7 @@ impl<'a> MeshGenerator<'a>
     {
         let parallax = if parallax_enabled
         {
-            -(center - camera.translation.truncate()) *
-                Vec2::new(settings.parallax_x(), settings.parallax_y())
+            -(center - camera.pos()) * Vec2::new(settings.parallax_x(), settings.parallax_y())
         }
         else
         {

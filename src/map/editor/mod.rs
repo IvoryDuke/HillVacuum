@@ -329,7 +329,7 @@ impl Editor
         }
 
         // Set up the frame update.
-        if !self.state.update(&mut StateUpdateBundle {
+        let ui_hovered = self.state.update(&mut StateUpdateBundle {
             window,
             images,
             materials,
@@ -353,11 +353,18 @@ impl Editor
             },
             next_editor_state,
             next_tex_load
-        })
-        {
-            // Move view around, if the UI is not being hovered.
-            self.update_view(window, camera, egui_context, key_inputs, &config.binds, mouse_wheel);
-        }
+        });
+
+        // Move view around, if the UI is not being hovered.
+        self.update_view(
+            window,
+            camera,
+            egui_context,
+            key_inputs,
+            &config.binds,
+            mouse_wheel,
+            ui_hovered
+        );
     }
 
     /// Update the currently active tool.
@@ -399,31 +406,30 @@ impl Editor
         egui_context: &egui::Context,
         key_inputs: &ButtonInput<KeyCode>,
         binds: &BindsKeyCodes,
-        mouse_wheel: &mut EventReader<MouseWheel>
+        mouse_wheel: &mut EventReader<MouseWheel>,
+        ui_hovered: bool
     )
     {
         let mut view_moved = self.update_view_keyboard(window, camera, key_inputs, binds);
 
         if let Some(cursor_pos) = window.cursor_position()
         {
-            view_moved |= self.update_view_mouse(window, camera, mouse_wheel);
-
-            self.cursor
-                .update(cursor_pos, window, camera, &self.state, self.state.space_pressed());
-
-            if !view_moved
+            if !ui_hovered
             {
-                self.drag_view(camera);
-            }
+                view_moved |= self.update_view_mouse(window, camera, mouse_wheel);
 
-            if self.state.space_pressed()
-            {
-                egui_context.set_cursor_icon(egui::CursorIcon::Grabbing);
+                if !view_moved
+                {
+                    self.drag_view(camera, egui_context);
+                }
             }
             else
             {
                 egui_context.set_cursor_icon(egui::CursorIcon::Default);
             }
+
+            self.cursor
+                .update(cursor_pos, window, camera, &self.state, self.state.space_pressed());
         }
 
         Self::cap_map_size(window, camera);
@@ -553,16 +559,18 @@ impl Editor
 
     /// Drags the camera around, CAD software-like.
     #[inline]
-    fn drag_view(&mut self, camera: &mut Transform)
+    fn drag_view(&mut self, camera: &mut Transform, egui_context: &egui::Context)
     {
         // Drag the view around.
         if !self.state.space_pressed()
         {
+            egui_context.set_cursor_icon(egui::CursorIcon::Default);
             return;
         }
 
         let delta = self.cursor.delta_ui() * camera.scale();
         camera.translate(Vec2::new(-delta.x, delta.y));
+        egui_context.set_cursor_icon(egui::CursorIcon::Grabbing);
     }
 
     /// Caps the camera position so that its viewport does not go out of map bounds.

@@ -229,12 +229,12 @@ impl SettingsWindow
                         ui.label("CONTROLS");
                         ui.end_row();
 
-                        let mut iter = Bind::iter();
-
                         match self.bind_edit.update(*delta_time)
                         {
                             Some((b, blink)) =>
                             {
+                                let mut iter = Bind::iter();
+
                                 for bind in &mut iter
                                 {
                                     if bind == b
@@ -247,14 +247,14 @@ impl SettingsWindow
                                                 break;
                                             }
                                         }
-    
+
                                         bind_button(ui, bind.label(), blink);
                                         break;
                                     }
-    
+
                                     bind_button(ui, bind.label(), bind.keycode_str(binds));
                                 }
-    
+
                                 for bind in iter
                                 {
                                     bind_button(ui, bind.label(), bind.keycode_str(binds));
@@ -262,9 +262,10 @@ impl SettingsWindow
                             },
                             None =>
                             {
-                                for bind in iter
+                                for bind in Bind::iter()
                                 {
-                                    let response = bind_button(ui, bind.label(), bind.keycode_str(binds));
+                                    let response =
+                                        bind_button(ui, bind.label(), bind.keycode_str(binds));
 
                                     if response.clicked()
                                     {
