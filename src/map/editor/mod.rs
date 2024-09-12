@@ -410,7 +410,7 @@ impl Editor
         ui_hovered: bool
     )
     {
-        let mut view_moved = self.update_view_keyboard(window, camera, key_inputs, binds);
+        let moved_with_keyboard = self.update_view_keyboard(window, camera, key_inputs, binds);
 
         if let Some(cursor_pos) = window.cursor_position()
         {
@@ -418,14 +418,9 @@ impl Editor
             {
                 egui_context.set_cursor_icon(egui::CursorIcon::Default);
             }
-            else
+            else if !self.update_view_mouse(window, camera, mouse_wheel) && !moved_with_keyboard
             {
-                view_moved |= self.update_view_mouse(window, camera, mouse_wheel);
-
-                if !view_moved
-                {
-                    self.drag_view(camera, egui_context);
-                }
+                self.drag_view(camera, egui_context);
             }
 
             self.cursor
