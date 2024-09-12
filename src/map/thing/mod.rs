@@ -194,12 +194,11 @@ pub mod ui_mod
             OutOfBounds
         },
         utils::{
-            hull::EntityHull,
+            hull::{EntityHull, Hull},
             identifiers::{EntityCenter, EntityId},
             math::AroundEqual,
             misc::Camera
         },
-        Hull,
         Id,
         Path,
         ThingId,

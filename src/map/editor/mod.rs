@@ -414,7 +414,11 @@ impl Editor
 
         if let Some(cursor_pos) = window.cursor_position()
         {
-            if !ui_hovered
+            if ui_hovered
+            {
+                egui_context.set_cursor_icon(egui::CursorIcon::Default);
+            }
+            else
             {
                 view_moved |= self.update_view_mouse(window, camera, mouse_wheel);
 
@@ -422,10 +426,6 @@ impl Editor
                 {
                     self.drag_view(camera, egui_context);
                 }
-            }
-            else
-            {
-                egui_context.set_cursor_icon(egui::CursorIcon::Default);
             }
 
             self.cursor

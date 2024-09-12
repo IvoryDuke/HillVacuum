@@ -13,9 +13,9 @@ use serde::{Deserialize, Deserializer, Serialize};
 use crate::{
     utils::{
         containers::{hv_hash_map, hv_vec},
+        hull::Hull,
         math::HashVec2
     },
-    Hull,
     HvHashMap,
     HvVec,
     Node
@@ -170,7 +170,7 @@ pub(in crate::map) mod ui_mod
         },
         utils::{
             containers::{hv_hash_map, hv_hash_set, hv_vec},
-            hull::EntityHull,
+            hull::{EntityHull, Hull},
             identifiers::{EntityCenter, EntityId},
             iterators::{FilterSet, PairIterator, SkipIndexIterator, TripletIterator},
             math::{
@@ -192,7 +192,6 @@ pub(in crate::map) mod ui_mod
             },
             overall_value::OverallValueInterface
         },
-        Hull,
         HvHashMap,
         HvHashSet,
         HvVec,

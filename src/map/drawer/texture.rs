@@ -285,14 +285,13 @@ pub(in crate::map) mod ui_mod
             Translate
         },
         utils::{
-            hull::{EntityHull, Flip},
+            hull::{EntityHull, Flip, Hull},
             math::{
                 points::{rotate_point, rotate_point_around_origin},
                 AroundEqual
             }
         },
         Animation,
-        Hull,
         TextureInterface,
         TextureSettings,
         Timing

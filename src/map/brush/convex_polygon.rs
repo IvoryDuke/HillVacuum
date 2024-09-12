@@ -5,7 +5,7 @@
 
 use glam::Vec2;
 
-use crate::{map::drawer::texture::TextureSettings, Hull};
+use crate::map::drawer::texture::TextureSettings;
 
 //=======================================================================//
 // TYPES
@@ -70,7 +70,7 @@ pub(in crate::map) mod ui_mod
         },
         utils::{
             containers::hv_vec,
-            hull::{EntityHull, Flip},
+            hull::{EntityHull, Flip, Hull},
             identifiers::EntityCenter,
             iterators::{
                 PairIterator,
@@ -114,7 +114,6 @@ pub(in crate::map) mod ui_mod
             }
         },
         Animation,
-        Hull,
         HvVec,
         TextureInterface,
         TextureSettings

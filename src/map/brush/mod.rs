@@ -110,13 +110,12 @@ pub(in crate::map) mod ui_mod
         },
         utils::{
             containers::{hv_vec, Ids},
-            hull::{EntityHull, Flip},
+            hull::{EntityHull, Flip, Hull},
             identifiers::{EntityCenter, EntityId},
             iterators::SlicePairIter,
             math::lines_and_segments::{line_equation, LineEquation}
         },
         Animation,
-        Hull,
         HvVec,
         Id,
         Mover,
@@ -142,7 +141,7 @@ pub(in crate::map) mod ui_mod
                 // Vertexes of the polygon.
                 vertexes:          crate::HvVec<crate::map::selectable_vector::SelectableVector>,
                 center:            Vec2,
-                hull:              Hull,
+                hull:              crate::utils::hull::Hull,
                 selected_vertexes: u8,
                 /// How the texture should be mapped.
                 texture:           Option<$tex>,
@@ -307,7 +306,7 @@ pub(in crate::map) mod ui_mod
                     assert!(vertexes.len() >= 3, "Not enough vertexes to create a polygon.\n{vertexes:?}.");
 
                     let center = crate::utils::math::points::vxs_center(vertexes.iter().map(|svx| svx.vec));
-                    let hull = Hull::from_points(vertexes.iter().map(|svx| svx.vec)).unwrap();
+                    let hull = crate::utils::hull::Hull::from_points(vertexes.iter().map(|svx| svx.vec)).unwrap();
                     let selected_vertexes = vertexes.iter().fold(0, |add, svx| add + u8::from(svx.selected));
                     let cp = Self {
                         vertexes,
@@ -343,7 +342,7 @@ pub(in crate::map) mod ui_mod
                     use crate::utils::math::AroundEqual;
 
                     if !self.center.around_equal(&crate::utils::math::points::vxs_center(self.vertexes())) ||
-                        !self.hull.around_equal(&Hull::from_points(self.vertexes()).unwrap())
+                        !self.hull.around_equal(&crate::utils::hull::Hull::from_points(self.vertexes()).unwrap())
                     {
                         eprintln!("Failed center/hull assertion.");
                         return false;

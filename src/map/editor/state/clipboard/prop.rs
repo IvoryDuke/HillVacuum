@@ -34,8 +34,7 @@ use crate::{
         },
         thing::catalog::ThingsCatalog
     },
-    utils::{containers::hv_vec, identifiers::EntityId},
-    Hull,
+    utils::{containers::hv_vec, hull::Hull, identifiers::EntityId},
     HvVec
 };
 

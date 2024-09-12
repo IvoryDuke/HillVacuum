@@ -1673,10 +1673,9 @@ impl<'a> MeshGenerator<'a>
         assert!(!self.1.is_empty(), "Grid mesh has no colors.");
         assert!(self.2 == 0, "Grid mesh has indexes.");
 
-        let mut mesh = DrawingResources::mesh(PrimitiveTopology::LineList);
-        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, self.0);
-        mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, self.1);
-        mesh
+        DrawingResources::mesh(PrimitiveTopology::LineList)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, self.0)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_COLOR, self.1)
     }
 }
 
