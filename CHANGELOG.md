@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7
+
+### Changes
+- Allowed zoom in/out with keyboard even when an UI element is hovered;
+- renamed `Mover` to `Group` to clarify the purpose of the enum;
+- made `Hull` struct private as it does not need to be public anylonger;
+- removed `Motor` struct, as its fields are now integrated in the `Group` enum.
+
+### Fixes
+- fixed things tooltip text not being customized according to the setting;
+- fixed settings window color options disappearing when editing a bind.
+
 ## 0.6.6
 
 ### Changes
@@ -20,7 +32,7 @@ Fixed a crash that could occur on shutdown on some computers.
 ## 0.6.4
 
 ### Changes
-- Brushes that are split into brushes that amount to all or a fraction of their original surface (ex: cutting them using the clip tool) preserve their Path and/or their anchored brushes;
+- Brushes that are split into brushes that amount to all or a fraction of their original surface (ex: cutting them using the clip tool) preserve their Path and/or their attached brushes;
 - added missing flip tool documentation.
 
 ## Fixes
@@ -42,7 +54,7 @@ Fixed a crash that could occur on shutdown on some computers.
 - when opening a new map, the default texture animations of the previously opened map are now cleared before importing the new ones;
 - fixed anchor tool crash;
 - fixed duplicate crashes;
-- fixed missing brush anchors drawing when using the Path tool;
+- fixed missing brush attachments drawing when using the Path tool;
 - fixed an issue with the Hollow tool where some wall brushes would not be spawned if multiple brushes were hollowed.
 
 ## 0.6.2

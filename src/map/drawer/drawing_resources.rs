@@ -222,7 +222,7 @@ pub(in crate::map) struct DrawingResources
     props_pivots_mesh: HvHashMap<Entity, Mesh2dHandle>,
     /// The [`Mesh2dHandle`] of the circular highlight of the brushes other brushes are
     /// tied to.
-    anchor_highlight_mesh: Mesh2dHandle,
+    attachment_highlight_mesh: Mesh2dHandle,
     /// The [`Mesh2dHandle`] of the circular highlight of the brushes that own a sprite.
     sprite_highlight_mesh: Mesh2dHandle,
     /// The tooltip labels generator.
@@ -251,7 +251,7 @@ impl Placeholder for DrawingResources
             vertex_highlight_mesh: Mesh2dHandle::default(),
             paint_tool_vertex_highlight_mesh: Mesh2dHandle::default(),
             props_pivots_mesh: hv_hash_map![],
-            anchor_highlight_mesh: Mesh2dHandle::default(),
+            attachment_highlight_mesh: Mesh2dHandle::default(),
             sprite_highlight_mesh: Mesh2dHandle::default(),
             tt_label_gen: TooltipLabelGenerator::default(),
             default_material: Handle::default(),
@@ -352,7 +352,7 @@ impl DrawingResources
             vertex_highlight_mesh: meshes.add(square_mesh.clone()).into(),
             paint_tool_vertex_highlight_mesh: meshes.add(square_mesh).into(),
             props_pivots_mesh: props_vertex_highlight_mesh,
-            anchor_highlight_mesh: meshes.add(highlight_mesh!(anchor_highlight_vxs)).into(),
+            attachment_highlight_mesh: meshes.add(highlight_mesh!(attachment_highlight_vxs)).into(),
             sprite_highlight_mesh: meshes.add(highlight_mesh!(sprite_highlight_vxs)).into(),
             tt_label_gen: TooltipLabelGenerator::default(),
             default_material: materials.add(ColorMaterial::default()),
@@ -516,7 +516,7 @@ impl DrawingResources
 
     /// Returns an iterator to the vertexes of the circle highlight.
     #[inline]
-    fn anchor_highlight_vxs(camera_scale: f32) -> impl Iterator<Item = Vec2>
+    fn attachment_highlight_vxs(camera_scale: f32) -> impl Iterator<Item = Vec2>
     {
         Self::circle_vxs(
             Self::ANCHOR_HIGHLIGHT_RESOLUTION,
@@ -728,9 +728,9 @@ impl DrawingResources
         );
         refresh_highlight(
             meshes,
-            &self.anchor_highlight_mesh,
+            &self.attachment_highlight_mesh,
             camera_scale,
-            Self::anchor_highlight_vxs
+            Self::attachment_highlight_vxs
         );
         refresh_highlight(
             meshes,
@@ -922,9 +922,9 @@ impl DrawingResources
         });
     }
 
-    /// Queues a new anchor highlight [`Mesh`] to be drawn at the end of the frame.
+    /// Queues a new attachment highlight [`Mesh`] to be drawn at the end of the frame.
     #[inline]
-    pub(in crate::map::drawer) fn push_anchor_highlight_mesh(
+    pub(in crate::map::drawer) fn push_attachment_highlight_mesh(
         &mut self,
         material: Handle<ColorMaterial>,
         center: Vec2,
@@ -934,7 +934,7 @@ impl DrawingResources
         let transform = Self::mesh_transform(center, height);
 
         self.brush_meshes.push_highlight(MaterialMesh2dBundle {
-            mesh: self.anchor_highlight_mesh.clone(),
+            mesh: self.attachment_highlight_mesh.clone(),
             material,
             global_transform: transform.into(),
             transform,
@@ -1158,7 +1158,7 @@ impl Meshes
         self.spawn.push(mesh);
     }
 
-    /// Pushes a new [`MaterialMesh2dBundle`] belongin to a square of anchor highlight.
+    /// Pushes a new [`MaterialMesh2dBundle`] belonging to a square or attachment highlight.
     #[inline]
     pub fn push_highlight(&mut self, mesh: MaterialMesh2dBundle<ColorMaterial>)
     {

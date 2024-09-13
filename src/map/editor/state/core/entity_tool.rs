@@ -68,7 +68,7 @@ enum Status
     /// Preparing for drag.
     PreDrag(Vec2, ItemBeneathCursor, bool),
     /// Anchoring a brush to another.
-    Anchor(Id, Option<Id>),
+    Attach(Id, Option<Id>),
     /// Attempting a drag spawn from the UI.
     DragSpawnUi(Option<ItemBeneathCursor>)
 }
@@ -401,7 +401,7 @@ impl DisableSubtool for EntityTool
     #[inline]
     fn disable_subtool(&mut self)
     {
-        if matches!(self.0, Status::Anchor(..) | Status::DragSpawnUi(_))
+        if matches!(self.0, Status::Attach(..) | Status::DragSpawnUi(_))
         {
             self.0 = Status::default();
         }
@@ -485,17 +485,17 @@ impl EntityTool
 
                                 if inputs.right_mouse.just_pressed() &&
                                     manager.is_selected(id) &&
-                                    brush.anchorable()
+                                    brush.attachable()
                                 {
-                                    if let Some(owner) = brush.anchored()
+                                    if let Some(owner) = brush.attached()
                                     {
-                                        // Remove set anchor.
-                                        manager.disanchor(owner, id);
-                                        edits_history.disanchor(owner, id);
+                                        // Remove attachment.
+                                        manager.detach(owner, id);
+                                        edits_history.detach(owner, id);
                                     }
                                     else if manager.selected_brushes_amount() > 1
                                     {
-                                        self.0 = Status::Anchor(id, None);
+                                        self.0 = Status::Attach(id, None);
                                     }
 
                                     return;
@@ -682,7 +682,7 @@ impl EntityTool
                     self.finalize_entities_drag(manager, edits_history, settings);
                 }
             },
-            Status::Anchor(id, hgl_e) =>
+            Status::Attach(id, hgl_e) =>
             {
                 *hgl_e = None;
 
@@ -696,7 +696,7 @@ impl EntityTool
 
                 if brush_id == *id ||
                     !manager.is_selected(brush_id) ||
-                    manager.brush(brush_id).anchored().is_some()
+                    manager.brush(brush_id).attached().is_some()
                 {
                     return;
                 }
@@ -708,8 +708,8 @@ impl EntityTool
                     return;
                 }
 
-                manager.anchor(brush_id, *id);
-                edits_history.anchor(brush_id, *id);
+                manager.attach(brush_id, *id);
+                edits_history.attach(brush_id, *id);
 
                 self.0 = Status::Inactive(brush_beneath_cursor.into());
             },
@@ -950,7 +950,7 @@ impl EntityTool
                 None
             },
             Status::PreDrag(_, hgl_e, _) => Some(*hgl_e),
-            Status::Anchor(id, hgl_e) =>
+            Status::Attach(id, hgl_e) =>
             {
                 let end = if let Some(hgl_e) = *hgl_e
                 {

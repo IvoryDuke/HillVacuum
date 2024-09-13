@@ -3,8 +3,6 @@
 //
 //=======================================================================//
 
-use std::ops::{Add, AddAssign, RangeInclusive, Sub, SubAssign};
-
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
@@ -28,73 +26,8 @@ pub struct Hull
     right:  f32
 }
 
-impl Add<Vec2> for Hull
-{
-    type Output = Self;
-
-    /// Generates a new [`Hull`] with the same dimensions of `self` but displaced by `rhs`.
-    #[inline]
-    #[must_use]
-    fn add(self, rhs: Vec2) -> Self
-    {
-        Self {
-            top:    self.top + rhs.y,
-            bottom: self.bottom + rhs.y,
-            left:   self.left + rhs.x,
-            right:  self.right + rhs.x
-        }
-    }
-}
-
-impl AddAssign<Vec2> for Hull
-{
-    /// Moves the [`Hull`] by `rhs`.
-    #[inline]
-    fn add_assign(&mut self, rhs: Vec2)
-    {
-        self.top += rhs.y;
-        self.bottom += rhs.y;
-        self.left += rhs.x;
-        self.right += rhs.x;
-    }
-}
-
-impl Sub<Vec2> for Hull
-{
-    type Output = Self;
-
-    /// Generates a new [`Hull`] with the same dimensions of `self` but displaced by `-rhs`.
-    #[inline]
-    #[must_use]
-    fn sub(self, rhs: Vec2) -> Self
-    {
-        Self {
-            top:    self.top - rhs.y,
-            bottom: self.bottom - rhs.y,
-            left:   self.left - rhs.x,
-            right:  self.right - rhs.x
-        }
-    }
-}
-
-impl SubAssign<Vec2> for Hull
-{
-    /// Moves the [`Hull`] by `-rhs`.
-    #[inline]
-    fn sub_assign(&mut self, rhs: Vec2)
-    {
-        self.top -= rhs.y;
-        self.bottom -= rhs.y;
-        self.left -= rhs.x;
-        self.right -= rhs.x;
-    }
-}
-
 impl Hull
 {
-    //==============================================================
-    // New
-
     /// Returns a new [`Hull`].
     /// # Panics
     /// Panics if `bottom` is greater than `top` or `left` is greater than `right`.
@@ -153,90 +86,6 @@ impl Hull
 
         Some(Hull::new(top, bottom, left, right))
     }
-
-    //==============================================================
-    // Info
-
-    /// The y coordinate of the top side.
-    #[inline]
-    #[must_use]
-    pub const fn top(&self) -> f32 { self.top }
-
-    /// The y coordinate of the bottom side.
-    #[inline]
-    #[must_use]
-    pub const fn bottom(&self) -> f32 { self.bottom }
-
-    /// The x coordinate of the left side.
-    #[inline]
-    #[must_use]
-    pub const fn left(&self) -> f32 { self.left }
-
-    /// The x coordinate of the right side.
-    #[inline]
-    #[must_use]
-    pub const fn right(&self) -> f32 { self.right }
-
-    /// Returns the point representing the top left corner.
-    #[inline]
-    #[must_use]
-    pub const fn top_left(&self) -> Vec2 { Vec2::new(self.left, self.top) }
-
-    /// Returns the point representing the top right corner.
-    #[inline]
-    #[must_use]
-    pub const fn top_right(&self) -> Vec2 { Vec2::new(self.right, self.top) }
-
-    /// Returns the point representing the bottom left corner.
-    #[inline]
-    #[must_use]
-    pub const fn bottom_left(&self) -> Vec2 { Vec2::new(self.left, self.bottom) }
-
-    /// Returns the point representing the bottom right corner.
-    #[inline]
-    #[must_use]
-    pub const fn bottom_right(&self) -> Vec2 { Vec2::new(self.right, self.bottom) }
-
-    /// Returns the width.
-    #[inline]
-    #[must_use]
-    pub fn width(&self) -> f32 { self.right - self.left }
-
-    /// Returns the height.
-    #[inline]
-    #[must_use]
-    pub fn height(&self) -> f32 { self.top - self.bottom }
-
-    /// Returns the he half width.
-    #[inline]
-    #[must_use]
-    pub fn half_width(&self) -> f32 { self.width() / 2f32 }
-
-    /// Returns he half height.
-    #[inline]
-    #[must_use]
-    pub fn half_height(&self) -> f32 { self.height() / 2f32 }
-
-    /// Returns the width and height.
-    #[inline]
-    #[must_use]
-    pub fn dimensions(&self) -> (f32, f32) { (self.width(), self.height()) }
-
-    /// Returns the center.
-    #[inline]
-    #[must_use]
-    pub fn center(&self) -> Vec2
-    {
-        Vec2::new(self.left + self.half_width(), self.bottom + self.half_height())
-    }
-
-    /// Returns the horizontal and vertical ranges.
-    #[inline]
-    #[must_use]
-    pub const fn range(&self) -> (RangeInclusive<f32>, RangeInclusive<f32>)
-    {
-        (self.left..=self.right, self.bottom..=self.top)
-    }
 }
 
 //=======================================================================//
@@ -265,7 +114,11 @@ pub(crate) mod ui_mod
     //
     //=======================================================================//
 
-    use std::{cmp::Ordering, fmt::Display};
+    use std::{
+        cmp::Ordering,
+        fmt::Display,
+        ops::{Add, AddAssign, RangeInclusive, Sub, SubAssign}
+    };
 
     use arrayvec::ArrayVec;
     use glam::Vec2;
@@ -465,6 +318,68 @@ pub(crate) mod ui_mod
 
     //=======================================================================//
 
+    impl Add<Vec2> for Hull
+    {
+        type Output = Self;
+
+        /// Generates a new [`Hull`] with the same dimensions of `self` but displaced by `rhs`.
+        #[inline]
+        #[must_use]
+        fn add(self, rhs: Vec2) -> Self
+        {
+            Self {
+                top:    self.top + rhs.y,
+                bottom: self.bottom + rhs.y,
+                left:   self.left + rhs.x,
+                right:  self.right + rhs.x
+            }
+        }
+    }
+
+    impl AddAssign<Vec2> for Hull
+    {
+        /// Moves the [`Hull`] by `rhs`.
+        #[inline]
+        fn add_assign(&mut self, rhs: Vec2)
+        {
+            self.top += rhs.y;
+            self.bottom += rhs.y;
+            self.left += rhs.x;
+            self.right += rhs.x;
+        }
+    }
+
+    impl Sub<Vec2> for Hull
+    {
+        type Output = Self;
+
+        /// Generates a new [`Hull`] with the same dimensions of `self` but displaced by `-rhs`.
+        #[inline]
+        #[must_use]
+        fn sub(self, rhs: Vec2) -> Self
+        {
+            Self {
+                top:    self.top - rhs.y,
+                bottom: self.bottom - rhs.y,
+                left:   self.left - rhs.x,
+                right:  self.right - rhs.x
+            }
+        }
+    }
+
+    impl SubAssign<Vec2> for Hull
+    {
+        /// Moves the [`Hull`] by `-rhs`.
+        #[inline]
+        fn sub_assign(&mut self, rhs: Vec2)
+        {
+            self.top -= rhs.y;
+            self.bottom -= rhs.y;
+            self.left -= rhs.x;
+            self.right -= rhs.x;
+        }
+    }
+
     impl<T: ExactSizeIterator<Item = Vec2>> From<T> for Hull
     {
         #[inline]
@@ -541,6 +456,87 @@ pub(crate) mod ui_mod
 
         //==============================================================
         // Info
+
+        /// The y coordinate of the top side.
+        #[inline]
+        #[must_use]
+        pub const fn top(&self) -> f32 { self.top }
+
+        /// The y coordinate of the bottom side.
+        #[inline]
+        #[must_use]
+        pub const fn bottom(&self) -> f32 { self.bottom }
+
+        /// The x coordinate of the left side.
+        #[inline]
+        #[must_use]
+        pub const fn left(&self) -> f32 { self.left }
+
+        /// The x coordinate of the right side.
+        #[inline]
+        #[must_use]
+        pub const fn right(&self) -> f32 { self.right }
+
+        /// Returns the point representing the top left corner.
+        #[inline]
+        #[must_use]
+        pub const fn top_left(&self) -> Vec2 { Vec2::new(self.left, self.top) }
+
+        /// Returns the point representing the top right corner.
+        #[inline]
+        #[must_use]
+        pub const fn top_right(&self) -> Vec2 { Vec2::new(self.right, self.top) }
+
+        /// Returns the point representing the bottom left corner.
+        #[inline]
+        #[must_use]
+        pub const fn bottom_left(&self) -> Vec2 { Vec2::new(self.left, self.bottom) }
+
+        /// Returns the point representing the bottom right corner.
+        #[inline]
+        #[must_use]
+        pub const fn bottom_right(&self) -> Vec2 { Vec2::new(self.right, self.bottom) }
+
+        /// Returns the width.
+        #[inline]
+        #[must_use]
+        pub fn width(&self) -> f32 { self.right - self.left }
+
+        /// Returns the height.
+        #[inline]
+        #[must_use]
+        pub fn height(&self) -> f32 { self.top - self.bottom }
+
+        /// Returns the he half width.
+        #[inline]
+        #[must_use]
+        pub fn half_width(&self) -> f32 { self.width() / 2f32 }
+
+        /// Returns he half height.
+        #[inline]
+        #[must_use]
+        pub fn half_height(&self) -> f32 { self.height() / 2f32 }
+
+        /// Returns the width and height.
+        #[inline]
+        #[must_use]
+        pub fn dimensions(&self) -> (f32, f32) { (self.width(), self.height()) }
+
+        /// Returns the center.
+        #[inline]
+        #[must_use]
+        pub fn center(&self) -> Vec2
+        {
+            Vec2::new(self.left + self.half_width(), self.bottom + self.half_height())
+        }
+
+        /// Returns the horizontal and vertical ranges.
+        #[inline]
+        #[must_use]
+        pub const fn range(&self) -> (RangeInclusive<f32>, RangeInclusive<f32>)
+        {
+            (self.left..=self.right, self.bottom..=self.top)
+        }
 
         /// Whether the [`Hull`] contains `p`.
         #[inline]

@@ -43,7 +43,7 @@ use crate::{
 //=======================================================================//
 
 /// The version of the saved files.
-const FILE_VERSION_NUMBER: &str = "0.6.1";
+const FILE_VERSION_NUMBER: &str = "0.7";
 
 //=======================================================================//
 // ENUMS

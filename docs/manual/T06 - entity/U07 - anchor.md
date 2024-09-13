@@ -1,2 +1,2 @@
 ### Right mouse
-Clicking a brush with no path and not anchored, allows to anchor it to another brush by then clicking the latter. Clicking on an anchored brush disanchors it.
+Clicking a brush with no path and not attached, allows to attach it to another brush by then clicking the latter. Clicking on an attached brush disattachs it.

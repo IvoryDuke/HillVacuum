@@ -1429,7 +1429,10 @@ impl State
         }
 
         #[inline]
-        fn convert_03(mut reader: BufReader<File>) -> Result<OldFileRead, &'static str>
+        fn convert_03(
+            mut reader: BufReader<File>,
+            _: &ThingsCatalog
+        ) -> Result<OldFileRead, &'static str>
         {
             // Header
             let header = ex_header(&mut reader)?;
@@ -1471,7 +1474,10 @@ impl State
         }
 
         #[inline]
-        fn convert_04(mut reader: BufReader<File>) -> Result<OldFileRead, &'static str>
+        fn convert_04(
+            mut reader: BufReader<File>,
+            _: &ThingsCatalog
+        ) -> Result<OldFileRead, &'static str>
         {
             // Header
             let header = ex_header(&mut reader)?;
@@ -1503,7 +1509,10 @@ impl State
         }
 
         #[inline]
-        fn convert_05(mut reader: BufReader<File>) -> Result<OldFileRead, &'static str>
+        fn convert_05(
+            mut reader: BufReader<File>,
+            _: &ThingsCatalog
+        ) -> Result<OldFileRead, &'static str>
         {
             // Header.
             let header = ex_header(&mut reader)?;
@@ -1538,7 +1547,10 @@ impl State
         }
 
         #[inline]
-        fn convert_06(mut reader: BufReader<File>) -> Result<OldFileRead, &'static str>
+        fn convert_06(
+            mut reader: BufReader<File>,
+            _: &ThingsCatalog
+        ) -> Result<OldFileRead, &'static str>
         {
             // Header.
             let header = ex_header(&mut reader)?;
@@ -1581,14 +1593,74 @@ impl State
         }
 
         #[inline]
+        fn convert_061(
+            mut reader: BufReader<File>,
+            things_catalog: &ThingsCatalog
+        ) -> Result<OldFileRead, &'static str>
+        {
+            // Header.
+            let header = ex_header(&mut reader)?;
+
+            // Grid.
+            let grid = ex_grid(&mut reader)?;
+
+            // Animations.
+            let animations = ex_animations(&mut reader, &header)?;
+
+            // Properties.
+            let default_properties = ex_default_properties(&mut reader)?;
+
+            // Brushes.
+            let mut brushes = hv_vec![];
+
+            for _ in 0..header.brushes
+            {
+                brushes.push(
+                    ciborium::from_reader::<
+                        crate::map::brush::compatibility::_061::BrushViewer,
+                        _
+                    >(&mut reader)
+                    .map_err(|_| "Error reading brushes for conversion.")?
+                    .into()
+                );
+            }
+
+            // Things.
+            let mut things = hv_vec![];
+
+            for _ in 0..header.things
+            {
+                things.push(ThingInstance::from((
+                    ciborium::from_reader::<ThingViewer, _>(&mut reader)
+                        .map_err(|_| "Error reading things for conversion.")?,
+                    things_catalog
+                )));
+            }
+
+            // Props.
+            let props = ex_props(&mut reader, &header)?;
+
+            Ok(OldFileRead {
+                header,
+                grid,
+                animations,
+                default_properties,
+                brushes,
+                things,
+                props
+            })
+        }
+
+        #[inline]
         fn convert(
             path: &mut PathBuf,
             reader: BufReader<File>,
-            f: fn(BufReader<File>) -> Result<OldFileRead, &'static str>
+            things_catalog: &ThingsCatalog,
+            f: fn(BufReader<File>, &ThingsCatalog) -> Result<OldFileRead, &'static str>
         ) -> Result<BufReader<File>, &'static str>
         {
             let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
-            file_name.push_str("_061.hv");
+            file_name.push_str("_07.hv");
 
             warning_message(&format!(
                 "This file appears to have an old file structure, if it is valid it will now be \
@@ -1603,7 +1675,7 @@ impl State
                 mut brushes,
                 mut things,
                 props
-            } = f(reader)?;
+            } = f(reader, things_catalog)?;
 
             // Write to file.
             let mut data = Vec::new();
@@ -1703,10 +1775,11 @@ impl State
         steps.next_value().assert(FileStructure::Version);
         let mut file = match version_number(&mut reader).as_str()
         {
-            "0.3" => convert(&mut path, reader, convert_03)?,
-            "0.4" => convert(&mut path, reader, convert_04)?,
-            "0.5" => convert(&mut path, reader, convert_05)?,
-            "0.6" => convert(&mut path, reader, convert_06)?,
+            "0.3" => convert(&mut path, reader, things_catalog, convert_03)?,
+            "0.4" => convert(&mut path, reader, things_catalog, convert_04)?,
+            "0.5" => convert(&mut path, reader, things_catalog, convert_05)?,
+            "0.6" => convert(&mut path, reader, things_catalog, convert_06)?,
+            "0.6.1" => convert(&mut path, reader, things_catalog, convert_061)?,
             FILE_VERSION_NUMBER => reader,
             _ => unreachable!()
         };

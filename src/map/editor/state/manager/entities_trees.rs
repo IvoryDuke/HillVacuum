@@ -66,7 +66,7 @@ pub(in crate::map::editor::state::manager) struct Trees
     brushes_tree:     QuadTree,
     /// All [`Path`]s.
     paths_tree:       QuadTree,
-    /// All brush anchors.
+    /// All brush attachments.
     anchors_tree:     QuadTree,
     /// All sprites.
     sprites_tree:     QuadTree,
@@ -82,7 +82,7 @@ pub(in crate::map::editor::state::manager) struct Trees
     visible_paths:    RefCell<VisibleQuadTreeIds>,
     /// The [`Path`]s at a certain pos.
     paths_at_pos:     RefCell<QuadTreeIdsNearPos>,
-    /// The visible anchors.
+    /// The visible attachments.
     visible_anchors:  RefCell<VisibleQuadTreeIds>,
     /// The sprites at a certain position.
     sprites_at_pos:   RefCell<QuadTreeIdsNearPos>,
@@ -128,7 +128,7 @@ impl Trees
         }
     }
 
-    /// Inserts the anchor [`Hull`] of the brush with [`Id`] `owner_id`.
+    /// Inserts the anchor [`Hull`] of `brush`.
     #[inline]
     #[must_use]
     pub fn insert_anchor_hull(&mut self, brush: &Brush, hull: &Hull) -> InsertResult
@@ -137,7 +137,7 @@ impl Trees
         self.anchors_tree.insert_entity(brush, |_| *hull)
     }
 
-    /// Removes the anchor [`Hull`] of the brush with [`Id`] `owner_id`.
+    /// Removes the anchor [`Hull`] of the `brush`.
     #[inline]
     #[must_use]
     pub fn remove_anchor_hull(&mut self, brush: &Brush) -> bool
@@ -256,7 +256,7 @@ impl Trees
         self.visible_things.borrow_mut().set_dirty();
     }
 
-    /// Sets the anchors [`DirtyQuadTreeIdsNearPos`] as dirty.
+    /// Sets the attachments [`DirtyQuadTreeIdsNearPos`] as dirty.
     #[inline]
     pub fn set_anchors_dirty(&mut self) { self.visible_anchors.borrow_mut().set_dirty(); }
 

@@ -54,10 +54,10 @@ pub(in crate::map) struct Prop
     data_center: Vec2,
     /// The point used as reference for the spawn process.
     pivot: Vec2,
-    /// The amount of [`ClipboardData`] that owns anchored brushes.
-    anchor_owners: usize,
-    /// The range of indexes of `data` in which anchored brushes are stored.
-    anchored_range: Range<usize>,
+    /// The amount of [`ClipboardData`] that owns attached brushes.
+    attachments_owners: usize,
+    /// The range of indexes of `data` in which attached brushes are stored.
+    attached_range: Range<usize>,
     /// The optional texture screenshot.
     pub(in crate::map::editor::state::clipboard) screenshot: Option<egui::TextureId>
 }
@@ -68,12 +68,12 @@ impl Default for Prop
     fn default() -> Self
     {
         Self {
-            data:           hv_vec![],
-            data_center:    Vec2::ZERO,
-            pivot:          Vec2::ZERO,
-            anchor_owners:  0,
-            anchored_range: 0..0,
-            screenshot:     None
+            data:               hv_vec![],
+            data_center:        Vec2::ZERO,
+            pivot:              Vec2::ZERO,
+            attachments_owners: 0,
+            attached_range:     0..0,
+            screenshot:         None
         }
     }
 }
@@ -188,11 +188,11 @@ impl Prop
         D: CopyToClipboard + ?Sized + 'a
     {
         self.data.clear();
-        self.anchor_owners = 0;
-        self.anchored_range = 0..0;
+        self.attachments_owners = 0;
+        self.attached_range = 0..0;
 
-        let mut anchors = 0;
-        let mut anchored = 0;
+        let mut attachments = 0;
+        let mut attached = 0;
 
         for item in iter.map(CopyToClipboard::copy_to_clipboard)
         {
@@ -201,14 +201,14 @@ impl Prop
                 ClipboardData::Thing(..) => self.data.len(),
                 ClipboardData::Brush(data, _) =>
                 {
-                    if data.is_anchored()
+                    if data.is_attached()
                     {
-                        anchored += 1;
-                        anchors
+                        attached += 1;
+                        attachments
                     }
-                    else if data.has_anchors()
+                    else if data.has_attachments()
                     {
-                        anchors += 1;
+                        attachments += 1;
                         0
                     }
                     else
@@ -221,20 +221,20 @@ impl Prop
             self.data.insert(index, item);
         }
 
-        let (anchor_brushes, anchored_brushes) = self.data.split_at_mut(anchors);
-        let anchored_brushes = &mut anchored_brushes[..anchored];
-        self.anchored_range = anchors..anchors + anchored;
+        let (owner_brushes, attached_brushes) = self.data.split_at_mut(attachments);
+        let attached_brushes = &mut attached_brushes[..attached];
+        self.attached_range = attachments..attachments + attached;
 
-        for data in anchor_brushes
+        for data in owner_brushes
             .iter_mut()
             .map(|item| match_or_panic!(item, ClipboardData::Brush(data, _), data))
         {
-            assert!(data.has_anchors(), "Mover has no anchors.");
+            assert!(data.has_attachments(), "Mover has no attachments.");
             let mut to_remove = hv_vec![];
 
-            for id in data.anchors().unwrap().iter().copied()
+            for id in data.attachments().unwrap().iter().copied()
             {
-                if anchored_brushes.iter().any(|item| item.id() == id)
+                if attached_brushes.iter().any(|item| item.id() == id)
                 {
                     continue;
                 }
@@ -244,23 +244,23 @@ impl Prop
 
             for id in to_remove
             {
-                data.remove_anchor(id);
+                data.remove_attachment(id);
             }
         }
 
-        for data in anchored_brushes
+        for data in attached_brushes
             .iter_mut()
             .map(|item| match_or_panic!(item, ClipboardData::Brush(data, _), data))
         {
-            data.disanchor();
+            data.detach();
         }
 
-        anchor_brushes.sort_by(|a, b| {
+        owner_brushes.sort_by(|a, b| {
             match (a, b)
             {
                 (ClipboardData::Brush(a, _), ClipboardData::Brush(b, _)) =>
                 {
-                    a.has_anchors().cmp(&b.has_anchors()).reverse()
+                    a.has_attachments().cmp(&b.has_attachments()).reverse()
                 },
                 (ClipboardData::Brush(..), ClipboardData::Thing(..)) => Ordering::Less,
                 (ClipboardData::Thing(..), ClipboardData::Brush(..)) => Ordering::Greater,
@@ -268,14 +268,14 @@ impl Prop
             }
         });
 
-        for item in anchor_brushes
+        for item in owner_brushes
         {
-            if !match_or_panic!(item, ClipboardData::Brush(data, _), data).has_anchors()
+            if !match_or_panic!(item, ClipboardData::Brush(data, _), data).has_attachments()
             {
                 break;
             }
 
-            self.anchor_owners += 1;
+            self.attachments_owners += 1;
         }
 
         self.reset_data_center(drawing_resources);
@@ -416,11 +416,11 @@ impl Prop
             drawing_resources,
             manager,
             edits_history,
-            (self.anchored_range.end..self.data.len()).rev(),
+            (self.attached_range.end..self.data.len()).rev(),
             delta
         );
 
-        for i in self.anchored_range.clone().rev()
+        for i in self.attached_range.clone().rev()
         {
             let item = &mut self.data[i];
             let old_id = item.id();
@@ -432,14 +432,15 @@ impl Prop
                 ClipboardData::Brush(_, id) | ClipboardData::Thing(_, id) => *id = new_id
             };
 
-            let data =
-                continue_if_none!(self.data[0..self.anchor_owners].iter_mut().find_map(|item| {
+            let data = continue_if_none!(self.data[0..self.attachments_owners]
+                .iter_mut()
+                .find_map(|item| {
                     let data = match_or_panic!(item, ClipboardData::Brush(data, _), data);
-                    data.contains_anchor(old_id).then_some(data)
+                    data.contains_attachment(old_id).then_some(data)
                 }));
 
-            data.remove_anchor(old_id);
-            data.insert_anchor(new_id);
+            data.remove_attachment(old_id);
+            data.insert_attachment(new_id);
         }
 
         spawn_regular(
@@ -447,7 +448,7 @@ impl Prop
             drawing_resources,
             manager,
             edits_history,
-            (0..self.anchored_range.start).rev(),
+            (0..self.attached_range.start).rev(),
             delta
         );
     }

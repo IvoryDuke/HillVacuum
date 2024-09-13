@@ -32,10 +32,7 @@ pub use crate::map::{
 };
 pub use crate::{
     map::{
-        brush::{
-            mover::{Motor, Mover},
-            BrushViewer as Brush
-        },
+        brush::{group::Group, BrushViewer as Brush},
         drawer::{
             animation::{Animation, Atlas, List, Timing},
             texture::{TextureInterface, TextureSettings}

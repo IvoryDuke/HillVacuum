@@ -6,14 +6,7 @@
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    map::properties::Properties,
-    utils::hull::Hull,
-    Animation,
-    Id,
-    Mover,
-    TextureInterface
-};
+use crate::{utils::hull::Hull, Animation, TextureInterface};
 
 //=======================================================================//
 // ENUMS

@@ -2,7 +2,7 @@
 pub(in crate::map) mod compatibility;
 #[cfg(feature = "ui")]
 pub(in crate::map) mod convex_polygon;
-pub mod mover;
+pub mod group;
 
 //=======================================================================//
 // IMPORTS
@@ -12,7 +12,7 @@ pub mod mover;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{Animation, HvHashMap, HvVec, Id, Mover, TextureSettings, Value};
+use crate::{Animation, Group, HvHashMap, HvVec, Id, TextureSettings, Value};
 
 //=======================================================================//
 // TYPES
@@ -33,7 +33,7 @@ pub struct BrushViewer
     /// The texture.
     pub texture:    Option<TextureSettings>,
     /// The [`Mover`].
-    pub mover:      Mover,
+    pub group:      Group,
     /// Whether collision against the polygonal shape is enabled.
     pub collision:  bool,
     /// The associated properties.
@@ -116,9 +116,9 @@ pub(in crate::map) mod ui_mod
             math::lines_and_segments::{line_equation, LineEquation}
         },
         Animation,
+        Group,
         HvVec,
         Id,
-        Mover,
         Path,
         TextureInterface,
         TextureSettings,
@@ -451,7 +451,7 @@ pub(in crate::map) mod ui_mod
                     Self {
                         data: BrushData {
                             polygon,
-                            mover: data.mover,
+                            group: Group::from(data.mover),
                             properties: data.properties
                         },
                         id
@@ -823,8 +823,8 @@ pub(in crate::map) mod ui_mod
     {
         /// The polygon of the brush.
         polygon:    ConvexPolygon,
-        /// Platform path and anchored brushes.
-        mover:      Mover,
+        /// Platform path and attached brushes.
+        group:      Group,
         /// The properties of the brush.
         properties: Properties
     }
@@ -847,7 +847,7 @@ pub(in crate::map) mod ui_mod
         pub fn path_hull(&self) -> Option<Hull>
         {
             calc_path_hull(
-                return_if_no_match!(&self.mover, Mover::Motor(motor), motor.path(), None),
+                return_if_no_match!(&self.group, Group::Path { path, .. }, path, None),
                 self.polygon.center()
             )
             .into()
@@ -855,21 +855,21 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub const fn has_path(&self) -> bool { self.mover.has_path() }
+        pub const fn has_path(&self) -> bool { self.group.has_path() }
 
         #[inline]
         #[must_use]
-        pub fn has_anchors(&self) -> bool { self.mover.has_anchors() }
+        pub fn has_attachments(&self) -> bool { self.group.has_attachments() }
 
         #[inline]
         #[must_use]
-        pub const fn is_anchored(&self) -> bool { self.mover.is_anchored().is_some() }
+        pub const fn is_attached(&self) -> bool { self.group.is_attached().is_some() }
 
         #[inline]
         #[must_use]
-        pub fn contains_anchor(&self, identifier: Id) -> bool
+        pub fn contains_attachment(&self, identifier: Id) -> bool
         {
-            match self.mover.anchors()
+            match self.group.attachments()
             {
                 Some(ids) => ids.contains(&identifier),
                 None => false
@@ -877,7 +877,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub const fn anchors(&self) -> Option<&Ids> { self.mover.anchors() }
+        pub const fn attachments(&self) -> Option<&Ids> { self.group.attachments() }
 
         #[inline]
         #[must_use]
@@ -901,16 +901,22 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn insert_anchor(&mut self, identifier: Id) { self.mover.insert_anchor(identifier); }
-
-        #[inline]
-        pub fn remove_anchor(&mut self, identifier: Id) { self.mover.remove_anchor(identifier); }
-
-        #[inline]
-        pub fn disanchor(&mut self)
+        pub fn insert_attachment(&mut self, identifier: Id)
         {
-            assert!(self.is_anchored(), "Tried to disanchor brush that is not anchored.");
-            self.mover = Mover::None;
+            self.group.insert_attachment(identifier);
+        }
+
+        #[inline]
+        pub fn remove_attachment(&mut self, identifier: Id)
+        {
+            self.group.remove_attachment(identifier);
+        }
+
+        #[inline]
+        pub fn detach(&mut self)
+        {
+            assert!(self.is_attached(), "Tried to detach brush that is not attached.");
+            self.group = Group::None;
         }
 
         #[inline]
@@ -924,8 +930,7 @@ pub(in crate::map) mod ui_mod
         {
             self.polygon.draw_prop(camera, drawer, color, delta);
 
-            return_if_no_match!(&self.mover, Mover::Motor(motor), motor)
-                .path()
+            return_if_no_match!(&self.group, Group::Path { path, .. }, path)
                 .draw_prop(drawer, self.polygon.center() + delta);
         }
     }
@@ -953,7 +958,7 @@ pub(in crate::map) mod ui_mod
                 id,
                 vertexes,
                 texture,
-                mover,
+                group: mover,
                 collision,
                 properties
             } = value;
@@ -970,7 +975,7 @@ pub(in crate::map) mod ui_mod
                 id,
                 data: BrushData {
                     polygon,
-                    mover,
+                    group: mover,
                     properties: Properties::from_parts(properties)
                 }
             }
@@ -1012,15 +1017,15 @@ pub(in crate::map) mod ui_mod
     impl Moving for Brush
     {
         #[inline]
-        fn path(&self) -> Option<&Path> { self.data.mover.path() }
+        fn path(&self) -> Option<&Path> { self.data.group.path() }
 
         #[inline]
-        fn has_path(&self) -> bool { self.data.mover.has_path() }
+        fn has_path(&self) -> bool { self.data.group.has_path() }
 
         #[inline]
         fn possible_moving(&self) -> bool
         {
-            matches!(self.data.mover, Mover::None | Mover::Anchors(_))
+            matches!(self.data.group, Group::None | Group::Attachments(_))
         }
 
         #[inline]
@@ -1035,7 +1040,7 @@ pub(in crate::map) mod ui_mod
         {
             self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
             self.path().unwrap().draw(window, camera, drawer, self.center());
-            self.draw_anchored_brushes(camera, brushes, drawer, Self::draw_highlighted_selected);
+            self.draw_attached_brushes(camera, brushes, drawer, Self::draw_highlighted_selected);
         }
 
         #[inline]
@@ -1057,7 +1062,7 @@ pub(in crate::map) mod ui_mod
                 self.center(),
                 highlighted_node
             );
-            self.draw_anchored_brushes(camera, brushes, drawer, Self::draw_selected);
+            self.draw_attached_brushes(camera, brushes, drawer, Self::draw_selected);
         }
 
         #[inline]
@@ -1081,7 +1086,7 @@ pub(in crate::map) mod ui_mod
                 index,
                 self.center()
             );
-            self.draw_anchored_brushes(camera, brushes, drawer, Self::draw_selected);
+            self.draw_attached_brushes(camera, brushes, drawer, Self::draw_selected);
         }
 
         #[inline]
@@ -1111,10 +1116,10 @@ pub(in crate::map) mod ui_mod
                 movement_vec
             );
 
-            let anchors = return_if_none!(self.anchors_iter());
+            let attachments = return_if_none!(self.attachments_iter());
             let center = center + movement_vec;
 
-            for id in anchors
+            for id in attachments
             {
                 let a_center = brushes.get(*id).center() + movement_vec;
                 drawer.square_highlight(a_center, Color::BrushAnchor);
@@ -1148,9 +1153,9 @@ pub(in crate::map) mod ui_mod
                 animators.get_brush_animator(self.id),
                 movement_vec
             );
-            let anchors = return_if_none!(self.anchors_iter());
+            let attachments = return_if_none!(self.attachments_iter());
 
-            for id in anchors
+            for id in attachments
             {
                 brushes.get(*id).data.polygon.draw_map_preview_movement_simulation(
                     camera,
@@ -1167,10 +1172,35 @@ pub(in crate::map) mod ui_mod
         common_edit_path!();
 
         #[inline]
-        fn set_path(&mut self, path: Path) { self.data.mover.set_path(path); }
+        fn set_path(&mut self, path: Path) { self.data.group.set_path(path); }
 
         #[inline]
-        fn take_path(&mut self) -> Path { self.data.mover.take_path() }
+        fn take_path(&mut self) -> Path { self.data.group.take_path() }
+    }
+
+    impl From<crate::map::brush::compatibility::_061::BrushViewer> for Brush
+    {
+        #[inline]
+        fn from(value: crate::map::brush::compatibility::_061::BrushViewer) -> Self
+        {
+            let crate::map::brush::compatibility::_061::BrushViewer {
+                id,
+                vertexes,
+                texture,
+                mover,
+                collision,
+                properties
+            } = value;
+
+            Brush::from(BrushViewer {
+                id,
+                vertexes,
+                texture,
+                group: Group::from(mover),
+                collision,
+                properties
+            })
+        }
     }
 
     impl Brush
@@ -1197,7 +1227,7 @@ pub(in crate::map) mod ui_mod
                     Self {
                         data: BrushData {
                             polygon: polygon.clone(),
-                            mover: Mover::None,
+                            group: Group::None,
                             properties
                         },
                         id:   identifier
@@ -1208,7 +1238,7 @@ pub(in crate::map) mod ui_mod
                     Self {
                         data: BrushData {
                             polygon,
-                            mover: Mover::None,
+                            group: Group::None,
                             properties
                         },
                         id:   identifier
@@ -1222,26 +1252,17 @@ pub(in crate::map) mod ui_mod
         {
             let BrushData {
                 polygon,
-                mover,
+                group,
                 properties
             } = data;
             let mut brush = Self::from_polygon(polygon, identifier, properties);
 
-            match mover
+            if let Group::Attached(owner) = group
             {
-                Mover::None => (),
-                Mover::Anchors(anchors) => brush.data.mover = Mover::Anchors(anchors),
-                Mover::Motor(motor) => brush.data.mover.apply_motor(motor),
-                Mover::Anchored(anchor_id) =>
-                {
-                    assert!(
-                        anchor_id != identifier,
-                        "Anchor ID {anchor_id:?} is equal to the Brush ID"
-                    );
-                    brush.data.mover = Mover::Anchored(anchor_id);
-                }
-            };
+                assert!(owner != identifier, "Owner ID {owner:?} is equal to the Brush ID");
+            }
 
+            brush.data.group = group;
             brush
         }
 
@@ -1290,20 +1311,19 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn anchors_hull(&self, brushes: Brushes) -> Option<Hull>
+        pub fn attachments_anchors_hull(&self, brushes: Brushes) -> Option<Hull>
         {
-            if !self.data.mover.has_anchors()
+            if !self.data.group.has_attachments()
             {
                 return None;
             }
 
-            Hull::from_points(self.anchors_iter().unwrap().map(|id| brushes.get(*id).center())).map(
-                |hull| {
+            Hull::from_points(self.attachments_iter().unwrap().map(|id| brushes.get(*id).center()))
+                .map(|hull| {
                     let center = self.center();
                     hull.merged(&Hull::new(center.y, center.y, center.x, center.x))
                         .bumped(2f32)
-                }
-            )
+                })
         }
 
         #[inline]
@@ -1454,62 +1474,70 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn has_anchors(&self) -> bool { self.data.mover.has_anchors() }
+        pub fn has_attachments(&self) -> bool { self.data.group.has_attachments() }
 
         #[inline]
         #[must_use]
-        pub fn anchorable(&self) -> bool { !(self.has_anchors() || self.has_path()) }
+        pub fn attachable(&self) -> bool { !(self.has_attachments() || self.has_path()) }
 
         #[inline]
-        pub fn anchors_iter(&self) -> Option<impl ExactSizeIterator<Item = &Id> + Clone>
+        pub fn attachments_iter(&self) -> Option<impl ExactSizeIterator<Item = &Id> + Clone>
         {
-            self.data.mover.anchors_iter()
+            self.data.group.attachments_iter()
         }
 
         #[inline]
         #[must_use]
-        pub const fn anchored(&self) -> Option<Id> { self.data.mover.is_anchored() }
+        pub const fn attached(&self) -> Option<Id> { self.data.group.is_attached() }
 
         #[inline]
-        pub fn insert_anchor(&mut self, anchor: &Self)
+        pub fn insert_attachment(&mut self, attachment: &Self)
         {
-            assert!(self.id != anchor.id, "Brush ID {:?} is equal to the anchor's ID", self.id);
-            self.data.mover.insert_anchor(anchor.id);
+            assert!(
+                self.id != attachment.id,
+                "Brush ID {:?} is equal to the attachment's ID",
+                self.id
+            );
+            self.data.group.insert_attachment(attachment.id);
         }
 
         #[inline]
-        pub fn anchor(&mut self, anchor: &mut Self)
+        pub fn attach_brush(&mut self, attachment: &mut Self)
         {
-            self.insert_anchor(anchor);
-            anchor.attach(self.id);
+            self.insert_attachment(attachment);
+            attachment.attach(self.id);
         }
 
         #[inline]
-        pub fn remove_anchor(&mut self, anchor: &Self)
+        pub fn remove_attachment(&mut self, attachment: &Self)
         {
-            assert!(self.id != anchor.id, "Brush ID {:?} is equal to the anchor's ID", self.id);
-            self.data.mover.remove_anchor(anchor.id);
+            assert!(
+                self.id != attachment.id,
+                "Brush ID {:?} is equal to the attachment's ID",
+                self.id
+            );
+            self.data.group.remove_attachment(attachment.id);
         }
 
         #[inline]
-        pub fn disanchor(&mut self, anchor: &mut Self)
+        pub fn detach_brush(&mut self, attachment: &mut Self)
         {
-            self.remove_anchor(anchor);
-            anchor.detach();
+            self.remove_attachment(attachment);
+            attachment.detach();
         }
 
         #[inline]
         pub fn attach(&mut self, identifier: Id)
         {
-            assert!(matches!(self.data.mover, Mover::None), "Brush Mover is not None");
-            self.data.mover = Mover::Anchored(identifier);
+            assert!(matches!(self.data.group, Group::None), "Brush Mover is not None");
+            self.data.group = Group::Attached(identifier);
         }
 
         #[inline]
         pub fn detach(&mut self)
         {
-            assert!(matches!(self.data.mover, Mover::Anchored(_)), "Brush is not anchored.");
-            self.data.mover = Mover::None;
+            assert!(matches!(self.data.group, Group::Attached(_)), "Brush is not attached.");
+            self.data.group = Group::None;
         }
 
         //==============================================================
@@ -1517,24 +1545,24 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub const fn no_motor_nor_anchored(&self) -> bool
+        pub const fn no_path_nor_attached(&self) -> bool
         {
-            matches!(self.data.mover, Mover::None | Mover::Anchors(_))
+            matches!(self.data.group, Group::None | Group::Attachments(_))
         }
 
         #[inline]
-        pub fn take_mover(&mut self) -> Option<Mover>
+        pub fn take_mover(&mut self) -> Option<Group>
         {
-            if matches!(self.data.mover, Mover::None)
+            if matches!(self.data.group, Group::None)
             {
                 return None;
             }
 
-            std::mem::take(&mut self.data.mover).into()
+            std::mem::take(&mut self.data.group).into()
         }
 
         #[inline]
-        fn path_mut(&mut self) -> &mut Path { self.data.mover.path_mut() }
+        fn path_mut(&mut self) -> &mut Path { self.data.group.path_mut() }
 
         //==============================================================
         // Texture
@@ -2763,17 +2791,17 @@ pub(in crate::map) mod ui_mod
             drawer.polygon_with_solid_color(self.vertexes(), color);
         }
 
-        /// Draws the anchors connecting the center of `self` to the centers of the anchored
+        /// Draws the attachments connecting the center of `self` to the centers of the attached
         /// brushes.
         #[inline]
         pub fn draw_anchors(&self, brushes: Brushes, drawer: &mut EditDrawer)
         {
             let start = self.center();
-            let anchors = return_if_none!(self.anchors_iter());
+            let attachments = return_if_none!(self.attachments_iter());
             drawer.square_highlight(start, Color::BrushAnchor);
-            drawer.anchor_highlight(start, Color::BrushAnchor);
+            drawer.attachment_highlight(start, Color::BrushAnchor);
 
-            for id in anchors
+            for id in attachments
             {
                 let end = brushes.get(*id).center();
                 drawer.square_highlight(end, Color::BrushAnchor);
@@ -2781,9 +2809,9 @@ pub(in crate::map) mod ui_mod
             }
         }
 
-        /// Draws the anchored brushes based on `f`.
+        /// Draws the attached brushes based on `f`.
         #[inline]
-        fn draw_anchored_brushes<F>(
+        fn draw_attached_brushes<F>(
             &self,
             camera: &Transform,
             brushes: Brushes,
@@ -2792,7 +2820,7 @@ pub(in crate::map) mod ui_mod
         ) where
             F: Fn(&Self, &Transform, &mut EditDrawer)
         {
-            for brush in self.data.mover.anchors_iter().unwrap().map(|id| brushes.get(*id))
+            for brush in self.data.group.attachments_iter().unwrap().map(|id| brushes.get(*id))
             {
                 f(brush, camera, drawer);
             }
@@ -2830,7 +2858,7 @@ pub(in crate::map) mod ui_mod
                 data:
                     BrushData {
                         polygon,
-                        mover,
+                        group: mover,
                         properties
                     },
                 id
@@ -2841,7 +2869,7 @@ pub(in crate::map) mod ui_mod
                 id,
                 vertexes: hv_vec![collect; polygon.vertexes()],
                 texture: polygon.take_texture_settings(),
-                mover,
+                group: mover,
                 collision,
                 properties: properties.take()
             }

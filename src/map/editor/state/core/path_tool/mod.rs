@@ -196,7 +196,7 @@ impl Selector
             for brush in manager
                 .selected_brushes_at_pos(cursor_pos, None)
                 .iter()
-                .filter(|brush| brush.anchored().is_none() && brush.contains_point(cursor_pos))
+                .filter(|brush| brush.attached().is_none() && brush.contains_point(cursor_pos))
             {
                 let id = brush.id();
 
@@ -996,7 +996,7 @@ impl PathTool
         edits_history: &mut EditsHistory
     ) -> bool
     {
-        // Delete motors.
+        // Delete paths.
         if inputs.alt_pressed()
         {
             manager.remove_selected_paths(drawing_resources, edits_history);
@@ -1121,11 +1121,11 @@ impl PathTool
                 {
                     let id = brush.id();
 
-                    if manager.is_selected_moving(id) || is_anchored_to_selected_moving(manager, id)
+                    if manager.is_selected_moving(id) || is_attached_to_selected_moving(manager, id)
                     {
                         brush.draw_selected(camera, drawer);
                     }
-                    else if manager.is_selected(id) && brush.no_motor_nor_anchored()
+                    else if manager.is_selected(id) && brush.no_path_nor_attached()
                     {
                         brush.draw_non_selected(camera, drawer);
                     }
@@ -1454,12 +1454,12 @@ impl PathTool
 //
 //=======================================================================//
 
-/// Whether the brush with [`Id`] `identifier` is anchored to a selected moving brush.
+/// Whether the brush with [`Id`] `identifier` is attached to a selected moving brush.
 #[inline]
 #[must_use]
-fn is_anchored_to_selected_moving(manager: &EntitiesManager, identifier: Id) -> bool
+fn is_attached_to_selected_moving(manager: &EntitiesManager, identifier: Id) -> bool
 {
-    match manager.brush(identifier).anchored()
+    match manager.brush(identifier).attached()
     {
         Some(id) => manager.is_selected_moving(id),
         None => false
@@ -1480,5 +1480,5 @@ fn is_moving(manager: &EntitiesManager, identifier: Id) -> bool
         return sel_mov;
     }
 
-    sel_mov || is_anchored_to_selected_moving(manager, identifier)
+    sel_mov || is_attached_to_selected_moving(manager, identifier)
 }

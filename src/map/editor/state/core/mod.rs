@@ -517,7 +517,7 @@ impl<'a> UndoRedoInterface<'a>
         self.manager.moving_mut(drawing_resources, identifier)
     }
 
-    /// Gives the brush with [`Id`] `identifier` a [`Motor`].
+    /// Gives the brush with [`Id`] `identifier` a [`Path`].
     #[inline]
     pub fn set_path(&mut self, drawing_resources: &DrawingResources, identifier: Id, path: Path)
     {
@@ -528,7 +528,7 @@ impl<'a> UndoRedoInterface<'a>
     #[inline]
     pub fn remove_path(&mut self, drawing_resources: &DrawingResources, identifier: Id) -> Path
     {
-        let motor = self.manager.remove_path(drawing_resources, identifier);
+        let path = self.manager.remove_path(drawing_resources, identifier);
 
         if self.manager.is_selected(identifier)
         {
@@ -538,7 +538,7 @@ impl<'a> UndoRedoInterface<'a>
             }
         }
 
-        motor
+        path
     }
 
     /// Inserts the brush with [`Id`] `identifier` in the subtractees.
@@ -561,19 +561,13 @@ impl<'a> UndoRedoInterface<'a>
             .remove_subtractee(self.manager, identifier);
     }
 
-    /// Anchors the brush with [`Id`] `anchor_id` to the one with [`Id`] `owner_id`.
+    /// Attaches the brush with [`Id`] `attachment` to the one with [`Id`] `owner`.
     #[inline]
-    pub fn insert_anchor(&mut self, platform: Id, anchor: Id)
-    {
-        self.manager.anchor(platform, anchor);
-    }
+    pub fn attach(&mut self, owner: Id, attachment: Id) { self.manager.attach(owner, attachment); }
 
-    /// Disanchors the brush with [`Id`] `anchor_id` from the one with [`Id`] `owner_id`.
+    /// Detaches the brush with [`Id`] `attachment` from the one with [`Id`] `owner`.
     #[inline]
-    pub fn remove_anchor(&mut self, platform: Id, anchor: Id)
-    {
-        self.manager.disanchor(platform, anchor);
-    }
+    pub fn detach(&mut self, owner: Id, attachment: Id) { self.manager.detach(owner, attachment); }
 
     /// Sets the texture of the brush with [`Id`] identifier.
     /// Returns the name of the replaced texture, if any.

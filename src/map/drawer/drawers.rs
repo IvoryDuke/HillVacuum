@@ -720,11 +720,11 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         );
     }
 
-    /// Draws a brush anchor highlight.
+    /// Draws a brush attachment highlight.
     #[inline]
-    pub fn anchor_highlight(&mut self, center: Vec2, color: Color)
+    pub fn attachment_highlight(&mut self, center: Vec2, color: Color)
     {
-        self.resources.push_anchor_highlight_mesh(
+        self.resources.push_attachment_highlight_mesh(
             self.color_resources.line_material(color),
             self.grid.transform_point(center),
             color.square_hgl_height()

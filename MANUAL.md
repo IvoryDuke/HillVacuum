@@ -230,7 +230,7 @@ Deletes all drawn things.
 <img src="images/entity.svg" alt="entity" height="48" width="48"/>  
 
 ### INFO
-Brushes can be tied together into a group through the Anchor subtool. This establishes a owner-anchored relation between the brushes. An "owner" brush can have an unlimited amount of brushes tied to it. A brush that is anchored can have none.  
+Brushes can be tied together into a group through the `Right mouse`. This establishes a owner-attached relation between the brushes. An "owner" brush can have an unlimited amount of brushes tied to it. A brush that is attached can have none.  
 
 ### Drag spawn subtool (Alt + directional key or cursor drag)  
 <img src="images/entity_drag_spawn.svg" alt="entity_drag_spawn" height="48" width="48"/>  
@@ -239,20 +239,20 @@ Selecting it and then pressing a directional key, or left clicking and dragging 
 
 ### Left mouse
 If there is a non-selected entity beneath the cursor, it is exclusively selected. If there is no entity, all entities are deselected when the mouse button is released.  
-Clicking brush while holding `Ctrl` causes all anchored brushes to be selected as well.
+Clicking brush while holding `Ctrl` causes all attached brushes to be selected as well.
 
 ### Shift + Left mouse
 If there is an entity beneath the cursor, its selection status is toggled.  
-Pressing `Ctrl` on a brush causes all anchored brushes to be toggled as well.
+Pressing `Ctrl` on a brush causes all attached brushes to be toggled as well.
 
 ### Left mouse + cursor drag
 If there is a selected entity beneath the cursor, all selected entities are dragged around the map. If there is no entity, a drag selection is initiated.  
 When the mouse button is released, the entities within the drag selection area are exclusively selected.  
-Pressing `Ctrl` all anchored brushes are selected as well.
+Pressing `Ctrl` all attached brushes are selected as well.
 
 ### Shift + Left mouse + cursor drag
 Same as `Left mouse + drag`, except the entities within the boundary of the drag selection are added to the selected brushes, if they are not already selected.  
-Pressing `Ctrl` all anchored brushes are selected as well.
+Pressing `Ctrl` all attached brushes are selected as well.
 
 ### Up/Down/Left/Right
 Moves the selected entities one grid square away in the pressed direction.
@@ -261,7 +261,7 @@ Moves the selected entities one grid square away in the pressed direction.
 Deletes the selected entities, or the textures of the selected brushes if the editing target is set to `Texture`.
 
 ### Right mouse
-Clicking a brush with no path and not anchored, allows to anchor it to another brush by then clicking the latter. Clicking on an anchored brush disanchors it.
+Clicking a brush with no path and not attached, allows to attach it to another brush by then clicking the latter. Clicking on an attached brush disattachs it.
 
 ### TEXTURE EDITING
 Target:  
@@ -541,8 +541,8 @@ Removes the prop in the selected slot.
 
 ### INFO
 When enabled, the entities are split in three groups:  
-- entities that have a path and are selected, and the brushes anchored to them;  
-- entities that are selected, but do not have a path and are not anchored to another brush. Therefore they are entities which can have a path;  
+- entities that have a path and are selected, and the brushes attached to them;  
+- entities that are selected, but do not have a path and are not attached to another brush. Therefore they are entities which can have a path;  
 - all other cases, entities that are not selected and/or cannot have a path.  
 
 ### Path free draw subtool (Alt + Left mouse)  

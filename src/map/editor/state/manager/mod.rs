@@ -208,15 +208,15 @@ impl AuxiliaryIds
     #[inline]
     pub fn iter(&self) -> hashbrown::hash_set::Iter<Id> { self.0.iter() }
 
-    /// Pushes the [`Id`]s of the anchored brushes of `brushes`.
+    /// Pushes the [`Id`]s of the attached brushes of `brushes`.
     #[inline]
-    fn store_anchored_ids<'a>(&mut self, brushes: impl Iterator<Item = &'a Brush>)
+    fn store_attached_ids<'a>(&mut self, brushes: impl Iterator<Item = &'a Brush>)
     {
         self.0.clear();
 
         for brush in brushes
         {
-            self.0.extend(continue_if_none!(brush.anchors_iter()));
+            self.0.extend(continue_if_none!(brush.attachments_iter()));
         }
     }
 
@@ -555,8 +555,8 @@ struct Innards
     selected_textured: Ids,
     /// The [`Id`]s of the selected brushes with associated sprites.
     selected_sprites: SelectedSprites,
-    /// The [`Id`]s of the  moving brushes with anchors.
-    brushes_with_anchors: HvHashMap<Id, Hull>,
+    /// The [`Id`]s of the moving brushes with attachments.
+    brushes_with_attachments: HvHashMap<Id, Hull>,
     /// The generator of the [`Id`]s of the new entities.
     id_generator: IdGenerator,
     /// The error drawer.
@@ -600,7 +600,7 @@ impl Innards
             textured: hv_hash_set![capacity; 10],
             selected_textured: hv_hash_set![capacity; 10],
             selected_sprites: SelectedSprites::default(),
-            brushes_with_anchors: hv_hash_map![],
+            brushes_with_attachments: hv_hash_map![],
             id_generator: IdGenerator::default(),
             error_highlight: ErrorHighlight::new(),
             outline_update: false,
@@ -679,7 +679,7 @@ impl Innards
 
         let mut max_id = Id::ZERO;
         let mut brushes = hv_vec![];
-        let mut with_anchors = hv_vec![];
+        let mut with_attachments = hv_vec![];
 
         steps.next_value().assert(FileStructure::Properties);
         let [file_brushes_default_properties, file_things_default_properties] =
@@ -720,13 +720,13 @@ impl Innards
 
             max_id = max_id.max(brush.id());
 
-            if brush.has_anchors()
+            if brush.has_attachments()
             {
-                with_anchors.push(brush);
+                with_attachments.push(brush);
                 continue;
             }
 
-            if brush.anchored().is_some()
+            if brush.attached().is_some()
             {
                 _ = brush.take_mover();
             }
@@ -781,7 +781,7 @@ impl Innards
             self.insert_brush(drawing_resources, quad_trees, brush, false);
         }
 
-        for brush in with_anchors
+        for brush in with_attachments
         {
             self.insert_brush(drawing_resources, quad_trees, brush, false);
         }
@@ -1150,68 +1150,68 @@ impl Innards
     #[inline]
     const fn brushes(&self) -> Brushes { Brushes(&self.brushes) }
 
-    /// Disanchors the brush with [`Id`] `anchor_id` to the one with [`Id`] `owner_id`.
+    /// Attaches the brush with [`Id`] `attachment` to the one with [`Id`] `owner`.
     #[inline]
-    fn anchor(&mut self, quad_trees: &mut Trees, owner_id: Id, anchor_id: Id)
+    fn attach(&mut self, quad_trees: &mut Trees, owner: Id, attachment: Id)
     {
-        _ = self.remove_anchors_hull(quad_trees, owner_id);
+        _ = self.remove_anchors_hull(quad_trees, owner);
 
-        let [owner, anchor] = self.brushes.get_many_mut([&owner_id, &anchor_id]).unwrap();
-        owner.anchor(anchor);
-        self.possible_moving.asserted_remove(&anchor_id);
-        self.selected_possible_moving.asserted_remove(&anchor_id);
+        let [o_brush, a_brush] = self.brushes.get_many_mut([&owner, &attachment]).unwrap();
+        o_brush.attach_brush(a_brush);
+        self.possible_moving.asserted_remove(&attachment);
+        self.selected_possible_moving.asserted_remove(&attachment);
 
-        assert!(self.insert_anchors_hull(quad_trees, owner_id), "Could not insert anchor.");
+        assert!(self.insert_anchors_hull(quad_trees, owner), "Could not insert attachment.");
     }
 
-    /// Disanchors the brush with [`Id`] `anchor_id` from the one with [`Id`] `owner_id`.
+    /// Detaches the brush with [`Id`] `attachment` from the one with [`Id`] `owner`.
     #[inline]
-    pub fn disanchor(&mut self, quad_trees: &mut Trees, owner_id: Id, anchor_id: Id)
+    pub fn detach(&mut self, quad_trees: &mut Trees, owner: Id, attachment: Id)
     {
         assert!(
-            self.remove_anchors_hull(quad_trees, owner_id),
+            self.remove_anchors_hull(quad_trees, owner),
             "Could not remove hull from quad trees."
         );
 
-        let [owner, anchor] = self.brushes.get_many_mut([&owner_id, &anchor_id]).unwrap();
-        owner.disanchor(anchor);
-        self.possible_moving.asserted_insert(anchor_id);
-        self.selected_possible_moving.asserted_insert(anchor_id);
+        let [o_brush, a_brush] = self.brushes.get_many_mut([&owner, &attachment]).unwrap();
+        o_brush.detach_brush(a_brush);
+        self.possible_moving.asserted_insert(attachment);
+        self.selected_possible_moving.asserted_insert(attachment);
 
-        _ = self.insert_anchors_hull(quad_trees, owner_id);
+        _ = self.insert_anchors_hull(quad_trees, owner);
     }
 
-    /// Selects the [`Id`]s of the brushes anchored to the ones with [`Id`]s contained in
+    /// Selects the [`Id`]s of the brushes attached to the ones with [`Id`]s contained in
     /// `identifiers`.
     #[inline]
-    fn select_anchored_brushes(
+    fn select_attached_brushes(
         &mut self,
         edits_history: &mut EditsHistory,
         auxiliary: &mut AuxiliaryIds,
         identifiers: impl IntoIterator<Item = Id>
     )
     {
-        auxiliary.store_anchored_ids(identifiers.into_iter().map(|id| self.brush(id)));
+        auxiliary.store_attached_ids(identifiers.into_iter().map(|id| self.brush(id)));
         auxiliary.retain(|id| !self.is_selected(*id));
         self.select_cluster(edits_history, auxiliary.iter());
     }
 
-    /// Selects the brushes anchored to the selected ones.
+    /// Selects the brushes attached to the selected ones.
     #[inline]
-    fn select_anchored_brushes_of_selected_brushes(
+    fn select_attached_brushes_of_selected_brushes(
         &mut self,
         edits_history: &mut EditsHistory,
         auxiliary: &mut AuxiliaryIds
     )
     {
-        auxiliary.store_anchored_ids(self.selected_brushes.iter().map(|id| self.brush(*id)));
+        auxiliary.store_attached_ids(self.selected_brushes.iter().map(|id| self.brush(*id)));
         auxiliary.retain(|id| !self.is_selected(*id));
         self.select_cluster(edits_history, auxiliary.iter());
     }
 
     /// Adds a brush to the map.
     /// # Panics
-    /// Panics if the brush has anchored brushes but the [`Hull`] describing the anchors
+    /// Panics if the brush has attached brushes but the [`Hull`] describing the attachments
     /// area could not be retrieved.
     #[inline]
     fn insert_brush(
@@ -1254,23 +1254,23 @@ impl Innards
             self.textured.asserted_insert(id);
         }
 
-        let anchored = brush.anchored();
-        let has_anchors = brush.has_anchors();
+        let attached = brush.attached();
+        let has_attachments = brush.has_attachments();
         let has_sprite = brush.has_sprite();
 
-        if has_anchors
+        if has_attachments
         {
-            for id in brush.anchors_iter().unwrap()
+            for id in brush.attachments_iter().unwrap()
             {
                 self.brush_mut(drawing_resources, quad_trees, *id).attach(brush.id());
                 self.possible_moving.asserted_remove(id);
                 self.selected_possible_moving.remove(id);
             }
         }
-        else if let Some(id) = anchored
+        else if let Some(id) = attached
         {
             self.brush_mut(drawing_resources, quad_trees, id)
-                .insert_anchor(&brush);
+                .insert_attachment(&brush);
         }
 
         self.brushes.asserted_insert((id, brush));
@@ -1280,11 +1280,11 @@ impl Innards
             self.insert_entity_selection(id);
         }
 
-        if has_anchors
+        if has_attachments
         {
-            assert!(self.insert_anchors_hull(quad_trees, id), "Brush has no anchors.");
+            assert!(self.insert_anchors_hull(quad_trees, id), "Brush has no attachments.");
         }
-        else if let Some(id) = anchored
+        else if let Some(id) = attached
         {
             _ = self.remove_anchors_hull(quad_trees, id);
             _ = self.insert_anchors_hull(quad_trees, id);
@@ -1322,17 +1322,17 @@ impl Innards
             self.remove_entity_selection(identifier);
         }
 
-        let has_anchors = self.brush(identifier).has_anchors();
+        let has_attachments = self.brush(identifier).has_attachments();
 
-        if has_anchors
+        if has_attachments
         {
             _ = self.remove_anchors_hull(quad_trees, identifier);
         }
         else
         {
             assert!(
-                !self.brushes_with_anchors.contains_key(&identifier),
-                "Brush is stored as having anchors."
+                !self.brushes_with_attachments.contains_key(&identifier),
+                "Brush is stored as having attachments."
             );
         }
 
@@ -1363,9 +1363,9 @@ impl Innards
             }
         }
 
-        if has_anchors
+        if has_attachments
         {
-            for id in brush.anchors_iter().unwrap()
+            for id in brush.attachments_iter().unwrap()
             {
                 self.brush_mut(drawing_resources, quad_trees, *id).detach();
                 self.possible_moving.asserted_insert(*id);
@@ -1376,10 +1376,10 @@ impl Innards
                 }
             }
         }
-        else if let Some(id) = brush.anchored()
+        else if let Some(id) = brush.attached()
         {
             self.brush_mut(drawing_resources, quad_trees, id)
-                .remove_anchor(&brush);
+                .remove_attachment(&brush);
             self.replace_anchors_hull(quad_trees, id);
         }
 
@@ -1565,45 +1565,46 @@ impl Innards
         self.create_path(drawing_resources, quad_trees, identifier, path, edits_history);
     }
 
-    /// Replaces in the quad trees the [`Hull`] of the anchors of the brush with [`Id`]
+    /// Replaces in the quad trees the [`Hull`] of the attachments of the brush with [`Id`]
     /// `identifier`.
     /// # Panics
-    /// Panics if the anchors [`Hull`] was not already inserted.
+    /// Panics if the attachments [`Hull`] was not already inserted.
     #[inline]
-    fn replace_anchors_hull(&mut self, quad_trees: &mut Trees, owner_id: Id)
+    fn replace_anchors_hull(&mut self, quad_trees: &mut Trees, owner: Id)
     {
         assert!(
-            self.remove_anchors_hull(quad_trees, owner_id),
+            self.remove_anchors_hull(quad_trees, owner),
             "The hull of the anchor was not inserted."
         );
-        _ = self.insert_anchors_hull(quad_trees, owner_id);
+        _ = self.insert_anchors_hull(quad_trees, owner);
     }
 
-    /// Inserts in the quad trees the [`Hull`] of the anchors of the brush with [`Id`], and
+    /// Inserts in the quad trees the [`Hull`] of the attachments of the brush with [`Id`], and
     /// returns whether the procedure was successful. `identifier`.
     #[inline]
     #[must_use]
-    fn insert_anchors_hull(&mut self, quad_trees: &mut Trees, owner_id: Id) -> bool
+    fn insert_anchors_hull(&mut self, quad_trees: &mut Trees, owner: Id) -> bool
     {
-        let hull = return_if_none!(self.brush(owner_id).anchors_hull(self.brushes()), false);
-        self.brushes_with_anchors.asserted_insert((owner_id, hull));
+        let hull =
+            return_if_none!(self.brush(owner).attachments_anchors_hull(self.brushes()), false);
+        self.brushes_with_attachments.asserted_insert((owner, hull));
         assert!(
-            quad_trees.insert_anchor_hull(self.brush(owner_id), &hull).inserted(),
+            quad_trees.insert_anchor_hull(self.brush(owner), &hull).inserted(),
             "Brush anchor hull was already in the quad tree."
         );
         true
     }
 
-    /// Removes from the quad trees the [`Hull`] of the anchors of the brush with [`Id`]
+    /// Removes from the quad trees the [`Hull`] of the attachments of the brush with [`Id`]
     /// `identifier`, and returns whether the procedure was successful.
     #[inline]
     #[must_use]
-    fn remove_anchors_hull(&mut self, quad_trees: &mut Trees, owner_id: Id) -> bool
+    fn remove_anchors_hull(&mut self, quad_trees: &mut Trees, owner: Id) -> bool
     {
-        return_if_none!(self.brushes_with_anchors.remove(&owner_id), false);
+        return_if_none!(self.brushes_with_attachments.remove(&owner), false);
         assert!(
-            quad_trees.remove_anchor_hull(self.brush(owner_id)),
-            "Brush anchors hull was not in the quad tree."
+            quad_trees.remove_anchor_hull(self.brush(owner)),
+            "Brush attachments hull was not in the quad tree."
         );
         true
     }
@@ -2020,7 +2021,7 @@ impl EntitiesManager
         }
 
         self.innards
-            .select_anchored_brushes(edits_history, &mut self.auxiliary, Some(identifier));
+            .select_attached_brushes(edits_history, &mut self.auxiliary, Some(identifier));
     }
 
     /// Deselects the entity with [`Id`] `identifier`.
@@ -2040,7 +2041,7 @@ impl EntitiesManager
             return;
         }
 
-        self.deselect_anchored_brushes(edits_history, Some(identifier));
+        self.deselect_attached_brushes(edits_history, Some(identifier));
     }
 
     /// Updates the value related to entity selection for the entity identifier. Returns true if
@@ -2288,7 +2289,7 @@ impl EntitiesManager
                 $(
                     if inputs.$ctrl_pressed()
                     {
-                        self.innards.select_anchored_brushes(
+                        self.innards.select_attached_brushes(
                             edits_history,
                             &mut self.auxiliary,
                             in_range
@@ -2401,28 +2402,28 @@ impl EntitiesManager
         }
 
         self.innards
-            .select_anchored_brushes_of_selected_brushes(edits_history, &mut self.auxiliary);
+            .select_attached_brushes_of_selected_brushes(edits_history, &mut self.auxiliary);
     }
 
-    /// Stores the [`Id`]s of the brushes anchored to the ones with [`Id`]s returned by
+    /// Stores the [`Id`]s of the brushes attached to the ones with [`Id`]s returned by
     /// `identifiers`.
     #[inline]
-    fn store_anchored_ids(&mut self, identifiers: impl IntoIterator<Item = Id>)
+    fn store_attached_ids(&mut self, identifiers: impl IntoIterator<Item = Id>)
     {
         self.auxiliary
-            .store_anchored_ids(identifiers.into_iter().map(|id| self.innards.brush(id)));
+            .store_attached_ids(identifiers.into_iter().map(|id| self.innards.brush(id)));
     }
 
-    /// Deselects the [`Id`]s of the brushes anchored to the ones with [`Id`]s returned by
+    /// Deselects the [`Id`]s of the brushes attached to the ones with [`Id`]s returned by
     /// `identifiers`.
     #[inline]
-    fn deselect_anchored_brushes(
+    fn deselect_attached_brushes(
         &mut self,
         edits_history: &mut EditsHistory,
         identifiers: impl IntoIterator<Item = Id>
     )
     {
-        self.store_anchored_ids(identifiers);
+        self.store_attached_ids(identifiers);
         self.auxiliary.retain(|id| self.innards.is_selected(*id));
         self.innards.deselect_cluster(edits_history, self.auxiliary.iter());
     }
@@ -2679,11 +2680,11 @@ impl EntitiesManager
         #[inline]
         fn path_status(brush: &Brush) -> PathStatus
         {
-            if brush.has_path() || brush.has_anchors()
+            if brush.has_path() || brush.has_attachments()
             {
                 PathStatus::OwnsOrPath
             }
-            else if let Some(id) = brush.anchored()
+            else if let Some(id) = brush.attached()
             {
                 PathStatus::Anchored(id)
             }
@@ -2753,7 +2754,7 @@ impl EntitiesManager
 
                 for id in &ids
                 {
-                    self.anchor(identifier, *id);
+                    self.attach(identifier, *id);
                 }
 
                 ids
@@ -2770,7 +2771,7 @@ impl EntitiesManager
 
                 for id in &ids
                 {
-                    self.anchor(owner, *id);
+                    self.attach(owner, *id);
                 }
 
                 ids
@@ -2870,8 +2871,8 @@ impl EntitiesManager
         self.brushes_despawn.sort_by(|a, b| {
             self.innards
                 .brush(*a)
-                .has_anchors()
-                .cmp(&self.innards.brush(*b).has_anchors())
+                .has_attachments()
+                .cmp(&self.innards.brush(*b).has_attachments())
                 .reverse()
         });
 
@@ -2945,7 +2946,7 @@ impl EntitiesManager
         );
     }
 
-    /// Gives the brush with [`Id`] `identifier` a [`Motor`].
+    /// Gives the brush with [`Id`] `identifier` a [`Path`].
     #[inline]
     pub fn set_path(&mut self, drawing_resources: &DrawingResources, identifier: Id, path: Path)
     {
@@ -2971,7 +2972,7 @@ impl EntitiesManager
         self.moving_mut(drawing_resources, identifier).take_path()
     }
 
-    /// Removes the [`Motor`] from the selected brush with [`Id`] `identifier`.
+    /// Removes the [`Path`] from the selected brush with [`Id`] `identifier`.
     #[inline]
     pub fn remove_selected_path(
         &mut self,
@@ -2988,7 +2989,7 @@ impl EntitiesManager
         );
     }
 
-    /// Replaces the [`Motor`] of the selected brush with [`Id`] `identifier` with the one
+    /// Replaces the [`Path`] of the selected brush with [`Id`] `identifier` with the one
     /// generated from `path`.
     #[inline]
     pub fn replace_selected_path(
@@ -3008,7 +3009,7 @@ impl EntitiesManager
         );
     }
 
-    /// Removes the [`Motor`]s from the selected brushes.
+    /// Removes the [`Path`]s from the selected brushes.
     #[inline]
     pub fn remove_selected_paths(
         &mut self,
@@ -3029,7 +3030,7 @@ impl EntitiesManager
         }
     }
 
-    /// Returns a [`BrushesIter`] returning the visible anchors.
+    /// Returns a [`BrushesIter`] returning the visible attachments.
     #[inline]
     pub fn visible_anchors(
         &self,
@@ -3103,18 +3104,18 @@ impl EntitiesManager
         self.brushes_iter(self.quad_trees.visible_sprites(camera, window, grid))
     }
 
-    /// Anchors the brush with [`Id`] `anchor_id` to the one with [`Id`] `owner_id`.
+    /// Anchors the brush with [`Id`] `attachment` to the one with [`Id`] `owner`.
     #[inline]
-    pub fn anchor(&mut self, owner_id: Id, anchor_id: Id)
+    pub fn attach(&mut self, owner: Id, attachment: Id)
     {
-        self.innards.anchor(&mut self.quad_trees, owner_id, anchor_id);
+        self.innards.attach(&mut self.quad_trees, owner, attachment);
     }
 
-    /// Disanchors the brush with [`Id`] `anchor_id` from the one with [`Id`] `owner_id`.
+    /// Detaches the brush with [`Id`] `attachment` from the one with [`Id`] `owner`.
     #[inline]
-    pub fn disanchor(&mut self, owner_id: Id, anchor_id: Id)
+    pub fn detach(&mut self, owner: Id, attachment: Id)
     {
-        self.innards.disanchor(&mut self.quad_trees, owner_id, anchor_id);
+        self.innards.detach(&mut self.quad_trees, owner, attachment);
     }
 
     /// Sets the texture of the brush with [`Id`] identifier.
@@ -3771,11 +3772,11 @@ impl<'a> Drop for BrushMut<'a>
 
         if !self.center.around_equal_narrow(&brush.center())
         {
-            if brush.has_anchors()
+            if brush.has_attachments()
             {
                 self.manager.replace_anchors_hull(self.quad_trees, self.id);
             }
-            else if let Some(id) = brush.anchored()
+            else if let Some(id) = brush.attached()
             {
                 self.manager.replace_anchors_hull(self.quad_trees, id);
             }

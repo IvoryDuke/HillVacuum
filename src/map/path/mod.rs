@@ -58,7 +58,7 @@ impl<'de> Deserialize<'de> for Path
     where
         D: Deserializer<'de>
     {
-        HvVec::<Node>::deserialize(deserializer).map(|nodes| {
+        HvVec::deserialize(deserializer).map(|nodes| {
             let hull = Path::nodes_hull(&nodes);
             let mut buckets = Buckets::new();
 

@@ -140,5 +140,5 @@ fn is_moving(manager: &EntitiesManager, identifier: Id) -> bool
         return moving;
     }
 
-    moving || manager.brush(identifier).anchored().is_some()
+    moving || manager.brush(identifier).attached().is_some()
 }

@@ -162,10 +162,10 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     PathNodeMaxSpeed(MovementValueEdit),
     /// Changed path node minimum speed.
     PathNodeMinSpeed(MovementValueEdit),
-    /// Brush anchored.
-    BrushAnchor(Id),
+    /// Brush attached.
+    BrushAttachment(Id),
     /// Brush disachored.
-    BrushDisanchor(Id),
+    BrushDetachment(Id),
     /// Thing drawn on map.
     DrawnThing(Option<ThingInstanceData>),
     /// Drawn thing despawned.
@@ -313,8 +313,8 @@ impl EditType
             Self::PathNodeDeceleration(..) => "Path Node Deceleration",
             Self::PathNodeMaxSpeed(..) => "Path Node Max Speed",
             Self::PathNodeMinSpeed(..) => "Path Node Min Speed",
-            Self::BrushAnchor(..) => "Brush Anchor",
-            Self::BrushDisanchor(..) => "Brush Disanchor",
+            Self::BrushAttachment(..) => "Brush Attachment",
+            Self::BrushDetachment(..) => "Brush Detachment",
             Self::DrawnThing(..) | Self::ThingSpawn(..) => "Thing Spawn",
             Self::ThingDespawn(..) | Self::DrawnThingDespawn(..) => "Things Despawn",
             Self::ThingMove(..) => "Thing Move",
@@ -962,8 +962,8 @@ impl EditType
                 }
             },
             Self::PathCreation(path) => *path = interface.remove_path(drawing_resources, single!()).into(),
-            Self::BrushAnchor(anchor) => interface.remove_anchor(single!(), *anchor),
-            Self::BrushDisanchor(anchor) => interface.insert_anchor(single!(), *anchor),
+            Self::BrushAttachment(attachment) => interface.detach(single!(), *attachment),
+            Self::BrushDetachment(attachment) => interface.attach(single!(), *attachment),
             Self::PathNodesSelection(idxs) =>
             {
                 interface.schedule_overall_node_update();
@@ -1325,8 +1325,8 @@ impl EditType
                 interface.schedule_overall_node_update();
                 *path = interface.remove_path(drawing_resources, single!()).into();
             },
-            Self::BrushAnchor(anchor) => interface.insert_anchor(single!(), *anchor),
-            Self::BrushDisanchor(anchor) => interface.remove_anchor(single!(), *anchor),
+            Self::BrushAttachment(attachment) => interface.attach(single!(), *attachment),
+            Self::BrushDetachment(attachment) => interface.detach(single!(), *attachment),
             Self::PathNodesSelection(idxs) =>
             {
                 interface.schedule_overall_node_update();

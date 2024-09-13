@@ -249,8 +249,8 @@ impl EditsHistory
         (path_nodes_min_speed, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeMinSpeed(edit))),
         (path_nodes_accel_travel_percentage, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeAcceleration(edit))),
         (path_nodes_decel_travel_percentage, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeDeceleration(edit))),
-        (anchor, (identifier: Id, anchor: Id), (hv_vec![identifier], EditType::BrushAnchor(anchor))),
-        (disanchor, (identifier: Id, anchor: Id), (hv_vec![identifier], EditType::BrushDisanchor(anchor))),
+        (attach, (identifier: Id, attachment: Id), (hv_vec![identifier], EditType::BrushAttachment(attachment))),
+        (detach, (identifier: Id, attachment: Id), (hv_vec![identifier], EditType::BrushDetachment(attachment))),
         (thing_draw, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::DrawnThing(thing.into()))),
         (drawn_thing_despawn, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::DrawnThingDespawn(thing.into()))),
         (thing_spawn, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::ThingSpawn(thing.into()))),
@@ -471,7 +471,7 @@ impl EditsHistory
         {
             identifiers.push(brush.id());
 
-            for id in continue_if_none!(brush.anchors_iter())
+            for id in continue_if_none!(brush.attachments_iter())
             {
                 identifiers.push(*id);
             }
