@@ -338,7 +338,10 @@ pub(in crate::map) mod ui_mod
         /// The position of the node.
         #[inline]
         #[must_use]
-        pub fn world_pos(&self, center: Vec2) -> Vec2 { self.selectable_vector.vec + center }
+        pub(in crate::map::path) fn world_pos(&self, center: Vec2) -> Vec2
+        {
+            self.selectable_vector.vec + center
+        }
     }
 
     //=======================================================================//

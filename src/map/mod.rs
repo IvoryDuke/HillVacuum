@@ -26,7 +26,7 @@ use hill_vacuum_shared::{return_if_none, NextValue};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    map::{brush::BrushViewer, properties::DefaultProperties, thing::ThingViewer},
+    map::properties::DefaultProperties,
     utils::{
         containers::{hv_hash_map, hv_vec},
         misc::AssertedInsertRemove
@@ -117,8 +117,8 @@ struct MapHeader
 
 //=======================================================================//
 
-/// The struct used to read a map file and generate the brushes and things to be used to generate
-/// another file format.
+/// The struct used to read a map file and extract the information necessary, for example, to export
+/// it to another format.
 /// ```
 /// let exporter = hill_vacuum::Exporter::new(&std::env::args().collect::<Vec<_>>()[0]);
 /// // Your code.
@@ -126,7 +126,9 @@ struct MapHeader
 #[must_use]
 pub struct Exporter
 {
+    /// The rotation angle of the grid.
     pub grid_angle: i16,
+    /// The skew angle of the grid.
     pub grid_skew:  i8,
     pub brushes:    HvHashMap<Id, crate::Brush>,
     pub things:     HvHashMap<Id, crate::ThingInstance>
@@ -189,7 +191,7 @@ impl Exporter
         for _ in 0..header.brushes
         {
             brushes.push(
-                ciborium::from_reader::<BrushViewer, _>(&mut file)
+                ciborium::from_reader::<crate::Brush, _>(&mut file)
                     .map_err(|_| "Error reading Brush")?
             );
         }
@@ -233,7 +235,7 @@ impl Exporter
 
         for _ in 0..header.things
         {
-            let thing = ciborium::from_reader::<ThingViewer, _>(&mut file)
+            let thing = ciborium::from_reader::<crate::ThingInstance, _>(&mut file)
                 .map_err(|_| "Error reading ThingInstance")?;
             things.asserted_insert((thing.id, thing));
         }

@@ -19,6 +19,19 @@ use crate::{HvHashMap, Id, Path, Value};
 //=======================================================================//
 
 /// A trait to associate a [`Thing`] to a type.
+/// # Example
+/// ```
+/// use hill_vacuum::{MapThing, Thing};
+///
+/// struct Test;
+///
+/// impl MapThing for Test
+/// {
+///     fn thing() -> Thing { Thing::new("test", 0, 32f32, 32f32, "test").unwrap() }
+/// }
+///
+/// let _ = Test::thing();
+/// ```
 pub trait MapThing
 {
     /// Returns the [`Thing`] associated with `self`.

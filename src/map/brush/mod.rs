@@ -19,7 +19,7 @@ use crate::{Animation, Group, HvHashMap, HvVec, Id, TextureSettings, Value};
 //
 //=======================================================================//
 
-/// A convex polygon characterized by an optional [`Mover`], an optional texture, and certain
+/// A convex polygon characterized by an optional [`Group`], an optional texture, and certain
 /// properties.
 #[allow(clippy::unsafe_derive_deserialize)]
 #[must_use]

@@ -33,7 +33,7 @@ macro_rules! to_value {
 //
 //=======================================================================//
 
-/// A trait to generated a [`Value`] from `self`.
+/// A trait to generate a [`Value`] from `self`.
 pub trait ToValue
 {
     /// Converts `self` to a [`Value`].

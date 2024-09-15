@@ -90,6 +90,8 @@ pub(crate) mod ui_mod
     };
 
     use crate::{config::ConfigPlugin, embedded_assets::EmbeddedPlugin, map::MapEditorPlugin};
+    #[allow(unused_imports)]
+    use crate::{Brush, Thing, ThingInstance};
 
     //=======================================================================//
     // CONSTANTS
