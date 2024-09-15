@@ -124,7 +124,13 @@ struct MapHeader
 /// // Your code.
 /// ```
 #[must_use]
-pub struct Exporter(pub HvHashMap<Id, crate::Brush>, pub HvHashMap<Id, crate::ThingInstance>);
+pub struct Exporter
+{
+    pub grid_angle: i16,
+    pub grid_skew:  i8,
+    pub brushes:    HvHashMap<Id, crate::Brush>,
+    pub things:     HvHashMap<Id, crate::ThingInstance>
+}
 
 impl Exporter
 {
@@ -158,7 +164,7 @@ impl Exporter
 
         // Grid.
         steps.next_value().assert(FileStructure::Grid);
-        _ = ciborium::from_reader::<GridSettings, _>(&mut file)
+        let grid_settings = ciborium::from_reader::<GridSettings, _>(&mut file)
             .map_err(|_| "Error reading grid")?;
 
         // Animations.
@@ -239,7 +245,12 @@ impl Exporter
             brushes_map.asserted_insert((brush.id, brush));
         }
 
-        Ok(Self(brushes_map, things))
+        Ok(Self {
+            grid_angle: grid_settings.angle(),
+            grid_skew: grid_settings.skew(),
+            brushes: brushes_map,
+            things
+        })
     }
 }
 
