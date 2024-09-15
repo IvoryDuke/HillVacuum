@@ -8,8 +8,7 @@ use std::ops::{AddAssign, SubAssign};
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-#[allow(unused_imports)]
-use crate::map::{path::Path, selectable_vector::SelectableVector};
+use crate::map::selectable_vector::SelectableVector;
 
 //=======================================================================//
 // TYPES
@@ -84,7 +83,7 @@ impl Movement
 
 //=======================================================================//
 
-/// A node of the travel [`Path`] of a moving entity.
+/// A node of the travel path of a moving entity.
 /// The position of the node is relative to the center of the entity.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Node
@@ -112,12 +111,8 @@ impl Node
     #[must_use]
     pub const fn pos(&self) -> Vec2 { self.selectable_vector.vec }
 
-    /// The position of the node.
-    #[inline]
-    #[must_use]
-    pub fn world_pos(&self, center: Vec2) -> Vec2 { self.selectable_vector.vec + center }
-
     /// Returns a reference to the node's [`Movement`].
+    #[inline]
     pub const fn movement(&self) -> &Movement { &self.movement }
 }
 
@@ -339,6 +334,11 @@ pub(in crate::map) mod ui_mod
         {
             Self::new(pos - center, selected)
         }
+
+        /// The position of the node.
+        #[inline]
+        #[must_use]
+        pub fn world_pos(&self, center: Vec2) -> Vec2 { self.selectable_vector.vec + center }
     }
 
     //=======================================================================//
