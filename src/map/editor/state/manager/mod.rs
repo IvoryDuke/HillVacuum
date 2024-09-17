@@ -78,7 +78,7 @@ use crate::{
         OutOfBounds
     },
     utils::{
-        containers::{hv_hash_map, hv_hash_set, Ids},
+        collections::{hv_hash_map, hv_hash_set, Ids},
         hull::{EntityHull, Hull},
         identifiers::{EntityCenter, EntityId, Id, IdGenerator},
         math::AroundEqual,

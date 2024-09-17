@@ -55,7 +55,7 @@ pub(in crate::map) mod ui_mod
     use crate::{
         map::{brush::compatibility::Mover, path::Path},
         utils::{
-            containers::{hv_hash_set, Ids},
+            collections::{hv_hash_set, Ids},
             misc::{AssertedInsertRemove, TakeValue}
         },
         Id

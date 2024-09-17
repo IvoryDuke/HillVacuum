@@ -224,7 +224,7 @@ pub(in crate::map) mod ui_mod
     use crate::{
         map::{drawer::drawing_resources::DrawingResources, indexed_map::IndexedMap},
         utils::{
-            containers::{hv_hash_map, hv_vec},
+            collections::{hv_hash_map, hv_vec},
             misc::AssertedInsertRemove
         },
         HvHashMap,

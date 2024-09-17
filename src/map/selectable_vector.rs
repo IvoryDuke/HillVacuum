@@ -107,7 +107,7 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
-    use crate::utils::{containers::HvVec, misc::Toggle};
+    use crate::utils::{collections::HvVec, misc::Toggle};
 
     //=======================================================================//
     // MACROS

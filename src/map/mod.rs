@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     map::properties::DefaultProperties,
     utils::{
-        containers::{hv_hash_map, hv_vec},
+        collections::{hv_hash_map, hv_vec},
         misc::AssertedInsertRemove
     },
     Animation,

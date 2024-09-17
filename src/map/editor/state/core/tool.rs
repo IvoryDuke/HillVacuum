@@ -53,7 +53,7 @@ use crate::{
         thing::catalog::ThingsCatalog
     },
     utils::{
-        containers::hv_vec,
+        collections::hv_vec,
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::{polygons::convex_hull, HashVec2},

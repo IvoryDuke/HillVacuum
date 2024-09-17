@@ -43,7 +43,7 @@ pub(in crate::map) mod ui_mod
             TOOLTIP_OFFSET
         },
         utils::{
-            containers::{hv_hash_map, hv_hash_set, hv_vec, HvHashMap, HvHashSet, HvVec},
+            collections::{hv_hash_map, hv_hash_set, hv_vec, HvHashMap, HvHashSet, HvVec},
             hull::{EntityHull, Hull},
             identifiers::{EntityCenter, EntityId},
             iterators::{FilterSet, PairIterator, SkipIndexIterator, TripletIterator},
@@ -252,7 +252,7 @@ pub(in crate::map) mod ui_mod
 
             #[inline]
             #[must_use]
-            fn deselect_path_nodes(&mut self) -> Option<crate::utils::containers::HvVec<u8>>
+            fn deselect_path_nodes(&mut self) -> Option<crate::utils::collections::HvVec<u8>>
             {
                 let center = self.center();
                 self.path_mut().deselect_nodes(center)
@@ -266,21 +266,21 @@ pub(in crate::map) mod ui_mod
 
             #[inline]
             #[must_use]
-            fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<crate::utils::containers::HvVec<u8>>
+            fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<crate::utils::collections::HvVec<u8>>
             {
                 let center = self.center();
                 self.path_mut().select_nodes_in_range(center, range)
             }
 
             #[inline]
-            fn select_all_path_nodes(&mut self) -> Option<crate::utils::containers::HvVec<u8>>
+            fn select_all_path_nodes(&mut self) -> Option<crate::utils::collections::HvVec<u8>>
             {
                 self.path_mut().select_all_nodes()
             }
 
             #[inline]
             #[must_use]
-            fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<crate::utils::containers::HvVec<u8>>
+            fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<crate::utils::collections::HvVec<u8>>
             {
                 let center = self.center();
                 self.path_mut().exclusively_select_nodes_in_range(center, range)
@@ -301,7 +301,7 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            fn insert_path_nodes_at_indexes(&mut self, nodes: &crate::utils::containers::HvVec<(Vec2, u8)>)
+            fn insert_path_nodes_at_indexes(&mut self, nodes: &crate::utils::collections::HvVec<(Vec2, u8)>)
             {
                 self.path_mut().insert_nodes_at_indexes(nodes);
             }
@@ -319,13 +319,13 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            fn move_path_nodes_at_indexes(&mut self, snap: &crate::utils::containers::HvVec<(crate::utils::containers::HvVec<u8>, Vec2)>)
+            fn move_path_nodes_at_indexes(&mut self, snap: &crate::utils::collections::HvVec<(crate::utils::collections::HvVec<u8>, Vec2)>)
             {
                 self.path_mut().move_nodes_at_indexes(snap);
             }
 
             #[inline]
-            fn remove_selected_path_nodes(&mut self, payload: crate::map::path::NodesDeletionPayload) -> crate::utils::containers::HvVec<(Vec2, u8)>
+            fn remove_selected_path_nodes(&mut self, payload: crate::map::path::NodesDeletionPayload) -> crate::utils::collections::HvVec<(Vec2, u8)>
             {
                 assert!(
                     self.id() == payload.id(),
@@ -354,7 +354,7 @@ pub(in crate::map) mod ui_mod
             fn snap_selected_path_nodes(
                 &mut self,
                 grid: crate::map::editor::state::grid::Grid
-            ) -> Option<crate::utils::containers::HvVec<(crate::utils::containers::HvVec<u8>, Vec2)>>
+            ) -> Option<crate::utils::collections::HvVec<(crate::utils::collections::HvVec<u8>, Vec2)>>
             {
                 let center = self.center();
                 self.path_mut().snap_selected_nodes(grid, center)

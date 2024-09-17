@@ -23,7 +23,7 @@ use crate::{
         properties::{DefaultProperties, Properties, SetProperty, Value}
     },
     utils::{
-        containers::hv_vec,
+        collections::hv_vec,
         overall_value::{OverallValue, OverallValueInterface, OverallValueToUi, UiOverallValue}
     }
 };

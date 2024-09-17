@@ -9,7 +9,7 @@ pub(in crate::map) mod _061;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{map::path::Path, utils::containers::Ids, Id};
+use crate::{map::path::Path, utils::collections::Ids, Id};
 
 //=======================================================================//
 // MACROS

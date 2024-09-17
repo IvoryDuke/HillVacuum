@@ -110,7 +110,7 @@ pub(in crate::map) mod ui_mod
             thing::catalog::ThingsCatalog
         },
         utils::{
-            containers::{hv_vec, Ids},
+            collections::{hv_vec, Ids},
             hull::{EntityHull, Flip, Hull},
             identifiers::{EntityCenter, EntityId},
             iterators::SlicePairIter,
@@ -293,7 +293,7 @@ pub(in crate::map) mod ui_mod
                 #[inline]
                 fn from(vertexes: crate::HvVec<Vec2>) -> Self
                 {
-                    crate::utils::containers::hv_vec![collect; vertexes.into_iter().map(crate::map::selectable_vector::SelectableVector::new)].into()
+                    crate::utils::collections::hv_vec![collect; vertexes.into_iter().map(crate::map::selectable_vector::SelectableVector::new)].into()
                 }
             }
 
@@ -330,7 +330,7 @@ pub(in crate::map) mod ui_mod
                 where
                     T: Iterator<Item = Vec2>
                 {
-                    crate::utils::containers::hv_vec![collect; vxs].into()
+                    crate::utils::collections::hv_vec![collect; vxs].into()
                 }
 
                 /// Returns true if vxs represents a valid polygon.

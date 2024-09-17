@@ -21,7 +21,7 @@ use crate::{
         properties::DefaultProperties
     },
     utils::{
-        containers::{hv_hash_map, hv_vec},
+        collections::{hv_hash_map, hv_vec},
         identifiers::Id,
         misc::AssertedInsertRemove
     },

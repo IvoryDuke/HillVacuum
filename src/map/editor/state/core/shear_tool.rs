@@ -32,7 +32,7 @@ use crate::{
         }
     },
     utils::{
-        containers::hv_vec,
+        collections::hv_vec,
         hull::{Hull, Side},
         identifiers::{EntityId, Id},
         misc::Camera

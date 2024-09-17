@@ -15,7 +15,7 @@ use crate::{
         path::MovementSimulator
     },
     utils::{
-        containers::hv_box,
+        collections::hv_box,
         identifiers::{EntityId, Id}
     },
     HvVec

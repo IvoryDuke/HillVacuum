@@ -38,7 +38,7 @@ use crate::{
         }
     },
     utils::{
-        containers::hv_vec,
+        collections::hv_vec,
         identifiers::EntityId,
         misc::Toggle,
         overall_value::{OverallValue, OverallValueInterface, OverallValueToUi}

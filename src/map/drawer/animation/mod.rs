@@ -156,7 +156,7 @@ pub(in crate::map) mod ui_mod
             drawers::Uv,
             drawing_resources::{DrawingResources, TextureMaterials}
         },
-        utils::{containers::hv_vec, math::AroundEqual, misc::next},
+        utils::{collections::hv_vec, math::AroundEqual, misc::next},
         Animation,
         Atlas,
         HvVec,

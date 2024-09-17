@@ -37,7 +37,7 @@ use crate::{
         AssertedInsertRemove
     },
     utils::{
-        containers::{hv_hash_set, Ids},
+        collections::{hv_hash_set, Ids},
         identifiers::{EntityId, Id},
         misc::TakeValue
     }

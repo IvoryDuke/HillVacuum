@@ -17,7 +17,7 @@ use self::{
 };
 use crate::{
     utils::{
-        containers::{hv_hash_map, hv_vec},
+        collections::{hv_hash_map, hv_vec},
         hull::Hull,
         identifiers::{EntityId, Id},
         math::AroundEqual,

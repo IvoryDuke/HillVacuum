@@ -20,7 +20,7 @@ use std::{fs::File, io::BufReader};
 
 use texture::DefaultAnimation;
 
-use crate::{utils::containers::hv_vec, HvVec};
+use crate::{utils::collections::hv_vec, HvVec};
 
 //=======================================================================//
 // FUNCTIONS

@@ -26,7 +26,7 @@ use crate::{
         }
     },
     utils::{
-        containers::hv_vec,
+        collections::hv_vec,
         hull::{Corner, Flip, Hull, ScaleResult},
         identifiers::{EntityId, Id},
         math::AroundEqual,

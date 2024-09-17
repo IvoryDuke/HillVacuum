@@ -53,7 +53,7 @@ use crate::{
 /// A macro to clip the selected brushes.
 macro_rules! clip_brushes {
     ($self:ident, $clip_line:expr, $iter:expr) => {
-        let mut results = crate::utils::containers::hv_hash_map![];
+        let mut results = crate::utils::collections::hv_hash_map![];
 
         // Until I figure out how to properly annotate the F lifetimes.
         for brush in $iter

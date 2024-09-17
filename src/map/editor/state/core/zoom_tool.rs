@@ -20,7 +20,7 @@ use crate::{
             ToolUpdateBundle
         }
     },
-    utils::{containers::hv_box, misc::Camera}
+    utils::{collections::hv_box, misc::Camera}
 };
 
 //=======================================================================//

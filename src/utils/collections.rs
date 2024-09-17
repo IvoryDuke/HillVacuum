@@ -35,15 +35,15 @@ static mut ALLOCATOR: BlinkAlloc = BlinkAlloc::with_chunk_size(32_768);
 /// Creates a new [`HvVec`] based on the parameters.
 macro_rules! hv_vec {
     [] => (
-        crate::utils::containers::HvVec::new()
+        crate::utils::collections::HvVec::new()
     );
 
     [capacity; $n:expr] => (
-        crate::utils::containers::HvVec::with_capacity($n)
+        crate::utils::collections::HvVec::with_capacity($n)
     );
 
     [$x:expr; $n:literal] => ({
-        let mut vec = crate::utils::containers::hv_vec![];
+        let mut vec = crate::utils::collections::hv_vec![];
 
         for _ in 0..$n
         {
@@ -54,13 +54,13 @@ macro_rules! hv_vec {
     });
 
     [$($x:expr),+] => ({
-        let mut vec = crate::utils::containers::hv_vec![];
+        let mut vec = crate::utils::collections::hv_vec![];
         $(vec.push($x);)+
         vec
     });
 
     [collect; $x:expr] => ({
-        let mut vec = crate::utils::containers::hv_vec![];
+        let mut vec = crate::utils::collections::hv_vec![];
         vec.extend($x);
         vec
     });
@@ -73,21 +73,21 @@ pub(crate) use hv_vec;
 /// Creates a new [`HvHashMap`] based on the parameters.
 macro_rules! hv_hash_map {
     [] => {
-        crate::utils::containers::HvHashMap::new()
+        crate::utils::collections::HvHashMap::new()
     };
 
     [capacity; $n:expr] => {
-        crate::utils::containers::HvHashMap::with_capacity($n)
+        crate::utils::collections::HvHashMap::with_capacity($n)
     };
 
     [$(($k:expr, $v:expr)),+] => ({
-        let mut map = crate::utils::containers::hv_hash_map![];
+        let mut map = crate::utils::collections::hv_hash_map![];
         $(map.insert($k, $v);)+
         map
     });
 
     [collect; $x:expr] => ({
-        let mut map = crate::utils::containers::hv_hash_map![];
+        let mut map = crate::utils::collections::hv_hash_map![];
         map.extend($x);
         map
     });
@@ -100,21 +100,21 @@ pub(crate) use hv_hash_map;
 /// Creates a new [`HvHashSet`] based on the parameters.
 macro_rules! hv_hash_set {
     [] => {
-        crate::utils::containers::HvHashSet::new()
+        crate::utils::collections::HvHashSet::new()
     };
 
     [capacity; $n:expr] => (
-        crate::utils::containers::HvHashSet::with_capacity($n)
+        crate::utils::collections::HvHashSet::with_capacity($n)
     );
 
     [$($v:expr),+] => ({
-        let mut map = crate::utils::containers::hv_hash_set![];
+        let mut map = crate::utils::collections::hv_hash_set![];
         $(map.insert($v);)+
         map
     });
 
     [collect; $x:expr] => ({
-        let mut vec = crate::utils::containers::hv_hash_set![];
+        let mut vec = crate::utils::collections::hv_hash_set![];
         vec.extend($x);
         vec
     });
@@ -731,7 +731,7 @@ pub(crate) mod ui_mod
     use smallvec::SmallVec;
 
     #[cfg(feature = "arena_alloc")]
-    use crate::utils::containers::blink_alloc;
+    use crate::utils::collections::blink_alloc;
     use crate::{
         utils::{
             iterators::{
@@ -758,9 +758,9 @@ pub(crate) mod ui_mod
     macro_rules! hv_box {
         ($x:expr) => {{
             #[cfg(feature = "arena_alloc")]
-            let b = crate::utils::containers::HvBox::new_in(
+            let b = crate::utils::collections::HvBox::new_in(
                 $x,
-                crate::utils::containers::blink_alloc()
+                crate::utils::collections::blink_alloc()
             );
 
             #[cfg(not(feature = "arena_alloc"))]

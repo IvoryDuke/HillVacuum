@@ -46,7 +46,7 @@ pub(in crate::map) mod ui_only
     use hashbrown::Equivalent;
 
     use super::IndexedMap;
-    use crate::{utils::containers::hv_hash_map, HvHashMap, HvVec};
+    use crate::{utils::collections::hv_hash_map, HvHashMap, HvVec};
 
     //=======================================================================//
     // TYPES

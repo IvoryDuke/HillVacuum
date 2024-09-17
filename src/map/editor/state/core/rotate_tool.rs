@@ -32,7 +32,7 @@ use crate::{
         }
     },
     utils::{
-        containers::hv_vec,
+        collections::hv_vec,
         identifiers::{EntityId, Id},
         math::{
             angles::vectors_angle_cosine,

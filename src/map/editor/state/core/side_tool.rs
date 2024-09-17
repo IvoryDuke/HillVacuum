@@ -60,7 +60,7 @@ use crate::{
         }
     },
     utils::{
-        containers::{hv_hash_map, hv_hash_set, hv_vec, Ids},
+        collections::{hv_hash_map, hv_hash_set, hv_vec, Ids},
         hull::{EntityHull, Hull},
         identifiers::{EntityId, Id},
         iterators::FilterSet,

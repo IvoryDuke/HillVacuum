@@ -43,7 +43,7 @@ pub use crate::{
         Exporter
     },
     utils::{
-        containers::{HvHashMap, HvHashSet, HvVec},
+        collections::{HvHashMap, HvHashSet, HvVec},
         identifiers::Id
     }
 };

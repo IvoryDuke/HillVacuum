@@ -29,7 +29,7 @@ use crate::{
         }
     },
     utils::{
-        containers::{hv_hash_set, Ids},
+        collections::{hv_hash_set, Ids},
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         misc::{AssertedInsertRemove, Camera, ReplaceValues, TakeValue}

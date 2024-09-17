@@ -69,7 +69,7 @@ pub(in crate::map) mod ui_mod
             TOOLTIP_OFFSET
         },
         utils::{
-            containers::hv_vec,
+            collections::hv_vec,
             hull::{EntityHull, Flip, Hull},
             identifiers::EntityCenter,
             iterators::{

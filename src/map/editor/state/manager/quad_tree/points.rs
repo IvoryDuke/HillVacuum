@@ -10,7 +10,7 @@ use hill_vacuum_shared::{continue_if_none, NextValue};
 use super::{node::SplitSegments, RemoveResult};
 use crate::{
     utils::{
-        containers::{hv_hash_map, hv_vec},
+        collections::{hv_hash_map, hv_vec},
         hull::Hull,
         identifiers::Id,
         iterators::SkipIndexIterator,

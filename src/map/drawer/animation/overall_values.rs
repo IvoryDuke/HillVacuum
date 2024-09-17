@@ -6,7 +6,7 @@
 use super::{Animation, Atlas, Timing};
 use crate::{
     utils::{
-        containers::hv_vec,
+        collections::hv_vec,
         overall_value::{OverallValue, OverallValueInterface, UiOverallValue}
     },
     HvVec

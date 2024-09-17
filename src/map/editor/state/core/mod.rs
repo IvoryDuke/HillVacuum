@@ -66,7 +66,7 @@ use crate::{
         thing::{catalog::ThingsCatalog, ThingId, ThingInstanceData}
     },
     utils::{
-        containers::HvBox,
+        collections::HvBox,
         identifiers::{EntityId, Id}
     }
 };
@@ -277,12 +277,12 @@ macro_rules! selected_vertexes {
         /// A record of the selected brushes selected vertexes.
         #[must_use]
         #[derive(Debug)]
-        struct SelectedVertexes(crate::utils::containers::HvHashMap<Id, u8>, usize);
+        struct SelectedVertexes(crate::utils::collections::HvHashMap<Id, u8>, usize);
 
         impl Default for SelectedVertexes
         {
             #[inline]
-            fn default() -> Self { Self(crate::utils::containers::hv_hash_map![], 0) }
+            fn default() -> Self { Self(crate::utils::collections::hv_hash_map![], 0) }
         }
 
         impl SelectedVertexes
