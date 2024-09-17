@@ -22,7 +22,7 @@ pub enum Timing
     /// Same duration for all frames.
     Uniform(f32),
     /// Different time for all frames.
-    PerFrame(Vec<f32>)
+    PerFrame(HvVec<f32>)
 }
 
 impl Timing
@@ -113,7 +113,7 @@ impl Atlas
 /// A list of textures and the amount of time they should be drawn on screen.
 #[must_use]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct List(Vec<(String, f32)>);
+pub struct List(HvVec<(String, f32)>);
 
 impl List
 {
@@ -131,7 +131,7 @@ impl List
     /// Returns a reference to the frames of the animation.
     #[inline]
     #[must_use]
-    pub const fn frames(&self) -> &Vec<(String, f32)> { &self.0 }
+    pub const fn frames(&self) -> &HvVec<(String, f32)> { &self.0 }
 }
 
 //=======================================================================//
@@ -156,9 +156,10 @@ pub(in crate::map) mod ui_mod
             drawers::Uv,
             drawing_resources::{DrawingResources, TextureMaterials}
         },
-        utils::{math::AroundEqual, misc::next},
+        utils::{containers::hv_vec, math::AroundEqual, misc::next},
         Animation,
         Atlas,
+        HvVec,
         List,
         Timing
     };
@@ -178,7 +179,7 @@ pub(in crate::map) mod ui_mod
         fn move_down(&mut self, index: usize);
     }
 
-    impl<T> MoveUpDown for Vec<T>
+    impl<T> MoveUpDown for HvVec<T>
     {
         #[inline]
         fn move_up(&mut self, index: usize)
@@ -481,7 +482,16 @@ pub(in crate::map) mod ui_mod
             let new = Timing::PerFrame(return_if_no_match!(
                 &mut self.timing,
                 Timing::Uniform(duration),
-                vec![*duration; self.len],
+                {
+                    let mut vec = hv_vec![capacity; self.len];
+
+                    for _ in 0..self.len
+                    {
+                        vec.push(*duration);
+                    }
+
+                    vec
+                },
                 None
             ));
 
@@ -522,7 +532,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map) fn new(texture: &str) -> Self
         {
-            Self(vec![(texture.to_owned(), f32::INFINITY)])
+            Self(hv_vec![(texture.to_owned(), f32::INFINITY)])
         }
 
         /// Pushes a new frame.
@@ -731,3 +741,5 @@ pub(in crate::map) mod ui_mod
 
 #[cfg(feature = "ui")]
 pub(in crate::map) use ui_mod::*;
+
+use crate::HvVec;

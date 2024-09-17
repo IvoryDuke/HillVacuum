@@ -3,132 +3,6 @@ pub mod nodes;
 pub(in crate::map) mod overall_values;
 
 //=======================================================================//
-// IMPORTS
-//
-//=======================================================================//
-
-use glam::Vec2;
-use serde::{Deserialize, Deserializer, Serialize};
-
-use crate::{
-    utils::{
-        containers::{hv_hash_map, hv_vec},
-        hull::Hull,
-        math::HashVec2
-    },
-    HvHashMap,
-    HvVec,
-    Node
-};
-
-//=======================================================================//
-// TYPES
-//
-//=======================================================================//
-
-/// A path describing how an entity moves in space over time.
-#[allow(dead_code)]
-#[must_use]
-#[derive(Debug, Clone)]
-pub struct Path
-{
-    /// The [`Node`]s describing the travel.
-    nodes:   HvVec<Node>,
-    /// The [`Hull`] describing the area encompassing the path and the center of the owning entity.
-    hull:    Hull,
-    /// The nodes sorted in buckets for more efficient arrows drawing.
-    buckets: Buckets
-}
-
-impl Serialize for Path
-{
-    #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer
-    {
-        self.nodes.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Path
-{
-    #[inline]
-    fn deserialize<D>(deserializer: D) -> Result<Path, D::Error>
-    where
-        D: Deserializer<'de>
-    {
-        HvVec::deserialize(deserializer).map(|nodes| {
-            let hull = Path::nodes_hull(&nodes);
-            let mut buckets = Buckets::new();
-
-            for (i, node) in nodes.iter().enumerate()
-            {
-                buckets.insert(i, node.pos());
-            }
-
-            Self {
-                nodes,
-                hull,
-                buckets
-            }
-        })
-    }
-}
-
-impl Path
-{
-    /// Returns the [`Hull`] encompassing all the [`Node`]s.
-    #[inline]
-    fn nodes_hull(nodes: &HvVec<Node>) -> Hull
-    {
-        Hull::from_points(nodes.iter().map(Node::pos)).unwrap()
-    }
-}
-
-//=======================================================================//
-
-/// A struct sorting the [`Node`]s of a [`Path`] in buckets based on their position.
-#[must_use]
-#[derive(Debug, Clone)]
-struct Buckets(HvHashMap<HashVec2, HvVec<usize>>);
-
-impl Buckets
-{
-    /// Returns an empty [`Buckets`].
-    #[inline]
-    pub fn new() -> Self { Self(hv_hash_map![]) }
-
-    /// Inserts the `index` of a [`Node`] at `pos`.
-    /// # Panics
-    /// Panics if `index` is already contained.
-    #[inline]
-    pub fn insert(&mut self, index: usize, pos: Vec2)
-    {
-        let key = HashVec2(pos);
-
-        for bucket in self.0.values_mut()
-        {
-            for idx in bucket.iter_mut().filter(|idx| **idx >= index)
-            {
-                *idx += 1;
-            }
-        }
-
-        match self.0.get_mut(&key)
-        {
-            Some(idxs) =>
-            {
-                assert!(!idxs.contains(&index), "Bucket already contains index {index}");
-                idxs.push(index);
-                idxs.sort_unstable();
-            },
-            None => _ = self.0.insert(key, hv_vec![index])
-        };
-    }
-}
-
-//=======================================================================//
 // UI
 //
 //=======================================================================//
@@ -147,6 +21,7 @@ pub(in crate::map) mod ui_mod
     use bevy_egui::egui;
     use glam::Vec2;
     use hill_vacuum_shared::{continue_if_none, return_if_none, NextValue};
+    use serde::{Deserialize, Deserializer, Serialize};
 
     use crate::{
         map::{
@@ -160,8 +35,7 @@ pub(in crate::map) mod ui_mod
             },
             path::{
                 nodes::{NodeWorld, NodesInsertionIter, NodesWorld, NodesWorldMut},
-                overall_values::OverallMovement,
-                Buckets
+                overall_values::OverallMovement
             },
             selectable_vector::{deselect_vectors, select_vectors_in_range},
             thing::catalog::ThingsCatalog,
@@ -169,7 +43,7 @@ pub(in crate::map) mod ui_mod
             TOOLTIP_OFFSET
         },
         utils::{
-            containers::{hv_hash_map, hv_hash_set, hv_vec},
+            containers::{hv_hash_map, hv_hash_set, hv_vec, HvHashMap, HvHashSet, HvVec},
             hull::{EntityHull, Hull},
             identifiers::{EntityCenter, EntityId},
             iterators::{FilterSet, PairIterator, SkipIndexIterator, TripletIterator},
@@ -192,12 +66,8 @@ pub(in crate::map) mod ui_mod
             },
             overall_value::OverallValueInterface
         },
-        HvHashMap,
-        HvHashSet,
-        HvVec,
         Id,
         Node,
-        Path,
         INDEXES
     };
 
@@ -382,7 +252,7 @@ pub(in crate::map) mod ui_mod
 
             #[inline]
             #[must_use]
-            fn deselect_path_nodes(&mut self) -> Option<crate::HvVec<u8>>
+            fn deselect_path_nodes(&mut self) -> Option<crate::utils::containers::HvVec<u8>>
             {
                 let center = self.center();
                 self.path_mut().deselect_nodes(center)
@@ -396,21 +266,21 @@ pub(in crate::map) mod ui_mod
 
             #[inline]
             #[must_use]
-            fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<crate::HvVec<u8>>
+            fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<crate::utils::containers::HvVec<u8>>
             {
                 let center = self.center();
                 self.path_mut().select_nodes_in_range(center, range)
             }
 
             #[inline]
-            fn select_all_path_nodes(&mut self) -> Option<crate::HvVec<u8>>
+            fn select_all_path_nodes(&mut self) -> Option<crate::utils::containers::HvVec<u8>>
             {
                 self.path_mut().select_all_nodes()
             }
 
             #[inline]
             #[must_use]
-            fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<crate::HvVec<u8>>
+            fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<crate::utils::containers::HvVec<u8>>
             {
                 let center = self.center();
                 self.path_mut().exclusively_select_nodes_in_range(center, range)
@@ -431,7 +301,7 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            fn insert_path_nodes_at_indexes(&mut self, nodes: &crate::HvVec<(Vec2, u8)>)
+            fn insert_path_nodes_at_indexes(&mut self, nodes: &crate::utils::containers::HvVec<(Vec2, u8)>)
             {
                 self.path_mut().insert_nodes_at_indexes(nodes);
             }
@@ -449,13 +319,13 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            fn move_path_nodes_at_indexes(&mut self, snap: &crate::HvVec<(crate::HvVec<u8>, Vec2)>)
+            fn move_path_nodes_at_indexes(&mut self, snap: &crate::utils::containers::HvVec<(crate::utils::containers::HvVec<u8>, Vec2)>)
             {
                 self.path_mut().move_nodes_at_indexes(snap);
             }
 
             #[inline]
-            fn remove_selected_path_nodes(&mut self, payload: crate::map::path::NodesDeletionPayload) -> crate::HvVec<(Vec2, u8)>
+            fn remove_selected_path_nodes(&mut self, payload: crate::map::path::NodesDeletionPayload) -> crate::utils::containers::HvVec<(Vec2, u8)>
             {
                 assert!(
                     self.id() == payload.id(),
@@ -484,7 +354,7 @@ pub(in crate::map) mod ui_mod
             fn snap_selected_path_nodes(
                 &mut self,
                 grid: crate::map::editor::state::grid::Grid
-            ) -> Option<crate::HvVec<(crate::HvVec<u8>, Vec2)>>
+            ) -> Option<crate::utils::containers::HvVec<(crate::utils::containers::HvVec<u8>, Vec2)>>
             {
                 let center = self.center();
                 self.path_mut().snap_selected_nodes(grid, center)
@@ -1704,6 +1574,78 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
+    /// A path describing how an entity moves in space over time.
+    #[allow(dead_code)]
+    #[must_use]
+    #[derive(Debug, Clone)]
+    pub struct Path
+    {
+        /// The [`Node`]s describing the travel.
+        nodes:   HvVec<Node>,
+        /// The [`Hull`] describing the area encompassing the path and the center of the owning
+        /// entity.
+        hull:    Hull,
+        /// The nodes sorted in buckets for more efficient arrows drawing.
+        buckets: Buckets
+    }
+
+    impl From<HvVec<Node>> for Path
+    {
+        #[inline]
+        fn from(nodes: HvVec<Node>) -> Self
+        {
+            let hull = Path::nodes_hull(nodes.iter());
+            let mut buckets = Buckets::new();
+
+            for (i, node) in nodes.iter().enumerate()
+            {
+                buckets.insert(i, node.pos());
+            }
+
+            Self {
+                nodes,
+                hull,
+                buckets
+            }
+        }
+    }
+
+    impl Serialize for Path
+    {
+        #[inline]
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer
+        {
+            self.nodes.serialize(serializer)
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Path
+    {
+        #[inline]
+        fn deserialize<D>(deserializer: D) -> Result<Path, D::Error>
+        where
+            D: Deserializer<'de>
+        {
+            HvVec::deserialize(deserializer).map(|nodes| {
+                let hull = Path::nodes_hull(nodes.iter());
+                let mut buckets = Buckets::new();
+
+                for (i, node) in nodes.iter().enumerate()
+                {
+                    buckets.insert(i, node.pos());
+                }
+
+                Self {
+                    nodes,
+                    hull,
+                    buckets
+                }
+            })
+        }
+    }
+
     impl EntityHull for Path
     {
         #[inline]
@@ -1724,21 +1666,21 @@ pub(in crate::map) mod ui_mod
         }
     }
 
-    impl From<HvVec<Node>> for Path
+    impl<'a, I: ExactSizeIterator<Item = &'a Node> + Clone> From<I> for Path
     {
         #[inline]
-        fn from(value: HvVec<Node>) -> Self
+        fn from(value: I) -> Self
         {
-            let hull = Self::nodes_hull(&value);
+            let hull = Self::nodes_hull(value.clone());
             let mut buckets = Buckets::new();
 
-            for (i, node) in value.iter().enumerate()
+            for (i, node) in value.clone().enumerate()
             {
                 buckets.insert(i, node.pos());
             }
 
             let path = Self {
-                nodes: value,
+                nodes: hv_vec![collect; value.into_iter().copied()],
                 hull,
                 buckets
             };
@@ -1797,6 +1739,13 @@ pub(in crate::map) mod ui_mod
         //==============================================================
         // Info
 
+        /// Returns the [`Hull`] encompassing all the [`Node`]s.
+        #[inline]
+        fn nodes_hull<'a, I: ExactSizeIterator<Item = &'a Node>>(nodes: I) -> Hull
+        {
+            Hull::from_points(nodes.map(Node::pos)).unwrap()
+        }
+
         /// Returns a reference to the vector containing the [`Node`]s of the path.
         #[inline]
         pub const fn nodes(&self) -> &HvVec<Node> { &self.nodes }
@@ -1832,7 +1781,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         fn valid(&self) -> bool
         {
-            self.hull.around_equal(&Self::nodes_hull(self.nodes())) &&
+            self.hull.around_equal(&Self::nodes_hull(self.nodes().iter())) &&
                 self.nodes().pair_iter().unwrap().enumerate().all(|([_, i], [a, b])| {
                     !a.pos().around_equal_narrow(&b.pos()) &&
                         return_if_none!(self.buckets.get(b.pos()), false).contains(&i)
@@ -1878,9 +1827,12 @@ pub(in crate::map) mod ui_mod
         //==============================================================
         // Update
 
+        #[inline]
+        pub fn take_nodes(self) -> HvVec<Node> { self.nodes }
+
         /// Updates the value of the cached [`Hull`].
         #[inline]
-        fn update_hull(&mut self) { self.hull = Self::nodes_hull(self.nodes()); }
+        fn update_hull(&mut self) { self.hull = Self::nodes_hull(self.nodes().iter()); }
 
         /// Snaps the selected [`Node`]s to the Grid.
         /// Returns a vector of the indexes and positions of the nodes that were snapped, if it was
@@ -3067,6 +3019,48 @@ pub(in crate::map) mod ui_mod
                     &mut tooltip_text
                 );
             }
+        }
+    }
+
+    //=======================================================================//
+
+    /// A struct sorting the [`Node`]s of a [`Path`] in buckets based on their position.
+    #[must_use]
+    #[derive(Debug, Clone)]
+    struct Buckets(HvHashMap<HashVec2, HvVec<usize>>);
+
+    impl Buckets
+    {
+        /// Returns an empty [`Buckets`].
+        #[inline]
+        pub fn new() -> Self { Self(hv_hash_map![]) }
+
+        /// Inserts the `index` of a [`Node`] at `pos`.
+        /// # Panics
+        /// Panics if `index` is already contained.
+        #[inline]
+        pub fn insert(&mut self, index: usize, pos: Vec2)
+        {
+            let key = HashVec2(pos);
+
+            for bucket in self.0.values_mut()
+            {
+                for idx in bucket.iter_mut().filter(|idx| **idx >= index)
+                {
+                    *idx += 1;
+                }
+            }
+
+            match self.0.get_mut(&key)
+            {
+                Some(idxs) =>
+                {
+                    assert!(!idxs.contains(&index), "Bucket already contains index {index}");
+                    idxs.push(index);
+                    idxs.sort_unstable();
+                },
+                None => _ = self.0.insert(key, hv_vec![index])
+            };
         }
     }
 

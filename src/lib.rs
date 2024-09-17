@@ -32,15 +32,12 @@ pub use crate::map::{
 };
 pub use crate::{
     map::{
-        brush::{group::Group, BrushViewer as Brush},
+        brush::{group::GroupViewer as Group, BrushViewer as Brush},
         drawer::{
             animation::{Animation, Atlas, List, Timing},
             texture::{TextureInterface, TextureSettings}
         },
-        path::{
-            nodes::{Movement, Node},
-            Path
-        },
+        path::nodes::{Movement, Node},
         properties::{ToValue, Value},
         thing::{MapThing, Thing, ThingId, ThingViewer as ThingInstance},
         Exporter

@@ -19,13 +19,12 @@ use crate::{
             texture::{Sprite, TextureInterface, TextureSettings}
         },
         editor::state::{core::UndoRedoInterface, ui::Ui},
-        path::{MovementValueEdit, NodesMove, StandbyValueEdit},
+        path::{MovementValueEdit, NodesMove, Path, StandbyValueEdit},
         properties::Value,
         thing::{ThingId, ThingInstanceData}
     },
     utils::{hull::Flip, identifiers::Id},
-    HvVec,
-    Path
+    HvVec
 };
 
 //=======================================================================//

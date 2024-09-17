@@ -51,7 +51,8 @@ use crate::{
             MovementSimulator,
             Moving,
             NodeSelectionResult,
-            NodesMove
+            NodesMove,
+            Path
         }
     },
     utils::{
@@ -60,8 +61,7 @@ use crate::{
         iterators::FilterSet,
         misc::{Camera, TakeValue, Toggle}
     },
-    HvVec,
-    Path
+    HvVec
 };
 
 //=======================================================================//

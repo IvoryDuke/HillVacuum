@@ -11,7 +11,7 @@ pub(in crate::map) mod compatibility;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{HvHashMap, Id, Path, Value};
+use crate::{HvHashMap, HvVec, Id, Node, Value};
 
 //=======================================================================//
 // TRAITS
@@ -165,8 +165,8 @@ pub struct ThingViewer
     pub angle:       f32,
     /// The draw height.
     pub draw_height: f32,
-    /// The optional associated [`Path`].
-    pub path:        Option<Path>,
+    /// The optional associated path.
+    pub path:        Option<HvVec<Node>>,
     /// The associated properties.
     pub properties:  HvHashMap<String, Value>
 }
@@ -202,7 +202,7 @@ pub mod ui_mod
                 grid::Grid,
                 manager::{Animators, Brushes}
             },
-            path::{common_edit_path, EditPath, MovementSimulator, Moving},
+            path::{common_edit_path, EditPath, MovementSimulator, Moving, Path},
             properties::{Properties, PropertiesRefactor},
             OutOfBounds
         },
@@ -213,7 +213,6 @@ pub mod ui_mod
             misc::Camera
         },
         Id,
-        Path,
         ThingId,
         Value
     };
@@ -403,7 +402,7 @@ pub mod ui_mod
             );
             thing.data.angle = angle as i16;
             thing.data.draw_height = draw_height as i8;
-            thing.data.path = path;
+            thing.data.path = path.map(|nodes| nodes.into());
 
             thing
         }
@@ -865,7 +864,7 @@ pub mod ui_mod
                 pos,
                 angle,
                 draw_height,
-                path,
+                path: path.map(|path| path.take_nodes()),
                 properties: properties.take()
             }
         }

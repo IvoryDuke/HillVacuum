@@ -7,7 +7,11 @@ use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
 use super::ThingId;
-use crate::{map::properties::Properties, utils::hull::Hull, Id, Path};
+use crate::{
+    map::{path::Path, properties::Properties},
+    utils::hull::Hull,
+    Id
+};
 
 //=======================================================================//
 // TYPES

@@ -55,6 +55,7 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
+        path::Path,
         selectable_vector::VectorSelectionResult
     },
     utils::{
@@ -66,8 +67,7 @@ use crate::{
         misc::{AssertedInsertRemove, Camera, TakeValue}
     },
     HvHashMap,
-    HvVec,
-    Path
+    HvVec
 };
 
 //=======================================================================//

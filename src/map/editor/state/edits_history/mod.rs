@@ -29,7 +29,7 @@ use crate::{
         },
         editor::state::core::UndoRedoInterface,
         hv_vec,
-        path::{MovementValueEdit, NodesMove, StandbyValueEdit},
+        path::{MovementValueEdit, NodesMove, Path, StandbyValueEdit},
         properties::Value,
         thing::{ThingId, ThingInstanceData}
     },
@@ -37,8 +37,7 @@ use crate::{
         hull::Flip,
         identifiers::{EntityId, Id}
     },
-    HvVec,
-    Path
+    HvVec
 };
 
 //=======================================================================//

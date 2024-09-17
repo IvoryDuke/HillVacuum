@@ -32,7 +32,7 @@ pub struct BrushViewer
     pub vertexes:   HvVec<Vec2>,
     /// The texture.
     pub texture:    Option<TextureSettings>,
-    /// The [`Mover`].
+    /// The group of brushes this brush belong to.
     pub group:      Group,
     /// Whether collision against the polygonal shape is enabled.
     pub collision:  bool,
@@ -89,6 +89,7 @@ pub(in crate::map) mod ui_mod
                     VertexesMove,
                     XtrusionInfo
                 },
+                group::{Group, GroupViewer},
                 BrushViewer
             },
             drawer::{
@@ -103,7 +104,7 @@ pub(in crate::map) mod ui_mod
                 grid::Grid,
                 manager::{Animators, Brushes}
             },
-            path::{calc_path_hull, common_edit_path, EditPath, MovementSimulator, Moving},
+            path::{calc_path_hull, common_edit_path, EditPath, MovementSimulator, Moving, Path},
             properties::{Properties, PropertiesRefactor},
             selectable_vector::VectorSelectionResult,
             thing::catalog::ThingsCatalog
@@ -116,10 +117,8 @@ pub(in crate::map) mod ui_mod
             math::lines_and_segments::{line_equation, LineEquation}
         },
         Animation,
-        Group,
         HvVec,
         Id,
-        Path,
         TextureInterface,
         TextureSettings,
         Timing,
@@ -958,7 +957,7 @@ pub(in crate::map) mod ui_mod
                 id,
                 vertexes,
                 texture,
-                group: mover,
+                group,
                 collision,
                 properties
             } = value;
@@ -975,7 +974,7 @@ pub(in crate::map) mod ui_mod
                 id,
                 data: BrushData {
                     polygon,
-                    group: mover,
+                    group: group.into(),
                     properties: Properties::from_parts(properties)
                 }
             }
@@ -1196,7 +1195,7 @@ pub(in crate::map) mod ui_mod
                 id,
                 vertexes,
                 texture,
-                group: Group::from(mover),
+                group: GroupViewer::from(mover),
                 collision,
                 properties
             })
@@ -2858,7 +2857,7 @@ pub(in crate::map) mod ui_mod
                 data:
                     BrushData {
                         polygon,
-                        group: mover,
+                        group,
                         properties
                     },
                 id
@@ -2869,7 +2868,7 @@ pub(in crate::map) mod ui_mod
                 id,
                 vertexes: hv_vec![collect; polygon.vertexes()],
                 texture: polygon.take_texture_settings(),
-                group: mover,
+                group: group.into(),
                 collision,
                 properties: properties.take()
             }

@@ -61,14 +61,14 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
+        path::Path,
         properties::Value,
         thing::{catalog::ThingsCatalog, ThingId, ThingInstanceData}
     },
     utils::{
         containers::HvBox,
         identifiers::{EntityId, Id}
-    },
-    Path
+    }
 };
 
 //=======================================================================//

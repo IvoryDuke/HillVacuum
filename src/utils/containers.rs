@@ -130,13 +130,13 @@ pub(crate) use hv_hash_set;
 #[cfg(feature = "arena_alloc")]
 /// [`Vec`] wrapper.
 #[must_use]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct HvVec<T>(Vec<T, &'static BlinkAlloc>);
 
 #[cfg(not(feature = "arena_alloc"))]
 /// [`SmallVec`] wrapper.
 #[must_use]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct HvVec<T>(SmallVec<[T; 1]>);
 
 impl<T> Default for HvVec<T>
@@ -275,9 +275,6 @@ where
 
 impl<T> HvVec<T>
 {
-    //==============================================================
-    // New
-
     /// Constructs an empty vector.
     #[inline]
     pub(crate) fn new() -> Self
@@ -290,9 +287,6 @@ impl<T> HvVec<T>
 
         Self(vec)
     }
-
-    //==============================================================
-    // Info
 
     /// The number of elements stored in the vector.
     #[inline]
@@ -309,28 +303,6 @@ impl<T> HvVec<T>
     #[must_use]
     pub fn last(&self) -> Option<&T> { self.0.last() }
 
-    //==============================================================
-    // Edit
-
-    /// Append an item to the vector.
-    #[inline]
-    pub(crate) fn push(&mut self, value: T) { self.0.push(value); }
-
-    /// Sorts the slice, but might not preserve the order of equal elements.
-    ///
-    /// This sort is unstable (i.e., may reorder equal elements), in-place
-    /// (i.e., does not allocate), and *O*(*n* \* log(*n*)) worst-case.
-    #[inline]
-    pub(crate) fn sort_unstable(&mut self)
-    where
-        T: Ord
-    {
-        self.0.sort_unstable();
-    }
-
-    //==============================================================
-    // Iterators
-
     /// Returns an iterator over the slice.
     ///
     /// The iterator yields all items from start to end.
@@ -344,12 +316,6 @@ impl<T> HvVec<T>
     /// slice, then the last chunk will not have length `chunk_size`.
     #[inline]
     pub fn chunks(&self, chunk_size: usize) -> Chunks<T> { self.0.chunks(chunk_size) }
-
-    /// Returns an iterator that allows modifying each value.
-    ///
-    /// The iterator yields all items from start to end.
-    #[inline]
-    pub(crate) fn iter_mut(&mut self) -> std::slice::IterMut<T> { self.0.iter_mut() }
 }
 
 //=======================================================================//
@@ -910,6 +876,9 @@ pub(crate) mod ui_mod
         #[inline]
         pub(crate) fn remove(&mut self, index: usize) -> T { self.0.remove(index) }
 
+        #[inline]
+        pub(crate) fn swap(&mut self, a: usize, b: usize) { self.0.swap(a, b); }
+
         /// Remove the element at position `index`, replacing it with the last element.
         ///
         /// This does not preserve ordering, but is O(1).
@@ -931,6 +900,22 @@ pub(crate) mod ui_mod
         /// `shrink_to_fit` after truncating.
         #[inline]
         pub(crate) fn truncate(&mut self, len: usize) { self.0.truncate(len); }
+
+        /// Append an item to the vector.
+        #[inline]
+        pub(crate) fn push(&mut self, value: T) { self.0.push(value); }
+
+        /// Sorts the slice, but might not preserve the order of equal elements.
+        ///
+        /// This sort is unstable (i.e., may reorder equal elements), in-place
+        /// (i.e., does not allocate), and *O*(*n* \* log(*n*)) worst-case.
+        #[inline]
+        pub(crate) fn sort_unstable(&mut self)
+        where
+            T: Ord
+        {
+            self.0.sort_unstable();
+        }
 
         /// Sorts the slice with a comparator function.
         ///
@@ -1001,6 +986,12 @@ pub(crate) mod ui_mod
         {
             self.0.split_at_mut(mid)
         }
+
+        /// Returns an iterator that allows modifying each value.
+        ///
+        /// The iterator yields all items from start to end.
+        #[inline]
+        pub(crate) fn iter_mut(&mut self) -> std::slice::IterMut<T> { self.0.iter_mut() }
     }
 
     //=======================================================================//

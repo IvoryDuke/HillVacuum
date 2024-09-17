@@ -5,13 +5,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::utils::containers::Ids;
 #[allow(unused_imports)]
-use crate::{
-    utils::{identifiers::Id, misc::AssertedInsertRemove},
-    Brush,
-    Path
-};
+use crate::Brush;
+use crate::{utils::identifiers::Id, HvHashSet, HvVec, Node};
 
 //=======================================================================//
 // ENUMS
@@ -19,29 +15,33 @@ use crate::{
 //=======================================================================//
 
 /// Information concerning a set of [`Brush`]es grouped together.
-#[must_use]
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub enum Group
+#[derive(Default, Serialize, Deserialize)]
+pub enum GroupViewer
 {
-    /// None.
+    /// No group.
     #[default]
     None,
     /// Has some attached [`Brush`]es.
-    Attachments(Ids),
-    /// Has a [`Path`] and maybe some attached [`Brush`]es.
+    Attachments(HvHashSet<Id>),
+    /// Has a path and maybe some attached [`Brush`]es.
     Path
     {
-        /// The [`Path`].
-        path:             Path,
-        /// The [`Id`]s of the attached [`Brush`]es.
-        attached_brushes: Ids
+        /// The travel path.
+        path:             HvVec<Node>,
+        /// The attached [`Brush`]es.
+        attached_brushes: HvHashSet<Id>
     },
-    /// Attached to a [`Brush`].
+    /// Is attached to a [`Brush`].
     Attached(Id)
 }
 
+//=======================================================================//
+// UI
+//
+//=======================================================================//
+
 #[cfg(feature = "ui")]
-pub mod ui_mod
+pub(in crate::map) mod ui_mod
 {
     //=======================================================================//
     // IMPORTS
@@ -49,22 +49,44 @@ pub mod ui_mod
     //=======================================================================//
 
     use hill_vacuum_shared::{match_or_panic, return_if_no_match};
+    use serde::{Deserialize, Serialize};
 
+    use super::GroupViewer;
     use crate::{
-        map::brush::compatibility::Mover,
+        map::{brush::compatibility::Mover, path::Path},
         utils::{
             containers::{hv_hash_set, Ids},
             misc::{AssertedInsertRemove, TakeValue}
         },
-        Group,
-        Id,
-        Path
+        Id
     };
 
     //=======================================================================//
-    // TYPES
+    // ENUMS
     //
     //=======================================================================//
+
+    /// Information concerning a set of [`Brush`]es grouped together.
+    #[must_use]
+    #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+    pub enum Group
+    {
+        /// None.
+        #[default]
+        None,
+        /// Has some attached [`Brush`]es.
+        Attachments(Ids),
+        /// Has a [`Path`] and maybe some attached [`Brush`]es.
+        Path
+        {
+            /// The [`Path`].
+            path:             Path,
+            /// The [`Id`]s of the attached [`Brush`]es.
+            attached_brushes: Ids
+        },
+        /// Attached to a [`Brush`].
+        Attached(Id)
+    }
 
     impl From<Mover> for Group
     {
@@ -83,6 +105,30 @@ pub mod ui_mod
                     }
                 },
                 Mover::Anchored(id) => Self::Attached(id)
+            }
+        }
+    }
+
+    impl From<GroupViewer> for Group
+    {
+        #[inline]
+        fn from(value: GroupViewer) -> Self
+        {
+            match value
+            {
+                GroupViewer::None => Self::None,
+                GroupViewer::Attachments(ids) => Self::Attachments(ids.into()),
+                GroupViewer::Path {
+                    path,
+                    attached_brushes
+                } =>
+                {
+                    Self::Path {
+                        path:             path.iter().into(),
+                        attached_brushes: attached_brushes.into()
+                    }
+                },
+                GroupViewer::Attached(id) => Self::Attached(id)
             }
         }
     }
@@ -225,4 +271,54 @@ pub mod ui_mod
             };
         }
     }
+
+    //=======================================================================//
+
+    impl From<Mover> for GroupViewer
+    {
+        #[inline]
+        fn from(value: Mover) -> Self
+        {
+            match value
+            {
+                Mover::None => Self::None,
+                Mover::Anchors(ids) => Self::Attachments(ids.into()),
+                Mover::Motor(motor) =>
+                {
+                    Self::Path {
+                        path:             motor.path.take_nodes().into(),
+                        attached_brushes: motor.anchored_brushes.into()
+                    }
+                },
+                Mover::Anchored(id) => Self::Attached(id)
+            }
+        }
+    }
+
+    impl From<Group> for GroupViewer
+    {
+        #[inline]
+        fn from(value: Group) -> Self
+        {
+            match value
+            {
+                Group::None => Self::None,
+                Group::Attachments(ids) => Self::Attachments(ids.into()),
+                Group::Path {
+                    path,
+                    attached_brushes
+                } =>
+                {
+                    Self::Path {
+                        path:             path.take_nodes(),
+                        attached_brushes: attached_brushes.into()
+                    }
+                },
+                Group::Attached(id) => Self::Attached(id)
+            }
+        }
+    }
 }
+
+#[cfg(feature = "ui")]
+pub(in crate::map) use ui_mod::*;

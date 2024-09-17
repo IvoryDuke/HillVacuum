@@ -68,7 +68,7 @@ use crate::{
             ToolUpdateBundle
         },
         hv_vec,
-        path::{EditPath, MovementSimulator, Moving},
+        path::{EditPath, MovementSimulator, Moving, Path},
         properties::{DefaultProperties, Properties, PropertiesRefactor},
         thing::{catalog::ThingsCatalog, ThingInstance, ThingInstanceData, ThingInterface},
         AssertedInsertRemove,
@@ -85,8 +85,7 @@ use crate::{
         misc::{Blinker, ReplaceValues}
     },
     HvHashSet,
-    HvVec,
-    Path
+    HvVec
 };
 
 //=======================================================================//

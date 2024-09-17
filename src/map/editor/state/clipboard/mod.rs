@@ -54,6 +54,7 @@ use crate::{
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{DrawBundle, StateUpdateBundle, ToolUpdateBundle},
         hv_vec,
+        path::Path,
         thing::{catalog::ThingsCatalog, ThingInstanceData},
         MapHeader,
         OutOfBounds,
@@ -63,8 +64,7 @@ use crate::{
         hull::{EntityHull, Hull},
         identifiers::{EntityId, Id}
     },
-    HvVec,
-    Path
+    HvVec
 };
 
 //=======================================================================//

@@ -13,13 +13,12 @@ use crate::{
     map::{
         drawer::{color::Color, drawers::EditDrawer},
         editor::state::edits_history::EditsHistory,
-        path::{node_tooltip, FreeDrawNodeDeletionResult}
+        path::{node_tooltip, FreeDrawNodeDeletionResult, Path}
     },
     utils::{
         math::{AroundEqual, NecessaryPrecisionValue},
         misc::PointInsideUiHighlight
-    },
-    Path
+    }
 };
 
 //=======================================================================//
