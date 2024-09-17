@@ -130,7 +130,9 @@ pub struct Exporter
     pub grid_angle: i16,
     /// The skew angle of the grid.
     pub grid_skew:  i8,
+    /// The [`Brush`]es inside the map.
     pub brushes:    HvHashMap<Id, crate::Brush>,
+    /// The [`ThingInstance`]s inside the map.
     pub things:     HvHashMap<Id, crate::ThingInstance>
 }
 
@@ -905,14 +907,11 @@ pub(in crate::map) mod ui_mod
         brush_properties: Option<ResMut<BrushProperties>>,
         thing_properties: Option<ResMut<ThingProperties>>,
         state: Res<State<EditorState>>,
-        mut next_state: ResMut<NextState<EditorState>>,
-        time: Res<Time>
+        mut next_state: ResMut<NextState<EditorState>>
     )
     {
         if *state.get() == EditorState::SplashScreen
         {
-            println!("{}", time.elapsed_seconds());
-
             if !config.warning_displayed
             {
                 warning_message("Please, if you find any bugs consider reporting them at\nhttps://github.com/IvoryDuke/HillVacuum");

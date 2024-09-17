@@ -7,7 +7,7 @@
 - Allowed zoom in/out with keyboard even when an UI element is hovered;
 - renamed `Mover` to `Group` to clarify the purpose of the enum;
 - made `Node::world_pos` private;
-- made a number of types private as they are no longer required to be public.
+- replaced `Path` with `HvVec<Node>`.
 
 ### Fixes
 - fixed things tooltip text not being customized according to the setting;
