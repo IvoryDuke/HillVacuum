@@ -124,7 +124,7 @@ pub(in crate::map) mod ui_mod
                 } =>
                 {
                     Self::Path {
-                        path:             path.iter().into(),
+                        path: path.iter().into(),
                         attached_brushes
                     }
                 },
@@ -310,7 +310,7 @@ pub(in crate::map) mod ui_mod
                 } =>
                 {
                     Self::Path {
-                        path:             path.take_nodes(),
+                        path: path.take_nodes(),
                         attached_brushes
                     }
                 },

@@ -36,6 +36,8 @@ use crate::{
     Id,
     TextureInterface
 };
+#[allow(unused_imports)]
+use crate::{Brush, ThingInstance};
 
 //=======================================================================//
 // CONSTANTS
@@ -93,6 +95,31 @@ enum GridSettings
         skew:  i8,
         /// The angle of rotation of the grid.
         angle: i16
+    }
+}
+
+impl GridSettings
+{
+    #[inline]
+    #[must_use]
+    pub const fn skew(self) -> i8
+    {
+        match self
+        {
+            Self::Skew(skew) | Self::Isometric { skew, .. } => skew,
+            _ => 0
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn angle(self) -> i16
+    {
+        match self
+        {
+            Self::Rotate(angle) | Self::Isometric { angle, .. } => angle,
+            _ => 0
+        }
     }
 }
 
@@ -469,28 +496,6 @@ pub(in crate::map) mod ui_mod
 
     impl GridSettings
     {
-        #[inline]
-        #[must_use]
-        pub const fn skew(self) -> i8
-        {
-            match self
-            {
-                Self::Skew(skew) | Self::Isometric { skew, .. } => skew,
-                _ => 0
-            }
-        }
-
-        #[inline]
-        #[must_use]
-        pub const fn angle(self) -> i16
-        {
-            match self
-            {
-                Self::Rotate(angle) | Self::Isometric { angle, .. } => angle,
-                _ => 0
-            }
-        }
-
         #[inline]
         pub fn set_skew(&mut self, value: i8)
         {

@@ -100,7 +100,7 @@ pub(in crate::map) struct TextureLoader
     cycles:              usize,
     /// The frames required to read the files.
     file_reading_cycles: usize,
-    total_cycles: f32,
+    total_cycles:        f32,
     first_load:          bool
 }
 
@@ -119,7 +119,7 @@ impl Default for TextureLoader
             active_workers:      0,
             cycles:              0,
             file_reading_cycles: 0,
-            total_cycles: 0f32,
+            total_cycles:        0f32,
             first_load:          true
         }
     }

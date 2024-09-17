@@ -5,7 +5,7 @@
 
 use std::{
     hash::Hash,
-    ops::{Index, Range, RangeFrom, RangeInclusive},
+    ops::{Index, IndexMut, Range, RangeFrom, RangeInclusive},
     slice::Chunks
 };
 
@@ -17,7 +17,6 @@ use serde::{Deserialize, Deserializer, Serialize};
 use smallvec::SmallVec;
 
 use super::misc::AssertedInsertRemove;
-use crate::utils::identifiers::Id;
 
 //=======================================================================//
 // STATICS
@@ -173,6 +172,12 @@ impl<'a, T> IntoIterator for &'a HvVec<T>
     fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
 
+impl<T> Extend<T> for HvVec<T>
+{
+    #[inline]
+    fn extend<A: IntoIterator<Item = T>>(&mut self, iter: A) { self.0.extend(iter); }
+}
+
 impl<T> Index<usize> for HvVec<T>
 {
     type Output = T;
@@ -203,6 +208,12 @@ impl<T> Index<RangeInclusive<usize>> for HvVec<T>
 
     #[inline]
     fn index(&self, index: RangeInclusive<usize>) -> &Self::Output { &self.0[index] }
+}
+
+impl<T> IndexMut<usize> for HvVec<T>
+{
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output { &mut self.0[index] }
 }
 
 impl<T: Serialize> Serialize for HvVec<T>
@@ -280,6 +291,10 @@ impl<T> HvVec<T>
     /// slice, then the last chunk will not have length `chunk_size`.
     #[inline]
     pub fn chunks(&self, chunk_size: usize) -> Chunks<T> { self.0.chunks(chunk_size) }
+
+    /// Append an item to the vector.
+    #[inline]
+    pub(crate) fn push(&mut self, value: T) { self.0.push(value); }
 }
 
 //=======================================================================//
@@ -319,6 +334,12 @@ impl<'a, K, V> IntoIterator for &'a HvHashMap<K, V>
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter { self.iter() }
+}
+
+impl<K: std::hash::Hash + std::cmp::Eq, V> Extend<(K, V)> for HvHashMap<K, V>
+{
+    #[inline]
+    fn extend<A: IntoIterator<Item = (K, V)>>(&mut self, iter: A) { self.0.extend(iter); }
 }
 
 impl<K: std::hash::Hash + std::cmp::Eq + Serialize, V: Serialize> Serialize for HvHashMap<K, V>
@@ -458,19 +479,6 @@ impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
     /// the key type.
     #[inline]
     pub fn get<Q: ?Sized + Hash + Equivalent<K>>(&self, k: &Q) -> Option<&V> { self.0.get(k) }
-
-    /// Returns a mutable reference to the value corresponding to the key.
-    ///
-    /// The key may be any borrowed form of the map's key type, but
-    /// [`Hash`] and [`Eq`] on the borrowed form *must* match those for
-    /// the key type.
-    #[inline]
-    pub(crate) fn get_mut<Q>(&mut self, k: &Q) -> Option<&mut V>
-    where
-        Q: ?Sized + Hash + Equivalent<K>
-    {
-        self.0.get_mut(k)
-    }
 }
 
 //=======================================================================//
@@ -509,6 +517,12 @@ impl<'a, T> IntoIterator for &'a HvHashSet<T>
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter { self.iter() }
+}
+
+impl<T: Eq + Hash> Extend<T> for HvHashSet<T>
+{
+    #[inline]
+    fn extend<A: IntoIterator<Item = T>>(&mut self, iter: A) { self.0.extend(iter); }
 }
 
 impl<T: Serialize> Serialize for HvHashSet<T>
@@ -599,11 +613,6 @@ impl<T> HvHashSet<T>
 }
 
 //=======================================================================//
-
-/// Alias for a [`HvHashSet`] of [`Id`]s.
-pub type Ids = HvHashSet<Id>;
-
-//=======================================================================//
 // FUNCTIONS
 //
 //=======================================================================//
@@ -627,7 +636,10 @@ pub(crate) mod ui_mod
     //
     //=======================================================================//
 
-    use std::{hash::Hash, ops::{IndexMut, Range, RangeInclusive}};
+    use std::{
+        hash::Hash,
+        ops::{IndexMut, Range, RangeInclusive}
+    };
 
     #[cfg(feature = "arena_alloc")]
     use blink_alloc::BlinkAlloc;
@@ -651,7 +663,8 @@ pub(crate) mod ui_mod
         },
         HvHashMap,
         HvHashSet,
-        HvVec
+        HvVec,
+        Id
     };
 
     //=======================================================================//
@@ -700,12 +713,6 @@ pub(crate) mod ui_mod
         fn into_iter(self) -> Self::IntoIter { self.iter_mut() }
     }
 
-    impl<T> IndexMut<usize> for HvVec<T>
-    {
-        #[inline]
-        fn index_mut(&mut self, index: usize) -> &mut Self::Output { &mut self.0[index] }
-    }
-
     impl<T> IndexMut<Range<usize>> for HvVec<T>
     {
         #[inline]
@@ -719,12 +726,6 @@ pub(crate) mod ui_mod
         {
             &mut self.0[range]
         }
-    }
-
-    impl<T> Extend<T> for HvVec<T>
-    {
-        #[inline]
-        fn extend<A: IntoIterator<Item = T>>(&mut self, iter: A) { self.0.extend(iter); }
     }
 
     impl<T> NoneIfEmpty for HvVec<T>
@@ -842,10 +843,6 @@ pub(crate) mod ui_mod
         #[inline]
         pub(crate) fn truncate(&mut self, len: usize) { self.0.truncate(len); }
 
-        /// Append an item to the vector.
-        #[inline]
-        pub(crate) fn push(&mut self, value: T) { self.0.push(value); }
-
         /// Sorts the slice, but might not preserve the order of equal elements.
         ///
         /// This sort is unstable (i.e., may reorder equal elements), in-place
@@ -946,12 +943,6 @@ pub(crate) mod ui_mod
         fn into_iter(self) -> Self::IntoIter { self.iter_mut() }
     }
 
-    impl<K: std::hash::Hash + std::cmp::Eq, V> Extend<(K, V)> for HvHashMap<K, V>
-    {
-        #[inline]
-        fn extend<A: IntoIterator<Item = (K, V)>>(&mut self, iter: A) { self.0.extend(iter); }
-    }
-
     impl<'a, K: std::hash::Hash + std::cmp::Eq + Copy, V: Copy> ReplaceValues<(&'a K, &'a V)>
         for HvHashMap<K, V>
     {
@@ -1013,6 +1004,19 @@ pub(crate) mod ui_mod
 
     impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
     {
+        /// Returns a mutable reference to the value corresponding to the key.
+        ///
+        /// The key may be any borrowed form of the map's key type, but
+        /// [`Hash`] and [`Eq`] on the borrowed form *must* match those for
+        /// the key type.
+        #[inline]
+        pub(crate) fn get_mut<Q>(&mut self, k: &Q) -> Option<&mut V>
+        where
+            Q: ?Sized + Hash + Equivalent<K>
+        {
+            self.0.get_mut(k)
+        }
+
         /// Attempts to get mutable references to `N` values in the map at once.
         ///
         /// Returns an array of length `N` with the results of each query. For soundness, at most
@@ -1040,12 +1044,6 @@ pub(crate) mod ui_mod
     }
 
     //=======================================================================//
-
-    impl<T: Eq + Hash> Extend<T> for HvHashSet<T>
-    {
-        #[inline]
-        fn extend<A: IntoIterator<Item = T>>(&mut self, iter: A) { self.0.extend(iter); }
-    }
 
     impl<'a, T: 'a + Eq + Hash + Copy> Extend<&'a T> for HvHashSet<T>
     {
@@ -1165,6 +1163,11 @@ pub(crate) mod ui_mod
             self.0.retain(f);
         }
     }
+
+    //=======================================================================//
+
+    /// Alias for a [`HvHashSet`] of [`Id`]s.
+    pub type Ids = HvHashSet<Id>;
 }
 
 #[cfg(feature = "ui")]
