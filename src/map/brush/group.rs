@@ -117,7 +117,7 @@ pub(in crate::map) mod ui_mod
             match value
             {
                 GroupViewer::None => Self::None,
-                GroupViewer::Attachments(ids) => Self::Attachments(ids.into()),
+                GroupViewer::Attachments(ids) => Self::Attachments(ids),
                 GroupViewer::Path {
                     path,
                     attached_brushes
@@ -125,7 +125,7 @@ pub(in crate::map) mod ui_mod
                 {
                     Self::Path {
                         path:             path.iter().into(),
-                        attached_brushes: attached_brushes.into()
+                        attached_brushes
                     }
                 },
                 GroupViewer::Attached(id) => Self::Attached(id)
@@ -282,12 +282,12 @@ pub(in crate::map) mod ui_mod
             match value
             {
                 Mover::None => Self::None,
-                Mover::Anchors(ids) => Self::Attachments(ids.into()),
+                Mover::Anchors(ids) => Self::Attachments(ids),
                 Mover::Motor(motor) =>
                 {
                     Self::Path {
-                        path:             motor.path.take_nodes().into(),
-                        attached_brushes: motor.anchored_brushes.into()
+                        path:             motor.path.take_nodes(),
+                        attached_brushes: motor.anchored_brushes
                     }
                 },
                 Mover::Anchored(id) => Self::Attached(id)
@@ -303,7 +303,7 @@ pub(in crate::map) mod ui_mod
             match value
             {
                 Group::None => Self::None,
-                Group::Attachments(ids) => Self::Attachments(ids.into()),
+                Group::Attachments(ids) => Self::Attachments(ids),
                 Group::Path {
                     path,
                     attached_brushes
@@ -311,7 +311,7 @@ pub(in crate::map) mod ui_mod
                 {
                     Self::Path {
                         path:             path.take_nodes(),
-                        attached_brushes: attached_brushes.into()
+                        attached_brushes
                     }
                 },
                 Group::Attached(id) => Self::Attached(id)

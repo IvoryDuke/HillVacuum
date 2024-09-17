@@ -5,7 +5,7 @@
 
 use std::{
     hash::Hash,
-    ops::{Index, IndexMut, Range, RangeFrom, RangeInclusive},
+    ops::{Index, Range, RangeFrom, RangeInclusive},
     slice::Chunks
 };
 
@@ -173,27 +173,12 @@ impl<'a, T> IntoIterator for &'a HvVec<T>
     fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
 
-impl<'a, T> IntoIterator for &'a mut HvVec<T>
-{
-    type IntoIter = std::slice::IterMut<'a, T>;
-    type Item = &'a mut T;
-
-    #[inline]
-    fn into_iter(self) -> Self::IntoIter { self.iter_mut() }
-}
-
 impl<T> Index<usize> for HvVec<T>
 {
     type Output = T;
 
     #[inline]
     fn index(&self, index: usize) -> &Self::Output { &self.0[index] }
-}
-
-impl<T> IndexMut<usize> for HvVec<T>
-{
-    #[inline]
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output { &mut self.0[index] }
 }
 
 impl<T> Index<Range<usize>> for HvVec<T>
@@ -212,33 +197,12 @@ impl<T> Index<RangeFrom<usize>> for HvVec<T>
     fn index(&self, index: RangeFrom<usize>) -> &Self::Output { &self.0[index] }
 }
 
-impl<T> IndexMut<Range<usize>> for HvVec<T>
-{
-    #[inline]
-    fn index_mut(&mut self, range: Range<usize>) -> &mut Self::Output { &mut self.0[range] }
-}
-
 impl<T> Index<RangeInclusive<usize>> for HvVec<T>
 {
     type Output = [T];
 
     #[inline]
     fn index(&self, index: RangeInclusive<usize>) -> &Self::Output { &self.0[index] }
-}
-
-impl<T> IndexMut<RangeInclusive<usize>> for HvVec<T>
-{
-    #[inline]
-    fn index_mut(&mut self, range: RangeInclusive<usize>) -> &mut Self::Output
-    {
-        &mut self.0[range]
-    }
-}
-
-impl<T> Extend<T> for HvVec<T>
-{
-    #[inline]
-    fn extend<A: IntoIterator<Item = T>>(&mut self, iter: A) { self.0.extend(iter); }
 }
 
 impl<T: Serialize> Serialize for HvVec<T>
@@ -357,21 +321,6 @@ impl<'a, K, V> IntoIterator for &'a HvHashMap<K, V>
     fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
 
-impl<'a, K, V> IntoIterator for &'a mut HvHashMap<K, V>
-{
-    type IntoIter = hashbrown::hash_map::IterMut<'a, K, V>;
-    type Item = (&'a K, &'a mut V);
-
-    #[inline]
-    fn into_iter(self) -> Self::IntoIter { self.iter_mut() }
-}
-
-impl<K: std::hash::Hash + std::cmp::Eq, V> Extend<(K, V)> for HvHashMap<K, V>
-{
-    #[inline]
-    fn extend<A: IntoIterator<Item = (K, V)>>(&mut self, iter: A) { self.0.extend(iter); }
-}
-
 impl<K: std::hash::Hash + std::cmp::Eq + Serialize, V: Serialize> Serialize for HvHashMap<K, V>
 {
     #[inline]
@@ -448,15 +397,6 @@ impl<K, V> HvHashMap<K, V>
     #[must_use]
     pub fn iter(&self) -> hashbrown::hash_map::Iter<'_, K, V> { self.0.iter() }
 
-    /// An iterator visiting all key-value pairs in arbitrary order,
-    /// with mutable references to the values.
-    /// The iterator element type is `(&'a K, &'a mut V)`.
-    #[inline]
-    pub(crate) fn iter_mut(&mut self) -> hashbrown::hash_map::IterMut<'_, K, V>
-    {
-        self.0.iter_mut()
-    }
-
     /// An iterator visiting all keys in arbitrary order.
     /// The iterator element type is `&'a K`.
     #[inline]
@@ -468,14 +408,6 @@ impl<K, V> HvHashMap<K, V>
     #[inline]
     #[must_use]
     pub fn values(&self) -> hashbrown::hash_map::Values<'_, K, V> { self.0.values() }
-
-    /// An iterator visiting all values mutably in arbitrary order.
-    /// The iterator element type is `&'a mut V`.
-    #[inline]
-    pub(crate) fn values_mut(&mut self) -> hashbrown::hash_map::ValuesMut<'_, K, V>
-    {
-        self.0.values_mut()
-    }
 }
 
 impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
@@ -558,18 +490,6 @@ impl<T: Hash + Eq> Default for HvHashSet<T>
     fn default() -> Self { Self::new() }
 }
 
-impl<T: Eq + Hash> Extend<T> for HvHashSet<T>
-{
-    #[inline]
-    fn extend<A: IntoIterator<Item = T>>(&mut self, iter: A) { self.0.extend(iter); }
-}
-
-impl<'a, T: 'a + Eq + Hash + Copy> Extend<&'a T> for HvHashSet<T>
-{
-    #[inline]
-    fn extend<A: IntoIterator<Item = &'a T>>(&mut self, iter: A) { self.0.extend(iter); }
-}
-
 impl<T> IntoIterator for HvHashSet<T>
 {
     #[cfg(feature = "arena_alloc")]
@@ -610,21 +530,6 @@ impl<'de, T: Deserialize<'de> + Eq + Hash> Deserialize<'de> for HvHashSet<T>
         D: Deserializer<'de>
     {
         Vec::<T>::deserialize(deserializer).map(|vec| hv_hash_set![collect; vec])
-    }
-}
-
-impl<T: Hash + Eq> AssertedInsertRemove<T, T, (), ()> for HvHashSet<T>
-{
-    #[inline]
-    fn asserted_insert(&mut self, value: T)
-    {
-        assert!(self.0.insert(value), "Value is already present.");
-    }
-
-    #[inline]
-    fn asserted_remove(&mut self, value: &T)
-    {
-        assert!(self.0.remove(value), "Value is not present.");
     }
 }
 
@@ -722,7 +627,7 @@ pub(crate) mod ui_mod
     //
     //=======================================================================//
 
-    use std::hash::Hash;
+    use std::{hash::Hash, ops::{IndexMut, Range, RangeInclusive}};
 
     #[cfg(feature = "arena_alloc")]
     use blink_alloc::BlinkAlloc;
@@ -742,7 +647,7 @@ pub(crate) mod ui_mod
                 SliceTripletIter,
                 TripletIterator
             },
-            misc::{NoneIfEmpty, ReplaceValues, TakeValue}
+            misc::{AssertedInsertRemove, NoneIfEmpty, ReplaceValues, TakeValue}
         },
         HvHashMap,
         HvHashSet,
@@ -785,6 +690,42 @@ pub(crate) mod ui_mod
     pub(crate) type HvBox<T> = Box<T>;
 
     //=======================================================================//
+
+    impl<'a, T> IntoIterator for &'a mut HvVec<T>
+    {
+        type IntoIter = std::slice::IterMut<'a, T>;
+        type Item = &'a mut T;
+
+        #[inline]
+        fn into_iter(self) -> Self::IntoIter { self.iter_mut() }
+    }
+
+    impl<T> IndexMut<usize> for HvVec<T>
+    {
+        #[inline]
+        fn index_mut(&mut self, index: usize) -> &mut Self::Output { &mut self.0[index] }
+    }
+
+    impl<T> IndexMut<Range<usize>> for HvVec<T>
+    {
+        #[inline]
+        fn index_mut(&mut self, range: Range<usize>) -> &mut Self::Output { &mut self.0[range] }
+    }
+
+    impl<T> IndexMut<RangeInclusive<usize>> for HvVec<T>
+    {
+        #[inline]
+        fn index_mut(&mut self, range: RangeInclusive<usize>) -> &mut Self::Output
+        {
+            &mut self.0[range]
+        }
+    }
+
+    impl<T> Extend<T> for HvVec<T>
+    {
+        #[inline]
+        fn extend<A: IntoIterator<Item = T>>(&mut self, iter: A) { self.0.extend(iter); }
+    }
 
     impl<T> NoneIfEmpty for HvVec<T>
     {
@@ -996,6 +937,21 @@ pub(crate) mod ui_mod
 
     //=======================================================================//
 
+    impl<'a, K, V> IntoIterator for &'a mut HvHashMap<K, V>
+    {
+        type IntoIter = hashbrown::hash_map::IterMut<'a, K, V>;
+        type Item = (&'a K, &'a mut V);
+
+        #[inline]
+        fn into_iter(self) -> Self::IntoIter { self.iter_mut() }
+    }
+
+    impl<K: std::hash::Hash + std::cmp::Eq, V> Extend<(K, V)> for HvHashMap<K, V>
+    {
+        #[inline]
+        fn extend<A: IntoIterator<Item = (K, V)>>(&mut self, iter: A) { self.0.extend(iter); }
+    }
+
     impl<'a, K: std::hash::Hash + std::cmp::Eq + Copy, V: Copy> ReplaceValues<(&'a K, &'a V)>
         for HvHashMap<K, V>
     {
@@ -1036,6 +992,23 @@ pub(crate) mod ui_mod
         /// for reuse.
         #[inline]
         pub(crate) fn clear(&mut self) { self.0.clear() }
+
+        /// An iterator visiting all key-value pairs in arbitrary order,
+        /// with mutable references to the values.
+        /// The iterator element type is `(&'a K, &'a mut V)`.
+        #[inline]
+        pub(crate) fn iter_mut(&mut self) -> hashbrown::hash_map::IterMut<'_, K, V>
+        {
+            self.0.iter_mut()
+        }
+
+        /// An iterator visiting all values mutably in arbitrary order.
+        /// The iterator element type is `&'a mut V`.
+        #[inline]
+        pub(crate) fn values_mut(&mut self) -> hashbrown::hash_map::ValuesMut<'_, K, V>
+        {
+            self.0.values_mut()
+        }
     }
 
     impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
@@ -1067,6 +1040,33 @@ pub(crate) mod ui_mod
     }
 
     //=======================================================================//
+
+    impl<T: Eq + Hash> Extend<T> for HvHashSet<T>
+    {
+        #[inline]
+        fn extend<A: IntoIterator<Item = T>>(&mut self, iter: A) { self.0.extend(iter); }
+    }
+
+    impl<'a, T: 'a + Eq + Hash + Copy> Extend<&'a T> for HvHashSet<T>
+    {
+        #[inline]
+        fn extend<A: IntoIterator<Item = &'a T>>(&mut self, iter: A) { self.0.extend(iter); }
+    }
+
+    impl<T: Hash + Eq> AssertedInsertRemove<T, T, (), ()> for HvHashSet<T>
+    {
+        #[inline]
+        fn asserted_insert(&mut self, value: T)
+        {
+            assert!(self.0.insert(value), "Value is already present.");
+        }
+
+        #[inline]
+        fn asserted_remove(&mut self, value: &T)
+        {
+            assert!(self.0.remove(value), "Value is not present.");
+        }
+    }
 
     impl<T: Eq + Hash> ReplaceValues<T> for HvHashSet<T>
     {

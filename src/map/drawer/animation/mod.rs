@@ -130,7 +130,6 @@ impl List
 
     /// Returns a reference to the frames of the animation.
     #[inline]
-    #[must_use]
     pub const fn frames(&self) -> &HvVec<(String, f32)> { &self.0 }
 }
 

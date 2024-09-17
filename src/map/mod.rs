@@ -650,7 +650,7 @@ pub(in crate::map) mod ui_mod
             .init_state::<TextureLoadingProgress>()
             .insert_resource(ClearColor(Color::Clear.default_bevy_color()))
             .insert_resource(WinitSettings::default())
-            .init_resource::<TextureLoader>()
+            .init_non_send_resource::<TextureLoader>()
             // Setup
             .add_systems(PostStartup, initialize)
             // Texture loading
@@ -900,16 +900,19 @@ pub(in crate::map) mod ui_mod
         mut user_textures: ResMut<EguiUserTextures>,
         mut editor: NonSendMut<Editor>,
         mut config: ResMut<Config>,
-        mut texture_loader: ResMut<TextureLoader>,
+        mut texture_loader: NonSendMut<TextureLoader>,
         hardcoded_things: Option<Res<HardcodedThings>>,
         brush_properties: Option<ResMut<BrushProperties>>,
         thing_properties: Option<ResMut<ThingProperties>>,
         state: Res<State<EditorState>>,
-        mut next_state: ResMut<NextState<EditorState>>
+        mut next_state: ResMut<NextState<EditorState>>,
+        time: Res<Time>
     )
     {
         if *state.get() == EditorState::SplashScreen
         {
+            println!("{}", time.elapsed_seconds());
+
             if !config.warning_displayed
             {
                 warning_message("Please, if you find any bugs consider reporting them at\nhttps://github.com/IvoryDuke/HillVacuum");
@@ -1094,7 +1097,7 @@ pub(in crate::map) mod ui_mod
     fn load_textures(
         mut images: ResMut<Assets<Image>>,
         mut user_textures: ResMut<EguiUserTextures>,
-        mut texture_loader: ResMut<TextureLoader>,
+        mut texture_loader: NonSendMut<TextureLoader>,
         mut load_state: ResMut<NextState<TextureLoadingProgress>>
     )
     {
@@ -1109,7 +1112,7 @@ pub(in crate::map) mod ui_mod
     fn texture_loading_ui(
         window: Query<&Window, With<PrimaryWindow>>,
         mut egui_context: EguiContexts,
-        texture_loader: Res<TextureLoader>
+        texture_loader: NonSend<TextureLoader>
     )
     {
         texture_loader.ui(window.single(), egui_context.ctx_mut());

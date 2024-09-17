@@ -402,7 +402,7 @@ pub mod ui_mod
             );
             thing.data.angle = angle as i16;
             thing.data.draw_height = draw_height as i8;
-            thing.data.path = path.map(|nodes| nodes.into());
+            thing.data.path = path.map(Into::into);
 
             thing
         }
@@ -864,7 +864,7 @@ pub mod ui_mod
                 pos,
                 angle,
                 draw_height,
-                path: path.map(|path| path.take_nodes()),
+                path: path.map(Path::take_nodes),
                 properties: properties.take()
             }
         }

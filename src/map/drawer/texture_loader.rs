@@ -11,7 +11,6 @@ use std::{
 use arrayvec::ArrayVec;
 use bevy::{
     asset::Assets,
-    ecs::system::Resource,
     render::{
         render_asset::RenderAssetUsages,
         texture::{CompressedImageFormats, Image, ImageSampler, ImageType}
@@ -85,7 +84,6 @@ type PartialImages = Arc<Mutex<Vec<(String, Image)>>>;
 
 /// The texture loader.
 #[must_use]
-#[derive(Resource)]
 pub(in crate::map) struct TextureLoader
 {
     /// The [`PathBuf`] vector.
@@ -102,8 +100,7 @@ pub(in crate::map) struct TextureLoader
     cycles:              usize,
     /// The frames required to read the files.
     file_reading_cycles: usize,
-    /// The frames required to load the textures.
-    total_cycles:        f32,
+    total_cycles: f32,
     first_load:          bool
 }
 
@@ -122,7 +119,7 @@ impl Default for TextureLoader
             active_workers:      0,
             cycles:              0,
             file_reading_cycles: 0,
-            total_cycles:        0f32,
+            total_cycles: 0f32,
             first_load:          true
         }
     }
