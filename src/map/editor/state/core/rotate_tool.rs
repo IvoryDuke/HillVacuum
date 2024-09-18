@@ -388,7 +388,7 @@ impl RotateTool
 
                 let angle = angle.to_degrees().rem_euclid(360f32);
 
-                if angle != 0f32 && angle.around_equal_narrow(&360f32)
+                if angle != 0f32 && !angle.around_equal_narrow(&360f32)
                 {
                     if settings.entity_editing()
                     {
