@@ -2502,7 +2502,7 @@ impl EntitiesManager
 
     /// Returns an iterator to all the selected brushes with sprites.
     #[inline]
-    pub fn selected_brushes_with_sprites(&mut self) -> impl Iterator<Item = &Brush>
+    pub fn selected_brushes_with_sprites(&mut self) -> Option<impl Iterator<Item = &Brush>>
     {
         /// The iterator to the brushes.
         struct Iter<'a>
@@ -2533,10 +2533,15 @@ impl EntitiesManager
             }
         }
 
+        if self.innards.selected_sprites.len() == 0
+        {
+            return None;
+        }
+
         let mut iter = self.innards.selected_sprites.values();
         let sub_iter = iter.next_value().iter();
 
-        Iter { iter, sub_iter }.map(|id| self.brush(*id))
+        Iter { iter, sub_iter }.map(|id| self.brush(*id)).into()
     }
 
     /// Returns an iterator to the [`BrushMut`]s wrapping the selected brushes with sprites.

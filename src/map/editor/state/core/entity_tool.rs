@@ -890,7 +890,7 @@ impl EntityTool
     ) -> bool
     {
         let valid = manager.test_operation_validity(|manager| {
-            manager.selected_brushes_with_sprites().find_map(|brush| {
+            return_if_none!(manager.selected_brushes_with_sprites(), None).find_map(|brush| {
                 (!brush.check_texture_move(bundle.drawing_resources, delta)).then_some(brush.id())
             })
         });
