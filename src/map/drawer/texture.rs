@@ -1125,7 +1125,7 @@ pub(in crate::map) mod ui_mod
             center: Vec2
         ) -> bool
         {
-            let value = value.rem_euclid(360f32);
+            assert!(value >= 0f32 && value < 360f32);
 
             if !self.sprite.enabled() || value.around_equal_narrow(&self.angle)
             {
@@ -1151,7 +1151,8 @@ pub(in crate::map) mod ui_mod
             new_center: Vec2
         ) -> Option<TextureRotation>
         {
-            let end_angle = (self.angle() - angle.to_degrees().floor()).rem_euclid(360f32);
+            assert!(angle >= 0f32 && angle < 360f32);
+            let end_angle = (self.angle() - angle).rem_euclid(360f32);
 
             let sprite_hull = return_if_none!(
                 self.sprite_hull(drawing_resources, old_center),
@@ -1192,7 +1193,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map) fn set_angle(&mut self, value: f32) -> Option<f32>
         {
-            let value = value.rem_euclid(360f32);
+            assert!(value >= 0f32 && value < 360f32);
 
             if value.around_equal_narrow(&self.angle)
             {

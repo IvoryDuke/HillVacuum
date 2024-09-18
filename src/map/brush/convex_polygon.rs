@@ -1568,7 +1568,6 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn set_texture_angle(&mut self, value: f32) -> Option<f32>
         {
             let result = self.texture_settings_mut().set_angle(value);
-
             self.set_texture_updated(result)
         }
 
@@ -3964,12 +3963,15 @@ pub(in crate::map) mod ui_mod
             rotate_texture: bool
         ) -> RotateResult
         {
+            assert!(angle >= 0f32 && angle < 360f32);
+
+            let angle_rad = angle.to_radians();
             let mut new_center = Vec2::ZERO;
             let mut vxs = hv_vec![capacity; self.sides()];
 
             for vx in self.vertexes()
             {
-                let vx = rotate_point(vx, pivot, angle);
+                let vx = rotate_point(vx, pivot, angle_rad);
 
                 if vx.out_of_bounds()
                 {

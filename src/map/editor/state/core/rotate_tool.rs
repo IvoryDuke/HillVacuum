@@ -386,7 +386,7 @@ impl RotateTool
                     return;
                 }
 
-                let angle = angle.to_degrees().rem_euclid(360f32);
+                let angle = angle.rem_euclid(360f32);
 
                 if angle != 0f32 && !angle.around_equal_narrow(&360f32)
                 {
@@ -423,8 +423,7 @@ impl RotateTool
         {
             RotateAngle::Free => 1f32 * direction,
             RotateAngle::Fixed(n) => f32::from(n) * direction
-        }
-        .to_radians();
+        }.rem_euclid(360f32);
 
         let mut backup_polygons = hv_vec![];
 
@@ -449,7 +448,7 @@ impl RotateTool
                 {
                     edits_history.texture_angle_delta(
                         manager.selected_textured_brushes().map(EntityId::id),
-                        angle.to_degrees()
+                        angle
                     );
                 }
             }
@@ -522,15 +521,16 @@ impl RotateTool
             angle.toggle();
         }
 
-        *cumulative_angle += angle;
+        let deg_angle = angle.to_degrees().rem_euclid(360f32);
+        *cumulative_angle += deg_angle;
 
         // Rotate.
         if edit_target!(
             settings.target_switch(),
             |rotate_texture| {
-                Self::rotate_brushes(bundle, manager, pivot, angle, rotate_texture, backup_polygons)
+                Self::rotate_brushes(bundle, manager, pivot, deg_angle, rotate_texture, backup_polygons)
             },
-            Self::rotate_textures(bundle, manager, angle)
+            Self::rotate_textures(bundle, manager, deg_angle)
         )
         {
             // Update last position value.
@@ -593,15 +593,13 @@ impl RotateTool
     fn rotate_textures(bundle: &ToolUpdateBundle, manager: &mut EntitiesManager, angle: f32)
         -> bool
     {
-        let angle = angle.to_degrees();
-
         let valid = manager.test_operation_validity(|manager| {
             manager
                 .selected_brushes_with_sprite_mut(bundle.drawing_resources)
                 .find_map(|mut brush| {
                     let prev_angle = brush.texture_settings().unwrap().angle();
 
-                    (!brush.check_texture_angle(bundle.drawing_resources, prev_angle - angle))
+                    (!brush.check_texture_angle(bundle.drawing_resources, (prev_angle - angle).rem_euclid(360f32)))
                         .then_some(brush.id())
                 })
         });
@@ -614,7 +612,7 @@ impl RotateTool
         for mut brush in manager.selected_textured_brushes_mut(bundle.drawing_resources)
         {
             let prev_angle = brush.texture_settings().unwrap().angle();
-            _ = brush.set_texture_angle(prev_angle - angle);
+            _ = brush.set_texture_angle((prev_angle - angle).rem_euclid(360f32));
         }
 
         true

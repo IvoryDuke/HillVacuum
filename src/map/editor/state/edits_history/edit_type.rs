@@ -1092,7 +1092,7 @@ impl EditType
                 for id in identifiers
                 {
                     let mut brush = interface.brush_mut(drawing_resources, *id);
-                    let angle = brush.texture_settings().unwrap().angle() + *delta;
+                    let angle = (brush.texture_settings().unwrap().angle() + *delta).rem_euclid(360f32);
                     _ = brush.set_texture_angle(angle).unwrap();
                 }
             },
@@ -1435,7 +1435,7 @@ impl EditType
                 for id in identifiers
                 {
                     let mut brush = interface.brush_mut(drawing_resources, *id);
-                    let angle = brush.texture_settings().unwrap().angle() - *delta;
+                    let angle = (brush.texture_settings().unwrap().angle() - *delta).rem_euclid(360f32);
                     _ = brush.set_texture_angle(angle).unwrap();
                 }
             },
