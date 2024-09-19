@@ -48,6 +48,25 @@ use crate::{Brush, ThingInstance};
 const FILE_VERSION_NUMBER: &str = "0.7";
 
 //=======================================================================//
+// TRAITS
+//
+//=======================================================================//
+
+trait AssertNormalizedDegreesAngle
+{
+    fn assert_normalized_degrees_angle(self);
+}
+
+impl AssertNormalizedDegreesAngle for f32
+{
+    #[inline]
+    fn assert_normalized_degrees_angle(self)
+    {
+        assert!((0f32..360f32).contains(&self), "Invalid degrees angle.");
+    }
+}
+
+//=======================================================================//
 // ENUMS
 //
 //=======================================================================//

@@ -16,7 +16,7 @@ use crate::{
         drawer::{
             animation::{Animation, MoveUpDown, Timing},
             drawing_resources::{DrawingResources, TextureMut},
-            texture::{Sprite, TextureInterface, TextureSettings}
+            texture::{Sprite, TextureInterface, TextureRotation, TextureSettings}
         },
         editor::state::{core::UndoRedoInterface, ui::Ui},
         path::{MovementValueEdit, NodesMove, Path, StandbyValueEdit},
@@ -213,8 +213,8 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     TextureMove(Vec2),
     /// Texture angle change.
     TextureAngle(f32),
-    /// Texture angle changed by specified delta.
-    TextureAngleDelta(f32),
+    /// Texture rotated.
+    TextureRotation(TextureRotation),
     /// Texture draw height change.
     TextureHeight(i8),
     /// Texture animation change.
@@ -337,7 +337,7 @@ impl EditType
             Self::TextureParallaxY(..) => "Textures Parallax Y",
             Self::TextureMove(..) => "Textures Move",
             Self::TextureAngle(..) => "Textures Angle",
-            Self::TextureAngleDelta(..) => "Textures Rotation",
+            Self::TextureRotation(..) => "Textures Rotation",
             Self::TextureHeight(..) => "Textures Height",
             Self::AnimationChange(..) => "Animations Change",
             Self::ListAnimationFrameMoveUp(..) => "List Animation Frame Move Up",
@@ -413,7 +413,7 @@ impl EditType
                 Self::TextureParallaxY(_) |
                 Self::TextureMove(_) |
                 Self::TextureAngle(_) |
-                Self::TextureAngleDelta(_) |
+                Self::TextureRotation(_) |
                 Self::TextureHeight(_) |
                 Self::AnimationChange(_) |
                 Self::ListAnimationFrameMoveUp(..) |
@@ -629,6 +629,10 @@ impl EditType
                             set(&mut brush, value);
                         }
                     },
+                    Self::TextureRotation(rotation) =>
+                    {
+                        brush.rotate_texture(rotation);
+                    }
                     Self::AnimationChange(value) =>
                     {
                         *value = brush.set_texture_animation(std::mem::take(value));
@@ -1087,15 +1091,6 @@ impl EditType
                     _ = brush.set_texture_scale_y(scale_y).unwrap();
                 }
             },
-            Self::TextureAngleDelta(delta) =>
-            {
-                for id in identifiers
-                {
-                    let mut brush = interface.brush_mut(drawing_resources, *id);
-                    let angle = (brush.texture_settings().unwrap().angle() + *delta).rem_euclid(360f32);
-                    _ = brush.set_texture_angle(angle).unwrap();
-                }
-            },
             Self::SpriteToggle(value, offset_x, offset_y) =>
             {
                 (*value, *offset_x, *offset_y) = interface.set_single_sprite(drawing_resources, single!(), value.enabled());
@@ -1428,15 +1423,6 @@ impl EditType
 
                     _ = brush.set_texture_scale_x(scale_x).unwrap();
                     _ = brush.set_texture_scale_y(scale_y).unwrap();
-                }
-            },
-            Self::TextureAngleDelta(delta) =>
-            {
-                for id in identifiers
-                {
-                    let mut brush = interface.brush_mut(drawing_resources, *id);
-                    let angle = (brush.texture_settings().unwrap().angle() - *delta).rem_euclid(360f32);
-                    _ = brush.set_texture_angle(angle).unwrap();
                 }
             },
             Self::SpriteToggle(value, offset_x, offset_y) =>

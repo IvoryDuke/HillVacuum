@@ -281,6 +281,7 @@ pub(in crate::map) mod ui_mod
             brush::convex_polygon::ScaleInfo,
             drawer::{animation::MoveUpDown, drawing_resources::DrawingResources},
             editor::Placeholder,
+            AssertNormalizedDegreesAngle,
             OutOfBounds,
             Translate
         },
@@ -580,7 +581,7 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     /// The outcome of a valid texture rotation.
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     pub(in crate::map) struct TextureRotation
     {
         /// The new offset.
@@ -1125,7 +1126,7 @@ pub(in crate::map) mod ui_mod
             center: Vec2
         ) -> bool
         {
-            assert!(value >= 0f32 && value < 360f32);
+            value.assert_normalized_degrees_angle();
 
             if !self.sprite.enabled() || value.around_equal_narrow(&self.angle)
             {
@@ -1151,8 +1152,9 @@ pub(in crate::map) mod ui_mod
             new_center: Vec2
         ) -> Option<TextureRotation>
         {
-            assert!(angle >= 0f32 && angle < 360f32);
-            let end_angle = (self.angle() - angle).rem_euclid(360f32);
+            angle.assert_normalized_degrees_angle();
+
+            let end_angle = (self.angle - angle).rem_euclid(360f32);
             let angle = angle.to_radians();
 
             let sprite_center = match self.sprite_hull(drawing_resources, old_center)
@@ -1160,18 +1162,12 @@ pub(in crate::map) mod ui_mod
                 Some(hull) => hull.center(),
                 None =>
                 {
-                    // Rotate texture around pivot.
-                    // let mut pivot = Vec2::splat(32f32);
-                    // pivot.y = -pivot.y; // ??????
-                    // let delta = Vec2::new(self.offset_x, self.offset_y) - pivot;
-                    // let (sin, cos) = (value - self.angle).to_radians().sin_cos();
-                    // let result = pivot +
-                    //     Vec2::new(cos * delta.x + sin * delta.y, -sin * delta.x + cos * delta.y);
-                    // self.offset_x = result.x;
-                    // self.offset_y = result.y;
-
                     return TextureRotation {
-                        offset: Vec2::new(self.offset_x, self.offset_y),
+                        offset: rotate_point(
+                            Vec2::new(self.offset_x, self.offset_y),
+                            Vec2::new(pivot.x, -pivot.y),
+                            angle
+                        ),
                         angle:  end_angle
                     }
                     .into();
@@ -1203,12 +1199,20 @@ pub(in crate::map) mod ui_mod
             }
         }
 
+        #[inline]
+        pub(in crate::map) fn rotate(&mut self, payload: &mut TextureRotation)
+        {
+            std::mem::swap(&mut self.angle, &mut payload.angle);
+            std::mem::swap(&mut self.offset_x, &mut payload.offset.x);
+            std::mem::swap(&mut self.offset_y, &mut payload.offset.y);
+        }
+
         /// Sets the angle, returns the previous value if different.
         #[inline]
         #[must_use]
         pub(in crate::map) fn set_angle(&mut self, value: f32) -> Option<f32>
         {
-            assert!(value >= 0f32 && value < 360f32);
+            value.assert_normalized_degrees_angle();
 
             if value.around_equal_narrow(&self.angle)
             {

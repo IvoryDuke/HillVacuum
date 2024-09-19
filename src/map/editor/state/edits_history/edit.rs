@@ -170,7 +170,7 @@ impl Edit
                 EditType::ThingMove(_) |
                 EditType::TextureMove(_) |
                 EditType::TextureScaleDelta(_) |
-                EditType::TextureAngleDelta(_) |
+                EditType::TextureRotation(_) |
                 EditType::TextureFlip(..) |
                 EditType::ListAnimationNewFrame(..) |
                 EditType::ListAnimationTexture(..) |
