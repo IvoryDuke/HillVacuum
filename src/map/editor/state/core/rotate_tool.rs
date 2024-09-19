@@ -40,7 +40,7 @@ use crate::{
             AroundEqual,
             FastNormalize
         },
-        misc::{Camera, PointInsideUiHighlight, TakeValue, Toggle}
+        misc::{TakeValue, Toggle}
     },
     HvVec,
     TextureInterface
@@ -304,7 +304,7 @@ impl RotateTool
         grid_size: i16
     )
     {
-        let ToolUpdateBundle { camera, cursor, .. } = bundle;
+        let ToolUpdateBundle { cursor, .. } = bundle;
 
         if inputs.plus.just_pressed()
         {
@@ -327,6 +327,10 @@ impl RotateTool
                     {
                         self.pivot += dir;
                     }
+                    else if inputs.left_mouse.pressed()
+                    {
+                        self.status = Status::MovePivot;
+                    }
                 }
                 else if inputs.right.just_pressed()
                 {
@@ -338,12 +342,6 @@ impl RotateTool
                 }
                 else if inputs.left_mouse.just_pressed()
                 {
-                    if self.pivot.is_point_inside_ui_highlight(cursor_pos, camera.scale())
-                    {
-                        self.status = Status::MovePivot;
-                        return;
-                    }
-
                     self.status = Status::Drag(cursor_pos, hv_vec![], 0f32);
                 }
             },
@@ -365,7 +363,7 @@ impl RotateTool
                 }
                 else if inputs.left_mouse.pressed()
                 {
-                    self.pivot = self.cursor_pos(cursor);
+                    self.status = Status::MovePivot;
                 }
             },
             Status::Drag(last_pos, backup_polygons, angle) =>
@@ -423,7 +421,8 @@ impl RotateTool
         {
             RotateAngle::Free => 1f32 * direction,
             RotateAngle::Fixed(n) => f32::from(n) * direction
-        }.rem_euclid(360f32);
+        }
+        .rem_euclid(360f32);
 
         let mut backup_polygons = hv_vec![];
 
@@ -528,7 +527,14 @@ impl RotateTool
         if edit_target!(
             settings.target_switch(),
             |rotate_texture| {
-                Self::rotate_brushes(bundle, manager, pivot, deg_angle, rotate_texture, backup_polygons)
+                Self::rotate_brushes(
+                    bundle,
+                    manager,
+                    pivot,
+                    deg_angle,
+                    rotate_texture,
+                    backup_polygons
+                )
             },
             Self::rotate_textures(bundle, manager, deg_angle)
         )
@@ -599,8 +605,11 @@ impl RotateTool
                 .find_map(|mut brush| {
                     let prev_angle = brush.texture_settings().unwrap().angle();
 
-                    (!brush.check_texture_angle(bundle.drawing_resources, (prev_angle - angle).rem_euclid(360f32)))
-                        .then_some(brush.id())
+                    (!brush.check_texture_angle(
+                        bundle.drawing_resources,
+                        (prev_angle - angle).rem_euclid(360f32)
+                    ))
+                    .then_some(brush.id())
                 })
         });
 

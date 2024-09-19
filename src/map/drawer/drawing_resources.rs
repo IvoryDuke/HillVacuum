@@ -1500,7 +1500,7 @@ impl<'a> MeshGenerator<'a>
 
             self.3.extend(self.0.iter().map(|vx| {
                 f(
-                    rotate_point_around_origin([vx[0], vx[1]].into(), angle).into(),
+                    rotate_point_around_origin([vx[0], vx[1]].into(), angle).to_array(),
                     texture,
                     settings,
                     elapsed_time,

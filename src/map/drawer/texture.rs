@@ -1153,12 +1153,23 @@ pub(in crate::map) mod ui_mod
         {
             assert!(angle >= 0f32 && angle < 360f32);
             let end_angle = (self.angle() - angle).rem_euclid(360f32);
+            let angle = angle.to_radians();
 
             let sprite_center = match self.sprite_hull(drawing_resources, old_center)
             {
                 Some(hull) => hull.center(),
                 None =>
                 {
+                    // Rotate texture around pivot.
+                    // let mut pivot = Vec2::splat(32f32);
+                    // pivot.y = -pivot.y; // ??????
+                    // let delta = Vec2::new(self.offset_x, self.offset_y) - pivot;
+                    // let (sin, cos) = (value - self.angle).to_radians().sin_cos();
+                    // let result = pivot +
+                    //     Vec2::new(cos * delta.x + sin * delta.y, -sin * delta.x + cos * delta.y);
+                    // self.offset_x = result.x;
+                    // self.offset_y = result.y;
+
                     return TextureRotation {
                         offset: Vec2::new(self.offset_x, self.offset_y),
                         angle:  end_angle
