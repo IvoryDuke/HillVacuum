@@ -618,16 +618,6 @@ impl RotateTool
         true
     }
 
-    /// Updates the rotation pivot.
-    #[inline]
-    pub fn update_pivot(&mut self, manager: &EntitiesManager, settings: &ToolsSettings)
-    {
-        if !self.ongoing_multi_frame_change()
-        {
-            self.pivot = Self::pivot(manager, settings);
-        }
-    }
-
     //==============================================================
     // Draw
 

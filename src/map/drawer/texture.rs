@@ -1154,16 +1154,20 @@ pub(in crate::map) mod ui_mod
             assert!(angle >= 0f32 && angle < 360f32);
             let end_angle = (self.angle() - angle).rem_euclid(360f32);
 
-            let sprite_hull = return_if_none!(
-                self.sprite_hull(drawing_resources, old_center),
-                TextureRotation {
-                    offset: Vec2::new(self.offset_x, self.offset_y),
-                    angle:  end_angle
+            let sprite_center = match self.sprite_hull(drawing_resources, old_center)
+            {
+                Some(hull) => hull.center(),
+                None =>
+                {
+                    return TextureRotation {
+                        offset: Vec2::new(self.offset_x, self.offset_y),
+                        angle:  end_angle
+                    }
+                    .into();
                 }
-                .into()
-            );
+            };
 
-            let new_offset = rotate_point(sprite_hull.center(), pivot, angle) - new_center;
+            let new_offset = rotate_point(sprite_center, pivot, angle) - new_center;
             let prev_offset_x = std::mem::replace(&mut self.offset_x, new_offset.x);
             let prev_offset_y = std::mem::replace(&mut self.offset_y, new_offset.y);
             let prev_angle = std::mem::replace(&mut self.angle, end_angle);
