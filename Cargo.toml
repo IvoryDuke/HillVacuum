@@ -92,7 +92,7 @@ version = "1.*"
 optional = true
 
 [dependencies.rfd]
-version = "0.14"
+version = "0.15"
 optional = true
 
 [dependencies.serde]
