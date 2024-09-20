@@ -1518,6 +1518,26 @@ impl<'a> MeshGenerator<'a>
         );
     }
 
+    #[inline]
+    #[must_use]
+    fn common_uv_coordinate<T: TextureInterface>(
+        vx: [f32; 2],
+        texture: &Texture,
+        settings: &T,
+        elapsed_time: f32,
+        parallax: Vec2
+    ) -> Uv
+    {
+        let size = texture.size().as_vec2();
+
+        [
+            (vx[0] + settings.draw_offset_x() + settings.draw_scroll_x(elapsed_time) + parallax.x) /
+                (size.x * settings.scale_x()),
+            (-vx[1] + settings.draw_offset_y() + settings.draw_scroll_y(elapsed_time) + parallax.y) /
+                (size.y * settings.scale_y())
+        ]
+    }
+
     /// Sets the texture UV.
     #[inline]
     pub fn set_texture_uv<T: TextureInterface>(
@@ -1529,28 +1549,7 @@ impl<'a> MeshGenerator<'a>
         parallax_enabled: bool
     )
     {
-        /// Returns the UV coordinates of a vertex.
-        #[inline]
-        #[must_use]
-        fn uv_coordinate<T: TextureInterface>(
-            vx: [f32; 2],
-            texture: &Texture,
-            settings: &T,
-            elapsed_time: f32,
-            parallax: Vec2
-        ) -> Uv
-        {
-            let size = texture.size().as_vec2();
-
-            [
-                (vx[0] + settings.offset_x() + settings.draw_scroll_x(elapsed_time) + parallax.x) /
-                    (size.x * settings.scale_x()),
-                (-vx[1] + settings.offset_y() + settings.draw_scroll_y(elapsed_time) + parallax.y) /
-                    (size.y * settings.scale_y())
-            ]
-        }
-
-        self.texture_uv(camera, settings, center, elapsed_time, parallax_enabled, uv_coordinate);
+        self.texture_uv(camera, settings, center, elapsed_time, parallax_enabled, Self::common_uv_coordinate);
     }
 
     /// Sets the UV to the one of an animated texture.
@@ -1577,16 +1576,8 @@ impl<'a> MeshGenerator<'a>
             pivot: Uv
         ) -> Uv
         {
-            let size = texture.size().as_vec2();
-
-            [
-                (vx[0] + settings.offset_x() + settings.draw_scroll_x(elapsed_time) + parallax.x) /
-                    (size.x * settings.scale_x()) +
-                    pivot[0],
-                (-vx[1] + settings.offset_y() + settings.draw_scroll_y(elapsed_time) + parallax.y) /
-                    (size.y * settings.scale_y()) +
-                    pivot[1]
-            ]
+            let [x, y] = MeshGenerator::common_uv_coordinate(vx, texture, settings, elapsed_time, parallax);
+            [x + pivot[0], y + pivot[1]]
         }
 
         let pivot = animator.pivot();

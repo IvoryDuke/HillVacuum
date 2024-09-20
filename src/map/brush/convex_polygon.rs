@@ -810,6 +810,12 @@ pub(in crate::map) mod ui_mod
         fn offset_y(&self) -> f32 { self.texture.offset_y() + self.delta.y }
 
         #[inline]
+        fn draw_offset_x(&self) -> f32 { self.texture.draw_offset_x() + self.delta.x }
+
+        #[inline]
+        fn draw_offset_y(&self) -> f32 { self.texture.draw_offset_y() + self.delta.y }
+
+        #[inline]
         fn scale_x(&self) -> f32 { self.texture.scale_x() }
 
         #[inline]

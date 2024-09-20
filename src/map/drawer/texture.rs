@@ -49,6 +49,12 @@ pub trait TextureInterface
     #[must_use]
     fn offset_y(&self) -> f32;
 
+    #[must_use]
+    fn draw_offset_x(&self) -> f32;
+
+    #[must_use]
+    fn draw_offset_y(&self) -> f32;
+
     /// Returns the horizontal scale of the texture.
     #[must_use]
     fn scale_x(&self) -> f32;
@@ -168,6 +174,8 @@ pub struct TextureSettings
     scale_y:   f32,
     offset_x:  f32,
     offset_y:  f32,
+    rotation_offset_x: f32,
+    rotation_offset_y: f32,
     angle:     f32,
     height:    i8,
     sprite:    Sprite,
@@ -184,6 +192,12 @@ impl TextureInterface for TextureSettings
 
     #[inline]
     fn offset_y(&self) -> f32 { self.offset_y }
+
+    #[inline]
+    fn draw_offset_x(&self) -> f32 { self.offset_x + self.rotation_offset_x }
+
+    #[inline]
+    fn draw_offset_y(&self) -> f32 { self.offset_y + self.rotation_offset_y }
 
     #[inline]
     fn scale_x(&self) -> f32 { self.scale_x }
@@ -507,6 +521,8 @@ pub(in crate::map) mod ui_mod
                         scale_y: value.scale_y(),
                         offset_x: value.offset_x(),
                         offset_y: value.offset_y(),
+                        rotation_offset_x: 0f32,
+                        rotation_offset_y: 0f32,
                         angle: value.angle(),
                         height: value.height(),
                         sprite,
@@ -818,6 +834,8 @@ pub(in crate::map) mod ui_mod
                 scale_y:   1f32,
                 offset_x:  0f32,
                 offset_y:  0f32,
+                rotation_offset_x: 0f32,
+                rotation_offset_y: 0f32,
                 angle:     0f32,
                 height:    0,
                 sprite:    Sprite::False {
@@ -1164,7 +1182,7 @@ pub(in crate::map) mod ui_mod
                 {
                     return TextureRotation {
                         offset: rotate_point(
-                            Vec2::new(self.offset_x, self.offset_y),
+                            Vec2::new(self.rotation_offset_x, self.rotation_offset_y),
                             Vec2::new(pivot.x, -pivot.y),
                             angle
                         ),
@@ -1203,8 +1221,8 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn rotate(&mut self, payload: &mut TextureRotation)
         {
             std::mem::swap(&mut self.angle, &mut payload.angle);
-            std::mem::swap(&mut self.offset_x, &mut payload.offset.x);
-            std::mem::swap(&mut self.offset_y, &mut payload.offset.y);
+            std::mem::swap(&mut self.rotation_offset_x, &mut payload.offset.x);
+            std::mem::swap(&mut self.rotation_offset_y, &mut payload.offset.y);
         }
 
         /// Sets the angle, returns the previous value if different.
