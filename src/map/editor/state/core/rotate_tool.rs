@@ -336,17 +336,27 @@ impl RotateTool
                         self.status = Status::MovePivot;
                     }
                 }
-                else if inputs.right.just_pressed()
+                else if inputs.left_mouse.just_pressed()
+                {
+                    self.status = Status::Drag(cursor_pos, hv_vec![], 0f32);
+                }
+                else if inputs.ctrl_pressed()
+                {
+                    return;
+                }
+
+                if inputs.right.just_pressed()
                 {
                     self.rotate_brushes_cw(drawing_resources, manager, edits_history, settings);
                 }
                 else if inputs.left.just_pressed()
                 {
-                    self.rotate_brushes_ccw(drawing_resources, manager, edits_history, settings);
-                }
-                else if inputs.left_mouse.just_pressed()
-                {
-                    self.status = Status::Drag(cursor_pos, hv_vec![], 0f32);
+                    self.rotate_brushes_ccw(
+                        drawing_resources,
+                        manager,
+                        edits_history,
+                        settings
+                    );
                 }
             },
             Status::MovePivot =>
@@ -741,11 +751,9 @@ impl RotateTool
 
             ui.add(
                 egui::Slider::new(&mut settings.rotate_angle, RotateAngle::range())
-                    .show_value(false)
                     .step_by(f64::from(RotateAngle::MIN_ROTATE_ANGLE))
                     .integer()
             );
-            ui.label(egui::RichText::new(format!("{}", settings.rotate_angle)));
         });
     }
 
