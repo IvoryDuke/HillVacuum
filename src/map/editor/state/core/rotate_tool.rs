@@ -340,18 +340,16 @@ impl RotateTool
                 {
                     self.status = Status::Drag(cursor_pos, hv_vec![], 0f32);
                 }
-                else if inputs.ctrl_pressed()
+                else if !inputs.ctrl_pressed()
                 {
-                    return;
-                }
-
-                if inputs.right.just_pressed()
-                {
-                    self.rotate_brushes_cw(drawing_resources, manager, edits_history, settings);
-                }
-                else if inputs.left.just_pressed()
-                {
-                    self.rotate_brushes_ccw(drawing_resources, manager, edits_history, settings);
+                    if inputs.right.just_pressed()
+                    {
+                        self.rotate_brushes_cw(drawing_resources, manager, edits_history, settings);
+                    }
+                    else if inputs.left.just_pressed()
+                    {
+                        self.rotate_brushes_ccw(drawing_resources, manager, edits_history, settings);
+                    }
                 }
             },
             Status::MovePivot =>
