@@ -145,7 +145,7 @@ pub(in crate::map) mod ui_mod
                 /// How the texture should be mapped.
                 texture:           Option<$tex>,
                 collision:         bool,
-                texture_updated:   bool
+                texture_edited:   bool
             }
 
             impl serde::Serialize for ConvexPolygon
@@ -314,7 +314,7 @@ pub(in crate::map) mod ui_mod
                         selected_vertexes,
                         texture: None,
                         collision: true,
-                        texture_updated: false
+                        texture_edited: false
                     };
 
                     assert!(cp.valid(), "Invalid vertexes.\n{cp:?}");
@@ -1425,14 +1425,13 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub fn swap_polygon(&mut self, polygon: &mut ConvexPolygon)
         {
-            std::mem::swap(&mut self.data.polygon, polygon);
+            self.data.polygon.swap_polygon(polygon);
         }
 
         #[inline]
-        pub fn set_polygon(&mut self, mut polygon: ConvexPolygon) -> ConvexPolygon
+        pub fn set_polygon(&mut self, polygon: ConvexPolygon) -> ConvexPolygon
         {
-            ConvexPolygon::transfer_sprite(&self.data.polygon, &mut polygon);
-            std::mem::replace(&mut self.data.polygon, polygon)
+            self.data.polygon.set_polygon(polygon)
         }
 
         //==============================================================

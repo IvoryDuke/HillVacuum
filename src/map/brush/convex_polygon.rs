@@ -1012,7 +1012,7 @@ pub(in crate::map) mod ui_mod
                 selected_vertexes: 0,
                 texture: None,
                 collision: true,
-                texture_updated: false
+                texture_edited: false
             };
             cp.sort_vertexes_ccw();
 
@@ -1179,7 +1179,7 @@ pub(in crate::map) mod ui_mod
             if self.has_sprite()
             {
                 let center = self.center;
-                self.texture_updated = true;
+                self.texture_edited = true;
                 self.texture_settings_mut().move_offset(old_center - center);
             }
         }
@@ -1235,7 +1235,7 @@ pub(in crate::map) mod ui_mod
                 return;
             }
 
-            self.texture_updated = true;
+            self.texture_edited = true;
             let texture = self.texture_settings_mut();
             let sprite = texture.sprite();
 
@@ -1268,6 +1268,33 @@ pub(in crate::map) mod ui_mod
 
             self.update_center_hull();
             assert!(self.valid(), "move_vertexes_at_indexes generated an invalid polygon.");
+        }
+
+        #[inline]
+        pub fn swap_polygon(&mut self, polygon: &mut Self)
+        {
+            let had_texture = self.has_texture();
+            std::mem::swap(self, polygon);
+
+            if self.has_texture() || had_texture
+            {
+                self.texture_edited = true;
+            }
+        }
+
+        #[inline]
+        pub fn set_polygon(&mut self, mut polygon: ConvexPolygon) -> ConvexPolygon
+        {
+            let had_texture = self.has_texture();
+            self.transfer_sprite(&mut polygon);
+            let poly = std::mem::replace(self, polygon);
+
+            if self.has_texture() || had_texture
+            {
+                self.texture_edited = true;
+            }
+
+            poly
         }
 
         //==============================================================
@@ -1308,7 +1335,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map::brush) fn texture_edited(&mut self) -> bool
         {
-            std::mem::replace(&mut self.texture_updated, false)
+            std::mem::replace(&mut self.texture_edited, false)
         }
 
         #[inline]
@@ -1323,7 +1350,7 @@ pub(in crate::map) mod ui_mod
         {
             if value.is_some()
             {
-                self.texture_updated = true;
+                self.texture_edited = true;
             }
 
             value
@@ -1374,7 +1401,7 @@ pub(in crate::map) mod ui_mod
 
             if !matches!(result, TextureSetResult::Unchanged)
             {
-                self.texture_updated = true;
+                self.texture_edited = true;
             }
 
             result
@@ -1384,13 +1411,13 @@ pub(in crate::map) mod ui_mod
         pub fn set_texture_settings(&mut self, texture: TextureSettings)
         {
             self.texture = texture.into();
-            self.texture_updated = true;
+            self.texture_edited = true;
         }
 
         #[inline]
         pub fn remove_texture(&mut self) -> TextureSettings
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             std::mem::take(&mut self.texture).unwrap()
         }
 
@@ -1409,7 +1436,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn move_texture(&mut self, value: Vec2)
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             let texture = self.texture_settings_mut();
             let x = if texture.sprite() { value.x } else { -value.x };
             _ = texture.set_offset_x(texture.offset_x() + x);
@@ -1482,7 +1509,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn flip_texture_scale_x(&mut self)
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             let texture = self.texture_settings_mut();
             let scale = texture.scale_x();
             _ = texture.set_scale_x(-scale);
@@ -1496,7 +1523,7 @@ pub(in crate::map) mod ui_mod
         ) -> bool
         {
             let center = self.center;
-            self.texture_updated = true;
+            self.texture_edited = true;
             self.texture_settings_mut()
                 .check_scale_y(drawing_resources, value, center)
         }
@@ -1513,7 +1540,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn flip_texture_scale_y(&mut self)
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             let texture = self.texture_settings_mut();
             let scale = texture.scale_y();
             _ = texture.set_scale_y(-scale);
@@ -1615,7 +1642,7 @@ pub(in crate::map) mod ui_mod
             target.texture.clone_from(&self.texture);
             let center = target.center;
             let delta = self.center - center;
-            target.texture_updated = true;
+            target.texture_edited = true;
             target.texture_settings_mut().move_offset(delta);
         }
 
@@ -1648,7 +1675,7 @@ pub(in crate::map) mod ui_mod
             animation: Animation
         ) -> Animation
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             self.texture_settings_mut().set_animation(animation)
         }
 
@@ -1658,14 +1685,14 @@ pub(in crate::map) mod ui_mod
             texture: &str
         ) -> Animation
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             self.texture_settings_mut().set_list_animation(texture)
         }
 
         #[inline]
         pub(in crate::map::brush) fn generate_list_animation(&mut self) -> Animation
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             self.texture_settings_mut().generate_list_animation()
         }
 
@@ -1747,7 +1774,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn set_atlas_animation_timing(&mut self, timing: Timing)
             -> Timing
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             self.texture_settings_mut().set_atlas_animation_timing(timing)
         }
 
@@ -1796,7 +1823,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn move_down_atlas_animation_frame_time(&mut self, index: usize)
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             self.texture_settings_mut()
                 .move_down_atlas_animation_frame_time(index);
         }
@@ -1804,7 +1831,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn move_up_atlas_animation_frame_time(&mut self, index: usize)
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             self.texture_settings_mut().move_up_atlas_animation_frame_time(index);
         }
 
@@ -1842,14 +1869,14 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn move_up_list_animation_frame(&mut self, index: usize)
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             self.texture_settings_mut().move_up_list_animation_frame(index);
         }
 
         #[inline]
         pub(in crate::map::brush) fn move_down_list_animation_frame(&mut self, index: usize)
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             self.texture_settings_mut().move_down_list_animation_frame(index);
         }
 
@@ -1861,7 +1888,7 @@ pub(in crate::map) mod ui_mod
             time: f32
         )
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             self.texture_settings_mut()
                 .insert_list_animation_frame(index, texture, time);
         }
@@ -1869,21 +1896,21 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn pop_list_animation_frame(&mut self)
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             self.texture_settings_mut().pop_list_animation_frame();
         }
 
         #[inline]
         pub(in crate::map::brush) fn remove_list_animation_frame(&mut self, index: usize)
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             self.texture_settings_mut().remove_list_animation_frame(index);
         }
 
         #[inline]
         pub(in crate::map::brush) fn push_list_animation_frame(&mut self, texture: &str)
         {
-            self.texture_updated = true;
+            self.texture_edited = true;
             self.texture_settings_mut().push_list_animation_frame(texture);
         }
 
@@ -4043,7 +4070,7 @@ pub(in crate::map) mod ui_mod
         pub fn rotate_texture(&mut self, payload: &mut TextureRotation)
         {
             self.texture_settings_mut().rotate(payload);
-            self.texture_updated = true;
+            self.texture_edited = true;
         }
 
         //==============================================================
@@ -4199,7 +4226,7 @@ pub(in crate::map) mod ui_mod
             if flip_texture
             {
                 let center = self.center;
-                self.texture_updated = true;
+                self.texture_edited = true;
                 self.texture_settings_mut()
                     .y_flip(drawing_resources, y, old_center, center);
             }
@@ -4295,7 +4322,7 @@ pub(in crate::map) mod ui_mod
             if flip_texture
             {
                 let center = self.center;
-                self.texture_updated = true;
+                self.texture_edited = true;
                 self.texture_settings_mut()
                     .x_flip(drawing_resources, x, old_center, center);
             }
