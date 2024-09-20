@@ -452,7 +452,7 @@ Changes the outline's selected side. The selection order is clockwise. If `Alt` 
 While enabled, the position of the rotation pivot can be changed by either pressing the directional keys or clicking with `Left mouse`.
 
 ### Left mouse + cursor drag
-Drags to the mouse cursor position, if the rotation pivot is clicked. Otherwise rotates the selected brushes around the pivot by the selected angle snap.
+Rotates the selected brushes around the pivot by the selected angle snap.
 
 ### Left/Right
 Rotates the selected brush in clockwise (`Right`) or counterclokwise (`Left`) direction by the set angle.
