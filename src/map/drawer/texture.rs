@@ -3,6 +3,7 @@
 //
 //=======================================================================//
 
+use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
 use crate::Animation;
@@ -169,17 +170,19 @@ impl Sprite
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TextureSettings
 {
-    texture:   String,
-    scale_x:   f32,
-    scale_y:   f32,
-    offset_x:  f32,
-    offset_y:  f32,
-    rotation_offset_x: f32,
-    rotation_offset_y: f32,
-    angle:     f32,
-    height:    i8,
-    sprite:    Sprite,
-    animation: Animation
+    texture:             String,
+    scale_x:             f32,
+    scale_y:             f32,
+    offset_x:            f32,
+    offset_y:            f32,
+    rotation_offset_x:   f32,
+    rotation_offset_y:   f32,
+    angle:               f32,
+    rotation_pivot_mod:  Vec2,
+    last_rotation_pivot: Option<Vec2>,
+    height:              i8,
+    sprite:              Sprite,
+    animation:           Animation
 }
 
 impl TextureInterface for TextureSettings
@@ -523,6 +526,8 @@ pub(in crate::map) mod ui_mod
                         offset_y: value.offset_y(),
                         rotation_offset_x: 0f32,
                         rotation_offset_y: 0f32,
+                        rotation_pivot_mod: Vec2::ZERO,
+                        last_rotation_pivot: None,
                         angle: value.angle(),
                         height: value.height(),
                         sprite,
@@ -829,22 +834,24 @@ pub(in crate::map) mod ui_mod
         fn from(value: &Texture) -> Self
         {
             Self {
-                texture:   value.name.clone(),
-                scale_x:   1f32,
-                scale_y:   1f32,
-                offset_x:  0f32,
-                offset_y:  0f32,
-                rotation_offset_x: 0f32,
-                rotation_offset_y: 0f32,
-                angle:     0f32,
-                height:    0,
-                sprite:    Sprite::False {
+                texture:             value.name.clone(),
+                scale_x:             1f32,
+                scale_y:             1f32,
+                offset_x:            0f32,
+                offset_y:            0f32,
+                rotation_offset_x:   0f32,
+                rotation_offset_y:   0f32,
+                angle:               0f32,
+                rotation_pivot_mod:  Vec2::ZERO,
+                last_rotation_pivot: None,
+                height:              0,
+                sprite:              Sprite::False {
                     parallax_x: 0f32,
                     parallax_y: 0f32,
                     scroll_x:   0f32,
                     scroll_y:   0f32
                 },
-                animation: Animation::None
+                animation:           Animation::None
             }
         }
     }
@@ -1180,6 +1187,28 @@ pub(in crate::map) mod ui_mod
                 Some(hull) => hull.center(),
                 None =>
                 {
+                    let pivot = match self.last_rotation_pivot
+                    {
+                        Some(last_pivot) =>
+                        {
+                            if !self.last_rotation_pivot.unwrap().around_equal_narrow(&pivot)
+                            {
+                                let delta = pivot - last_pivot;
+                                self.rotation_pivot_mod += -delta +
+                                    rotate_point_around_origin(delta, self.angle.to_radians());
+                                self.last_rotation_pivot = pivot.into();
+                            }
+
+                            pivot + self.rotation_pivot_mod
+                        },
+                        None =>
+                        {
+                            self.rotation_pivot_mod = Vec2::ZERO;
+                            self.last_rotation_pivot = pivot.into();
+                            pivot
+                        }
+                    };
+
                     return TextureRotation {
                         offset: rotate_point(
                             Vec2::new(self.rotation_offset_x, self.rotation_offset_y),
@@ -1221,8 +1250,17 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn rotate(&mut self, payload: &mut TextureRotation)
         {
             std::mem::swap(&mut self.angle, &mut payload.angle);
-            std::mem::swap(&mut self.rotation_offset_x, &mut payload.offset.x);
-            std::mem::swap(&mut self.rotation_offset_y, &mut payload.offset.y);
+
+            if self.sprite()
+            {
+                std::mem::swap(&mut self.offset_x, &mut payload.offset.x);
+                std::mem::swap(&mut self.offset_y, &mut payload.offset.y);
+            }
+            else
+            {
+                std::mem::swap(&mut self.rotation_offset_x, &mut payload.offset.x);
+                std::mem::swap(&mut self.rotation_offset_y, &mut payload.offset.y);
+            }
         }
 
         /// Sets the angle, returns the previous value if different.
