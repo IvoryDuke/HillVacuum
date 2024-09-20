@@ -159,10 +159,6 @@ fn main()
             "or a point inside the brush's area.\n\n&nbsp;",
             "or a point inside the brush's area."
         )
-        .replace(
-            "only flips the textures.\n\n&nbsp;",
-            "only flips the textures.\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;"
-        )
     );
 
     _ = std::process::Command::new("pandoc")
