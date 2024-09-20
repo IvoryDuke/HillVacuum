@@ -1549,7 +1549,14 @@ impl<'a> MeshGenerator<'a>
         parallax_enabled: bool
     )
     {
-        self.texture_uv(camera, settings, center, elapsed_time, parallax_enabled, Self::common_uv_coordinate);
+        self.texture_uv(
+            camera,
+            settings,
+            center,
+            elapsed_time,
+            parallax_enabled,
+            Self::common_uv_coordinate
+        );
     }
 
     /// Sets the UV to the one of an animated texture.
@@ -1576,7 +1583,8 @@ impl<'a> MeshGenerator<'a>
             pivot: Uv
         ) -> Uv
         {
-            let [x, y] = MeshGenerator::common_uv_coordinate(vx, texture, settings, elapsed_time, parallax);
+            let [x, y] =
+                MeshGenerator::common_uv_coordinate(vx, texture, settings, elapsed_time, parallax);
             [x + pivot[0], y + pivot[1]]
         }
 
