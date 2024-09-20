@@ -711,25 +711,27 @@ impl Ui
                     command = Command::ChangeTool(tool);
                 }
 
-                // Cursor info.
-                Self::cursor_info(bundle.cursor, ui);
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    // Cursor info.
+                    Self::cursor_info(bundle.cursor, ui);
 
-                // Grid info.
-                Self::grid_info(*grid, ui);
+                    // Grid info.
+                    Self::grid_info(*grid, ui);
 
-                // Camera info.
-                Self::camera_info(bundle.camera, *grid, ui);
+                    // Camera info.
+                    Self::camera_info(bundle.camera, *grid, ui);
 
-                // Extra tool info.
-                core.tool_ui(
-                    bundle.drawing_resources,
-                    manager,
-                    inputs,
-                    edits_history,
-                    clipboard,
-                    ui,
-                    settings
-                );
+                    // Extra tool info.
+                    core.tool_ui(
+                        bundle.drawing_resources,
+                        manager,
+                        inputs,
+                        edits_history,
+                        clipboard,
+                        ui,
+                        settings
+                    );
+                });
             })
             .response
             .layer_id;

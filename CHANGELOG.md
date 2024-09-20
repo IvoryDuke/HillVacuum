@@ -1,6 +1,22 @@
 # Changelog
 
-## 0.7
+## 0.7.1
+
+### Changes
+- Rotation pivot is no longer updated after undo/redo;
+- improved rotation pivot, it can be quickly placed elsewhere by pressing `Alt` and left clicking anywhere on the map without first pressing it;
+- now textures can be rotated around the pivot as well;
+- rotation angle can be changed by typing the value in the UI element, 0 is free rotation;
+- made the bottom half of the left panel vertically scrollable for small screen/windows sizes.
+
+### Fixes
+- Fixed broken rotate undo/redo;
+- fixed crash occurring when moving textures if no sprites were selected;
+- fixed rotation angle inconsistencies;
+- fixed a crash that could occur with undo/redo of a texture scale edit;
+- fixed values sometimes not updating in the texture editor after undo/redo.
+
+## 0.7.0
 
 ### Changes
 - Added grid settings to the `Exporter` struct;
