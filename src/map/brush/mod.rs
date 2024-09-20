@@ -686,7 +686,7 @@ pub(in crate::map) mod ui_mod
                 ScaleResult::Valid {
                     new_center,
                     vxs,
-                    texture_scale
+                    texture_move
                 } =>
                 {
                     if brush.path_hull_out_of_bounds(new_center)
@@ -694,7 +694,7 @@ pub(in crate::map) mod ui_mod
                         return Self::Invalid;
                     }
 
-                    Self::Valid(ScalePayload(brush.id, vxs, texture_scale))
+                    Self::Valid(ScalePayload(brush.id, vxs, texture_move))
                 }
             }
         }
@@ -762,7 +762,7 @@ pub(in crate::map) mod ui_mod
                 RotateResult::Valid {
                     new_center,
                     vxs,
-                    texture_rotation
+                    texture_move
                 } =>
                 {
                     if brush.path_hull_out_of_bounds(new_center)
@@ -770,7 +770,7 @@ pub(in crate::map) mod ui_mod
                         return Self::Invalid;
                     }
 
-                    Self::Valid(RotatePayload(brush.id, vxs, texture_rotation))
+                    Self::Valid(RotatePayload(brush.id, vxs, texture_move))
                 }
             }
         }
@@ -2664,7 +2664,7 @@ pub(in crate::map) mod ui_mod
 
         /// Returns a [`RotateResult`] describing the validity of the rotation.
         #[inline]
-        pub fn check_rotation(
+        pub fn check_rotate(
             &mut self,
             drawing_resources: &DrawingResources,
             pivot: Vec2,
@@ -2680,32 +2680,17 @@ pub(in crate::map) mod ui_mod
             )
         }
 
-        #[inline]
-        pub fn check_texture_rotation(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            pivot: Vec2,
-            angle: f32
-        ) -> Option<TextureRotation>
-        {
-            self.data
-                .polygon
-                .check_texture_rotation(drawing_resources, pivot, angle)
-        }
-
         /// Rotates `self` based on `payload`.
         #[inline]
-        pub fn set_rotation_coordinates(&mut self, mut payload: RotatePayload)
+        pub fn set_rotation_coordinates(&mut self, payload: RotatePayload)
         {
             assert!(payload.id() == self.id, "RotatePayload's ID is not equal to the Brush's ID.");
             self.data.polygon.set_coordinates(payload.1.into_iter());
-            self.rotate_texture(return_if_none!(&mut payload.2));
-        }
 
-        #[inline]
-        pub fn rotate_texture(&mut self, payload: &mut TextureRotation)
-        {
-            self.data.polygon.rotate_texture(payload);
+            let tex_rotate = return_if_none!(payload.2);
+            _ = self.data.polygon.set_texture_angle(tex_rotate.angle);
+            _ = self.data.polygon.set_texture_offset_x(tex_rotate.offset.x);
+            _ = self.data.polygon.set_texture_offset_y(tex_rotate.offset.y);
         }
 
         //==============================================================

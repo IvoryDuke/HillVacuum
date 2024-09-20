@@ -281,7 +281,6 @@ pub(in crate::map) mod ui_mod
             brush::convex_polygon::ScaleInfo,
             drawer::{animation::MoveUpDown, drawing_resources::DrawingResources},
             editor::Placeholder,
-            AssertNormalizedDegreesAngle,
             OutOfBounds,
             Translate
         },
@@ -581,7 +580,7 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     /// The outcome of a valid texture rotation.
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug)]
     pub(in crate::map) struct TextureRotation
     {
         /// The new offset.
@@ -1126,7 +1125,7 @@ pub(in crate::map) mod ui_mod
             center: Vec2
         ) -> bool
         {
-            value.assert_normalized_degrees_angle();
+            assert!(value >= 0f32 && value < 360f32);
 
             if !self.sprite.enabled() || value.around_equal_narrow(&self.angle)
             {
@@ -1152,9 +1151,8 @@ pub(in crate::map) mod ui_mod
             new_center: Vec2
         ) -> Option<TextureRotation>
         {
-            angle.assert_normalized_degrees_angle();
-
-            let end_angle = (self.angle - angle).rem_euclid(360f32);
+            assert!(angle >= 0f32 && angle < 360f32);
+            let end_angle = (self.angle() - angle).rem_euclid(360f32);
             let angle = angle.to_radians();
 
             let sprite_center = match self.sprite_hull(drawing_resources, old_center)
@@ -1163,11 +1161,7 @@ pub(in crate::map) mod ui_mod
                 None =>
                 {
                     return TextureRotation {
-                        offset: rotate_point(
-                            Vec2::new(self.offset_x, self.offset_y),
-                            Vec2::new(pivot.x, -pivot.y),
-                            angle
-                        ),
+                        offset: Vec2::new(self.offset_x, self.offset_y),
                         angle:  end_angle
                     }
                     .into();
@@ -1199,20 +1193,12 @@ pub(in crate::map) mod ui_mod
             }
         }
 
-        #[inline]
-        pub(in crate::map) fn rotate(&mut self, payload: &mut TextureRotation)
-        {
-            std::mem::swap(&mut self.angle, &mut payload.angle);
-            std::mem::swap(&mut self.offset_x, &mut payload.offset.x);
-            std::mem::swap(&mut self.offset_y, &mut payload.offset.y);
-        }
-
         /// Sets the angle, returns the previous value if different.
         #[inline]
         #[must_use]
         pub(in crate::map) fn set_angle(&mut self, value: f32) -> Option<f32>
         {
-            value.assert_normalized_degrees_angle();
+            assert!(value >= 0f32 && value < 360f32);
 
             if value.around_equal_narrow(&self.angle)
             {

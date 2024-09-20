@@ -64,7 +64,6 @@ pub(in crate::map) mod ui_mod
                 SelectableVector,
                 VectorSelectionResult
             },
-            AssertNormalizedDegreesAngle,
             OutOfBounds,
             MAP_RANGE,
             TOOLTIP_OFFSET
@@ -400,9 +399,9 @@ pub(in crate::map) mod ui_mod
         Invalid,
         Valid
         {
-            new_center:    Vec2,
-            vxs:           HvVec<Vec2>,
-            texture_scale: Option<TextureScale>
+            new_center:   Vec2,
+            vxs:          HvVec<Vec2>,
+            texture_move: Option<TextureScale>
         }
     }
 
@@ -414,9 +413,9 @@ pub(in crate::map) mod ui_mod
         Invalid,
         Valid
         {
-            new_center:       Vec2,
-            vxs:              HvVec<Vec2>,
-            texture_rotation: Option<TextureRotation>
+            new_center:   Vec2,
+            vxs:          HvVec<Vec2>,
+            texture_move: Option<TextureRotation>
         }
     }
 
@@ -3792,14 +3791,14 @@ pub(in crate::map) mod ui_mod
                 return ScaleResult::Valid {
                     new_center,
                     vxs,
-                    texture_scale: scale.into()
+                    texture_move: scale.into()
                 };
             }
 
             ScaleResult::Valid {
                 new_center,
                 vxs,
-                texture_scale: None
+                texture_move: None
             }
         }
 
@@ -3869,14 +3868,14 @@ pub(in crate::map) mod ui_mod
                 return ScaleResult::Valid {
                     new_center,
                     vxs,
-                    texture_scale: scale.into()
+                    texture_move: scale.into()
                 };
             }
 
             ScaleResult::Valid {
                 new_center,
                 vxs,
-                texture_scale: None
+                texture_move: None
             }
         }
 
@@ -3990,7 +3989,7 @@ pub(in crate::map) mod ui_mod
             rotate_texture: bool
         ) -> RotateResult
         {
-            angle.assert_normalized_degrees_angle();
+            assert!(angle >= 0f32 && angle < 360f32);
 
             let angle_rad = angle.to_radians();
             let mut new_center = Vec2::ZERO;
@@ -4014,44 +4013,29 @@ pub(in crate::map) mod ui_mod
             if rotate_texture
             {
                 let center = self.center;
+                let rotation = return_if_none!(
+                    self.texture_settings_mut().check_rotation(
+                        drawing_resources,
+                        pivot,
+                        angle,
+                        center,
+                        new_center
+                    ),
+                    RotateResult::Invalid
+                );
 
-                return self
-                    .texture_settings_mut()
-                    .check_rotation(drawing_resources, pivot, angle, center, new_center)
-                    .map_or(RotateResult::Invalid, |t_rotation| {
-                        RotateResult::Valid {
-                            new_center,
-                            vxs,
-                            texture_rotation: t_rotation.into()
-                        }
-                    });
+                return RotateResult::Valid {
+                    new_center,
+                    vxs,
+                    texture_move: rotation.into()
+                };
             }
 
             RotateResult::Valid {
                 new_center,
                 vxs,
-                texture_rotation: None
+                texture_move: None
             }
-        }
-
-        #[allow(clippy::cast_precision_loss)]
-        #[inline]
-        pub(in crate::map::brush) fn check_texture_rotation(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            pivot: Vec2,
-            angle: f32
-        ) -> Option<TextureRotation>
-        {
-            let center = self.center;
-            let new_center = center;
-            self.texture_settings_mut().check_rotation(
-                drawing_resources,
-                pivot,
-                angle,
-                center,
-                new_center
-            )
         }
 
         #[inline]
@@ -4064,13 +4048,6 @@ pub(in crate::map) mod ui_mod
 
             self.update_center_hull();
             assert!(self.valid(), "set_coordinates generated an invalid polygon.");
-        }
-
-        #[inline]
-        pub fn rotate_texture(&mut self, payload: &mut TextureRotation)
-        {
-            self.texture_settings_mut().rotate(payload);
-            self.texture_edited = true;
         }
 
         //==============================================================

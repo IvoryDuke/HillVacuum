@@ -25,7 +25,7 @@ use crate::{
         drawer::{
             animation::{Animation, Timing},
             drawing_resources::DrawingResources,
-            texture::{Sprite, Texture, TextureRotation, TextureSettings}
+            texture::{Sprite, Texture, TextureSettings}
         },
         editor::state::core::UndoRedoInterface,
         hv_vec,
@@ -269,7 +269,6 @@ impl EditsHistory
         (texture_parallax_x, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureParallaxX(value))),
         (texture_parallax_y, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureParallaxY(value))),
         (texture_angle, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureAngle(value))),
-        (texture_rotation, (identifier: Id, value: TextureRotation), (hv_vec![identifier], EditType::TextureRotation(value))),
         (texture_height, (identifier: Id, value: i8), (hv_vec![identifier], EditType::TextureHeight(value))),
         (sprite, (identifier: Id, value: Sprite, offset_x: f32, offset_y: f32), (hv_vec![identifier], EditType::SpriteToggle(value, offset_x, offset_y))),
         (animation, (identifier: Id, animation: Animation), (hv_vec![identifier], EditType::AnimationChange(animation))),
@@ -309,7 +308,6 @@ impl EditsHistory
         (texture_angle, f32),
         (texture_height, i8),
         (texture_scale_flip, (f32, f32)),
-        (texture_rotation, TextureRotation),
         (animation, Animation),
         (atlas_x, u32),
         (atlas_y, u32),
@@ -330,6 +328,7 @@ impl EditsHistory
     #[rustfmt::skip]
     push_with_amount_assertion!(
         (flip, (flip: Flip, flip_texture: bool), EditType::BrushFlip(flip, flip_texture)),
+        (texture_angle_delta, (delta: f32), EditType::TextureAngleDelta(delta)),
         (texture_flip, (y: bool), EditType::TextureFlip(y)),
         (texture_scale_delta, (delta: Vec2), EditType::TextureScaleDelta(delta)),
         (animation_move_up, (index: usize, atlas: bool), EditType::ListAnimationFrameMoveUp(index, atlas)),
