@@ -1476,7 +1476,6 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn set_texture_scale_x(&mut self, value: f32) -> Option<f32>
         {
             let result = self.texture_settings_mut().set_scale_x(value);
-
             self.set_texture_updated(result)
         }
 

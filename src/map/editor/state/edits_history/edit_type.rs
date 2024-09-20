@@ -1087,8 +1087,7 @@ impl EditType
                     let scale_x = texture.scale_x() - delta.x;
                     let scale_y = texture.scale_y() - delta.y;
 
-                    _ = brush.set_texture_scale_x(scale_x).unwrap();
-                    _ = brush.set_texture_scale_y(scale_y).unwrap();
+                    assert!(brush.set_texture_scale_x(scale_x).is_some() | brush.set_texture_scale_y(scale_y).is_some(), "Useless texture scale delta undo.");
                 }
             },
             Self::SpriteToggle(value, offset_x, offset_y) =>
@@ -1421,8 +1420,7 @@ impl EditType
                     let scale_x = texture.scale_x() + delta.x;
                     let scale_y = texture.scale_y() + delta.y;
 
-                    _ = brush.set_texture_scale_x(scale_x).unwrap();
-                    _ = brush.set_texture_scale_y(scale_y).unwrap();
+                    assert!(brush.set_texture_scale_x(scale_x).is_some() | brush.set_texture_scale_y(scale_y).is_some(), "Useless texture scale delta redo.");
                 }
             },
             Self::SpriteToggle(value, offset_x, offset_y) =>

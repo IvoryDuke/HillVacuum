@@ -351,12 +351,7 @@ impl RotateTool
                 }
                 else if inputs.left.just_pressed()
                 {
-                    self.rotate_brushes_ccw(
-                        drawing_resources,
-                        manager,
-                        edits_history,
-                        settings
-                    );
+                    self.rotate_brushes_ccw(drawing_resources, manager, edits_history, settings);
                 }
             },
             Status::MovePivot =>
