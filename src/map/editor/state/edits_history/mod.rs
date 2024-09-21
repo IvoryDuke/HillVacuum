@@ -25,7 +25,7 @@ use crate::{
         drawer::{
             animation::{Animation, Timing},
             drawing_resources::DrawingResources,
-            texture::{Sprite, Texture, TextureRotation, TextureSettings}
+            texture::{Texture, TextureRotation, TextureSettings, TextureSpriteSet}
         },
         editor::state::core::UndoRedoInterface,
         hv_vec,
@@ -169,7 +169,7 @@ macro_rules! purge {
 }
 
 //=======================================================================//
-// TYPES
+// STRUCTS
 //
 //=======================================================================//
 
@@ -271,7 +271,7 @@ impl EditsHistory
         (texture_angle, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureAngle(value))),
         (texture_rotation, (identifier: Id, value: TextureRotation), (hv_vec![identifier], EditType::TextureRotation(value))),
         (texture_height, (identifier: Id, value: i8), (hv_vec![identifier], EditType::TextureHeight(value))),
-        (sprite, (identifier: Id, value: Sprite, offset_x: f32, offset_y: f32), (hv_vec![identifier], EditType::SpriteToggle(value, offset_x, offset_y))),
+        (sprite, (identifier: Id, value: TextureSpriteSet), (hv_vec![identifier], EditType::SpriteToggle(value))),
         (animation, (identifier: Id, animation: Animation), (hv_vec![identifier], EditType::AnimationChange(animation))),
         (atlas_x, (identifier: Id, x: u32), (hv_vec![identifier], EditType::AtlasAnimationColumns(x))),
         (atlas_y, (identifier: Id, y: u32), (hv_vec![identifier], EditType::AtlasAnimationRows(y))),

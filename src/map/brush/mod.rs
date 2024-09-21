@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::{Animation, Group, HvHashMap, HvVec, Id, TextureSettings, Value};
 
 //=======================================================================//
-// TYPES
+// STRUCTS
 //
 //=======================================================================//
 
@@ -97,7 +97,7 @@ pub(in crate::map) mod ui_mod
                 color::Color,
                 drawers::{EditDrawer, MapPreviewDrawer},
                 drawing_resources::DrawingResources,
-                texture::{Sprite, TextureInterfaceExtra, TextureRotation, TextureScale}
+                texture::{TextureInterfaceExtra, TextureRotation, TextureScale, TextureSpriteSet}
             },
             editor::state::{
                 clipboard::{ClipboardData, CopyToClipboard},
@@ -777,7 +777,7 @@ pub(in crate::map) mod ui_mod
     }
 
     //=======================================================================//
-    // TYPES
+    // STRUCTS
     //
     //=======================================================================//
 
@@ -1783,10 +1783,15 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn set_texture_sprite(&mut self, value: impl Into<Sprite>)
-            -> Option<(Sprite, f32, f32)>
+        pub fn set_texture_sprite(&mut self, value: bool) -> Option<TextureSpriteSet>
         {
             self.data.polygon.set_texture_sprite(value)
+        }
+
+        #[inline]
+        pub fn undo_redo_texture_sprite(&mut self, value: &mut TextureSpriteSet)
+        {
+            self.data.polygon.undo_redo_texture_sprite(value);
         }
 
         #[inline]
@@ -2604,12 +2609,7 @@ pub(in crate::map) mod ui_mod
         {
             assert!(payload.id() == self.id, "ScalePayload's ID is not equal to the Brush's ID.");
             self.data.polygon.set_coordinates(payload.1.into_iter());
-
-            let tex_scale = return_if_none!(payload.2);
-            _ = self.data.polygon.set_texture_scale_x(tex_scale.scale_x);
-            _ = self.data.polygon.set_texture_scale_y(tex_scale.scale_y);
-            _ = self.data.polygon.set_texture_offset_x(tex_scale.offset.x);
-            _ = self.data.polygon.set_texture_offset_y(tex_scale.offset.y);
+            self.data.polygon.scale_texture(&return_if_none!(payload.2));
         }
 
         //==============================================================

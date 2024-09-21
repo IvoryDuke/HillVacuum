@@ -9,7 +9,7 @@ use super::{window::Window, ToolsButtons, WindowCloser, WindowCloserInfo};
 use crate::{map::editor::StateUpdateBundle, utils::misc::Toggle, HardcodedActions};
 
 //=======================================================================//
-// TYPES
+// STRUCTS
 //
 //=======================================================================//
 

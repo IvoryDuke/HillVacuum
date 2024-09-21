@@ -179,7 +179,7 @@ pub(crate) trait SkipIndexIterator
 impl<T> SkipIndexIterator for T where T: Iterator + ExactSizeIterator {}
 
 //=======================================================================//
-// TYPES
+// STRUCTS
 //
 //=======================================================================//
 

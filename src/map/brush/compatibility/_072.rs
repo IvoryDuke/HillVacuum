@@ -3,10 +3,9 @@
 //
 //=======================================================================//
 
-use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{utils::hull::Hull, Animation, TextureInterface};
+use crate::{Animation, TextureInterface};
 
 //=======================================================================//
 // ENUMS
@@ -14,10 +13,10 @@ use crate::{utils::hull::Hull, Animation, TextureInterface};
 //=======================================================================//
 
 #[must_use]
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub(in crate::map) enum Sprite
 {
-    True(Hull),
+    True,
     False
     {
         parallax_x: f32,
@@ -33,7 +32,7 @@ impl Sprite
 
     #[inline]
     #[must_use]
-    pub const fn enabled(&self) -> bool { matches!(self, Self::True(_)) }
+    pub const fn enabled(&self) -> bool { matches!(self, Self::True) }
 }
 
 //=======================================================================//
@@ -41,14 +40,8 @@ impl Sprite
 //
 //=======================================================================//
 
-crate::map::brush::impl_convex_polygon!(TextureSettings);
-#[cfg(feature = "ui")]
-crate::map::brush::impl_convex_polygon_ui!();
-
-//=======================================================================//
-
 #[must_use]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct TextureSettings
 {
     texture:   String,
@@ -74,10 +67,10 @@ impl TextureInterface for TextureSettings
     fn offset_y(&self) -> f32 { self.offset_y }
 
     #[inline]
-    fn draw_offset_x(&self) -> f32 { self.offset_x() }
+    fn draw_offset_x(&self) -> f32 { self.offset_x }
 
     #[inline]
-    fn draw_offset_y(&self) -> f32 { self.offset_y() }
+    fn draw_offset_y(&self) -> f32 { self.offset_y }
 
     #[inline]
     fn scale_x(&self) -> f32 { self.scale_x }
@@ -119,7 +112,3 @@ impl TextureInterface for TextureSettings
     #[inline]
     fn animation(&self) -> &Animation { &self.animation }
 }
-
-//=======================================================================//
-
-crate::map::brush::compatibility::impl_brush!();

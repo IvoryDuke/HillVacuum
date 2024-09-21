@@ -4,9 +4,13 @@
 //=======================================================================//
 
 use glam::Vec2;
+use hill_vacuum_shared::match_or_panic;
 use serde::{Deserialize, Serialize};
 
-use crate::Animation;
+use crate::{
+    utils::math::{points::rotate_point_around_origin, AroundEqual},
+    Animation
+};
 
 //=======================================================================//
 // MACROS
@@ -15,7 +19,6 @@ use crate::Animation;
 
 macro_rules! sprite_values {
     ($($value:ident),+) => {$(
-        /// Returns the requested value. Value is 0 if `self` is [`Sprite::True`]
         #[inline]
         #[must_use]
         pub const fn $value(&self) -> f32
@@ -27,6 +30,19 @@ macro_rules! sprite_values {
             }
         }
     )+};
+
+    ($(($t:ty, $value:ident)),+) => { paste::paste! {$(
+        #[inline]
+        #[must_use]
+        pub fn [< rotation_ $value >](&self) -> $t
+        {
+            match self
+            {
+                Sprite::True { .. }=> <$t>::default(),
+                Sprite::False { rotation_auxiliary, .. } => rotation_auxiliary.$value
+            }
+        }
+    )+}};
 }
 
 pub(in crate::map) use sprite_values;
@@ -42,17 +58,21 @@ pub trait TextureInterface
     /// Returns the name of the texture.
     fn name(&self) -> &str;
 
-    /// Returns the horizontal offset of the texture.
+    /// Returns the horizontal offset of the texture as set by the user.
     #[must_use]
     fn offset_x(&self) -> f32;
 
-    /// Returns the vertical offset of the texture.
+    /// Returns the vertical offset of the texture as set by the user.
     #[must_use]
     fn offset_y(&self) -> f32;
 
+    /// Returns the horizontal offset necessary to draw the texture as displayed in the editor.
+    /// It may be different from the value returned by `TextureInterface::offset_x`.
     #[must_use]
     fn draw_offset_x(&self) -> f32;
 
+    /// Returns the vertical offset necessary to draw the texture as displayed in the editor.
+    /// It may be different from the value returned by `TextureInterface::offset_y`.
     #[must_use]
     fn draw_offset_y(&self) -> f32;
 
@@ -116,7 +136,7 @@ pub trait TextureInterface
 /// Whether the texture should be rendered as a sprite.
 #[must_use]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
-pub(in crate::map) enum Sprite
+pub(in crate::map::drawer) enum Sprite
 {
     /// Yes.
     True,
@@ -124,13 +144,14 @@ pub(in crate::map) enum Sprite
     False
     {
         /// The horizontal parallax of the texture.
-        parallax_x: f32,
+        parallax_x:         f32,
         /// The vertical parallax of the texture.
-        parallax_y: f32,
+        parallax_y:         f32,
         /// The horizontal scrolling of the texture.
-        scroll_x:   f32,
+        scroll_x:           f32,
         /// The vertical scrolling of the texture.
-        scroll_y:   f32
+        scroll_y:           f32,
+        rotation_auxiliary: RotationAuxiliary
     }
 }
 
@@ -140,10 +161,11 @@ impl Default for Sprite
     fn default() -> Self
     {
         Self::False {
-            parallax_x: 0f32,
-            parallax_y: 0f32,
-            scroll_x:   0f32,
-            scroll_y:   0f32
+            parallax_x:         0f32,
+            parallax_y:         0f32,
+            scroll_x:           0f32,
+            scroll_y:           0f32,
+            rotation_auxiliary: RotationAuxiliary::default()
         }
     }
 }
@@ -152,14 +174,30 @@ impl Sprite
 {
     sprite_values!(parallax_x, parallax_y, scroll_x, scroll_y);
 
+    sprite_values!((f32, offset_x), (f32, offset_y));
+
     /// Whether `self` has value [`Sprite::True`].
     #[inline]
     #[must_use]
     pub const fn enabled(&self) -> bool { matches!(self, Self::True { .. }) }
+
+    #[inline]
+    fn rotation_parameters(&mut self, angle: f32, pivot: Vec2) -> (Vec2, Vec2)
+    {
+        match_or_panic!(
+            self,
+            Self::False {
+                rotation_auxiliary,
+                ..
+            },
+            rotation_auxiliary
+        )
+        .rotation_parameters(angle, pivot)
+    }
 }
 
 //=======================================================================//
-// TYPES
+// STRUCTS
 //
 //=======================================================================//
 
@@ -170,19 +208,15 @@ impl Sprite
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TextureSettings
 {
-    texture:             String,
-    scale_x:             f32,
-    scale_y:             f32,
-    offset_x:            f32,
-    offset_y:            f32,
-    rotation_offset_x:   f32,
-    rotation_offset_y:   f32,
-    angle:               f32,
-    rotation_pivot_mod:  Vec2,
-    last_rotation_pivot: Option<Vec2>,
-    height:              i8,
-    sprite:              Sprite,
-    animation:           Animation
+    texture:   String,
+    scale_x:   f32,
+    scale_y:   f32,
+    offset_x:  f32,
+    offset_y:  f32,
+    angle:     f32,
+    height:    i8,
+    sprite:    Sprite,
+    animation: Animation
 }
 
 impl TextureInterface for TextureSettings
@@ -197,10 +231,10 @@ impl TextureInterface for TextureSettings
     fn offset_y(&self) -> f32 { self.offset_y }
 
     #[inline]
-    fn draw_offset_x(&self) -> f32 { self.offset_x + self.rotation_offset_x }
+    fn draw_offset_x(&self) -> f32 { self.offset_x + self.sprite.rotation_offset_x() }
 
     #[inline]
-    fn draw_offset_y(&self) -> f32 { self.offset_y + self.rotation_offset_y }
+    fn draw_offset_y(&self) -> f32 { self.offset_y + self.sprite.rotation_offset_y() }
 
     #[inline]
     fn scale_x(&self) -> f32 { self.scale_x }
@@ -255,6 +289,49 @@ impl TextureSettings
 
 //=======================================================================//
 
+#[must_use]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub(in crate::map::drawer) struct RotationAuxiliary
+{
+    offset_x:   f32,
+    offset_y:   f32,
+    pivot_mod:  Vec2,
+    last_pivot: Option<Vec2>
+}
+
+impl RotationAuxiliary
+{
+    #[inline]
+    #[must_use]
+    fn rotation_parameters(&mut self, angle: f32, pivot: Vec2) -> (Vec2, Vec2)
+    {
+        let pivot = match self.last_pivot
+        {
+            Some(last_pivot) =>
+            {
+                if !self.last_pivot.unwrap().around_equal_narrow(&pivot)
+                {
+                    let delta = pivot - last_pivot;
+                    self.pivot_mod += -delta + rotate_point_around_origin(delta, angle);
+                    self.last_pivot = pivot.into();
+                }
+
+                pivot + self.pivot_mod
+            },
+            None =>
+            {
+                self.pivot_mod = Vec2::ZERO;
+                self.last_pivot = pivot.into();
+                pivot
+            }
+        };
+
+        (pivot.with_y(-pivot.y), Vec2::new(self.offset_x, self.offset_y))
+    }
+}
+
+//=======================================================================//
+
 /// The animation associated to a texture.
 #[must_use]
 #[derive(Debug, Serialize, Deserialize)]
@@ -292,7 +369,7 @@ pub(in crate::map) mod ui_mod
         TEXTURE_HEIGHT_RANGE
     };
 
-    use super::Sprite;
+    use super::{RotationAuxiliary, Sprite};
     use crate::{
         map::{
             brush::convex_polygon::ScaleInfo,
@@ -514,7 +591,8 @@ pub(in crate::map) mod ui_mod
                             parallax_x: value.parallax_x(),
                             parallax_y: value.parallax_y(),
                             scroll_x:   value.scroll_x(),
-                            scroll_y:   value.scroll_y()
+                            scroll_y:   value.scroll_y(),
+                            rotation_auxiliary: crate::map::drawer::texture::RotationAuxiliary::default()
                         }
                     };
 
@@ -524,10 +602,6 @@ pub(in crate::map) mod ui_mod
                         scale_y: value.scale_y(),
                         offset_x: value.offset_x(),
                         offset_y: value.offset_y(),
-                        rotation_offset_x: 0f32,
-                        rotation_offset_y: 0f32,
-                        rotation_pivot_mod: Vec2::ZERO,
-                        last_rotation_pivot: None,
                         angle: value.angle(),
                         height: value.height(),
                         sprite,
@@ -583,10 +657,11 @@ pub(in crate::map) mod ui_mod
             }
 
             Sprite::False {
-                parallax_x: 0f32,
-                parallax_y: 0f32,
-                scroll_x:   0f32,
-                scroll_y:   0f32
+                parallax_x:         0f32,
+                parallax_y:         0f32,
+                scroll_x:           0f32,
+                scroll_y:           0f32,
+                rotation_auxiliary: RotationAuxiliary::default()
             }
         }
     }
@@ -597,7 +672,7 @@ pub(in crate::map) mod ui_mod
     }
 
     //=======================================================================//
-    // TYPES
+    // STRUCTS
     //
     //=======================================================================//
 
@@ -606,9 +681,9 @@ pub(in crate::map) mod ui_mod
     pub(in crate::map) struct TextureRotation
     {
         /// The new offset.
-        pub offset: Vec2,
+        offset: Vec2,
         /// The new angle.
-        pub angle:  f32
+        angle:  f32
     }
 
     //=======================================================================//
@@ -617,16 +692,36 @@ pub(in crate::map) mod ui_mod
     #[derive(Debug)]
     pub(in crate::map) struct TextureScale
     {
-        /// The new offset.
-        pub offset:  Vec2,
+        /// The new horizontal offset.
+        offset_x: f32,
+        /// The new vertical offset.
+        offset_y: f32,
         /// The new horizontal scale.
-        pub scale_x: f32,
+        scale_x:  f32,
         /// The new vertical scale.
-        pub scale_y: f32
+        scale_y:  f32
     }
 
     //=======================================================================//
-    // TYPES
+
+    /// The outcome of a valid texture scale.
+    #[derive(Debug)]
+    pub(in crate::map) struct TextureSpriteSet
+    {
+        sprite:   Sprite,
+        offset_x: f32,
+        offset_y: f32
+    }
+
+    impl TextureSpriteSet
+    {
+        #[inline]
+        #[must_use]
+        pub const fn enabled(&self) -> bool { self.sprite.enabled() }
+    }
+
+    //=======================================================================//
+    // STRUCTS
     //
     //=======================================================================//
 
@@ -834,24 +929,15 @@ pub(in crate::map) mod ui_mod
         fn from(value: &Texture) -> Self
         {
             Self {
-                texture:             value.name.clone(),
-                scale_x:             1f32,
-                scale_y:             1f32,
-                offset_x:            0f32,
-                offset_y:            0f32,
-                rotation_offset_x:   0f32,
-                rotation_offset_y:   0f32,
-                angle:               0f32,
-                rotation_pivot_mod:  Vec2::ZERO,
-                last_rotation_pivot: None,
-                height:              0,
-                sprite:              Sprite::False {
-                    parallax_x: 0f32,
-                    parallax_y: 0f32,
-                    scroll_x:   0f32,
-                    scroll_y:   0f32
-                },
-                animation:           Animation::None
+                texture:   value.name.clone(),
+                scale_x:   1f32,
+                scale_y:   1f32,
+                offset_x:  0f32,
+                offset_y:  0f32,
+                angle:     0f32,
+                height:    0,
+                sprite:    Sprite::default(),
+                animation: Animation::None
             }
         }
     }
@@ -966,7 +1052,8 @@ pub(in crate::map) mod ui_mod
             let sprite_hull = return_if_none!(
                 self.sprite_hull(drawing_resources, old_center),
                 TextureScale {
-                    offset: Vec2::new(self.offset_x, self.offset_y),
+                    offset_x: self.offset_x,
+                    offset_y: self.offset_y,
                     scale_x,
                     scale_y
                 }
@@ -991,7 +1078,8 @@ pub(in crate::map) mod ui_mod
                 Ok(_) =>
                 {
                     TextureScale {
-                        offset: new_offset,
+                        offset_x: new_offset.x,
+                        offset_y: new_offset.y,
                         scale_x,
                         scale_y
                     }
@@ -999,6 +1087,15 @@ pub(in crate::map) mod ui_mod
                 },
                 Err(()) => None
             }
+        }
+
+        #[inline]
+        pub(in crate::map) fn scale(&mut self, value: &TextureScale)
+        {
+            self.scale_x = value.scale_x;
+            self.scale_y = value.scale_y;
+            self.offset_x = value.offset_x;
+            self.offset_y = value.offset_y;
         }
 
         /// Checks whether the scale and flipping of the texture is valid. Returns a
@@ -1028,7 +1125,8 @@ pub(in crate::map) mod ui_mod
             let sprite_hull = return_if_none!(
                 self.sprite_hull(drawing_resources, old_center),
                 TextureScale {
-                    offset: Vec2::new(self.offset_x, self.offset_y),
+                    offset_x: self.offset_x,
+                    offset_y: self.offset_y,
                     scale_x,
                     scale_y
                 }
@@ -1069,7 +1167,8 @@ pub(in crate::map) mod ui_mod
                 Ok(_) =>
                 {
                     TextureScale {
-                        offset: new_offset,
+                        offset_x: new_offset.x,
+                        offset_y: new_offset.y,
                         scale_x,
                         scale_y
                     }
@@ -1187,34 +1286,11 @@ pub(in crate::map) mod ui_mod
                 Some(hull) => hull.center(),
                 None =>
                 {
-                    let pivot = match self.last_rotation_pivot
-                    {
-                        Some(last_pivot) =>
-                        {
-                            if !self.last_rotation_pivot.unwrap().around_equal_narrow(&pivot)
-                            {
-                                let delta = pivot - last_pivot;
-                                self.rotation_pivot_mod += -delta +
-                                    rotate_point_around_origin(delta, self.angle.to_radians());
-                                self.last_rotation_pivot = pivot.into();
-                            }
-
-                            pivot + self.rotation_pivot_mod
-                        },
-                        None =>
-                        {
-                            self.rotation_pivot_mod = Vec2::ZERO;
-                            self.last_rotation_pivot = pivot.into();
-                            pivot
-                        }
-                    };
+                    let (pivot, rotation_offset) =
+                        self.sprite.rotation_parameters(self.angle.to_radians(), pivot);
 
                     return TextureRotation {
-                        offset: rotate_point(
-                            Vec2::new(self.rotation_offset_x, self.rotation_offset_y),
-                            Vec2::new(pivot.x, -pivot.y),
-                            angle
-                        ),
+                        offset: rotate_point(rotation_offset, pivot, angle),
                         angle:  end_angle
                     }
                     .into();
@@ -1251,16 +1327,25 @@ pub(in crate::map) mod ui_mod
         {
             std::mem::swap(&mut self.angle, &mut payload.angle);
 
-            if self.sprite()
+            match &mut self.sprite
             {
-                std::mem::swap(&mut self.offset_x, &mut payload.offset.x);
-                std::mem::swap(&mut self.offset_y, &mut payload.offset.y);
-            }
-            else
-            {
-                std::mem::swap(&mut self.rotation_offset_x, &mut payload.offset.x);
-                std::mem::swap(&mut self.rotation_offset_y, &mut payload.offset.y);
-            }
+                Sprite::True =>
+                {
+                    std::mem::swap(&mut self.offset_x, &mut payload.offset.x);
+                    std::mem::swap(&mut self.offset_y, &mut payload.offset.y);
+                },
+                Sprite::False {
+                    rotation_auxiliary:
+                        RotationAuxiliary {
+                            offset_x, offset_y, ..
+                        },
+                    ..
+                } =>
+                {
+                    std::mem::swap(offset_x, &mut payload.offset.x);
+                    std::mem::swap(offset_y, &mut payload.offset.y);
+                }
+            };
         }
 
         /// Sets the angle, returns the previous value if different.
@@ -1312,29 +1397,37 @@ pub(in crate::map) mod ui_mod
         /// zero. Returns the previous [`Sprite`] and offset values if different.
         #[inline]
         #[must_use]
-        pub(in crate::map) fn set_sprite(
-            &mut self,
-            value: impl Into<Sprite>
-        ) -> Option<(Sprite, f32, f32)>
+        pub(in crate::map) fn set_sprite(&mut self, value: bool) -> Option<TextureSpriteSet>
         {
-            let value = Into::<Sprite>::into(value);
-
-            if value.enabled() == self.sprite.enabled()
+            if value == self.sprite.enabled()
             {
                 return None;
             }
 
-            let prev = std::mem::replace(&mut self.sprite, value);
-            let offset_x = self.offset_x;
-            let offset_y = self.offset_y;
-
-            if value.enabled()
+            if value
             {
                 self.offset_x = 0f32;
                 self.offset_y = 0f32;
             }
 
-            (prev, offset_x, offset_y).into()
+            let prev = std::mem::replace(&mut self.sprite, Sprite::from(value));
+            let offset_x = self.offset_x;
+            let offset_y = self.offset_y;
+
+            TextureSpriteSet {
+                sprite: prev,
+                offset_x,
+                offset_y
+            }
+            .into()
+        }
+
+        #[inline]
+        pub(in crate::map) fn undo_redo_sprite(&mut self, value: &mut TextureSpriteSet)
+        {
+            std::mem::swap(&mut self.sprite, &mut value.sprite);
+            std::mem::swap(&mut self.offset_x, &mut value.offset_x);
+            std::mem::swap(&mut self.offset_y, &mut value.offset_y);
         }
 
         /// Checks whether the texture is within bounds.

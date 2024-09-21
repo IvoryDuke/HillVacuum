@@ -16,7 +16,7 @@ use crate::{
         drawer::{
             animation::{Animation, MoveUpDown, Timing},
             drawing_resources::{DrawingResources, TextureMut},
-            texture::{Sprite, TextureInterface, TextureRotation, TextureSettings}
+            texture::{TextureInterface, TextureRotation, TextureSettings, TextureSpriteSet}
         },
         editor::state::{core::UndoRedoInterface, ui::Ui},
         path::{MovementValueEdit, NodesMove, Path, StandbyValueEdit},
@@ -186,7 +186,7 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     /// Brush texture removed.
     TextureRemoval(Option<TextureSettings>),
     /// Toggled sprite setting of texture.
-    SpriteToggle(Sprite, f32, f32),
+    SpriteToggle(TextureSpriteSet),
     /// Texture flip, true -> vertical, false -> horizontal.
     TextureFlip(bool),
     /// Texture scaled with specified delta.
@@ -491,6 +491,45 @@ impl EditType
     {
         match self
         {
+            Self::BrushMove(d, move_texture) =>
+            {
+                *d = -*d;
+
+                for id in identifiers
+                {
+                    interface
+                        .brush_mut(drawing_resources, *id)
+                        .move_polygon(*d, *move_texture);
+                }
+            },
+            Self::TextureMove(delta) =>
+            {
+                *delta = -*delta;
+
+                for id in identifiers
+                {
+                    interface.brush_mut(drawing_resources, *id).move_texture(*delta);
+                }
+            },
+            Self::TextureScaleDelta(delta) =>
+            {
+                *delta = -*delta;
+
+                for id in identifiers
+                {
+                    let mut brush = interface.brush_mut(drawing_resources, *id);
+
+                    let texture = brush.texture_settings().unwrap();
+                    let scale_x = texture.scale_x() + delta.x;
+                    let scale_y = texture.scale_y() + delta.y;
+
+                    assert!(
+                        brush.set_texture_scale_x(scale_x).is_some() |
+                            brush.set_texture_scale_y(scale_y).is_some(),
+                        "Useless texture scale delta undo/redo."
+                    );
+                }
+            },
             Self::TextureFlip(y) =>
             {
                 if *y
@@ -594,6 +633,12 @@ impl EditType
         identifier: Id
     ) -> bool
     {
+        if let Self::SpriteToggle(value) = self
+        {
+            interface.undo_redo_texture_sprite(drawing_resources, identifier, value);
+            return true;
+        }
+
         let mut brush = interface.brush_mut(drawing_resources, identifier);
 
         /// Generates the match arms.
@@ -610,6 +655,17 @@ impl EditType
                         {
                             brush.toggle_vertex_at_index((*idx).into());
                         }
+                    },
+                    Self::VertexesSnap(snap) =>
+                    {
+                        for (_, delta) in &mut *snap
+                        {
+                            *delta = -*delta;
+                        }
+
+                        brush.move_vertexes_at_indexes(
+                            snap.iter().map(|(idxs, delta)| (idxs.iter(), *delta))
+                        );
                     },
                     Self::PolygonEdit(cp) => brush.swap_polygon(cp),
                     $(Self::$arm(value) =>
@@ -632,7 +688,7 @@ impl EditType
                     Self::TextureRotation(rotation) =>
                     {
                         brush.rotate_texture(rotation);
-                    }
+                    },
                     Self::AnimationChange(value) =>
                     {
                         *value = brush.set_texture_animation(std::mem::take(value));
@@ -676,6 +732,28 @@ impl EditType
         true
     }
 
+    #[inline]
+    #[must_use]
+    fn things_common(&mut self, interface: &mut UndoRedoInterface, identifiers: &HvVec<Id>)
+        -> bool
+    {
+        match self
+        {
+            Self::ThingMove(d) =>
+            {
+                *d = -*d;
+
+                for id in identifiers
+                {
+                    interface.thing_mut(*id).move_by_delta(*d);
+                }
+            },
+            _ => return false
+        };
+
+        true
+    }
+
     /// Actions common to both the undo and redo procedures that apply to a single [`Thing`].
     /// Returns whether the edit was undone/redone.
     #[inline]
@@ -694,6 +772,34 @@ impl EditType
             {
                 *angle = interface.thing_mut(identifier).set_angle(*angle).unwrap();
                 interface.schedule_overall_things_info_update();
+            },
+            _ => return false
+        };
+
+        true
+    }
+
+    #[inline]
+    #[must_use]
+    fn moving_common(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        interface: &mut UndoRedoInterface,
+        identifier: Id
+    ) -> bool
+    {
+        match self
+        {
+            Self::PathNodesSnap(snap) =>
+            {
+                for (_, delta) in &mut *snap
+                {
+                    *delta = -*delta;
+                }
+
+                interface
+                    .moving_mut(drawing_resources, identifier)
+                    .move_path_nodes_at_indexes(snap);
             },
             _ => return false
         };
@@ -867,7 +973,8 @@ impl EditType
             return;
         }
 
-        if self.brushes_common(drawing_resources, interface, identifiers)
+        if self.brushes_common(drawing_resources, interface, identifiers) ||
+            self.things_common(interface, identifiers)
         {
             return;
         }
@@ -933,15 +1040,6 @@ impl EditType
                     interface.insert_subtractee(*id);
                 }
             },
-            Self::BrushMove(d, move_texture) =>
-            {
-                for id in identifiers
-                {
-                    interface
-                        .brush_mut(drawing_resources, *id)
-                        .move_polygon(-*d, *move_texture);
-                }
-            },
             Self::FreeDrawPointInsertion(p, idx) => interface.delete_free_draw_point(*p, *idx as usize),
             Self::FreeDrawPointDeletion(p, idx) => interface.insert_free_draw_point(*p, *idx as usize),
             Self::BrushFlip(flip, flip_texture) =>
@@ -996,20 +1094,6 @@ impl EditType
                 interface.schedule_overall_node_update();
                 moving_mut!().insert_path_nodes_at_indexes(nodes);
             },
-            Self::PathNodesSnap(snap) =>
-            {
-                for (_, delta) in &mut *snap
-                {
-                    *delta = -*delta;
-                }
-
-                moving_mut!().move_path_nodes_at_indexes(snap);
-
-                for (_, delta) in &mut *snap
-                {
-                    *delta = -*delta;
-                }
-            },
             Self::PathNodeStandby(edit) =>
             {
                 interface.schedule_overall_node_update();
@@ -1039,20 +1123,6 @@ impl EditType
             Self::DrawnThingDespawn(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), true),
             Self::ThingSpawn(thing) => *thing = interface.despawn_thing(single!(), false).into(),
             Self::ThingDespawn(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), false),
-            Self::ThingMove(d) =>
-            {
-                for id in identifiers
-                {
-                    interface.thing_mut(*id).move_by_delta(-*d);
-                }
-            },
-            Self::TextureMove(delta) =>
-            {
-                for id in identifiers
-                {
-                    interface.brush_mut(drawing_resources, *id).move_texture(-*delta);
-                }
-            },
             Self::TextureChange(texture) =>
             {
                 match texture
@@ -1077,23 +1147,6 @@ impl EditType
             {
                 interface.set_texture_settings(drawing_resources, single!(), std::mem::take(texture).unwrap());
             },
-            Self::TextureScaleDelta(delta) =>
-            {
-                for id in identifiers
-                {
-                    let mut brush = interface.brush_mut(drawing_resources, *id);
-
-                    let texture = brush.texture_settings().unwrap();
-                    let scale_x = texture.scale_x() - delta.x;
-                    let scale_y = texture.scale_y() - delta.y;
-
-                    assert!(brush.set_texture_scale_x(scale_x).is_some() | brush.set_texture_scale_y(scale_y).is_some(), "Useless texture scale delta undo.");
-                }
-            },
-            Self::SpriteToggle(value, offset_x, offset_y) =>
-            {
-                (*value, *offset_x, *offset_y) = interface.set_single_sprite(drawing_resources, single!(), value.enabled());
-            },
             Self::ListAnimationFrameRemoval(index, name, time) =>
             {
                 for id in identifiers
@@ -1116,7 +1169,9 @@ impl EditType
 
         let id = single!();
 
-        if self.thing_common(interface, id) || self.brush_common(drawing_resources, interface, id)
+        if self.thing_common(interface, id) ||
+            self.brush_common(drawing_resources, interface, id) ||
+            self.moving_common(drawing_resources, interface, id)
         {
             return;
         }
@@ -1149,12 +1204,6 @@ impl EditType
                 {
                     brush.insert_vertex_at_index(*vx, (*idx).into(), *selected);
                 }
-            },
-            Self::VertexesSnap(snap) =>
-            {
-                brush.move_vertexes_at_indexes(
-                    snap.iter().map(|(idxs, delta)| (idxs.iter(), -*delta))
-                );
             },
             _ => unreachable!()
         };
@@ -1220,7 +1269,8 @@ impl EditType
             return;
         }
 
-        if self.brushes_common(drawing_resources, interface, identifiers)
+        if self.brushes_common(drawing_resources, interface, identifiers) ||
+            self.things_common(interface, identifiers)
         {
             return;
         }
@@ -1279,15 +1329,6 @@ impl EditType
                 for id in identifiers
                 {
                     interface.remove_subtractee(*id);
-                }
-            },
-            Self::BrushMove(d, move_texture) =>
-            {
-                for id in identifiers
-                {
-                    interface
-                        .brush_mut(drawing_resources, *id)
-                        .move_polygon(*d, *move_texture);
                 }
             },
             Self::FreeDrawPointInsertion(p, idx) => interface.insert_free_draw_point(*p, *idx as usize),
@@ -1349,10 +1390,6 @@ impl EditType
                 interface.schedule_overall_node_update();
                 moving_mut!().redo_selected_path_nodes_deletion();
             },
-            Self::PathNodesSnap(snap) =>
-            {
-                moving_mut!().move_path_nodes_at_indexes(snap);
-            },
             Self::PathNodeStandby(edit) =>
             {
                 interface.schedule_overall_node_update();
@@ -1382,20 +1419,6 @@ impl EditType
             Self::DrawnThingDespawn(thing) => *thing = interface.despawn_thing(single!(), true).into(),
             Self::ThingSpawn(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), false),
             Self::ThingDespawn(thing) => *thing = interface.despawn_thing(single!(), false).into(),
-            Self::ThingMove(d) =>
-            {
-                for id in identifiers
-                {
-                    interface.thing_mut(*id).move_by_delta(*d);
-                }
-            },
-            Self::TextureMove(delta) =>
-            {
-                for id in identifiers
-                {
-                    interface.brush_mut(drawing_resources, *id).move_texture(*delta);
-                }
-            },
             Self::TextureChange(texture) =>
             {
                 *texture = match interface.set_texture(
@@ -1410,23 +1433,6 @@ impl EditType
                 };
             },
             Self::TextureRemoval(texture) => *texture = interface.remove_texture(drawing_resources, single!()).into(),
-            Self::TextureScaleDelta(delta) =>
-            {
-                for id in identifiers
-                {
-                    let mut brush = interface.brush_mut(drawing_resources, *id);
-
-                    let texture = brush.texture_settings().unwrap();
-                    let scale_x = texture.scale_x() + delta.x;
-                    let scale_y = texture.scale_y() + delta.y;
-
-                    assert!(brush.set_texture_scale_x(scale_x).is_some() | brush.set_texture_scale_y(scale_y).is_some(), "Useless texture scale delta redo.");
-                }
-            },
-            Self::SpriteToggle(value, offset_x, offset_y) =>
-            {
-                (*value, *offset_x, *offset_y) = interface.set_single_sprite(drawing_resources, single!(), value.enabled());
-            },
             Self::ListAnimationFrameRemoval(index, ..) =>
             {
                 for id in identifiers
@@ -1445,7 +1451,9 @@ impl EditType
 
         let id = single!();
 
-        if self.thing_common(interface, id) || self.brush_common(drawing_resources, interface, id)
+        if self.thing_common(interface, id) ||
+            self.brush_common(drawing_resources, interface, id) ||
+            self.moving_common(drawing_resources, interface, id)
         {
             return;
         }
@@ -1478,12 +1486,6 @@ impl EditType
                 {
                     brush.delete_vertex_at_index((*idx).into());
                 }
-            },
-            Self::VertexesSnap(snap) =>
-            {
-                brush.move_vertexes_at_indexes(
-                    snap.iter().map(|(idxs, delta)| (idxs.iter(), *delta))
-                );
             },
             _ => unreachable!()
         };

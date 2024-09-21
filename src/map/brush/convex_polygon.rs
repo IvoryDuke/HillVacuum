@@ -8,7 +8,7 @@ use glam::Vec2;
 use crate::map::drawer::texture::TextureSettings;
 
 //=======================================================================//
-// TYPES
+// STRUCTS
 //
 //=======================================================================//
 
@@ -55,7 +55,7 @@ pub(in crate::map) mod ui_mod
                 color::Color,
                 drawers::{EditDrawer, MapPreviewDrawer},
                 drawing_resources::DrawingResources,
-                texture::{Sprite, TextureInterfaceExtra, TextureRotation, TextureScale}
+                texture::{TextureInterfaceExtra, TextureRotation, TextureScale, TextureSpriteSet}
             },
             editor::state::grid::Grid,
             selectable_vector::{
@@ -443,7 +443,7 @@ pub(in crate::map) mod ui_mod
     }
 
     //=======================================================================//
-    // TYPES
+    // STRUCTS
     //
     //=======================================================================//
 
@@ -894,7 +894,7 @@ pub(in crate::map) mod ui_mod
     }
 
     //=======================================================================//
-    // TYPES
+    // STRUCTS
     //
     //=======================================================================//
 
@@ -1185,8 +1185,7 @@ pub(in crate::map) mod ui_mod
             if self.has_sprite()
             {
                 let center = self.center;
-                self.texture_edited = true;
-                self.texture_settings_mut().move_offset(old_center - center);
+                self.texture_settings_mut_dirty().move_offset(old_center - center);
             }
         }
 
@@ -1241,8 +1240,7 @@ pub(in crate::map) mod ui_mod
                 return;
             }
 
-            self.texture_edited = true;
-            let texture = self.texture_settings_mut();
+            let texture = self.texture_settings_mut_dirty();
             let sprite = texture.sprite();
 
             if !move_texture
@@ -1351,6 +1349,13 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
+        fn texture_settings_mut_dirty(&mut self) -> &mut TextureSettings
+        {
+            self.texture_edited = true;
+            self.texture.as_mut().unwrap()
+        }
+
+        #[inline]
         #[must_use]
         fn set_texture_updated<T>(&mut self, value: Option<T>) -> Option<T>
         {
@@ -1442,8 +1447,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn move_texture(&mut self, value: Vec2)
         {
-            self.texture_edited = true;
-            let texture = self.texture_settings_mut();
+            let texture = self.texture_settings_mut_dirty();
             let x = if texture.sprite() { value.x } else { -value.x };
             _ = texture.set_offset_x(texture.offset_x() + x);
             _ = texture.set_offset_y(texture.offset_y() + value.y);
@@ -1515,8 +1519,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn flip_texture_scale_x(&mut self)
         {
-            self.texture_edited = true;
-            let texture = self.texture_settings_mut();
+            let texture = self.texture_settings_mut_dirty();
             let scale = texture.scale_x();
             _ = texture.set_scale_x(-scale);
         }
@@ -1529,8 +1532,7 @@ pub(in crate::map) mod ui_mod
         ) -> bool
         {
             let center = self.center;
-            self.texture_edited = true;
-            self.texture_settings_mut()
+            self.texture_settings_mut_dirty()
                 .check_scale_y(drawing_resources, value, center)
         }
 
@@ -1539,15 +1541,13 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn set_texture_scale_y(&mut self, value: f32) -> Option<f32>
         {
             let result = self.texture_settings_mut().set_scale_y(value);
-
             self.set_texture_updated(result)
         }
 
         #[inline]
         pub(in crate::map::brush) fn flip_texture_scale_y(&mut self)
         {
-            self.texture_edited = true;
-            let texture = self.texture_settings_mut();
+            let texture = self.texture_settings_mut_dirty();
             let scale = texture.scale_y();
             _ = texture.set_scale_y(-scale);
         }
@@ -1630,11 +1630,20 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map::brush) fn set_texture_sprite(
             &mut self,
-            value: impl Into<Sprite>
-        ) -> Option<(Sprite, f32, f32)>
+            value: bool
+        ) -> Option<TextureSpriteSet>
         {
             let result = self.texture_settings_mut().set_sprite(value);
             self.set_texture_updated(result)
+        }
+
+        #[inline]
+        pub(in crate::map::brush) fn undo_redo_texture_sprite(
+            &mut self,
+            value: &mut TextureSpriteSet
+        )
+        {
+            self.texture_settings_mut_dirty().undo_redo_sprite(value);
         }
 
         #[inline]
@@ -1681,8 +1690,7 @@ pub(in crate::map) mod ui_mod
             animation: Animation
         ) -> Animation
         {
-            self.texture_edited = true;
-            self.texture_settings_mut().set_animation(animation)
+            self.texture_settings_mut_dirty().set_animation(animation)
         }
 
         #[inline]
@@ -1691,15 +1699,13 @@ pub(in crate::map) mod ui_mod
             texture: &str
         ) -> Animation
         {
-            self.texture_edited = true;
-            self.texture_settings_mut().set_list_animation(texture)
+            self.texture_settings_mut_dirty().set_list_animation(texture)
         }
 
         #[inline]
         pub(in crate::map::brush) fn generate_list_animation(&mut self) -> Animation
         {
-            self.texture_edited = true;
-            self.texture_settings_mut().generate_list_animation()
+            self.texture_settings_mut_dirty().generate_list_animation()
         }
 
         #[inline]
@@ -1780,8 +1786,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn set_atlas_animation_timing(&mut self, timing: Timing)
             -> Timing
         {
-            self.texture_edited = true;
-            self.texture_settings_mut().set_atlas_animation_timing(timing)
+            self.texture_settings_mut_dirty().set_atlas_animation_timing(timing)
         }
 
         #[inline]
@@ -1829,16 +1834,15 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn move_down_atlas_animation_frame_time(&mut self, index: usize)
         {
-            self.texture_edited = true;
-            self.texture_settings_mut()
+            self.texture_settings_mut_dirty()
                 .move_down_atlas_animation_frame_time(index);
         }
 
         #[inline]
         pub(in crate::map::brush) fn move_up_atlas_animation_frame_time(&mut self, index: usize)
         {
-            self.texture_edited = true;
-            self.texture_settings_mut().move_up_atlas_animation_frame_time(index);
+            self.texture_settings_mut_dirty()
+                .move_up_atlas_animation_frame_time(index);
         }
 
         #[inline]
@@ -1875,15 +1879,14 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn move_up_list_animation_frame(&mut self, index: usize)
         {
-            self.texture_edited = true;
-            self.texture_settings_mut().move_up_list_animation_frame(index);
+            self.texture_settings_mut_dirty().move_up_list_animation_frame(index);
         }
 
         #[inline]
         pub(in crate::map::brush) fn move_down_list_animation_frame(&mut self, index: usize)
         {
-            self.texture_edited = true;
-            self.texture_settings_mut().move_down_list_animation_frame(index);
+            self.texture_settings_mut_dirty()
+                .move_down_list_animation_frame(index);
         }
 
         #[inline]
@@ -1894,30 +1897,26 @@ pub(in crate::map) mod ui_mod
             time: f32
         )
         {
-            self.texture_edited = true;
-            self.texture_settings_mut()
+            self.texture_settings_mut_dirty()
                 .insert_list_animation_frame(index, texture, time);
         }
 
         #[inline]
         pub(in crate::map::brush) fn pop_list_animation_frame(&mut self)
         {
-            self.texture_edited = true;
-            self.texture_settings_mut().pop_list_animation_frame();
+            self.texture_settings_mut_dirty().pop_list_animation_frame();
         }
 
         #[inline]
         pub(in crate::map::brush) fn remove_list_animation_frame(&mut self, index: usize)
         {
-            self.texture_edited = true;
-            self.texture_settings_mut().remove_list_animation_frame(index);
+            self.texture_settings_mut_dirty().remove_list_animation_frame(index);
         }
 
         #[inline]
         pub(in crate::map::brush) fn push_list_animation_frame(&mut self, texture: &str)
         {
-            self.texture_edited = true;
-            self.texture_settings_mut().push_list_animation_frame(texture);
+            self.texture_settings_mut_dirty().push_list_animation_frame(texture);
         }
 
         #[inline]
@@ -3810,6 +3809,12 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
+        pub(in crate::map) fn scale_texture(&mut self, value: &TextureScale)
+        {
+            self.texture_settings_mut_dirty().scale(value);
+        }
+
+        #[inline]
         pub(in crate::map::brush) fn check_flip_scale(
             &mut self,
             drawing_resources: &DrawingResources,
@@ -4075,8 +4080,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub fn rotate_texture(&mut self, payload: &mut TextureRotation)
         {
-            self.texture_settings_mut().rotate(payload);
-            self.texture_edited = true;
+            self.texture_settings_mut_dirty().rotate(payload);
         }
 
         //==============================================================
@@ -4232,8 +4236,7 @@ pub(in crate::map) mod ui_mod
             if flip_texture
             {
                 let center = self.center;
-                self.texture_edited = true;
-                self.texture_settings_mut()
+                self.texture_settings_mut_dirty()
                     .y_flip(drawing_resources, y, old_center, center);
             }
         }
@@ -4328,8 +4331,7 @@ pub(in crate::map) mod ui_mod
             if flip_texture
             {
                 let center = self.center;
-                self.texture_edited = true;
-                self.texture_settings_mut()
+                self.texture_settings_mut_dirty()
                     .x_flip(drawing_resources, x, old_center, center);
             }
         }

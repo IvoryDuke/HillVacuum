@@ -52,7 +52,7 @@ use crate::{
         brush::{convex_polygon::TextureSetResult, BrushData},
         drawer::{
             drawing_resources::DrawingResources,
-            texture::{Sprite, TextureSettings}
+            texture::{TextureSettings, TextureSpriteSet}
         },
         editor::{
             state::{core::zoom_tool::ZoomTool, grid::Grid},
@@ -377,7 +377,7 @@ impl From<bool> for VertexesToggle
 }
 
 //=======================================================================//
-// TYPES
+// STRUCTS
 //
 //=======================================================================//
 
@@ -610,14 +610,15 @@ impl<'a> UndoRedoInterface<'a>
     /// Sets whether the texture of the selected brush with [`Id`] `identifier` should be
     /// rendered as a sprite or not. Returns the previous sprite rendering parameters.
     #[inline]
-    pub fn set_single_sprite(
+    pub fn undo_redo_texture_sprite(
         &mut self,
         drawing_resources: &DrawingResources,
         identifier: Id,
-        value: bool
-    ) -> (Sprite, f32, f32)
+        value: &mut TextureSpriteSet
+    )
     {
-        self.manager.set_single_sprite(drawing_resources, identifier, value)
+        self.manager
+            .undo_redo_texture_sprite(drawing_resources, identifier, value);
     }
 
     /// Deletes the free draw point at position `p` or `index` depending on the active tool.

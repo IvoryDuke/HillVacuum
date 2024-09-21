@@ -55,7 +55,8 @@ impl From<&Sprite> for OverallSprite
                 parallax_x,
                 parallax_y,
                 scroll_x,
-                scroll_y
+                scroll_y,
+                ..
             } =>
             {
                 Self::False {

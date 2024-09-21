@@ -22,7 +22,7 @@ use crate::utils::{iterators::SkipIndexIterator, misc::FromToStr};
 const INI_SECTION: &str = "EDITOR_CONTROLS";
 
 //=======================================================================//
-// TYPES
+// STRUCTS
 //
 //=======================================================================//
 

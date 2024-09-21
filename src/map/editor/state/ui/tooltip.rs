@@ -9,7 +9,7 @@ use hill_vacuum_shared::return_if_none;
 use crate::map::editor::{state::core::tool::ToolInterface, StateUpdateBundle};
 
 //=======================================================================//
-// TYPES
+// STRUCTS
 //
 //=======================================================================//
 

@@ -54,7 +54,7 @@ use crate::{
             animation::Animator,
             color::Color,
             drawing_resources::DrawingResources,
-            texture::{Sprite, TextureInterface, TextureInterfaceExtra, TextureSettings}
+            texture::{TextureInterface, TextureInterfaceExtra, TextureSettings, TextureSpriteSet}
         },
         editor::{
             state::{
@@ -159,7 +159,7 @@ enum PropertyUpdate
 }
 
 //=======================================================================//
-// TYPES
+// STRUCTS
 //
 //=======================================================================//
 
@@ -3307,8 +3307,8 @@ impl EntitiesManager
                     {
                         let mut brush =
                             self.innards.brush_mut(drawing_resources, &mut self.quad_trees, *id);
-                        let (value, o_x, o_y) = continue_if_none!(brush.set_texture_sprite(value));
-                        edits_history.sprite(brush.id(), value, o_x, o_y);
+                        let value = continue_if_none!(brush.set_texture_sprite(value));
+                        edits_history.sprite(brush.id(), value);
                     }
 
                     self.innards.$func(*id);
@@ -3328,19 +3328,18 @@ impl EntitiesManager
     /// Sets whether the texture of the selected brush with [`Id`] `identifier` should be
     /// rendered as a sprite or not. Returns the previous sprite rendering parameters.
     #[inline]
-    pub fn set_single_sprite(
+    pub fn undo_redo_texture_sprite(
         &mut self,
         drawing_resources: &DrawingResources,
         identifier: Id,
-        value: bool
-    ) -> (Sprite, f32, f32)
+        value: &mut TextureSpriteSet
+    )
     {
-        let out = self
-            .brush_mut(drawing_resources, identifier)
-            .set_texture_sprite(value)
-            .unwrap();
+        let enabled = value.enabled();
+        self.brush_mut(drawing_resources, identifier)
+            .undo_redo_texture_sprite(value);
 
-        if value
+        if enabled
         {
             self.innards.insert_selected_sprite(identifier);
         }
@@ -3348,8 +3347,6 @@ impl EntitiesManager
         {
             self.innards.remove_selected_sprite(identifier);
         }
-
-        out
     }
 
     /// Completes the texture reload.

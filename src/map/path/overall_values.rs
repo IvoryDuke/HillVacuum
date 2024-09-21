@@ -7,7 +7,7 @@ use super::nodes::Movement;
 use crate::utils::overall_value::{OverallValue, OverallValueInterface, UiOverallValue};
 
 //=======================================================================//
-// TYPES
+// STRUCTS
 //
 //=======================================================================//
 
