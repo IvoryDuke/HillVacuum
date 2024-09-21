@@ -1520,7 +1520,7 @@ impl<'a> MeshGenerator<'a>
 
     #[inline]
     #[must_use]
-    fn common_uv_coordinate<T: TextureInterface>(
+    fn common_texture_uv_coordinate<T: TextureInterface>(
         vx: [f32; 2],
         texture: &Texture,
         settings: &T,
@@ -1533,7 +1533,9 @@ impl<'a> MeshGenerator<'a>
         [
             (vx[0] + settings.draw_offset_x() + settings.draw_scroll_x(elapsed_time) + parallax.x) /
                 (size.x * settings.scale_x()),
-            (-vx[1] + settings.draw_offset_y() + settings.draw_scroll_y(elapsed_time) + parallax.y) /
+            (-(vx[1] + settings.draw_offset_y()) +
+                settings.draw_scroll_y(elapsed_time) +
+                parallax.y) /
                 (size.y * settings.scale_y())
         ]
     }
@@ -1555,7 +1557,7 @@ impl<'a> MeshGenerator<'a>
             center,
             elapsed_time,
             parallax_enabled,
-            Self::common_uv_coordinate
+            Self::common_texture_uv_coordinate
         );
     }
 
@@ -1583,8 +1585,13 @@ impl<'a> MeshGenerator<'a>
             pivot: Uv
         ) -> Uv
         {
-            let [x, y] =
-                MeshGenerator::common_uv_coordinate(vx, texture, settings, elapsed_time, parallax);
+            let [x, y] = MeshGenerator::common_texture_uv_coordinate(
+                vx,
+                texture,
+                settings,
+                elapsed_time,
+                parallax
+            );
             [x + pivot[0], y + pivot[1]]
         }
 

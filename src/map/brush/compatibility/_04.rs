@@ -71,7 +71,7 @@ impl TextureInterface for TextureSettings
     fn offset_x(&self) -> f32 { self.offset_x }
 
     #[inline]
-    fn offset_y(&self) -> f32 { self.offset_y }
+    fn offset_y(&self) -> f32 { -self.offset_y }
 
     #[inline]
     fn draw_offset_x(&self) -> f32 { self.offset_x() }

@@ -4,13 +4,9 @@
 //=======================================================================//
 
 use glam::Vec2;
-use hill_vacuum_shared::match_or_panic;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    utils::math::{points::rotate_point_around_origin, AroundEqual},
-    Animation
-};
+use crate::Animation;
 
 //=======================================================================//
 // MACROS
@@ -180,20 +176,6 @@ impl Sprite
     #[inline]
     #[must_use]
     pub const fn enabled(&self) -> bool { matches!(self, Self::True { .. }) }
-
-    #[inline]
-    fn rotation_parameters(&mut self, angle: f32, pivot: Vec2) -> (Vec2, Vec2)
-    {
-        match_or_panic!(
-            self,
-            Self::False {
-                rotation_auxiliary,
-                ..
-            },
-            rotation_auxiliary
-        )
-        .rotation_parameters(angle, pivot)
-    }
 }
 
 //=======================================================================//
@@ -234,7 +216,7 @@ impl TextureInterface for TextureSettings
     fn draw_offset_x(&self) -> f32 { self.offset_x + self.sprite.rotation_offset_x() }
 
     #[inline]
-    fn draw_offset_y(&self) -> f32 { self.offset_y + self.sprite.rotation_offset_y() }
+    fn draw_offset_y(&self) -> f32 { self.offset_y - self.sprite.rotation_offset_y() }
 
     #[inline]
     fn scale_x(&self) -> f32 { self.scale_x }
@@ -297,37 +279,6 @@ pub(in crate::map::drawer) struct RotationAuxiliary
     offset_y:   f32,
     pivot_mod:  Vec2,
     last_pivot: Option<Vec2>
-}
-
-impl RotationAuxiliary
-{
-    #[inline]
-    #[must_use]
-    fn rotation_parameters(&mut self, angle: f32, pivot: Vec2) -> (Vec2, Vec2)
-    {
-        let pivot = match self.last_pivot
-        {
-            Some(last_pivot) =>
-            {
-                if !self.last_pivot.unwrap().around_equal_narrow(&pivot)
-                {
-                    let delta = pivot - last_pivot;
-                    self.pivot_mod += -delta + rotate_point_around_origin(delta, angle);
-                    self.last_pivot = pivot.into();
-                }
-
-                pivot + self.pivot_mod
-            },
-            None =>
-            {
-                self.pivot_mod = Vec2::ZERO;
-                self.last_pivot = pivot.into();
-                pivot
-            }
-        };
-
-        (pivot.with_y(-pivot.y), Vec2::new(self.offset_x, self.offset_y))
-    }
 }
 
 //=======================================================================//
@@ -669,6 +620,21 @@ pub(in crate::map) mod ui_mod
     impl Sprite
     {
         set_sprite_values!(parallax_x, parallax_y, scroll_x, scroll_y);
+
+        #[inline]
+        fn rotation_offset(&mut self, texture_angle: f32, rotation_angle: f32, pivot: Vec2)
+            -> Vec2
+        {
+            match_or_panic!(
+                self,
+                Self::False {
+                    rotation_auxiliary,
+                    ..
+                },
+                rotation_auxiliary
+            )
+            .rotation_offset(texture_angle, rotation_angle, pivot)
+        }
     }
 
     //=======================================================================//
@@ -723,6 +689,44 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
     // STRUCTS
     //
+    //=======================================================================//
+
+    impl RotationAuxiliary
+    {
+        #[inline]
+        #[must_use]
+        fn rotation_offset(&mut self, texture_angle: f32, rotation_angle: f32, pivot: Vec2)
+            -> Vec2
+        {
+            let pivot = match self.last_pivot
+            {
+                Some(last_pivot) =>
+                {
+                    if !self.last_pivot.unwrap().around_equal_narrow(&pivot)
+                    {
+                        let delta = pivot - last_pivot;
+                        self.pivot_mod += -delta + rotate_point_around_origin(delta, texture_angle);
+                        self.last_pivot = pivot.into();
+                    }
+
+                    pivot + self.pivot_mod
+                },
+                None =>
+                {
+                    self.pivot_mod = Vec2::ZERO;
+                    self.last_pivot = pivot.into();
+                    pivot
+                }
+            };
+
+            rotate_point(
+                Vec2::new(self.offset_x, self.offset_y),
+                pivot.with_y(-pivot.y),
+                rotation_angle
+            )
+        }
+    }
+
     //=======================================================================//
 
     /// A texture which can be rendered on screen and its metadata.
@@ -1286,11 +1290,8 @@ pub(in crate::map) mod ui_mod
                 Some(hull) => hull.center(),
                 None =>
                 {
-                    let (pivot, rotation_offset) =
-                        self.sprite.rotation_parameters(self.angle.to_radians(), pivot);
-
                     return TextureRotation {
-                        offset: rotate_point(rotation_offset, pivot, angle),
+                        offset: self.sprite.rotation_offset(self.angle.to_radians(), angle, pivot),
                         angle:  end_angle
                     }
                     .into();

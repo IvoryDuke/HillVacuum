@@ -1252,7 +1252,7 @@ pub(in crate::map) mod ui_mod
             }
             else if !sprite
             {
-                texture.move_offset(Vec2::new(-delta.x, delta.y));
+                texture.move_offset(-delta);
             }
         }
 
@@ -1448,9 +1448,15 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn move_texture(&mut self, value: Vec2)
         {
             let texture = self.texture_settings_mut_dirty();
-            let x = if texture.sprite() { value.x } else { -value.x };
-            _ = texture.set_offset_x(texture.offset_x() + x);
-            _ = texture.set_offset_y(texture.offset_y() + value.y);
+
+            if texture.sprite()
+            {
+                texture.move_offset(value);
+            }
+            else
+            {
+                texture.move_offset(-value);
+            }
         }
 
         #[inline]

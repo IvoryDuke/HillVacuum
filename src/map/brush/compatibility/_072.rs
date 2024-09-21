@@ -3,9 +3,10 @@
 //
 //=======================================================================//
 
+use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{Animation, TextureInterface};
+use crate::{Animation, Group, HvHashMap, HvVec, Id, TextureInterface, Value};
 
 //=======================================================================//
 // ENUMS
@@ -64,13 +65,13 @@ impl TextureInterface for TextureSettings
     fn offset_x(&self) -> f32 { self.offset_x }
 
     #[inline]
-    fn offset_y(&self) -> f32 { self.offset_y }
+    fn offset_y(&self) -> f32 { -self.offset_y }
 
     #[inline]
-    fn draw_offset_x(&self) -> f32 { self.offset_x }
+    fn draw_offset_x(&self) -> f32 { self.offset_x() }
 
     #[inline]
-    fn draw_offset_y(&self) -> f32 { self.offset_y }
+    fn draw_offset_y(&self) -> f32 { self.offset_y() }
 
     #[inline]
     fn scale_x(&self) -> f32 { self.scale_x }
@@ -111,4 +112,24 @@ impl TextureInterface for TextureSettings
 
     #[inline]
     fn animation(&self) -> &Animation { &self.animation }
+}
+
+//=======================================================================//
+
+#[must_use]
+#[derive(Serialize, Deserialize)]
+pub struct BrushViewer
+{
+    /// The [`Id`].
+    pub id:         Id,
+    /// The vertexes.
+    pub vertexes:   HvVec<Vec2>,
+    /// The texture.
+    pub texture:    Option<TextureSettings>,
+    /// The [`Mover`].
+    pub mover:      Group,
+    /// Whether collision against the polygonal shape is enabled.
+    pub collision:  bool,
+    /// The associated properties.
+    pub properties: HvHashMap<String, Value>
 }
