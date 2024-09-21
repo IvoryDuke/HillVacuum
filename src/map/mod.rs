@@ -45,7 +45,7 @@ use crate::{Brush, ThingInstance};
 //=======================================================================//
 
 /// The version of the saved files.
-const FILE_VERSION_NUMBER: &str = "0.7";
+const FILE_VERSION_NUMBER: &str = "0.7.3";
 
 //=======================================================================//
 // ENUMS

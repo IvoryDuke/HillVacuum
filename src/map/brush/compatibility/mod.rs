@@ -1,7 +1,7 @@
 pub(in crate::map) mod _03;
 pub(in crate::map) mod _04;
 pub(in crate::map) mod _061;
-pub(in crate::map) mod _072;
+pub(in crate::map) mod _07;
 
 //=======================================================================//
 // IMPORTS

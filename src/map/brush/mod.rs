@@ -1202,6 +1202,31 @@ pub(in crate::map) mod ui_mod
         }
     }
 
+    impl From<crate::map::brush::compatibility::_07::BrushViewer> for Brush
+    {
+        #[inline]
+        fn from(value: crate::map::brush::compatibility::_07::BrushViewer) -> Self
+        {
+            let crate::map::brush::compatibility::_07::BrushViewer {
+                id,
+                vertexes,
+                texture,
+                group,
+                collision,
+                properties
+            } = value;
+
+            Brush::from(BrushViewer {
+                id,
+                vertexes,
+                texture: texture.map(TextureSettings::from),
+                group,
+                collision,
+                properties
+            })
+        }
+    }
+
     impl Brush
     {
         //==============================================================

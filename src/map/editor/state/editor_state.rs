@@ -1321,6 +1321,69 @@ impl State
         default_properties: &mut AllDefaultProperties
     ) -> Result<(EntitiesManager, Clipboard, Grid, PathBuf), &'static str>
     {
+        macro_rules! convert_061_07 {
+            ($($version:ident),+) => { paste::paste! { $(
+                #[inline]
+                fn [< convert $version >](
+                    mut reader: BufReader<File>,
+                    things_catalog: &ThingsCatalog
+                ) -> Result<OldFileRead, &'static str>
+                {
+                    // Header.
+                    let header = ex_header(&mut reader)?;
+
+                    // Grid.
+                    let grid = ex_grid(&mut reader)?;
+
+                    // Animations.
+                    let animations = ex_animations(&mut reader, &header)?;
+
+                    // Properties.
+                    let default_properties = ex_default_properties(&mut reader)?;
+
+                    // Brushes.
+                    let mut brushes = hv_vec![];
+
+                    for _ in 0..header.brushes
+                    {
+                        brushes.push(
+                            ciborium::from_reader::<
+                                crate::map::brush::compatibility::$version::BrushViewer,
+                                _
+                            >(&mut reader)
+                            .map_err(|_| "Error reading brushes for conversion.")?
+                            .into()
+                        );
+                    }
+
+                    // Things.
+                    let mut things = hv_vec![];
+
+                    for _ in 0..header.things
+                    {
+                        things.push(ThingInstance::from((
+                            ciborium::from_reader::<ThingViewer, _>(&mut reader)
+                                .map_err(|_| "Error reading things for conversion.")?,
+                            things_catalog
+                        )));
+                    }
+
+                    // Props.
+                    let props = ex_props(&mut reader, &header)?;
+
+                    Ok(OldFileRead {
+                        header,
+                        grid,
+                        animations,
+                        default_properties,
+                        brushes,
+                        things,
+                        props
+                    })
+                }
+            )+ }};
+        }
+
         use crate::map::{brush::BrushViewer, thing::ThingViewer};
 
         struct OldFileRead
@@ -1592,67 +1655,11 @@ impl State
             })
         }
 
-        #[inline]
-        fn convert_061(
-            mut reader: BufReader<File>,
-            things_catalog: &ThingsCatalog
-        ) -> Result<OldFileRead, &'static str>
-        {
-            // Header.
-            let header = ex_header(&mut reader)?;
-
-            // Grid.
-            let grid = ex_grid(&mut reader)?;
-
-            // Animations.
-            let animations = ex_animations(&mut reader, &header)?;
-
-            // Properties.
-            let default_properties = ex_default_properties(&mut reader)?;
-
-            // Brushes.
-            let mut brushes = hv_vec![];
-
-            for _ in 0..header.brushes
-            {
-                brushes.push(
-                    ciborium::from_reader::<
-                        crate::map::brush::compatibility::_061::BrushViewer,
-                        _
-                    >(&mut reader)
-                    .map_err(|_| "Error reading brushes for conversion.")?
-                    .into()
-                );
-            }
-
-            // Things.
-            let mut things = hv_vec![];
-
-            for _ in 0..header.things
-            {
-                things.push(ThingInstance::from((
-                    ciborium::from_reader::<ThingViewer, _>(&mut reader)
-                        .map_err(|_| "Error reading things for conversion.")?,
-                    things_catalog
-                )));
-            }
-
-            // Props.
-            let props = ex_props(&mut reader, &header)?;
-
-            Ok(OldFileRead {
-                header,
-                grid,
-                animations,
-                default_properties,
-                brushes,
-                things,
-                props
-            })
-        }
+        convert_061_07!(_061, _07);
 
         #[inline]
         fn convert(
+            version: &str,
             path: &mut PathBuf,
             reader: BufReader<File>,
             things_catalog: &ThingsCatalog,
@@ -1660,11 +1667,11 @@ impl State
         ) -> Result<BufReader<File>, &'static str>
         {
             let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
-            file_name.push_str("_07.hv");
+            file_name.push_str("_073.hv");
 
             warning_message(&format!(
-                "This file appears to have an old file structure, if it is valid it will now be \
-                 converted to {file_name}."
+                "This file appears to use the old file structure {version}, if it is valid it \
+                 will now be converted to {file_name}."
             ));
 
             let OldFileRead {
@@ -1773,13 +1780,17 @@ impl State
         let mut steps = FileStructure::iter();
 
         steps.next_value().assert(FileStructure::Version);
-        let mut file = match version_number(&mut reader).as_str()
+        let version_number = version_number(&mut reader);
+        let version_number = version_number.as_str();
+
+        let mut file = match version_number
         {
-            "0.3" => convert(&mut path, reader, things_catalog, convert_03)?,
-            "0.4" => convert(&mut path, reader, things_catalog, convert_04)?,
-            "0.5" => convert(&mut path, reader, things_catalog, convert_05)?,
-            "0.6" => convert(&mut path, reader, things_catalog, convert_06)?,
-            "0.6.1" => convert(&mut path, reader, things_catalog, convert_061)?,
+            "0.3" => convert(version_number, &mut path, reader, things_catalog, convert_03)?,
+            "0.4" => convert(version_number, &mut path, reader, things_catalog, convert_04)?,
+            "0.5" => convert(version_number, &mut path, reader, things_catalog, convert_05)?,
+            "0.6" => convert(version_number, &mut path, reader, things_catalog, convert_06)?,
+            "0.6.1" => convert(version_number, &mut path, reader, things_catalog, convert_061)?,
+            "0.7" => convert(version_number, &mut path, reader, things_catalog, convert_07)?,
             FILE_VERSION_NUMBER => reader,
             _ => unreachable!()
         };

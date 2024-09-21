@@ -127,7 +127,7 @@ pub struct BrushViewer
     /// The texture.
     pub texture:    Option<TextureSettings>,
     /// The [`Mover`].
-    pub mover:      Group,
+    pub group:      Group,
     /// Whether collision against the polygonal shape is enabled.
     pub collision:  bool,
     /// The associated properties.
