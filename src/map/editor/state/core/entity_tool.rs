@@ -606,13 +606,18 @@ impl EntityTool
                 edit_target!(
                     settings.target_switch(),
                     |move_texture| {
-                        if Self::move_selected_entities(bundle, manager, delta, move_texture)
+                        if Self::move_selected_entities(
+                            bundle.drawing_resources,
+                            manager,
+                            delta,
+                            move_texture
+                        )
                         {
                             edits_history.entity_move_cluster(manager, delta, move_texture);
                         }
                     },
                     {
-                        if Self::move_selected_textures(bundle, manager, delta)
+                        if Self::move_selected_textures(bundle.drawing_resources, manager, delta)
                         {
                             edits_history.texture_move_cluster(manager, delta);
                         }
@@ -664,15 +669,25 @@ impl EntityTool
                     drag.conditional_update(bundle.cursor, grid, |delta| {
                         if *drag_spawn
                         {
-                            return Self::move_selected_entities(bundle, manager, delta, true);
+                            return Self::move_selected_entities(
+                                bundle.drawing_resources,
+                                manager,
+                                delta,
+                                true
+                            );
                         }
 
                         edit_target!(
                             settings.target_switch(),
                             |move_texture| {
-                                Self::move_selected_entities(bundle, manager, delta, move_texture)
+                                Self::move_selected_entities(
+                                    bundle.drawing_resources,
+                                    manager,
+                                    delta,
+                                    move_texture
+                                )
                             },
-                            Self::move_selected_textures(bundle, manager, delta)
+                            Self::move_selected_textures(bundle.drawing_resources, manager, delta)
                         )
                     });
                 }
@@ -845,7 +860,7 @@ impl EntityTool
     /// Moves the selected entities.
     #[inline]
     fn move_selected_entities(
-        bundle: &ToolUpdateBundle,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         delta: Vec2,
         move_texture: bool
@@ -855,7 +870,7 @@ impl EntityTool
             manager
                 .selected_brushes()
                 .find_map(|brush| {
-                    (!brush.check_move(bundle.drawing_resources, delta, move_texture))
+                    (!brush.check_move(drawing_resources, delta, move_texture))
                         .then_some(brush.id())
                 })
                 .or(manager
@@ -868,7 +883,7 @@ impl EntityTool
             return false;
         }
 
-        for mut brush in manager.selected_brushes_mut(bundle.drawing_resources)
+        for mut brush in manager.selected_brushes_mut(drawing_resources)
         {
             brush.move_by_delta(delta, move_texture);
         }
@@ -884,14 +899,14 @@ impl EntityTool
     /// Moves the selected textures.
     #[inline]
     fn move_selected_textures(
-        bundle: &ToolUpdateBundle,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         delta: Vec2
     ) -> bool
     {
         let valid = manager.test_operation_validity(|manager| {
             return_if_none!(manager.selected_brushes_with_sprites(), None).find_map(|brush| {
-                (!brush.check_texture_move(bundle.drawing_resources, delta)).then_some(brush.id())
+                (!brush.check_texture_move(drawing_resources, delta)).then_some(brush.id())
             })
         });
 
@@ -900,7 +915,7 @@ impl EntityTool
             return false;
         }
 
-        for mut brush in manager.selected_brushes_mut(bundle.drawing_resources)
+        for mut brush in manager.selected_brushes_mut(drawing_resources)
         {
             brush.move_texture(delta);
         }

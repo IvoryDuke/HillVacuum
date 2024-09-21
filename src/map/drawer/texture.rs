@@ -1224,8 +1224,13 @@ pub(in crate::map) mod ui_mod
 
         /// Moves the offset.
         #[inline]
-        pub(in crate::map) fn move_offset(&mut self, value: Vec2)
+        pub(in crate::map) fn move_offset(&mut self, mut value: Vec2)
         {
+            if !self.sprite()
+            {
+                value = rotate_point_around_origin(-value, self.angle.to_radians());
+            }
+
             self.offset_x += value.x;
             self.offset_y += value.y;
         }
