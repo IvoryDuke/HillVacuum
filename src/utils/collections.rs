@@ -659,7 +659,7 @@ pub(crate) mod ui_mod
                 SliceTripletIter,
                 TripletIterator
             },
-            misc::{AssertedInsertRemove, NoneIfEmpty, ReplaceValues, TakeValue}
+            misc::{AssertedInsertRemove, NoneIfEmpty, ReplaceValues}
         },
         HvHashMap,
         HvHashSet,
@@ -748,12 +748,6 @@ pub(crate) mod ui_mod
             self.clear();
             self.extend(iter);
         }
-    }
-
-    impl<T> TakeValue for HvVec<T>
-    {
-        #[inline]
-        fn take_value(&mut self) -> Self { std::mem::replace(self, hv_vec![]) }
     }
 
     impl<'a, T: 'a> PairIterator<'a, &'a T, SlicePairIter<'a, T>> for HvVec<T>
@@ -954,13 +948,6 @@ pub(crate) mod ui_mod
         }
     }
 
-    impl<K: std::hash::Hash + std::cmp::Eq, V> TakeValue for HvHashMap<K, V>
-    {
-        #[inline]
-        #[must_use]
-        fn take_value(&mut self) -> Self { std::mem::replace(self, hv_hash_map![]) }
-    }
-
     impl<K, V> HvHashMap<K, V>
     {
         /// Creates an empty `HashMap` with the specified capacity.
@@ -1091,13 +1078,6 @@ pub(crate) mod ui_mod
         #[inline]
         #[must_use]
         fn none_if_empty(self) -> Option<Self> { (!self.is_empty()).then_some(self) }
-    }
-
-    impl<T: Hash + Eq> TakeValue for HvHashSet<T>
-    {
-        #[inline]
-        #[must_use]
-        fn take_value(&mut self) -> Self { std::mem::replace(self, hv_hash_set![]) }
     }
 
     impl<T: Hash + Eq> HvHashSet<T>

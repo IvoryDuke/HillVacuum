@@ -503,23 +503,41 @@ impl Innards
                 });
 
                 strip.strip(|strip| {
-                    self.settings(strip, bundle.settings);
+                    Self::settings(strip, bundle);
                 });
             });
     }
 
     #[inline]
-    fn settings(&mut self, strip: egui_extras::StripBuilder, settings: &mut ToolsSettings)
+    fn settings(strip: egui_extras::StripBuilder, bundle: &mut Bundle)
     {
+        let Bundle {
+            drawing_resources,
+            manager,
+            edits_history,
+            settings,
+            ..
+        } = bundle;
+
         strip.size(egui_extras::Size::remainder()).horizontal(|mut strip| {
             strip.cell(|ui| {
                 for (label, setting) in [
                     ("Show scroll  ", &mut settings.scroll_enabled),
-                    ("  Show parallax  ", &mut settings.parallax_enabled)
+                    ("Show parallax  ", &mut settings.parallax_enabled)
                 ]
                 {
                     ui.label(label);
                     _ = ui.add(egui::Checkbox::without_text(setting));
+                    ui.add_space(5f32);
+                }
+
+                if ui.button("Reset textures").clicked()
+                {
+                    edits_history.texture_reset_cluster(
+                        manager
+                            .selected_textured_brushes_mut(drawing_resources)
+                            .map(|mut brush| (brush.id(), brush.reset_texture()))
+                    );
                 }
             });
         });

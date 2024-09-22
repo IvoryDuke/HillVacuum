@@ -16,7 +16,13 @@ use crate::{
         drawer::{
             animation::{Animation, MoveUpDown, Timing},
             drawing_resources::{DrawingResources, TextureMut},
-            texture::{TextureInterface, TextureRotation, TextureSettings, TextureSpriteSet}
+            texture::{
+                TextureInterface,
+                TextureReset,
+                TextureRotation,
+                TextureSettings,
+                TextureSpriteSet
+            }
         },
         editor::state::{core::UndoRedoInterface, ui::Ui},
         path::{MovementValueEdit, NodesMove, Path, StandbyValueEdit},
@@ -219,6 +225,8 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     TextureHeight(i8),
     /// Texture animation change.
     AnimationChange(Animation),
+    /// Texture reset.
+    TextureReset(TextureReset),
     /// Texture animation frame info moved up. true -> atlas, false -> list.
     ListAnimationFrameMoveUp(usize, bool),
     /// Texture animation frame info moved down. true -> atlas, false -> list.
@@ -340,6 +348,7 @@ impl EditType
             Self::TextureRotation(..) => "Textures Rotation",
             Self::TextureHeight(..) => "Textures Height",
             Self::AnimationChange(..) => "Animations Change",
+            Self::TextureReset(..) => "Textures Reset",
             Self::ListAnimationFrameMoveUp(..) => "List Animation Frame Move Up",
             Self::ListAnimationFrameMoveDown(..) => "List Animation Frame Move Down",
             Self::ListAnimationNewFrame(..) => "List Animation New Frame",
@@ -614,6 +623,15 @@ impl EditType
                 for id in identifiers
                 {
                     func(&mut interface.brush_mut(drawing_resources, *id), *index);
+                }
+            },
+            Self::TextureReset(value) =>
+            {
+                for id in identifiers
+                {
+                    interface
+                        .brush_mut(drawing_resources, *id)
+                        .undo_redo_texture_reset(value);
                 }
             },
             _ => return false

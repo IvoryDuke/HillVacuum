@@ -116,6 +116,12 @@ pub(crate) mod ui_mod
         fn take_value(&mut self) -> Self;
     }
 
+    impl<T: Default> TakeValue for T
+    {
+        #[inline]
+        fn take_value(&mut self) -> Self { std::mem::take(self) }
+    }
+
     //=======================================================================//
 
     /// A trait for objects representing cameras.

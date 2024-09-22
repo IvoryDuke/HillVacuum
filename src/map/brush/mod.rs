@@ -97,7 +97,13 @@ pub(in crate::map) mod ui_mod
                 color::Color,
                 drawers::{EditDrawer, MapPreviewDrawer},
                 drawing_resources::DrawingResources,
-                texture::{TextureInterfaceExtra, TextureRotation, TextureScale, TextureSpriteSet}
+                texture::{
+                    TextureInterfaceExtra,
+                    TextureReset,
+                    TextureRotation,
+                    TextureScale,
+                    TextureSpriteSet
+                }
             },
             editor::state::{
                 clipboard::{ClipboardData, CopyToClipboard},
@@ -2014,6 +2020,18 @@ pub(in crate::map) mod ui_mod
         pub fn push_list_animation_frame(&mut self, texture: &str)
         {
             self.data.polygon.push_list_animation_frame(texture);
+        }
+
+        #[inline]
+        pub(in crate::map) fn reset_texture(&mut self) -> TextureReset
+        {
+            self.data.polygon.reset_texture()
+        }
+
+        #[inline]
+        pub(in crate::map) fn undo_redo_texture_reset(&mut self, value: &mut TextureReset)
+        {
+            self.data.polygon.undo_redo_texture_reset(value);
         }
 
         //==============================================================

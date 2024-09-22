@@ -335,7 +335,8 @@ pub(in crate::map) mod ui_mod
             math::{
                 points::{rotate_point, rotate_point_around_origin},
                 AroundEqual
-            }
+            },
+            misc::TakeValue
         },
         Animation,
         TextureInterface,
@@ -564,6 +565,14 @@ pub(in crate::map) mod ui_mod
     }
 
     //=======================================================================//
+
+    macro_rules! swap {
+        ($self:ident, $source:ident, ($($value:ident),+)) => { $(
+            std::mem::swap(&mut $self.$value, &mut $source.$value);
+        )+};
+    }
+
+    //=======================================================================//
     // TRAITS
     //
     //=======================================================================//
@@ -643,18 +652,21 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     /// The outcome of a valid texture rotation.
+    #[must_use]
     #[derive(Debug, Clone, Copy)]
     pub(in crate::map) struct TextureRotation
     {
         /// The new offset.
-        offset: Vec2,
+        offset_x: f32,
+        offset_y: f32,
         /// The new angle.
-        angle:  f32
+        angle:    f32
     }
 
     //=======================================================================//
 
     /// The outcome of a valid texture scale.
+    #[must_use]
     #[derive(Debug)]
     pub(in crate::map) struct TextureScale
     {
@@ -671,6 +683,7 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     /// The outcome of a valid texture scale.
+    #[must_use]
     #[derive(Debug)]
     pub(in crate::map) struct TextureSpriteSet
     {
@@ -684,6 +697,20 @@ pub(in crate::map) mod ui_mod
         #[inline]
         #[must_use]
         pub const fn enabled(&self) -> bool { self.sprite.enabled() }
+    }
+
+    //=======================================================================//
+
+    #[must_use]
+    #[derive(Debug)]
+    pub(in crate::map) struct TextureReset
+    {
+        scale_x:  f32,
+        scale_y:  f32,
+        offset_x: f32,
+        offset_y: f32,
+        angle:    f32,
+        sprite:   Sprite
     }
 
     //=======================================================================//
@@ -1295,17 +1322,23 @@ pub(in crate::map) mod ui_mod
                 Some(hull) => hull.center(),
                 None =>
                 {
+                    let [x, y] = self
+                        .sprite
+                        .rotation_offset(self.angle.to_radians(), angle, pivot)
+                        .to_array();
+
                     return TextureRotation {
-                        offset: self.sprite.rotation_offset(self.angle.to_radians(), angle, pivot),
-                        angle:  end_angle
+                        offset_x: x,
+                        offset_y: y,
+                        angle:    end_angle
                     }
                     .into();
                 }
             };
 
-            let new_offset = rotate_point(sprite_center, pivot, angle) - new_center;
-            let prev_offset_x = std::mem::replace(&mut self.offset_x, new_offset.x);
-            let prev_offset_y = std::mem::replace(&mut self.offset_y, new_offset.y);
+            let [x, y] = (rotate_point(sprite_center, pivot, angle) - new_center).to_array();
+            let prev_offset_x = std::mem::replace(&mut self.offset_x, x);
+            let prev_offset_y = std::mem::replace(&mut self.offset_y, y);
             let prev_angle = std::mem::replace(&mut self.angle, end_angle);
 
             let result = self.check_sprite_vxs(drawing_resources, new_center);
@@ -1319,8 +1352,9 @@ pub(in crate::map) mod ui_mod
                 Ok(_) =>
                 {
                     TextureRotation {
-                        offset: new_offset,
-                        angle:  end_angle
+                        offset_x: x,
+                        offset_y: y,
+                        angle:    end_angle
                     }
                     .into()
                 },
@@ -1331,14 +1365,13 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map) fn rotate(&mut self, payload: &mut TextureRotation)
         {
-            std::mem::swap(&mut self.angle, &mut payload.angle);
+            swap!(self, payload, (angle));
 
             match &mut self.sprite
             {
                 Sprite::True =>
                 {
-                    std::mem::swap(&mut self.offset_x, &mut payload.offset.x);
-                    std::mem::swap(&mut self.offset_y, &mut payload.offset.y);
+                    swap!(self, payload, (offset_x, offset_y));
                 },
                 Sprite::False {
                     rotation_auxiliary:
@@ -1348,8 +1381,8 @@ pub(in crate::map) mod ui_mod
                     ..
                 } =>
                 {
-                    std::mem::swap(offset_x, &mut payload.offset.x);
-                    std::mem::swap(offset_y, &mut payload.offset.y);
+                    std::mem::swap(offset_x, &mut payload.offset_x);
+                    std::mem::swap(offset_y, &mut payload.offset_y);
                 }
             };
         }
@@ -1631,6 +1664,25 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn push_list_animation_frame(&mut self, texture: &str)
         {
             self.animation.get_list_animation_mut().push(texture);
+        }
+
+        #[inline]
+        pub(in crate::map) fn reset(&mut self) -> TextureReset
+        {
+            TextureReset {
+                scale_x:  std::mem::replace(&mut self.scale_x, 1f32),
+                scale_y:  std::mem::replace(&mut self.scale_y, 1f32),
+                offset_x: self.offset_x.take_value(),
+                offset_y: self.offset_y.take_value(),
+                angle:    self.angle.take_value(),
+                sprite:   self.sprite.take_value()
+            }
+        }
+
+        #[inline]
+        pub(in crate::map) fn undo_redo_reset(&mut self, value: &mut TextureReset)
+        {
+            swap!(self, value, (scale_x, scale_y, offset_x, offset_y, angle, sprite));
         }
 
         /// Returns the new sprite vertexes if the texture is being rendered as a sprite.

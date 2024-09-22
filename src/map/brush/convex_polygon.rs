@@ -55,7 +55,13 @@ pub(in crate::map) mod ui_mod
                 color::Color,
                 drawers::{EditDrawer, MapPreviewDrawer},
                 drawing_resources::DrawingResources,
-                texture::{TextureInterfaceExtra, TextureRotation, TextureScale, TextureSpriteSet}
+                texture::{
+                    TextureInterfaceExtra,
+                    TextureReset,
+                    TextureRotation,
+                    TextureScale,
+                    TextureSpriteSet
+                }
             },
             editor::state::grid::Grid,
             selectable_vector::{
@@ -1916,32 +1922,15 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn try_delete_free_draw_vertex(
-            &mut self,
-            pos: Vec2,
-            camera_scale: f32
-        ) -> FreeDrawVertexDeletionResult
+        pub(in crate::map::brush) fn reset_texture(&mut self) -> TextureReset
         {
-            let len = self.sides();
+            self.texture_settings_mut_dirty().reset()
+        }
 
-            if let Some(i) = self.nearby_vertex(pos, camera_scale)
-            {
-                if len > 3
-                {
-                    let deleted = self.vertexes[i].vec;
-                    self.vertexes.remove(i);
-                    self.update_fields();
-                    return FreeDrawVertexDeletionResult::Polygon(deleted);
-                }
-
-                let j = next(i, len);
-                return FreeDrawVertexDeletionResult::Line(
-                    [self.vertexes[j].vec, self.vertexes[next(j, len)].vec],
-                    self.vertexes[i].vec
-                );
-            }
-
-            FreeDrawVertexDeletionResult::None
+        #[inline]
+        pub(in crate::map::brush) fn undo_redo_texture_reset(&mut self, value: &mut TextureReset)
+        {
+            self.texture_settings_mut_dirty().undo_redo_reset(value);
         }
 
         //==============================================================
@@ -2506,6 +2495,35 @@ pub(in crate::map) mod ui_mod
             self.vertexes.push(SelectableVector::new(p));
             self.update_fields();
             assert!(self.valid(), "insert_free_draw_vertex generated an invalid polygon.");
+        }
+
+        #[inline]
+        pub fn try_delete_free_draw_vertex(
+            &mut self,
+            pos: Vec2,
+            camera_scale: f32
+        ) -> FreeDrawVertexDeletionResult
+        {
+            let len = self.sides();
+
+            if let Some(i) = self.nearby_vertex(pos, camera_scale)
+            {
+                if len > 3
+                {
+                    let deleted = self.vertexes[i].vec;
+                    self.vertexes.remove(i);
+                    self.update_fields();
+                    return FreeDrawVertexDeletionResult::Polygon(deleted);
+                }
+
+                let j = next(i, len);
+                return FreeDrawVertexDeletionResult::Line(
+                    [self.vertexes[j].vec, self.vertexes[next(j, len)].vec],
+                    self.vertexes[i].vec
+                );
+            }
+
+            FreeDrawVertexDeletionResult::None
         }
 
         #[inline]
