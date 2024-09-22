@@ -1543,7 +1543,7 @@ fn sprite_vxs<T: TextureInterface + TextureInterfaceExtra>(
     let brush_center = grid.transform_point(brush_center);
     let mut vxs = settings.sprite_vxs(resources, brush_center).unwrap();
 
-    let offset = Vec2::new(settings.draw_offset_x(), settings.draw_offset_y());
+    let offset = settings.draw_offset();
     vxs.translate(grid.transform_point(offset) - offset);
 
     if grid.isometric()

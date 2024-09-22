@@ -3,6 +3,7 @@
 //
 //=======================================================================//
 
+use bevy::prelude::Transform;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
@@ -75,12 +76,6 @@ impl TextureInterface for TextureSettings
     fn offset_y(&self) -> f32 { -self.offset_y }
 
     #[inline]
-    fn draw_offset_x(&self) -> f32 { self.offset_x() }
-
-    #[inline]
-    fn draw_offset_y(&self) -> f32 { self.offset_y() }
-
-    #[inline]
     fn scale_x(&self) -> f32 { self.scale_x }
 
     #[inline]
@@ -92,12 +87,6 @@ impl TextureInterface for TextureSettings
 
     #[inline]
     fn scroll_y(&self) -> f32 { self.scroll_y }
-
-    #[inline]
-    fn draw_scroll_x(&self, elapsed_time: f32) -> f32 { self.scroll_x * elapsed_time }
-
-    #[inline]
-    fn draw_scroll_y(&self, elapsed_time: f32) -> f32 { self.scroll_y * elapsed_time }
 
     #[inline]
     fn parallax_x(&self) -> f32 { self.sprite.parallax_x() }
@@ -119,6 +108,16 @@ impl TextureInterface for TextureSettings
 
     #[inline]
     fn animation(&self) -> &Animation { &self.animation }
+
+    #[inline]
+    fn draw_offset(&self) -> Vec2 { unreachable!() }
+
+    #[inline]
+    fn draw_offset_with_parallax_and_scroll(&self, _: &Transform, _: f32, _: Vec2, _: bool)
+        -> Vec2
+    {
+        unreachable!()
+    }
 }
 
 //=======================================================================//

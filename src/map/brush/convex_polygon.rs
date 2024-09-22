@@ -816,10 +816,24 @@ pub(in crate::map) mod ui_mod
         fn offset_y(&self) -> f32 { self.texture.offset_y() + self.delta.y }
 
         #[inline]
-        fn draw_offset_x(&self) -> f32 { self.texture.draw_offset_x() + self.delta.x }
+        fn draw_offset(&self) -> Vec2 { self.texture.draw_offset() + self.delta }
 
         #[inline]
-        fn draw_offset_y(&self) -> f32 { self.texture.draw_offset_y() + self.delta.y }
+        fn draw_offset_with_parallax_and_scroll(
+            &self,
+            camera: &Transform,
+            elapsed_time: f32,
+            center: Vec2,
+            parallax_enabled: bool
+        ) -> Vec2
+        {
+            self.texture.draw_offset_with_parallax_and_scroll(
+                camera,
+                elapsed_time,
+                center,
+                parallax_enabled
+            ) + self.delta
+        }
 
         #[inline]
         fn scale_x(&self) -> f32 { self.texture.scale_x() }
@@ -832,18 +846,6 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         fn scroll_y(&self) -> f32 { self.texture.scroll_y() }
-
-        #[inline]
-        fn draw_scroll_x(&self, elapsed_time: f32) -> f32
-        {
-            self.texture.draw_scroll_x(elapsed_time)
-        }
-
-        #[inline]
-        fn draw_scroll_y(&self, elapsed_time: f32) -> f32
-        {
-            self.texture.draw_scroll_y(elapsed_time)
-        }
 
         #[inline]
         fn parallax_x(&self) -> f32 { self.texture.parallax_x() }

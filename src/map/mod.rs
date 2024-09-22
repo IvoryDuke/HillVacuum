@@ -445,12 +445,12 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    pub(in crate::map) trait Translate
+    pub(in crate::map) trait Translate<T>
     {
-        fn translate(&mut self, delta: Vec2);
+        fn translate(&mut self, delta: T);
     }
 
-    impl Translate for [Vec2; 4]
+    impl<const N: usize> Translate<Vec2> for [Vec2; N]
     {
         #[inline]
         fn translate(&mut self, delta: Vec2)
@@ -458,6 +458,18 @@ pub(in crate::map) mod ui_mod
             for vx in self
             {
                 *vx += delta;
+            }
+        }
+    }
+
+    impl<const N: usize> Translate<&[f32; N]> for [f32; N]
+    {
+        #[inline]
+        fn translate(&mut self, delta: &[f32; N])
+        {
+            for (x, y) in self.iter_mut().zip(delta)
+            {
+                *x += *y;
             }
         }
     }

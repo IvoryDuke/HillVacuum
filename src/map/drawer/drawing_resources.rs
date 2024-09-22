@@ -53,7 +53,8 @@ use crate::{
             Placeholder
         },
         indexed_map::IndexedMap,
-        thing::{catalog::ThingsCatalog, ThingInterface}
+        thing::{catalog::ThingsCatalog, ThingInterface},
+        Translate
     },
     utils::{
         collections::{hv_hash_map, hv_hash_set, hv_vec},
@@ -1426,8 +1427,7 @@ impl<'a> MeshGenerator<'a>
 
         for uv in &mut uvs
         {
-            uv[0] += pivot[0];
-            uv[1] += pivot[1];
+            uv.translate(&pivot);
         }
 
         self.3.extend(uvs);
@@ -1463,8 +1463,7 @@ impl<'a> MeshGenerator<'a>
 
         for uv in &mut uvs
         {
-            uv[0] += pivot[0];
-            uv[1] += pivot[1];
+            uv.translate(&pivot);
         }
 
         self.3.extend(uvs);
@@ -1481,18 +1480,17 @@ impl<'a> MeshGenerator<'a>
         parallax_enabled: bool,
         f: F
     ) where
-        F: Fn([f32; 2], &Texture, &T, f32, Vec2) -> Uv
+        F: Fn([f32; 2], Vec2, Vec2) -> Uv
     {
-        let parallax = if parallax_enabled
-        {
-            -(center - camera.pos()) * Vec2::new(settings.parallax_x(), settings.parallax_y())
-        }
-        else
-        {
-            Vec2::ZERO
-        };
+        let offset = settings.draw_offset_with_parallax_and_scroll(
+            camera,
+            elapsed_time,
+            center,
+            parallax_enabled
+        );
+        let size_scale_mod = self.4.texture_or_error(settings.name()).size().as_vec2() *
+            Vec2::new(settings.scale_x(), settings.scale_y());
         let angle = settings.angle();
-        let texture = self.4.texture_or_error(settings.name());
 
         if angle != 0f32
         {
@@ -1501,42 +1499,25 @@ impl<'a> MeshGenerator<'a>
             self.3.extend(self.0.iter().map(|vx| {
                 f(
                     rotate_point_around_origin([vx[0], vx[1]].into(), angle).to_array(),
-                    texture,
-                    settings,
-                    elapsed_time,
-                    parallax
+                    offset,
+                    size_scale_mod
                 )
             }));
 
             return;
         }
 
-        self.3.extend(
-            self.0
-                .iter()
-                .map(|vx| f([vx[0], vx[1]], texture, settings, elapsed_time, parallax))
-        );
+        self.3
+            .extend(self.0.iter().map(|vx| f([vx[0], vx[1]], offset, size_scale_mod)));
     }
 
     #[inline]
     #[must_use]
-    fn common_texture_uv_coordinate<T: TextureInterface>(
-        vx: [f32; 2],
-        texture: &Texture,
-        settings: &T,
-        elapsed_time: f32,
-        parallax: Vec2
-    ) -> Uv
+    fn common_texture_uv_coordinate(vx: [f32; 2], offset: Vec2, size_scale_mod: Vec2) -> Uv
     {
-        let size = texture.size().as_vec2();
-
         [
-            (vx[0] + settings.draw_offset_x() + settings.draw_scroll_x(elapsed_time) + parallax.x) /
-                (size.x * settings.scale_x()),
-            (-(vx[1] + settings.draw_offset_y()) +
-                settings.draw_scroll_y(elapsed_time) +
-                parallax.y) /
-                (size.y * settings.scale_y())
+            (vx[0] + offset.x) / size_scale_mod.x,
+            (-(vx[1] + offset.y)) / size_scale_mod.y
         ]
     }
 
@@ -1576,23 +1557,11 @@ impl<'a> MeshGenerator<'a>
         /// Returns the UV coordinates of a vertex.
         #[inline]
         #[must_use]
-        fn uv_coordinate<T: TextureInterface>(
-            vx: [f32; 2],
-            texture: &Texture,
-            settings: &T,
-            elapsed_time: f32,
-            parallax: Vec2,
-            pivot: Uv
-        ) -> Uv
+        fn uv_coordinate(vx: [f32; 2], offset: Vec2, size_scale_mod: Vec2, pivot: Uv) -> Uv
         {
-            let [x, y] = MeshGenerator::common_texture_uv_coordinate(
-                vx,
-                texture,
-                settings,
-                elapsed_time,
-                parallax
-            );
-            [x + pivot[0], y + pivot[1]]
+            let mut uv = MeshGenerator::common_texture_uv_coordinate(vx, offset, size_scale_mod);
+            uv.translate(&pivot);
+            uv
         }
 
         let pivot = animator.pivot();
@@ -1603,9 +1572,7 @@ impl<'a> MeshGenerator<'a>
             center,
             elapsed_time,
             parallax_enabled,
-            |vx, texture, settings, elapsed_time, parallax| {
-                uv_coordinate(vx, texture, settings, elapsed_time, parallax, pivot)
-            }
+            |vx, offset, size_scale_mod| uv_coordinate(vx, offset, size_scale_mod, pivot)
         );
     }
 

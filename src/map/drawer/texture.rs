@@ -3,10 +3,14 @@
 //
 //=======================================================================//
 
+use bevy::prelude::Transform;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::Animation;
+use crate::{
+    utils::{math::points::rotate_point_around_origin, misc::Camera},
+    Animation
+};
 
 //=======================================================================//
 // MACROS
@@ -62,15 +66,23 @@ pub trait TextureInterface
     #[must_use]
     fn offset_y(&self) -> f32;
 
-    /// Returns the horizontal offset necessary to draw the texture as displayed in the editor.
-    /// It may be different from the value returned by `TextureInterface::offset_x`.
+    /// Returns the offset necessary to draw the texture as displayed in the editor.
+    /// It may be different from the value returned by `TextureInterface::offset_x` and
+    /// `TextureInterface::offset_y`.
     #[must_use]
-    fn draw_offset_x(&self) -> f32;
+    fn draw_offset(&self) -> Vec2;
 
-    /// Returns the vertical offset necessary to draw the texture as displayed in the editor.
-    /// It may be different from the value returned by `TextureInterface::offset_y`.
+    /// Returns the offset necessary to draw the texture as displayed in the editor also accounting
+    /// for scroll and parallax.  
+    /// !! If the texture is rendered as a sprite scroll and parallax are both 0.
     #[must_use]
-    fn draw_offset_y(&self) -> f32;
+    fn draw_offset_with_parallax_and_scroll(
+        &self,
+        camera: &Transform,
+        elapsed_time: f32,
+        center: Vec2,
+        parallax_enabled: bool
+    ) -> Vec2;
 
     /// Returns the horizontal scale of the texture.
     #[must_use]
@@ -87,14 +99,6 @@ pub trait TextureInterface
     /// The vertical scrolling.
     #[must_use]
     fn scroll_y(&self) -> f32;
-
-    /// The horizontal scroll value based on the elapsed time.
-    #[must_use]
-    fn draw_scroll_x(&self, elapsed_time: f32) -> f32;
-
-    /// The vertical scroll value based on the elapsed time.
-    #[must_use]
-    fn draw_scroll_y(&self, elapsed_time: f32) -> f32;
 
     /// The horizontal parallax.
     #[must_use]
@@ -213,10 +217,31 @@ impl TextureInterface for TextureSettings
     fn offset_y(&self) -> f32 { self.offset_y }
 
     #[inline]
-    fn draw_offset_x(&self) -> f32 { self.offset_x + self.sprite.rotation_offset_x() }
+    fn draw_offset(&self) -> Vec2
+    {
+        Vec2::new(
+            self.offset_x + self.sprite.rotation_offset_x(),
+            self.offset_y - self.sprite.rotation_offset_y()
+        )
+    }
 
-    #[inline]
-    fn draw_offset_y(&self) -> f32 { self.offset_y - self.sprite.rotation_offset_y() }
+    #[must_use]
+    fn draw_offset_with_parallax_and_scroll(
+        &self,
+        camera: &Transform,
+        elapsed_time: f32,
+        center: Vec2,
+        parallax_enabled: bool
+    ) -> Vec2
+    {
+        #[allow(clippy::match_bool)]
+        let p_s = match parallax_enabled
+        {
+            true => -(center - camera.pos()) * Vec2::new(self.parallax_x(), self.parallax_y()),
+            false => Vec2::ZERO
+        } + Vec2::new(self.scroll_x(), self.scroll_y()) * elapsed_time;
+        self.draw_offset() + rotate_point_around_origin(p_s, self.angle.to_radians())
+    }
 
     #[inline]
     fn scale_x(&self) -> f32 { self.scale_x }
@@ -230,12 +255,6 @@ impl TextureInterface for TextureSettings
 
     #[inline]
     fn scroll_y(&self) -> f32 { self.sprite.scroll_y() }
-
-    #[inline]
-    fn draw_scroll_x(&self, elapsed_time: f32) -> f32 { self.scroll_x() * elapsed_time }
-
-    #[inline]
-    fn draw_scroll_y(&self, elapsed_time: f32) -> f32 { self.scroll_y() * elapsed_time }
 
     #[inline]
     fn parallax_x(&self) -> f32 { self.sprite.parallax_x() }
