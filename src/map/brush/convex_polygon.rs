@@ -1240,19 +1240,18 @@ pub(in crate::map) mod ui_mod
                 return;
             }
 
-            let texture = self.texture_settings_mut_dirty();
-            let sprite = texture.sprite();
+            let sprite = return_if_none!(&self.texture).sprite();
 
             if !move_texture
             {
                 if sprite
                 {
-                    texture.move_offset(-delta);
+                    self.texture_settings_mut_dirty().move_offset(-delta);
                 }
             }
             else if !sprite
             {
-                texture.move_offset(delta);
+                self.texture_settings_mut_dirty().move_offset(delta);
             }
         }
 

@@ -1098,19 +1098,21 @@ impl AnimationEditor
 
                 ui.separator();
 
-                match ui_animation
-                {
-                    UiOverallAnimation::NoSelection => unreachable!(),
-                    UiOverallAnimation::NonUniform | UiOverallAnimation::None => (),
-                    UiOverallAnimation::List(value) =>
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    match ui_animation
                     {
-                        Self::list(ui, bundle, selected_texture, value, field_width);
-                    },
-                    UiOverallAnimation::Atlas(atlas) =>
-                    {
-                        Self::atlas(ui, bundle, selected_texture, atlas, field_width);
-                    }
-                };
+                        UiOverallAnimation::NoSelection => unreachable!(),
+                        UiOverallAnimation::NonUniform | UiOverallAnimation::None => (),
+                        UiOverallAnimation::List(value) =>
+                        {
+                            Self::list(ui, bundle, selected_texture, value, field_width);
+                        },
+                        UiOverallAnimation::Atlas(atlas) =>
+                        {
+                            Self::atlas(ui, bundle, selected_texture, atlas, field_width);
+                        }
+                    };
+                });
 
                 if selected_texture.dirty()
                 {

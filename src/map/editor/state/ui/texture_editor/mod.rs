@@ -265,36 +265,6 @@ macro_rules! angle_and_height {
 }
 
 //=======================================================================//
-
-/// Creates the definition for a toggle of a texture setting.
-macro_rules! toggle {
-    ($(($value:ident, $label:literal)),+) => { paste::paste! { $(
-        #[inline]
-        fn [< toggle_ $value >](
-            &mut self,
-            strip: egui_extras::StripBuilder,
-            settings: &mut ToolsSettings
-        )
-        {
-            strip
-                .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
-                .size(egui_extras::Size::remainder())
-                .horizontal(|mut strip| {
-                    strip.cell(|ui| {
-                        ui.label($label);
-                    });
-
-                    strip.cell(|ui| {
-                        _ = ui.add(
-                            egui::Checkbox::without_text(&mut settings.[< $value _enabled >])
-                        );
-                    });
-                });
-        }
-    )+ }};
-}
-
-//=======================================================================//
 // STRUCTS
 //
 //=======================================================================//
@@ -445,8 +415,6 @@ impl Innards
         })
     );
 
-    toggle!((scroll, "Scroll"), (parallax, "Parallax"));
-
     /// Assigns a texture to the selected brushes, if possible.
     #[inline]
     fn assign_texture(
@@ -498,7 +466,7 @@ impl Innards
     fn texture_settings(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle, available_width: f32)
     {
         egui_extras::StripBuilder::new(ui)
-            .sizes(egui_extras::Size::exact(SETTING_HEIGHT), 10)
+            .sizes(egui_extras::Size::exact(SETTING_HEIGHT), 9)
             .vertical(|mut strip| {
                 let plus_minus_field_width =
                     available_width / 2f32 - 11.5 - (FIELD_NAME_WIDTH + MINUS_PLUS_TOTAL_WIDTH);
@@ -517,9 +485,6 @@ impl Innards
                 strip.strip(|strip| {
                     self.set_scroll(strip, bundle, plus_minus_field_width);
                 });
-                strip.strip(|strip| {
-                    self.toggle_scroll(strip, bundle.settings);
-                });
 
                 strip.strip(|strip| {
                     self.set_angle(strip, bundle, plus_minus_field_width);
@@ -534,13 +499,30 @@ impl Innards
                 });
 
                 strip.strip(|strip| {
-                    self.toggle_parallax(strip, bundle.settings);
+                    self.set_parallax(strip, bundle, plus_minus_field_width);
                 });
 
                 strip.strip(|strip| {
-                    self.set_parallax(strip, bundle, plus_minus_field_width);
+                    self.settings(strip, bundle.settings);
                 });
             });
+    }
+
+    #[inline]
+    fn settings(&mut self, strip: egui_extras::StripBuilder, settings: &mut ToolsSettings)
+    {
+        strip.size(egui_extras::Size::remainder()).horizontal(|mut strip| {
+            strip.cell(|ui| {
+                for (label, setting) in [
+                    ("Show scroll  ", &mut settings.scroll_enabled),
+                    ("  Show parallax  ", &mut settings.parallax_enabled)
+                ]
+                {
+                    ui.label(label);
+                    _ = ui.add(egui::Checkbox::without_text(setting));
+                }
+            });
+        });
     }
 
     /// Selects the mode of the texture editor.
@@ -815,6 +797,8 @@ impl Innards
         line_section(ui, |ui| self.mode_selector(ui, bundle.manager));
 
         ui.horizontal(|ui| {
+            ui.set_height(250f32);
+
             ui.vertical(|ui| {
                 self.selected_texture(ui, bundle);
             });
@@ -834,6 +818,7 @@ impl Innards
                         available_width
                     );
                 });
+
                 return;
             }
 

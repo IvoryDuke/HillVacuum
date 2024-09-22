@@ -342,15 +342,6 @@ impl InstancesEditor
         field_width: f32
     )
     {
-        let Bundle {
-            drawing_resources,
-            manager,
-            edits_history,
-            clipboard,
-            inputs,
-            ..
-        } = bundle;
-
         ui.vertical(|ui| {
             ui.set_height(SETTING_HEIGHT);
             animation_pick(ui, |[none, list, atlas]| {
@@ -358,21 +349,25 @@ impl InstancesEditor
                 macro_rules! anim_change {
                     ($new:expr, $f:expr) => {{
                         let new = &$new;
-                        let valid = manager.test_operation_validity(|manager| {
-                            manager.selected_brushes_with_sprite_mut(drawing_resources).find_map(
-                                |mut brush| {
-                                    (!brush.check_texture_animation_change(drawing_resources, new))
-                                        .then_some(brush.id())
-                                }
-                            )
+                        let valid = bundle.manager.test_operation_validity(|manager| {
+                            manager
+                                .selected_brushes_with_sprite_mut(bundle.drawing_resources)
+                                .find_map(|mut brush| {
+                                    (!brush.check_texture_animation_change(
+                                        bundle.drawing_resources,
+                                        new
+                                    ))
+                                    .then_some(brush.id())
+                                })
                         });
 
                         #[allow(clippy::redundant_closure_call)]
                         if valid
                         {
-                            edits_history.animation_cluster(
-                                manager
-                                    .selected_textured_brushes_mut(drawing_resources)
+                            bundle.edits_history.animation_cluster(
+                                bundle
+                                    .manager
+                                    .selected_textured_brushes_mut(bundle.drawing_resources)
                                     .map(|mut brush| (brush.id(), $f(&mut brush)))
                             );
                         }
@@ -411,51 +406,54 @@ impl InstancesEditor
 
         ui.separator();
 
-        match overall_animation
-        {
-            UiOverallAnimation::NoSelection => unreachable!(),
-            UiOverallAnimation::NonUniform | UiOverallAnimation::None => (),
-            UiOverallAnimation::List(animation) =>
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            match overall_animation
             {
-                match animation
+                UiOverallAnimation::NoSelection => unreachable!(),
+                UiOverallAnimation::NonUniform | UiOverallAnimation::None => (),
+                UiOverallAnimation::List(animation) =>
                 {
-                    UiOverallListAnimation::NonUniform(slot) =>
+                    match animation
                     {
-                        OverallValueField::show_always_enabled(
-                            ui,
-                            clipboard,
-                            inputs,
-                            slot,
-                            |value| {
-                                if let Some(texture) =
-                                    drawing_resources.texture(&value).map(Texture::name)
-                                {
-                                    for mut brush in
-                                        manager.selected_textured_brushes_mut(drawing_resources)
+                        UiOverallListAnimation::NonUniform(slot) =>
+                        {
+                            OverallValueField::show_always_enabled(
+                                ui,
+                                bundle.clipboard,
+                                bundle.inputs,
+                                slot,
+                                |value| {
+                                    if let Some(texture) =
+                                        bundle.drawing_resources.texture(&value).map(Texture::name)
                                     {
-                                        edits_history.animation(
-                                            brush.id(),
-                                            brush.set_texture_list_animation(texture)
-                                        );
+                                        for mut brush in bundle
+                                            .manager
+                                            .selected_textured_brushes_mut(bundle.drawing_resources)
+                                        {
+                                            bundle.edits_history.animation(
+                                                brush.id(),
+                                                brush.set_texture_list_animation(texture)
+                                            );
+                                        }
+
+                                        return value.into();
                                     }
 
-                                    return value.into();
+                                    None
                                 }
-
-                                None
-                            }
-                        );
-                    },
-                    list @ UiOverallListAnimation::Uniform(..) =>
-                    {
-                        Self::list(ui, bundle, list, field_width);
-                    }
-                };
-            },
-            UiOverallAnimation::Atlas(atlas) =>
-            {
-                Self::atlas(ui, bundle, atlas, field_width);
-            }
-        };
+                            );
+                        },
+                        list @ UiOverallListAnimation::Uniform(..) =>
+                        {
+                            Self::list(ui, bundle, list, field_width);
+                        }
+                    };
+                },
+                UiOverallAnimation::Atlas(atlas) =>
+                {
+                    Self::atlas(ui, bundle, atlas, field_width);
+                }
+            };
+        });
     }
 }
