@@ -64,6 +64,8 @@ pub(crate) mod ui_mod
     //
     //=======================================================================//
 
+    use std::io::Write;
+
     pub use bevy;
     use bevy::{
         app::PluginGroup,
@@ -304,6 +306,27 @@ pub(crate) mod ui_mod
         #[inline]
         fn build(&self, app: &mut bevy::app::App)
         {
+            std::panic::set_hook(Box::new(|panic_info| {
+                std::fs::File::create("backtrace.log")
+                    .unwrap()
+                    .write_all(std::backtrace::Backtrace::force_capture().to_string().as_bytes())
+                    .ok();
+
+                let message = match panic_info.payload().downcast_ref::<&str>()
+                {
+                    Some(msg) => msg,
+                    None => "A fatal error has occurred."
+                };
+
+                rfd::MessageDialog::new()
+                    .set_title("FATAL ERROR")
+                    .set_description(format!(
+                        "{message}\nThe backtrace has been logged to the file backtrace.log."
+                    ))
+                    .set_buttons(rfd::MessageButtons::Ok)
+                    .show();
+            }));
+
             let mut window = Window {
                 cursor: Cursor {
                     icon: CursorIcon::Pointer,
@@ -366,6 +389,8 @@ pub(crate) mod ui_mod
             .set_buttons(rfd::MessageButtons::Ok)
             .show();
     }
+
+    //=======================================================================//
 
     #[inline]
     pub(crate) fn warning_message(message: &str)
