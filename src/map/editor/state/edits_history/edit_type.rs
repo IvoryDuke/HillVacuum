@@ -217,8 +217,6 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     TextureParallaxY(f32),
     /// Texture offset moved by specified delta.
     TextureMove(Vec2),
-    /// Texture angle change.
-    TextureAngle(f32),
     /// Texture rotated.
     TextureRotation(TextureRotation),
     /// Texture draw height change.
@@ -344,7 +342,6 @@ impl EditType
             Self::TextureParallaxX(..) => "Textures Parallax X",
             Self::TextureParallaxY(..) => "Textures Parallax Y",
             Self::TextureMove(..) => "Textures Move",
-            Self::TextureAngle(..) => "Textures Angle",
             Self::TextureRotation(..) => "Textures Rotation",
             Self::TextureHeight(..) => "Textures Height",
             Self::AnimationChange(..) => "Animations Change",
@@ -421,7 +418,6 @@ impl EditType
                 Self::TextureParallaxX(_) |
                 Self::TextureParallaxY(_) |
                 Self::TextureMove(_) |
-                Self::TextureAngle(_) |
                 Self::TextureRotation(_) |
                 Self::TextureHeight(_) |
                 Self::AnimationChange(_) |
@@ -739,7 +735,6 @@ impl EditType
             (TextureOffsetY, offset_y),
             (TextureScaleX, scale_x),
             (TextureScaleY, scale_y),
-            (TextureAngle, angle),
             (TextureHeight, height),
             (AtlasAnimationColumns, atlas_animation_x_partition),
             (AtlasAnimationRows, atlas_animation_y_partition),

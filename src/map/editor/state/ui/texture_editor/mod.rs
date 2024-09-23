@@ -85,6 +85,7 @@ macro_rules! plus_minus_textedit {
         $strip:ident,
         $clamp:expr
         $(, $default_if_none:literal)?
+        $(, $drawing_resources:ident)?
     ) => {{ paste::paste! {
         #[allow(unused_mut)]
         #[inline]
@@ -106,9 +107,11 @@ macro_rules! plus_minus_textedit {
                 return false;
             }
 
+            $(let $drawing_resources = drawing_resources;)?
+
             edits_history.[< texture_ $value _cluster >](
                 manager.selected_textured_brushes_mut(drawing_resources).filter_map(|mut brush| {
-                    brush.[< set_texture_ $value >](value).map(|prev| (brush.id(), prev))
+                    brush.[< set_texture_ $value >]($($drawing_resources,)? value).map(|prev| (brush.id(), prev))
                 })
             );
 
@@ -226,7 +229,7 @@ macro_rules! scale_offset_scroll_parallax {
 
 /// Creates the definition for the angle and height texture settings functions.
 macro_rules! angle_and_height {
-    ($(($value:ident, $label:literal, $t:ty, $clamp:expr)),+) => { paste::paste! { $(
+    ($(($value:ident, $label:literal, $t:ty, $clamp:expr $(, $drawing_resources:ident)?)),+) => { paste::paste! { $(
         #[inline]
         fn [< set_ $value >](
             &mut self,
@@ -253,6 +256,7 @@ macro_rules! angle_and_height {
                         ONE,
                         strip,
                         $clamp
+                        $(, $drawing_resources)?
                     );
                 });
         }
@@ -395,17 +399,8 @@ impl Innards
     );
 
     angle_and_height!(
-        (angle, "Angle", f32, |angle: f32, _| {
-            let mut angle = angle.floor().rem_euclid(360f32);
-
-            if angle < 0f32
-            {
-                angle += 360f32;
-            }
-
-            angle
-        }),
-        (height, "Height", i8, |height: i8, _| {
+        (angle, "Angle", f32, |angle, _| angle.rem_euclid(360f32), drawing_resources),
+        (height, "Height", i8, |height, _| {
             height.clamp(*TEXTURE_HEIGHT_RANGE.start(), *TEXTURE_HEIGHT_RANGE.end())
         })
     );

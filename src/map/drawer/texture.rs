@@ -1118,7 +1118,8 @@ pub(in crate::map) mod ui_mod
         {
             let scale_x = self.scale_x * info.width_multi();
             let scale_y = self.scale_y * info.height_multi();
-            let sprite_hull = return_if_none!(
+
+            let center = return_if_none!(
                 self.sprite_hull(drawing_resources, old_center),
                 TextureScale {
                     offset_x: self.offset_x,
@@ -1127,9 +1128,10 @@ pub(in crate::map) mod ui_mod
                     scale_y
                 }
                 .into()
-            );
+            )
+            .center();
 
-            let new_offset = info.scaled_point(sprite_hull.center()) - new_center;
+            let new_offset = info.scaled_point(center) - new_center;
             let prev_offset_x = std::mem::replace(&mut self.offset_x, new_offset.x);
             let prev_offset_y = std::mem::replace(&mut self.offset_y, new_offset.y);
             let prev_scale_x = std::mem::replace(&mut self.scale_x, scale_x);
@@ -1422,7 +1424,12 @@ pub(in crate::map) mod ui_mod
         /// Sets the angle, returns the previous value if different.
         #[inline]
         #[must_use]
-        pub(in crate::map) fn set_angle(&mut self, value: f32) -> Option<f32>
+        pub(in crate::map) fn set_angle(
+            &mut self,
+            drawing_resources: &DrawingResources,
+            value: f32,
+            center: Vec2
+        ) -> Option<TextureRotation>
         {
             value.assert_normalized_degrees_angle();
 
@@ -1431,8 +1438,26 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            let prev = std::mem::replace(&mut self.angle, value);
-            prev.into()
+            let pivot = match &self.sprite
+            {
+                Sprite::True => center,
+                Sprite::False {
+                    rotation_auxiliary, ..
+                } => rotation_auxiliary.last_pivot.unwrap_or_default()
+            };
+
+            let mut rotation = self
+                .check_rotation(
+                    drawing_resources,
+                    pivot,
+                    (self.angle - value).rem_euclid(360f32),
+                    center,
+                    center
+                )
+                .unwrap();
+            self.rotate(&mut rotation);
+
+            rotation.into()
         }
 
         /// Whether the sprite value change is valid.

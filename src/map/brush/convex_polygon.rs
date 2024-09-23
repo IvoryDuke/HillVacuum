@@ -1602,9 +1602,16 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub(in crate::map::brush) fn set_texture_angle(&mut self, value: f32) -> Option<f32>
+        pub(in crate::map::brush) fn set_texture_angle(
+            &mut self,
+            drawing_resources: &DrawingResources,
+            value: f32
+        ) -> Option<TextureRotation>
         {
-            let result = self.texture_settings_mut().set_angle(value);
+            let center = self.center;
+            let result = self
+                .texture_settings_mut()
+                .set_angle(drawing_resources, value, center);
             self.set_texture_updated(result)
         }
 

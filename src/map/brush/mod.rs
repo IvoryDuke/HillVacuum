@@ -1790,9 +1790,13 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn set_texture_angle(&mut self, value: f32) -> Option<f32>
+        pub fn set_texture_angle(
+            &mut self,
+            drawing_resources: &DrawingResources,
+            value: f32
+        ) -> Option<TextureRotation>
         {
-            self.data.polygon.set_texture_angle(value)
+            self.data.polygon.set_texture_angle(drawing_resources, value)
         }
 
         #[inline]
