@@ -225,7 +225,7 @@ impl TextureInterface for TextureSettings
         )
     }
 
-    #[must_use]
+    #[inline]
     fn draw_offset_with_parallax_and_scroll(
         &self,
         camera: &Transform,
@@ -240,6 +240,12 @@ impl TextureInterface for TextureSettings
             true => -(center - camera.pos()) * Vec2::new(self.parallax_x(), self.parallax_y()),
             false => Vec2::ZERO
         } + Vec2::new(self.scroll_x(), self.scroll_y()) * elapsed_time;
+
+        if self.angle == 0f32
+        {
+            return self.draw_offset() + p_s;
+        }
+
         self.draw_offset() + rotate_point_around_origin(p_s, self.angle.to_radians())
     }
 

@@ -84,7 +84,7 @@ macro_rules! plus_minus_textedit {
         $step:expr,
         $strip:ident,
         $clamp:expr
-        $(, $return_if_none:literal)?
+        $(, $default_if_none:literal)?
     ) => {{ paste::paste! {
         #[allow(unused_mut)]
         #[inline]
@@ -118,8 +118,12 @@ macro_rules! plus_minus_textedit {
 
         let value = &mut $self.overall_texture.$value;
         $(
-            let _ = $return_if_none;
-            let value = return_if_none!(value);
+            let _ = $default_if_none;
+            let value = match value
+            {
+                Some(value) => value,
+                None => &mut crate::utils::overall_value::UiOverallValue::none()
+            };
         )?
 
         let Bundle {
@@ -160,7 +164,7 @@ macro_rules! scale_offset_scroll_parallax {
         $label:literal,
         $step:literal,
         $clamp:expr
-        $(, $return_if_none:literal)?
+        $(, $default_if_none:literal)?
     )),+) => { paste::paste! { $(
         #[inline]
         fn [< set_ $value >](
@@ -176,15 +180,6 @@ macro_rules! scale_offset_scroll_parallax {
             const Y_LABEL: &str = concat!($label, " Y");
             /// The padding before the y label.
             const Y_LABEL_PADDING: f32 = 8f32;
-
-            $(
-                let _ = $return_if_none;
-
-                if self.overall_texture.[< $value _x >].is_none()
-                {
-                    return;
-                }
-            )?
 
             strip
                 .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
@@ -204,7 +199,7 @@ macro_rules! scale_offset_scroll_parallax {
                         $step,
                         strip,
                         $clamp
-                        $(, $return_if_none)?
+                        $(, $default_if_none)?
                     );
 
                     strip.cell(|ui| {
@@ -220,7 +215,7 @@ macro_rules! scale_offset_scroll_parallax {
                         $step,
                         strip,
                         $clamp
-                        $(, $return_if_none)?
+                        $(, $default_if_none)?
                     );
                 });
         }
