@@ -1200,7 +1200,7 @@ pub(in crate::map) mod ui_mod
             Brush::from(BrushViewer {
                 id,
                 vertexes,
-                texture: texture.map(|tex| TextureSettings::from(tex)),
+                texture: texture.map(TextureSettings::from),
                 group: GroupViewer::from(mover),
                 collision,
                 properties
