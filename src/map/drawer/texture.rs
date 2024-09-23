@@ -971,7 +971,7 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    from_compat!(_03, _04, _07);
+    from_compat!(_03, _04, _06, _061, _07);
 
     impl From<&Texture> for TextureSettings
     {

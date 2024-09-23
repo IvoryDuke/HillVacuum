@@ -92,7 +92,7 @@ impl TextureInterface for TextureSettings
     fn parallax_x(&self) -> f32 { self.sprite.parallax_x() }
 
     #[inline]
-    fn parallax_y(&self) -> f32 { self.sprite.parallax_y() }
+    fn parallax_y(&self) -> f32 { -self.sprite.parallax_y() }
 
     #[inline]
     fn height(&self) -> i8 { self.height }

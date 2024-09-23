@@ -7,7 +7,7 @@ use bevy::prelude::Transform;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{utils::hull::Hull, Animation, TextureInterface};
+use crate::{Animation, TextureInterface};
 
 //=======================================================================//
 // ENUMS
@@ -15,10 +15,10 @@ use crate::{utils::hull::Hull, Animation, TextureInterface};
 //=======================================================================//
 
 #[must_use]
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(in crate::map) enum Sprite
 {
-    True(Hull),
+    True,
     False
     {
         parallax_x: f32,
@@ -34,7 +34,7 @@ impl Sprite
 
     #[inline]
     #[must_use]
-    pub const fn enabled(&self) -> bool { matches!(self, Self::True(_)) }
+    pub const fn enabled(&self) -> bool { matches!(self, Self::True) }
 }
 
 //=======================================================================//

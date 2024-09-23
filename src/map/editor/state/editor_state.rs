@@ -1632,10 +1632,12 @@ impl State
 
             for _ in 0..header.brushes
             {
-                brushes.push(
-                    ciborium::from_reader::<Brush, _>(&mut reader)
-                        .map_err(|_| "Error reading brushes for conversion.")?
-                );
+                brushes.push(Brush::from(
+                    ciborium::from_reader::<crate::map::brush::compatibility::_06::Brush, _>(
+                        &mut reader
+                    )
+                    .map_err(|_| "Error reading brushes for conversion.")?
+                ));
             }
 
             // Things.

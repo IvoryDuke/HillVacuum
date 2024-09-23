@@ -7,11 +7,15 @@ use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
 use super::Mover;
-use crate::{HvHashMap, HvVec, Id, TextureSettings, Value};
+use crate::{HvHashMap, HvVec, Id, Value};
 
 //=======================================================================//
 // STRUCTS
 //
+//=======================================================================//
+
+super::tex_settings_061_07!();
+
 //=======================================================================//
 
 #[must_use]

@@ -151,7 +151,7 @@ pub(in crate::map) mod ui_mod
                 /// How the texture should be mapped.
                 texture:           Option<$tex>,
                 collision:         bool,
-                texture_edited:   bool
+                texture_edited:    bool
             }
 
             impl serde::Serialize for ConvexPolygon
@@ -952,7 +952,7 @@ pub(in crate::map) mod ui_mod
         data: BrushData
     }
 
-    from_compat!(_03, _04);
+    from_compat!(_03, _04, _06);
 
     impl From<BrushViewer> for Brush
     {
@@ -1200,7 +1200,7 @@ pub(in crate::map) mod ui_mod
             Brush::from(BrushViewer {
                 id,
                 vertexes,
-                texture,
+                texture: texture.map(|tex| TextureSettings::from(tex)),
                 group: GroupViewer::from(mover),
                 collision,
                 properties
