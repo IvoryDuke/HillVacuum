@@ -65,6 +65,8 @@ pub(in crate::map) struct TextureSettings
 
 impl TextureInterface for TextureSettings
 {
+    super::scroll!();
+
     #[inline]
     fn name(&self) -> &str { &self.texture }
 
@@ -80,12 +82,6 @@ impl TextureInterface for TextureSettings
     #[inline]
     #[must_use]
     fn scale_y(&self) -> f32 { self.scale_y }
-
-    #[inline]
-    fn scroll_x(&self) -> f32 { self.sprite.scroll_x() }
-
-    #[inline]
-    fn scroll_y(&self) -> f32 { self.sprite.scroll_y() }
 
     #[inline]
     fn parallax_x(&self) -> f32 { self.sprite.parallax_x() }

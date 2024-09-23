@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.7.3
+
+### Changes
+- Working pivoted textures rotation;
+- made behavior in horizontal and vertical texture offset consistent;
+- improved texture editor;
+- added "Reset textures" button in the texture editor;
+- scroll and parallax direction are now always perpendicular to the x and y axis regardless of the texture angle. Scroll values from older map files are automatically converted to the new system, unfortunately parallax is a breaking change.
+
+### Fixes
+- Fixed overlapping actions in rotate tool.
+
+## 0.7.2
+
+### Changes
+Removed texture pivoted rotation, requires refinements.
+
 ## 0.7.1
 
 ### Changes

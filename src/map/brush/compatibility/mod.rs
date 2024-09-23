@@ -18,6 +18,28 @@ use crate::{map::path::Path, utils::collections::Ids, Id};
 //
 //=======================================================================//
 
+macro_rules! scroll {
+    () => {
+        #[inline]
+        fn scroll_x(&self) -> f32
+        {
+            let s = Vec2::new(self.sprite.scroll_x(), -self.sprite.scroll_y());
+            crate::utils::math::points::rotate_point_around_origin(s, -self.angle.to_radians()).x
+        }
+
+        #[inline]
+        fn scroll_y(&self) -> f32
+        {
+            let s = Vec2::new(self.sprite.scroll_x(), -self.sprite.scroll_y());
+            crate::utils::math::points::rotate_point_around_origin(s, -self.angle.to_radians()).y
+        }
+    };
+}
+
+use scroll;
+
+//=======================================================================//
+
 macro_rules! impl_brush {
     () => {
         #[derive(Serialize, Deserialize)]
@@ -88,6 +110,8 @@ macro_rules! tex_settings_061_07 {
 
         impl crate::TextureInterface for TextureSettings
         {
+            super::scroll!();
+
             #[inline]
             fn name(&self) -> &str { &self.texture }
 
@@ -103,12 +127,6 @@ macro_rules! tex_settings_061_07 {
             #[inline]
             #[must_use]
             fn scale_y(&self) -> f32 { self.scale_y }
-
-            #[inline]
-            fn scroll_x(&self) -> f32 { self.sprite.scroll_x() }
-
-            #[inline]
-            fn scroll_y(&self) -> f32 { self.sprite.scroll_y() }
 
             #[inline]
             fn parallax_x(&self) -> f32 { self.sprite.parallax_x() }

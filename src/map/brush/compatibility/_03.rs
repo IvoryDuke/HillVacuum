@@ -83,10 +83,18 @@ impl TextureInterface for TextureSettings
     fn scale_y(&self) -> f32 { self.scale_y }
 
     #[inline]
-    fn scroll_x(&self) -> f32 { self.scroll_x }
+    fn scroll_x(&self) -> f32
+    {
+        let s = Vec2::new(self.scroll_x, -self.scroll_y);
+        crate::utils::math::points::rotate_point_around_origin(s, -self.angle.to_radians()).x
+    }
 
     #[inline]
-    fn scroll_y(&self) -> f32 { self.scroll_y }
+    fn scroll_y(&self) -> f32
+    {
+        let s = Vec2::new(self.scroll_x, -self.scroll_y);
+        crate::utils::math::points::rotate_point_around_origin(s, -self.angle.to_radians()).y
+    }
 
     #[inline]
     fn parallax_x(&self) -> f32 { self.sprite.parallax_x() }
