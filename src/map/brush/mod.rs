@@ -2614,49 +2614,50 @@ pub(in crate::map) mod ui_mod
         //==============================================================
         // Scale
 
-        /// Returns a [`ScaleResult`] describing the validity of a scale.
-        #[inline]
-        pub fn check_scale(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            info: &ScaleInfo,
-            scale_texture: bool
-        ) -> ScaleResult
-        {
-            ScaleResult::from_result(
-                self.data.polygon.check_scale(drawing_resources, info, scale_texture),
-                self
-            )
-        }
-
         /// Returns a [`ScaleResult`] describing the validity of a scale with flip.
         #[inline]
-        pub fn check_flip_scale(
+        pub fn check_scale<const CAP: usize>(
             &mut self,
             drawing_resources: &DrawingResources,
             info: &ScaleInfo,
-            flip_queue: &ArrayVec<Flip, 2>,
+            flip_queue: &ArrayVec<Flip, CAP>,
             scale_texture: bool
         ) -> ScaleResult
         {
             ScaleResult::from_result(
-                self.data.polygon.check_flip_scale(
-                    drawing_resources,
-                    info,
-                    flip_queue,
-                    scale_texture
-                ),
+                self.data
+                    .polygon
+                    .check_scale(drawing_resources, info, flip_queue, scale_texture),
                 self
             )
         }
 
         /// Scales `self` based on `payload`.
         #[inline]
-        pub fn set_scale_coordinates(&mut self, payload: ScalePayload)
+        pub fn scale(&mut self, payload: ScalePayload)
         {
             assert!(payload.id() == self.id, "ScalePayload's ID is not equal to the Brush's ID.");
             self.data.polygon.set_coordinates(payload.1.into_iter());
             self.data.polygon.scale_texture(&return_if_none!(payload.2));
+        }
+
+        #[inline]
+        pub fn check_texture_scale<const CAP: usize>(
+            &mut self,
+            drawing_resources: &DrawingResources,
+            info: &ScaleInfo,
+            flip_queue: &ArrayVec<Flip, CAP>
+        ) -> Option<TextureScale>
+        {
+            self.data
+                .polygon
+                .check_texture_scale(drawing_resources, info, flip_queue)
+        }
+
+        #[inline]
+        pub fn scale_texture(&mut self, value: &TextureScale)
+        {
+            self.data.polygon.scale_texture(value);
         }
 
         //==============================================================

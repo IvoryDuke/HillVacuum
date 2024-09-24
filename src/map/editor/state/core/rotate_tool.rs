@@ -11,6 +11,7 @@ use hill_vacuum_shared::{match_or_panic, return_if_none};
 
 use super::{
     draw_selected_and_non_selected_brushes,
+    fill_backup_polygons,
     tool::{ChangeConditions, DisableSubtool, EnabledTool, OngoingMultiframeChange, SubTool},
     ActiveTool
 };
@@ -579,7 +580,7 @@ impl RotateTool
                 false
             );
 
-            RotateTool::fill_backup_polygons(manager, backup_polygons);
+            fill_backup_polygons(manager, backup_polygons);
 
             for (id, p) in &mut payloads
             {
@@ -672,7 +673,7 @@ impl RotateTool
             return false;
         }
 
-        Self::fill_backup_polygons(manager, backup_polygons);
+        fill_backup_polygons(manager, backup_polygons);
 
         for payload in payloads
         {
@@ -682,19 +683,6 @@ impl RotateTool
         }
 
         true
-    }
-
-    #[inline]
-    fn fill_backup_polygons(
-        manager: &EntitiesManager,
-        backup_polygons: &mut HvVec<(Id, ConvexPolygon)>
-    )
-    {
-        if backup_polygons.is_empty()
-        {
-            backup_polygons
-                .extend(manager.selected_brushes().map(|brush| (brush.id(), brush.polygon())));
-        }
     }
 
     //==============================================================

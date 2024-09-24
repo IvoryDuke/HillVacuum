@@ -3779,70 +3779,11 @@ pub(in crate::map) mod ui_mod
         // Scale
 
         #[inline]
-        pub(in crate::map::brush) fn check_scale(
+        pub(in crate::map::brush) fn check_scale<const CAP: usize>(
             &mut self,
             drawing_resources: &DrawingResources,
             info: &ScaleInfo,
-            scale_texture: bool
-        ) -> ScaleResult
-        {
-            let mut vxs = hv_vec![capacity; self.sides()];
-            let mut new_center = Vec2::ZERO;
-
-            for vx in self.vertexes.iter().map(|svx| svx.vec)
-            {
-                let vx = info.scaled_point(vx);
-
-                if vx.out_of_bounds()
-                {
-                    return ScaleResult::Invalid;
-                }
-
-                vxs.push(vx);
-                new_center += vx;
-            }
-
-            new_center /= self.sides_f32();
-
-            if scale_texture
-            {
-                let center = self.center;
-                let scale = return_if_none!(
-                    self.texture_settings_mut().check_scale(
-                        drawing_resources,
-                        info,
-                        center,
-                        new_center
-                    ),
-                    ScaleResult::Invalid
-                );
-
-                return ScaleResult::Valid {
-                    new_center,
-                    vxs,
-                    texture_scale: scale.into()
-                };
-            }
-
-            ScaleResult::Valid {
-                new_center,
-                vxs,
-                texture_scale: None
-            }
-        }
-
-        #[inline]
-        pub(in crate::map) fn scale_texture(&mut self, value: &TextureScale)
-        {
-            self.texture_settings_mut_dirty().scale(value);
-        }
-
-        #[inline]
-        pub(in crate::map::brush) fn check_flip_scale(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            info: &ScaleInfo,
-            flip_queue: &ArrayVec<Flip, 2>,
+            flip_queue: &ArrayVec<Flip, CAP>,
             scale_texture: bool
         ) -> ScaleResult
         {
@@ -3859,7 +3800,7 @@ pub(in crate::map) mod ui_mod
                         Flip::Right(v) => Flip::Right(2f32 * v)
                     }
                 })
-                .collect::<ArrayVec<_, 2>>();
+                .collect::<ArrayVec<_, CAP>>();
 
             for mut vx in self.vertexes.iter().map(|svx| svx.vec)
             {
@@ -3883,14 +3824,18 @@ pub(in crate::map) mod ui_mod
                 new_center += vx;
             }
 
-            vxs.reverse();
+            if !flip_queue.is_empty()
+            {
+                vxs.reverse();
+            }
+
             new_center /= self.sides_f32();
 
             if scale_texture
             {
                 let center = self.center;
                 let scale = return_if_none!(
-                    self.texture_settings_mut().check_flip_scale(
+                    self.texture_settings_mut().check_scale(
                         drawing_resources,
                         info,
                         &flip_queue,
@@ -3912,6 +3857,30 @@ pub(in crate::map) mod ui_mod
                 vxs,
                 texture_scale: None
             }
+        }
+
+        #[inline]
+        pub(in crate::map) fn check_texture_scale<const CAP: usize>(
+            &mut self,
+            drawing_resources: &DrawingResources,
+            info: &ScaleInfo,
+            flip_queue: &ArrayVec<Flip, CAP>
+        ) -> Option<TextureScale>
+        {
+            let center = self.center;
+            self.texture_settings_mut().check_scale(
+                drawing_resources,
+                info,
+                flip_queue,
+                center,
+                center
+            )
+        }
+
+        #[inline]
+        pub(in crate::map) fn scale_texture(&mut self, value: &TextureScale)
+        {
+            self.texture_settings_mut_dirty().scale(value);
         }
 
         //==============================================================

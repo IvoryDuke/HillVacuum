@@ -201,8 +201,6 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     TextureScaleX(f32),
     /// Texture y scale changed.
     TextureScaleY(f32),
-    /// Texture scaled and flipped as result to new values.
-    TextureScaleFlip(f32, f32),
     /// Texture x offset change.
     TextureOffsetX(f32),
     /// Texture y offset change.
@@ -329,10 +327,7 @@ impl EditType
             Self::TextureChange(..) => "Textures Change",
             Self::TextureRemoval(..) => "Textures Removal",
             Self::SpriteToggle(..) => "Sprites Toggle",
-            Self::TextureFlip(..) | Self::TextureScaleDelta(..) | Self::TextureScaleFlip(..) =>
-            {
-                "Textures Scale"
-            },
+            Self::TextureFlip(..) | Self::TextureScaleDelta(..) => "Textures Scale",
             Self::TextureScaleX(..) => "Textures Scale X",
             Self::TextureScaleY(..) => "Textures Scale Y",
             Self::TextureOffsetX(..) => "Textures Offset X",
@@ -410,7 +405,6 @@ impl EditType
                 Self::TextureScaleDelta(_) |
                 Self::TextureScaleX(_) |
                 Self::TextureScaleY(_) |
-                Self::TextureScaleFlip(..) |
                 Self::TextureOffsetX(_) |
                 Self::TextureOffsetY(_) |
                 Self::TextureScrollX(_) |
@@ -686,19 +680,6 @@ impl EditType
                     {
                         paste::paste! { *value = brush.[< set_texture_ $value >](*value).unwrap(); }
                     }),+
-                    Self::TextureScaleFlip(scale_x, scale_y) =>
-                    {
-                        let fns: [(&mut f32, fn(&TextureSettings) -> f32, fn(&mut Brush, f32) -> Option<f32>); 2] = [
-                            (scale_x, TextureSettings::scale_x, Brush::set_texture_scale_x),
-                            (scale_y, TextureSettings::scale_y, Brush::set_texture_scale_y)
-                        ];
-
-                        for (value, get, set) in fns
-                        {
-                            let value = std::mem::replace(value, get(brush.texture_settings().unwrap()));
-                            set(&mut brush, value);
-                        }
-                    },
                     Self::TextureRotation(rotation) =>
                     {
                         brush.rotate_texture(rotation);

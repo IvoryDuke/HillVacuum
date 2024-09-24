@@ -151,7 +151,7 @@ pub(in crate::map::drawer) enum Sprite
         scroll_x:           f32,
         /// The vertical scrolling of the texture.
         scroll_y:           f32,
-        rotation_auxiliary: RotationAuxiliary
+        rotation_auxiliary: OffsetAuxiliary
     }
 }
 
@@ -283,7 +283,7 @@ impl TextureSettings
 
 #[must_use]
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub(in crate::map::drawer) struct RotationAuxiliary
+pub(in crate::map::drawer) struct OffsetAuxiliary
 {
     offset_x:   f32,
     offset_y:   f32,
@@ -330,7 +330,7 @@ pub(in crate::map) mod ui_mod
         TEXTURE_HEIGHT_RANGE
     };
 
-    use super::{RotationAuxiliary, Sprite};
+    use super::{OffsetAuxiliary, Sprite};
     use crate::{
         map::{
             brush::convex_polygon::ScaleInfo,
@@ -554,7 +554,7 @@ pub(in crate::map) mod ui_mod
                             parallax_y: value.parallax_y(),
                             scroll_x:   value.scroll_x(),
                             scroll_y:   value.scroll_y(),
-                            rotation_auxiliary: crate::map::drawer::texture::RotationAuxiliary::default()
+                            rotation_auxiliary: crate::map::drawer::texture::OffsetAuxiliary::default()
                         }
                     };
 
@@ -626,7 +626,7 @@ pub(in crate::map) mod ui_mod
                 parallax_y:         0f32,
                 scroll_x:           0f32,
                 scroll_y:           0f32,
-                rotation_auxiliary: RotationAuxiliary::default()
+                rotation_auxiliary: OffsetAuxiliary::default()
             }
         }
     }
@@ -646,7 +646,7 @@ pub(in crate::map) mod ui_mod
                 parallax_y:         0f32,
                 scroll_x:           0f32,
                 scroll_y:           0f32,
-                rotation_auxiliary: RotationAuxiliary::default()
+                rotation_auxiliary: OffsetAuxiliary::default()
             }
         }
     }
@@ -661,7 +661,7 @@ pub(in crate::map) mod ui_mod
             texture_angle: f32,
             rotation_angle: f32,
             pivot: Vec2
-        ) -> RotationAuxiliary
+        ) -> OffsetAuxiliary
         {
             match_or_panic!(
                 self,
@@ -680,9 +680,18 @@ pub(in crate::map) mod ui_mod
     #[derive(Debug, Clone, Copy)]
     enum RotationOffset
     {
-        Tex(RotationAuxiliary),
+        Texture(OffsetAuxiliary),
         Sprite(f32, f32)
     }
+
+    // //=======================================================================//
+
+    // #[derive(Debug, Clone, Copy)]
+    // enum ScaleOffset
+    // {
+    //     Texture(OffsetAuxiliary),
+    //     Sprite(f32, f32)
+    // }
 
     //=======================================================================//
     // STRUCTS
@@ -705,13 +714,9 @@ pub(in crate::map) mod ui_mod
     #[derive(Debug)]
     pub(in crate::map) struct TextureScale
     {
-        /// The new horizontal offset.
         offset_x: f32,
-        /// The new vertical offset.
         offset_y: f32,
-        /// The new horizontal scale.
         scale_x:  f32,
-        /// The new vertical scale.
         scale_y:  f32
     }
 
@@ -753,8 +758,14 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
-    impl RotationAuxiliary
+    impl OffsetAuxiliary
     {
+        // #[inline]
+        // fn scale_offset(&self, ) -> Vec2
+        // {
+
+        // }
+
         #[inline]
         fn rotation_data(&self, texture_angle: f32, rotation_angle: f32, pivot: Vec2) -> Self
         {
@@ -1105,78 +1116,14 @@ pub(in crate::map) mod ui_mod
                 .out_of_bounds()
         }
 
-        /// Checks whether the scale is valid. Returns a [`TextureScale`] describing the outcome if
-        /// it is.
-        #[inline]
-        pub(in crate::map) fn check_scale(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            info: &ScaleInfo,
-            old_center: Vec2,
-            new_center: Vec2
-        ) -> Option<TextureScale>
-        {
-            let scale_x = self.scale_x * info.width_multi();
-            let scale_y = self.scale_y * info.height_multi();
-
-            let center = return_if_none!(
-                self.sprite_hull(drawing_resources, old_center),
-                TextureScale {
-                    offset_x: self.offset_x,
-                    offset_y: self.offset_y,
-                    scale_x,
-                    scale_y
-                }
-                .into()
-            )
-            .center();
-
-            let new_offset = info.scaled_point(center) - new_center;
-            let prev_offset_x = std::mem::replace(&mut self.offset_x, new_offset.x);
-            let prev_offset_y = std::mem::replace(&mut self.offset_y, new_offset.y);
-            let prev_scale_x = std::mem::replace(&mut self.scale_x, scale_x);
-            let prev_scale_y = std::mem::replace(&mut self.scale_y, scale_y);
-
-            let result = self.check_sprite_vxs(drawing_resources, new_center);
-
-            self.offset_x = prev_offset_x;
-            self.offset_y = prev_offset_y;
-            self.scale_x = prev_scale_x;
-            self.scale_y = prev_scale_y;
-
-            match result
-            {
-                Ok(_) =>
-                {
-                    TextureScale {
-                        offset_x: new_offset.x,
-                        offset_y: new_offset.y,
-                        scale_x,
-                        scale_y
-                    }
-                    .into()
-                },
-                Err(()) => None
-            }
-        }
-
-        #[inline]
-        pub(in crate::map) fn scale(&mut self, value: &TextureScale)
-        {
-            self.scale_x = value.scale_x;
-            self.scale_y = value.scale_y;
-            self.offset_x = value.offset_x;
-            self.offset_y = value.offset_y;
-        }
-
         /// Checks whether the scale and flipping of the texture is valid. Returns a
         /// [`TextureScale`] describing the outcome if it is.
         #[inline]
-        pub(in crate::map) fn check_flip_scale(
+        pub(in crate::map) fn check_scale<const CAP: usize>(
             &mut self,
             drawing_resources: &DrawingResources,
             info: &ScaleInfo,
-            flip_queue: &ArrayVec<Flip, 2>,
+            flip_queue: &ArrayVec<Flip, CAP>,
             old_center: Vec2,
             new_center: Vec2
         ) -> Option<TextureScale>
@@ -1247,6 +1194,15 @@ pub(in crate::map) mod ui_mod
                 },
                 Err(()) => None
             }
+        }
+
+        #[inline]
+        pub(in crate::map) fn scale(&mut self, value: &TextureScale)
+        {
+            self.scale_x = value.scale_x;
+            self.scale_y = value.scale_y;
+            self.offset_x = value.offset_x;
+            self.offset_y = value.offset_y;
         }
 
         /// Whether the texture change is valid.
@@ -1363,7 +1319,7 @@ pub(in crate::map) mod ui_mod
                 None =>
                 {
                     return TextureRotation {
-                        offset: RotationOffset::Tex(self.sprite.rotation_data(
+                        offset: RotationOffset::Texture(self.sprite.rotation_data(
                             self.angle.to_radians(),
                             angle,
                             pivot
@@ -1415,7 +1371,7 @@ pub(in crate::map) mod ui_mod
                     Sprite::False {
                         rotation_auxiliary, ..
                     },
-                    RotationOffset::Tex(rotation)
+                    RotationOffset::Texture(rotation)
                 ) => std::mem::swap(rotation_auxiliary, rotation),
                 _ => unreachable!()
             };

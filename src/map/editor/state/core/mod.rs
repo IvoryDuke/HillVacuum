@@ -49,7 +49,10 @@ use super::{
 };
 use crate::{
     map::{
-        brush::{convex_polygon::TextureSetResult, BrushData},
+        brush::{
+            convex_polygon::{ConvexPolygon, TextureSetResult},
+            BrushData
+        },
         drawer::{
             drawing_resources::DrawingResources,
             texture::{TextureSettings, TextureSpriteSet}
@@ -68,7 +71,8 @@ use crate::{
     utils::{
         collections::HvBox,
         identifiers::{EntityId, Id}
-    }
+    },
+    HvVec
 };
 
 //=======================================================================//
@@ -1224,5 +1228,17 @@ fn draw_non_selected_brushes(bundle: &mut DrawBundle, manager: &EntitiesManager)
     for brush in brushes
     {
         brush.draw_non_selected(camera, drawer);
+    }
+}
+
+//=======================================================================//
+
+#[inline]
+fn fill_backup_polygons(manager: &EntitiesManager, backup_polygons: &mut HvVec<(Id, ConvexPolygon)>)
+{
+    if backup_polygons.is_empty()
+    {
+        backup_polygons
+            .extend(manager.selected_brushes().map(|brush| (brush.id(), brush.polygon())));
     }
 }

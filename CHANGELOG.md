@@ -7,7 +7,8 @@
 - made behavior in horizontal and vertical texture offset consistent;
 - improved texture editor;
 - added "Reset textures" button in the texture editor;
-- scroll and parallax direction are now always perpendicular to the x and y axis regardless of the texture angle. Scroll values from older map files are automatically converted to the new system, unfortunately parallax is a breaking change.
+- scroll and parallax direction are now always perpendicular to the x and y axis regardless of the texture angle. Scroll values from older map files are automatically converted to the new system, unfortunately parallax is a breaking change;
+- added window message in case of a fatal error. 
 
 ### Fixes
 - Fixed overlapping actions in rotate tool.

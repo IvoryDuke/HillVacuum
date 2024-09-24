@@ -3,15 +3,20 @@
 //
 //=======================================================================//
 
+use arrayvec::ArrayVec;
 use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_shared::return_if_none;
 
-use super::{tool::OngoingMultiframeChange, ActiveTool};
+use super::{fill_backup_polygons, tool::OngoingMultiframeChange, ActiveTool};
 use crate::{
     map::{
-        brush::convex_polygon::{ConvexPolygon, ScaleInfo},
-        drawer::drawing_resources::DrawingResources,
+        brush::{
+            convex_polygon::{ConvexPolygon, ScaleInfo},
+            Brush,
+            ScalePayload
+        },
+        drawer::{drawing_resources::DrawingResources, texture::TextureScale},
         editor::{
             cursor::Cursor,
             state::{
@@ -37,6 +42,83 @@ use crate::{
 };
 
 //=======================================================================//
+// MACROS
+//
+//=======================================================================//
+
+macro_rules! scale_func {
+    (
+        $drawing_resources:ident,
+        $manager:ident,
+        $hull:ident,
+        $selected_corner:ident,
+        $new_corner_position:ident,
+        $ret:ty,
+        $f:expr
+        $(, $scale_texture:ident)?
+    ) => {{
+        #[inline]
+        fn scale<const CAP: usize>(
+            drawing_resources: &DrawingResources,
+            manager: &mut EntitiesManager,
+            flip_queue: &ArrayVec<Flip, CAP>,
+            hull: &Hull,
+            new_hull: &Hull
+            $(, $scale_texture: bool)?
+        ) -> Option<HvVec<$ret>>
+        {
+            let info = ScaleInfo::new(&hull.flipped(flip_queue.iter().copied()), new_hull).unwrap_or(ScaleInfo::identity(hull));
+            let mut payloads = hv_vec![capacity; manager.selected_brushes_amount()];
+
+            let valid = manager.test_operation_validity(|manager| {
+                manager.selected_brushes_mut(drawing_resources).find_map(|mut brush| {
+                    $f(drawing_resources, &mut brush, &info, flip_queue, &mut payloads $(, $scale_texture)?)
+            })});
+
+            if !valid
+            {
+                return None;
+            }
+
+            payloads.into()
+        }
+
+        match $hull.scaled($selected_corner, $new_corner_position)
+        {
+            ScaleResult::None => return,
+            ScaleResult::Scale(new_hull) =>
+            {
+                (
+                    new_hull,
+                    return_if_none!(scale(
+                        $drawing_resources,
+                        $manager,
+                        &ArrayVec::<_, 0>::new(),
+                        $hull,
+                        &new_hull
+                        $(, $scale_texture)?
+                    ))
+                )
+            },
+            ScaleResult::Flip(flip_queue, new_hull) =>
+            {
+                (
+                    new_hull,
+                    return_if_none!(scale(
+                        $drawing_resources,
+                        $manager,
+                        &flip_queue,
+                        $hull,
+                        &new_hull
+                        $(, $scale_texture)?
+                    ))
+                )
+            },
+        }
+    }};
+}
+
+//=======================================================================//
 // ENUMS
 //
 //=======================================================================//
@@ -48,9 +130,7 @@ enum Status
     /// Scaling with the keyboard.
     Keyboard,
     /// Scaling with cursor drag.
-    Drag(HvVec<(Id, ConvexPolygon)>, Vec2, Hull),
-    /// Scaling textures with cursor drag.
-    DragTextures(HvVec<(Id, (f32, f32))>, Vec2, Hull)
+    Drag(HvVec<(Id, ConvexPolygon)>, Vec2, Hull)
 }
 
 //=======================================================================//
@@ -171,25 +251,37 @@ impl ScaleTool
                 }
                 else if inputs.left_mouse.just_pressed()
                 {
-                    self.check_scale_vertex_proximity(
-                        Self::cursor_pos(cursor),
-                        settings,
-                        camera.scale()
-                    );
+                    let cursor_pos = Self::cursor_pos(cursor);
+                    self.selected_corner =
+                        return_if_none!(self.outline.nearby_corner(cursor_pos, camera.scale()));
+                    self.status = Status::Drag(hv_vec![], cursor_pos, self.outline);
                 }
             },
             Status::Drag(backup_polygons, start_pos, hull) =>
             {
                 let cursor_pos = Self::cursor_pos(cursor);
 
-                Self::scale_brushes(
-                    bundle.drawing_resources,
-                    manager,
-                    hull,
-                    &mut self.selected_corner,
-                    cursor_pos,
-                    backup_polygons,
-                    settings.texture_editing()
+                edit_target!(
+                    settings.target_switch(),
+                    |scale_textures| {
+                        Self::scale_brushes(
+                            bundle.drawing_resources,
+                            manager,
+                            hull,
+                            &mut self.selected_corner,
+                            cursor_pos,
+                            backup_polygons,
+                            scale_textures
+                        );
+                    },
+                    Self::scale_textures(
+                        bundle.drawing_resources,
+                        manager,
+                        hull,
+                        &mut self.selected_corner,
+                        cursor_pos,
+                        backup_polygons
+                    )
                 );
 
                 if inputs.left_mouse.pressed()
@@ -197,36 +289,21 @@ impl ScaleTool
                     return;
                 }
 
-                if !cursor_pos.around_equal_narrow(start_pos) && !backup_polygons.is_empty()
+                if cursor_pos.around_equal_narrow(start_pos) || backup_polygons.is_empty()
+                {
+                    for (id, polygon) in backup_polygons.take_value()
+                    {
+                        _ = manager.brush_mut(bundle.drawing_resources, id).set_polygon(polygon);
+                    }
+                }
+                else
                 {
                     edits_history.polygon_edit_cluster(backup_polygons.take_value().into_iter());
-                    edits_history.override_edit_tag("Brushes Scale");
-                }
 
-                self.finalize_drag_scale(bundle.drawing_resources, manager, grid, settings);
-            },
-            Status::DragTextures(backup_scales, start_pos, hull) =>
-            {
-                let cursor_pos = Self::cursor_pos(cursor);
-
-                Self::scale_textures(
-                    bundle.drawing_resources,
-                    manager,
-                    hull,
-                    &mut self.selected_corner,
-                    cursor_pos,
-                    backup_scales
-                );
-
-                if inputs.left_mouse.pressed()
-                {
-                    return;
-                }
-
-                if !cursor_pos.around_equal_narrow(start_pos) && !backup_scales.is_empty()
-                {
-                    edits_history
-                        .texture_scale_flip_cluster(backup_scales.take_value().into_iter());
+                    if settings.entity_editing()
+                    {
+                        edits_history.override_edit_tag("Brushes Scale");
+                    }
                 }
 
                 self.finalize_drag_scale(bundle.drawing_resources, manager, grid, settings);
@@ -266,7 +343,7 @@ impl ScaleTool
                 if !backup_polygons.is_empty()
                 {
                     edits_history.polygon_edit_cluster(backup_polygons.take_value().into_iter());
-                    edits_history.override_edit_tag("Brushes Rotation.");
+                    edits_history.override_edit_tag("Brushes Scale");
                 }
             },
             {
@@ -335,87 +412,41 @@ impl ScaleTool
         scale_texture: bool
     )
     {
-        let (new_hull, payloads) = match hull.scaled(selected_corner, new_corner_position)
-        {
-            ScaleResult::None => return,
-            ScaleResult::Scale(new_hull) =>
-            {
-                let info = ScaleInfo::new(hull, &new_hull).unwrap();
-                let mut payloads = hv_vec![capacity; manager.selected_brushes_amount()];
+        let (new_hull, payloads) = scale_func!(
+            drawing_resources,
+            manager,
+            hull,
+            selected_corner,
+            new_corner_position,
+            ScalePayload,
+            |drawing_resources,
+             brush: &mut Brush,
+             info,
+             flip_queue,
+             payloads: &mut HvVec<ScalePayload>,
+             scale_texture| {
+                use crate::map::brush::ScaleResult;
 
-                let valid = manager.test_operation_validity(|manager| {
-                    manager.selected_brushes_mut(drawing_resources).find_map(|mut brush| {
-                        use crate::map::brush::ScaleResult;
-
-                        match brush.check_scale(drawing_resources, &info, scale_texture)
-                        {
-                            ScaleResult::Invalid => brush.id().into(),
-                            ScaleResult::Valid(payload) =>
-                            {
-                                payloads.push(payload);
-                                None
-                            }
-                        }
-                    })
-                });
-
-                if !valid
+                match brush.check_scale(drawing_resources, info, flip_queue, scale_texture)
                 {
-                    return;
+                    ScaleResult::Invalid => brush.id().into(),
+                    ScaleResult::Valid(p) =>
+                    {
+                        payloads.push(p);
+                        None
+                    }
                 }
-
-                (new_hull, payloads)
             },
-            ScaleResult::Flip(flip_queue, new_hull) =>
-            {
-                let info = ScaleInfo::new(&hull.flipped(flip_queue.iter().copied()), &new_hull)
-                    .unwrap_or(ScaleInfo::identity(hull));
-
-                let mut payloads = hv_vec![capacity; manager.selected_brushes_amount()];
-
-                let valid = manager.test_operation_validity(|manager| {
-                    manager.selected_brushes_mut(drawing_resources).find_map(|mut brush| {
-                        use crate::map::brush::ScaleResult;
-
-                        match brush.check_flip_scale(
-                            drawing_resources,
-                            &info,
-                            &flip_queue,
-                            scale_texture
-                        )
-                        {
-                            ScaleResult::Invalid => brush.id().into(),
-                            ScaleResult::Valid(payload) =>
-                            {
-                                payloads.push(payload);
-                                None
-                            }
-                        }
-                    })
-                });
-
-                if !valid
-                {
-                    return;
-                }
-
-                (new_hull, payloads)
-            }
-        };
+            scale_texture
+        );
 
         *hull = new_hull;
 
-        if backup_polygons.is_empty()
-        {
-            backup_polygons
-                .extend(manager.selected_brushes().map(|brush| (brush.id(), brush.polygon())));
-        }
+        fill_backup_polygons(manager, backup_polygons);
 
         for payload in payloads
         {
-            manager
-                .brush_mut(drawing_resources, payload.id())
-                .set_scale_coordinates(payload);
+            manager.brush_mut(drawing_resources, payload.id()).scale(payload);
         }
     }
 
@@ -427,105 +458,43 @@ impl ScaleTool
         hull: &mut Hull,
         selected_corner: &mut Corner,
         new_corner_position: Vec2,
-        backup_scales: &mut HvVec<(Id, (f32, f32))>
-    ) -> Option<Hull>
+        backup_polygons: &mut HvVec<(Id, ConvexPolygon)>
+    )
     {
-        let result = hull.scaled(selected_corner, new_corner_position);
-        let new_hull = match &result
-        {
-            ScaleResult::None => return None,
-            ScaleResult::Scale(new_hull) | ScaleResult::Flip(_, new_hull) => *new_hull
-        };
-        let info = ScaleInfo::new(hull, &new_hull).unwrap();
-        let multi = Vec2::new(info.width_multi(), info.height_multi());
+        let (new_hull, payloads) = scale_func!(
+            drawing_resources,
+            manager,
+            hull,
+            selected_corner,
+            new_corner_position,
+            (Id, TextureScale),
+            |drawing_resources,
+             brush: &mut Brush,
+             info,
+             flip_queue,
+             payloads: &mut HvVec<(Id, TextureScale)>| {
+                let id = brush.id();
 
-        let valid = manager.test_operation_validity(|manager| {
-            manager
-                .selected_textured_brushes_mut(drawing_resources)
-                .find_map(|mut brush| {
-                    let texture = brush.texture_settings().unwrap();
-                    let scale_x = texture.scale_x() * multi.x;
-                    let scale_y = texture.scale_y() * multi.y;
-
-                    (!brush.check_texture_scale_x(drawing_resources, scale_x) ||
-                        !brush.check_texture_scale_y(drawing_resources, scale_y))
-                    .then_some(brush.id())
-                })
-        });
-
-        if !valid
-        {
-            return None;
-        }
-
-        if backup_scales.is_empty()
-        {
-            for brush in manager.selected_textured_brushes()
-            {
-                let texture = brush.texture_settings().unwrap();
-                backup_scales.push((brush.id(), (texture.scale_x(), texture.scale_y())));
+                match brush.check_texture_scale(drawing_resources, info, flip_queue)
+                {
+                    Some(p) =>
+                    {
+                        payloads.push((id, p));
+                        None
+                    },
+                    None => id.into()
+                }
             }
-        }
+        );
 
         *hull = new_hull;
 
-        for mut brush in manager.selected_textured_brushes_mut(drawing_resources)
-        {
-            let texture = brush.texture_settings().unwrap();
-            let scale_x = texture.scale_x() * multi.x;
-            let scale_y = texture.scale_y() * multi.y;
+        fill_backup_polygons(manager, backup_polygons);
 
-            _ = brush.set_texture_scale_x(scale_x);
-            _ = brush.set_texture_scale_y(scale_y);
+        for (id, p) in payloads
+        {
+            manager.brush_mut(drawing_resources, id).scale_texture(&p);
         }
-
-        if let ScaleResult::Flip(flip_queue, _) = result
-        {
-            for flip in flip_queue
-            {
-                match flip
-                {
-                    Flip::Above(_) | Flip::Below(_) =>
-                    {
-                        for mut brush in manager.selected_textured_brushes_mut(drawing_resources)
-                        {
-                            brush.flip_scale_y();
-                        }
-                    },
-                    Flip::Left(_) | Flip::Right(_) =>
-                    {
-                        for mut brush in manager.selected_textured_brushes_mut(drawing_resources)
-                        {
-                            brush.flip_texture_scale_x();
-                        }
-                    }
-                };
-            }
-        }
-
-        new_hull.into()
-    }
-
-    /// Checks whether there is an outline vertex near the cursor.
-    #[inline]
-    fn check_scale_vertex_proximity(
-        &mut self,
-        cursor_pos: Vec2,
-        settings: &ToolsSettings,
-        camera_scale: f32
-    )
-    {
-        self.selected_corner =
-            return_if_none!(self.outline.nearby_corner(cursor_pos, camera_scale));
-
-        self.status = if settings.entity_editing()
-        {
-            Status::Drag(hv_vec![], cursor_pos, self.outline)
-        }
-        else
-        {
-            Status::DragTextures(hv_vec![], cursor_pos, self.outline)
-        };
     }
 
     /// Returns the outline of the tool, if any.
@@ -606,7 +575,7 @@ impl ScaleTool
                     Color::ToolCursor
                 );
             },
-            Status::Drag(_, _, hull) | Status::DragTextures(_, _, hull) =>
+            Status::Drag(_, _, hull) =>
             {
                 drawer.hull_with_corner_highlights(
                     hull,
@@ -679,7 +648,7 @@ impl ScaleTool
         }
 
         ui.horizontal_wrapped(|ui| {
-            ui.label(egui::RichText::new("Interval:"));
+            ui.label(egui::RichText::new("Texture scale interval:"));
             ui.add(
                 egui::Slider::new(
                     &mut settings.texture_scale_interval,
