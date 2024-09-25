@@ -674,7 +674,7 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug)]
     pub(in crate::map) struct ScaleInfo
     {
         pivot:        Vec2,
@@ -684,40 +684,38 @@ pub(in crate::map) mod ui_mod
         width_multi:  f32,
         height:       f32,
         new_height:   f32,
-        height_multi: f32
+        height_multi: f32,
+        flip_queue:   ArrayVec<Flip, 2>
     }
 
     impl ScaleInfo
     {
         #[inline]
-        pub fn identity(hull: &Hull) -> Self
+        pub fn new<const CAP: usize>(
+            hull: &Hull,
+            new_hull: &Hull,
+            flip_queue: &ArrayVec<Flip, CAP>
+        ) -> Self
         {
-            Self {
-                pivot:        hull.top_left(),
-                new_pivot:    hull.top_left(),
-                width:        hull.width(),
-                new_width:    hull.width(),
-                width_multi:  1f32,
-                height:       hull.height(),
-                new_height:   hull.height(),
-                height_multi: 1f32
-            }
-        }
-
-        #[inline]
-        pub fn new(hull: &Hull, new_hull: &Hull) -> Option<Self>
-        {
-            if hull.around_equal_narrow(new_hull)
-            {
-                return None;
-            }
-
+            let hull = hull.flipped(flip_queue.iter().copied());
+            let flip_queue = flip_queue
+                .into_iter()
+                .map(|flip| {
+                    match flip
+                    {
+                        Flip::Above(v) => Flip::Above(2f32 * v),
+                        Flip::Below(v) => Flip::Below(2f32 * v),
+                        Flip::Left(v) => Flip::Left(2f32 * v),
+                        Flip::Right(v) => Flip::Right(2f32 * v)
+                    }
+                })
+                .collect::<ArrayVec<_, 2>>();
             let width = hull.width();
             let new_width = new_hull.width();
             let height = hull.height();
             let new_height = new_hull.height();
 
-            Some(Self {
+            Self {
                 pivot: hull.top_left(),
                 new_pivot: new_hull.top_left(),
                 width,
@@ -725,22 +723,43 @@ pub(in crate::map) mod ui_mod
                 width_multi: new_width / width,
                 height,
                 new_height,
-                height_multi: new_height / height
-            })
+                height_multi: new_height / height,
+                flip_queue
+            }
         }
 
         #[inline]
         #[must_use]
-        pub const fn width_multi(&self) -> f32 { self.width_multi }
-
-        #[inline]
-        #[must_use]
-        pub const fn height_multi(&self) -> f32 { self.height_multi }
-
-        #[inline]
-        #[must_use]
-        pub fn scaled_point(&self, p: Vec2) -> Vec2
+        pub fn texture_scale(&self, scale_x: f32, scale_y: f32) -> (f32, f32)
         {
+            let mut scale_x = scale_x * self.width_multi;
+            let mut scale_y = scale_y * self.height_multi;
+
+            for flip in &self.flip_queue
+            {
+                match flip
+                {
+                    Flip::Above(_) | Flip::Below(_) => scale_y = -scale_y,
+                    Flip::Left(_) | Flip::Right(_) => scale_x = -scale_x
+                };
+            }
+
+            (scale_x, scale_y)
+        }
+
+        #[inline]
+        #[must_use]
+        pub fn scaled_point(&self, mut p: Vec2) -> Vec2
+        {
+            for flip in &self.flip_queue
+            {
+                match flip
+                {
+                    Flip::Above(mirror) | Flip::Below(mirror) => p.y = *mirror - p.y,
+                    Flip::Left(mirror) | Flip::Right(mirror) => p.x = *mirror - p.x
+                };
+            }
+
             Vec2::new(
                 self.new_pivot.x + self.new_width * ((p.x - self.pivot.x) / self.width),
                 self.new_pivot.y + self.new_height * ((p.y - self.pivot.y) / self.height)
@@ -751,7 +770,7 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug)]
     pub(in crate::map) struct ShearInfo
     {
         delta:              f32,
@@ -3779,40 +3798,18 @@ pub(in crate::map) mod ui_mod
         // Scale
 
         #[inline]
-        pub(in crate::map::brush) fn check_scale<const CAP: usize>(
+        pub(in crate::map::brush) fn check_scale(
             &mut self,
             drawing_resources: &DrawingResources,
             info: &ScaleInfo,
-            flip_queue: &ArrayVec<Flip, CAP>,
             scale_texture: bool
         ) -> ScaleResult
         {
             let mut vxs = hv_vec![capacity; self.sides()];
             let mut new_center = Vec2::ZERO;
-            let flip_queue = flip_queue
-                .into_iter()
-                .map(|flip| {
-                    match flip
-                    {
-                        Flip::Above(v) => Flip::Above(2f32 * v),
-                        Flip::Below(v) => Flip::Below(2f32 * v),
-                        Flip::Left(v) => Flip::Left(2f32 * v),
-                        Flip::Right(v) => Flip::Right(2f32 * v)
-                    }
-                })
-                .collect::<ArrayVec<_, CAP>>();
 
-            for mut vx in self.vertexes.iter().map(|svx| svx.vec)
+            for vx in self.vertexes.iter().map(|svx| svx.vec)
             {
-                for flip in &flip_queue
-                {
-                    match flip
-                    {
-                        Flip::Above(mirror) | Flip::Below(mirror) => vx.y = *mirror - vx.y,
-                        Flip::Left(mirror) | Flip::Right(mirror) => vx.x = *mirror - vx.x
-                    }
-                }
-
                 let vx = info.scaled_point(vx);
 
                 if vx.out_of_bounds()
@@ -3824,7 +3821,7 @@ pub(in crate::map) mod ui_mod
                 new_center += vx;
             }
 
-            if !flip_queue.is_empty()
+            if !info.flip_queue.is_empty()
             {
                 vxs.reverse();
             }
@@ -3838,7 +3835,6 @@ pub(in crate::map) mod ui_mod
                     self.texture_settings_mut().check_scale(
                         drawing_resources,
                         info,
-                        &flip_queue,
                         center,
                         new_center
                     ),
@@ -3860,21 +3856,15 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub(in crate::map) fn check_texture_scale<const CAP: usize>(
+        pub(in crate::map) fn check_texture_scale(
             &mut self,
             drawing_resources: &DrawingResources,
-            info: &ScaleInfo,
-            flip_queue: &ArrayVec<Flip, CAP>
+            info: &ScaleInfo
         ) -> Option<TextureScale>
         {
             let center = self.center;
-            self.texture_settings_mut().check_scale(
-                drawing_resources,
-                info,
-                flip_queue,
-                center,
-                center
-            )
+            self.texture_settings_mut()
+                .check_scale(drawing_resources, info, center, center)
         }
 
         #[inline]

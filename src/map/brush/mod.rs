@@ -117,7 +117,7 @@ pub(in crate::map) mod ui_mod
         },
         utils::{
             collections::{hv_vec, Ids},
-            hull::{EntityHull, Flip, Hull},
+            hull::{EntityHull, Hull},
             identifiers::{EntityCenter, EntityId},
             iterators::SlicePairIter,
             math::lines_and_segments::{line_equation, LineEquation}
@@ -2616,18 +2616,15 @@ pub(in crate::map) mod ui_mod
 
         /// Returns a [`ScaleResult`] describing the validity of a scale with flip.
         #[inline]
-        pub fn check_scale<const CAP: usize>(
+        pub fn check_scale(
             &mut self,
             drawing_resources: &DrawingResources,
             info: &ScaleInfo,
-            flip_queue: &ArrayVec<Flip, CAP>,
             scale_texture: bool
         ) -> ScaleResult
         {
             ScaleResult::from_result(
-                self.data
-                    .polygon
-                    .check_scale(drawing_resources, info, flip_queue, scale_texture),
+                self.data.polygon.check_scale(drawing_resources, info, scale_texture),
                 self
             )
         }
@@ -2642,16 +2639,13 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn check_texture_scale<const CAP: usize>(
+        pub fn check_texture_scale(
             &mut self,
             drawing_resources: &DrawingResources,
-            info: &ScaleInfo,
-            flip_queue: &ArrayVec<Flip, CAP>
+            info: &ScaleInfo
         ) -> Option<TextureScale>
         {
-            self.data
-                .polygon
-                .check_texture_scale(drawing_resources, info, flip_queue)
+            self.data.polygon.check_texture_scale(drawing_resources, info)
         }
 
         #[inline]

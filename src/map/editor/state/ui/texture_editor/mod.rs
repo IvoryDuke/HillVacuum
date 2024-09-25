@@ -521,7 +521,7 @@ impl Innards
                     ui.add_space(5f32);
                 }
 
-                if ui.button("Reset textures").clicked()
+                if ui.button("Reset").clicked()
                 {
                     edits_history.texture_reset_cluster(
                         manager

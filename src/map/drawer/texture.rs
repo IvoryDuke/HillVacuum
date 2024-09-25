@@ -313,7 +313,6 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
-    use arrayvec::ArrayVec;
     use bevy::{
         asset::{Assets, Handle},
         render::texture::{Image, ImageSampler, ImageSamplerDescriptor}
@@ -337,7 +336,7 @@ pub(in crate::map) mod ui_mod
             Translate
         },
         utils::{
-            hull::{EntityHull, Flip, Hull},
+            hull::{EntityHull, Hull},
             math::{
                 points::{rotate_point, rotate_point_around_origin},
                 AroundEqual
@@ -1119,28 +1118,16 @@ pub(in crate::map) mod ui_mod
         /// Checks whether the scale and flipping of the texture is valid. Returns a
         /// [`TextureScale`] describing the outcome if it is.
         #[inline]
-        pub(in crate::map) fn check_scale<const CAP: usize>(
+        pub(in crate::map) fn check_scale(
             &mut self,
             drawing_resources: &DrawingResources,
             info: &ScaleInfo,
-            flip_queue: &ArrayVec<Flip, CAP>,
             old_center: Vec2,
             new_center: Vec2
         ) -> Option<TextureScale>
         {
-            let mut scale_x = self.scale_x * info.width_multi();
-            let mut scale_y = self.scale_y * info.height_multi();
-
-            for flip in flip_queue
-            {
-                match flip
-                {
-                    Flip::Above(_) | Flip::Below(_) => scale_y = -scale_y,
-                    Flip::Left(_) | Flip::Right(_) => scale_x = -scale_x
-                }
-            }
-
-            let mut sprite_center = match self.sprite_hull(drawing_resources, old_center)
+            let (scale_x, scale_y) = info.texture_scale(self.scale_x, self.scale_y);
+            let sprite_center = match self.sprite_hull(drawing_resources, old_center)
             {
                 Some(hull) => hull.center(),
                 None =>
@@ -1159,21 +1146,6 @@ pub(in crate::map) mod ui_mod
                     .into();
                 }
             };
-
-            for flip in flip_queue
-            {
-                match flip
-                {
-                    Flip::Above(mirror) | Flip::Below(mirror) =>
-                    {
-                        sprite_center.y = mirror - sprite_center.y;
-                    },
-                    Flip::Left(mirror) | Flip::Right(mirror) =>
-                    {
-                        sprite_center.x = mirror - sprite_center.x;
-                    }
-                }
-            }
 
             let new_offset = info.scaled_point(sprite_center) - new_center;
             let prev_offset_x = std::mem::replace(&mut self.offset_x, new_offset.x);

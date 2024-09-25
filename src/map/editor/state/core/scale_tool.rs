@@ -66,12 +66,12 @@ macro_rules! scale_func {
             $(, $scale_texture: bool)?
         ) -> Option<HvVec<$ret>>
         {
-            let info = ScaleInfo::new(&hull.flipped(flip_queue.iter().copied()), new_hull).unwrap_or(ScaleInfo::identity(hull));
+            let info = ScaleInfo::new(hull, new_hull, flip_queue);
             let mut payloads = hv_vec![capacity; manager.selected_brushes_amount()];
 
             let valid = manager.test_operation_validity(|manager| {
                 manager.selected_brushes_mut(drawing_resources).find_map(|mut brush| {
-                    $f(drawing_resources, &mut brush, &info, flip_queue, &mut payloads $(, $scale_texture)?)
+                    $f(drawing_resources, &mut brush, &info, &mut payloads $(, $scale_texture)?)
             })});
 
             if !valid
@@ -254,11 +254,10 @@ impl ScaleTool
                         |drawing_resources,
                          brush: &mut Brush,
                          info,
-                         flip_queue,
                          payloads: &mut HvVec<(Id, TextureScale)>| {
                             let id = brush.id();
 
-                            match brush.check_texture_scale(drawing_resources, info, flip_queue)
+                            match brush.check_texture_scale(drawing_resources, info)
                             {
                                 Some(p) =>
                                 {
@@ -367,11 +366,10 @@ impl ScaleTool
                 |drawing_resources,
                  brush: &mut Brush,
                  info,
-                 flip_queue,
                  payloads: &mut HvVec<(Id, TextureScale)>| {
                     let id = brush.id();
 
-                    match brush.check_texture_scale(drawing_resources, info, flip_queue)
+                    match brush.check_texture_scale(drawing_resources, info)
                     {
                         Some(p) =>
                         {
@@ -449,12 +447,11 @@ impl ScaleTool
             |drawing_resources,
              brush: &mut Brush,
              info,
-             flip_queue,
              payloads: &mut HvVec<ScalePayload>,
              scale_texture| {
                 use crate::map::brush::ScaleResult;
 
-                match brush.check_scale(drawing_resources, info, flip_queue, scale_texture)
+                match brush.check_scale(drawing_resources, info, scale_texture)
                 {
                     ScaleResult::Invalid => brush.id().into(),
                     ScaleResult::Valid(p) =>
@@ -513,10 +510,7 @@ impl ScaleTool
         settings: &ToolsSettings
     )
     {
-        if !self.ongoing_multi_frame_change()
-        {
-            self.outline = Self::outline(drawing_resources, manager, grid, settings).unwrap();
-        }
+        self.outline = Self::outline(drawing_resources, manager, grid, settings).unwrap();
     }
 
     //==============================================================
