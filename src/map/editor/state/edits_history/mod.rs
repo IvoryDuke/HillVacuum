@@ -765,6 +765,11 @@ impl EditsHistory
                     return true;
                 }
 
+                if self.index < idx
+                {
+                    return false;
+                }
+
                 idx
             },
             None => 0
