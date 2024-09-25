@@ -1,5 +1,5 @@
 cargo build --manifest-path=docs_generator/Cargo.toml &&
-mv docs_generator/target/release/docs_generator dg &&
+mv docs_generator/target/debug/docs_generator dg &&
 ./dg &&
 cargo clean --manifest-path=docs_generator/Cargo.toml &&
 rm dg

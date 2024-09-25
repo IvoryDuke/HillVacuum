@@ -3,7 +3,6 @@
 //
 //=======================================================================//
 
-use bevy::prelude::Transform;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
@@ -108,8 +107,7 @@ impl TextureInterface for TextureSettings
     fn draw_offset(&self) -> Vec2 { unreachable!() }
 
     #[inline]
-    fn draw_offset_with_parallax_and_scroll(&self, _: &Transform, _: f32, _: Vec2, _: bool)
-        -> Vec2
+    fn draw_offset_with_parallax_and_scroll(&self, _: Vec2, _: f32, _: Vec2, _: bool) -> Vec2
     {
         unreachable!()
     }

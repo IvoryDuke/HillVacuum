@@ -821,14 +821,14 @@ pub(in crate::map) mod ui_mod
         #[inline]
         fn draw_offset_with_parallax_and_scroll(
             &self,
-            camera: &Transform,
+            camera_pos: Vec2,
             elapsed_time: f32,
             center: Vec2,
             parallax_enabled: bool
         ) -> Vec2
         {
             self.texture.draw_offset_with_parallax_and_scroll(
-                camera,
+                camera_pos,
                 elapsed_time,
                 center,
                 parallax_enabled

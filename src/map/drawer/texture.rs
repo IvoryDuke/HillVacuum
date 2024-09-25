@@ -3,14 +3,10 @@
 //
 //=======================================================================//
 
-use bevy::prelude::Transform;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    utils::{math::points::rotate_point_around_origin, misc::Camera},
-    Animation
-};
+use crate::{utils::math::points::rotate_point_around_origin, Animation};
 
 //=======================================================================//
 // MACROS
@@ -25,24 +21,24 @@ macro_rules! sprite_values {
         {
             match self
             {
-                Sprite::True { .. }=> 0f32,
+                Sprite::True { .. } => 0f32,
                 Sprite::False { $value, .. } => *$value
             }
         }
     )+};
 
-    ($(($t:ty, $value:ident)),+) => { paste::paste! {$(
+    ($(($func:ident, $t:ty, $value:ident)),+) => {$(
         #[inline]
         #[must_use]
-        pub fn [< rotation_ $value >](&self) -> $t
+        fn $func(&self) -> $t
         {
             match self
             {
-                Sprite::True { .. }=> <$t>::default(),
+                Sprite::True { .. } => <$t>::default(),
                 Sprite::False { offset_auxiliary, .. } => offset_auxiliary.$value
             }
         }
-    )+}};
+    )+};
 }
 
 pub(in crate::map) use sprite_values;
@@ -78,7 +74,7 @@ pub trait TextureInterface
     #[must_use]
     fn draw_offset_with_parallax_and_scroll(
         &self,
-        camera: &Transform,
+        camera_pos: Vec2,
         elapsed_time: f32,
         center: Vec2,
         parallax_enabled: bool
@@ -159,7 +155,7 @@ impl Sprite
 {
     sprite_values!(parallax_x, parallax_y, scroll_x, scroll_y);
 
-    sprite_values!((f32, offset_x), (f32, offset_y));
+    sprite_values!((auxiliary_offset_x, f32, offset_x), (auxiliary_offset_y, f32, offset_y));
 
     /// Whether `self` has value [`Sprite::True`].
     #[inline]
@@ -205,15 +201,15 @@ impl TextureInterface for TextureSettings
     fn draw_offset(&self) -> Vec2
     {
         Vec2::new(
-            self.offset_x + self.sprite.rotation_offset_x(),
-            self.offset_y - self.sprite.rotation_offset_y()
+            self.offset_x + self.sprite.auxiliary_offset_x(),
+            self.offset_y - self.sprite.auxiliary_offset_y()
         )
     }
 
     #[inline]
     fn draw_offset_with_parallax_and_scroll(
         &self,
-        camera: &Transform,
+        camera_pos: Vec2,
         elapsed_time: f32,
         center: Vec2,
         parallax_enabled: bool
@@ -222,7 +218,7 @@ impl TextureInterface for TextureSettings
         #[allow(clippy::match_bool)]
         let p_s = match parallax_enabled
         {
-            true => -(center - camera.pos()) * Vec2::new(self.parallax_x(), self.parallax_y()),
+            true => -(center - camera_pos) * Vec2::new(self.parallax_x(), self.parallax_y()),
             false => Vec2::ZERO
         } + Vec2::new(self.scroll_x(), self.scroll_y()) * elapsed_time;
 
@@ -660,20 +656,6 @@ pub(in crate::map) mod ui_mod
         set_sprite_values!(parallax_x, parallax_y, scroll_x, scroll_y);
 
         #[inline]
-        #[must_use]
-        fn offset(&self) -> (f32, f32)
-        {
-            match_or_panic!(
-                self,
-                Self::False {
-                    offset_auxiliary,
-                    ..
-                },
-                offset_auxiliary.offset()
-            )
-        }
-
-        #[inline]
         fn rotation_data(
             &self,
             texture_angle: f32,
@@ -777,10 +759,6 @@ pub(in crate::map) mod ui_mod
 
     impl OffsetAuxiliary
     {
-        #[inline]
-        #[must_use]
-        const fn offset(&self) -> (f32, f32) { (self.offset_x, self.offset_y) }
-
         #[inline]
         #[must_use]
         fn offset_mut(&mut self) -> (&mut f32, &mut f32)
@@ -1167,8 +1145,10 @@ pub(in crate::map) mod ui_mod
                 Some(hull) => hull.center(),
                 None =>
                 {
-                    let offset =
-                        Vec2::from(self.sprite.offset()) - Vec2::new(self.offset_x, self.offset_y);
+                    let offset = Vec2::new(
+                        self.sprite.auxiliary_offset_x(),
+                        self.sprite.auxiliary_offset_y()
+                    ) - Vec2::new(self.offset_x, self.offset_y);
                     let offset = -offset + info.scaled_point(offset);
 
                     return TextureScale {

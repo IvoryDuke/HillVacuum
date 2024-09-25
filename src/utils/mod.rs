@@ -4,7 +4,6 @@ pub mod hull;
 pub mod identifiers;
 #[cfg(feature = "ui")]
 pub mod iterators;
-#[cfg(feature = "ui")]
 pub mod math;
 pub mod misc;
 #[cfg(feature = "ui")]

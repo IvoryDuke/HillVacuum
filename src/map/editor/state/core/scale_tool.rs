@@ -157,13 +157,6 @@ impl OngoingMultiframeChange for ScaleTool
 
 impl ScaleTool
 {
-    /// The maximum texture scale step.
-    const MAX_TEXTURES_SCALE_INTERVAL: f32 = 2f32;
-    /// The minimum texture scale step.
-    const MIN_TEXTURE_SCALE_INTERVAL: f32 = 0.1;
-    /// How much the texture scale is increased by pressing the UI buttons.
-    const SCALE_INTERVAL_STEP: f32 = 0.05;
-
     /// Returns an [`ActiveTool`] in its scale variant.
     #[inline]
     pub fn tool(
@@ -209,22 +202,6 @@ impl ScaleTool
         {
             Status::Keyboard =>
             {
-                if !settings.entity_editing()
-                {
-                    if inputs.plus.just_pressed()
-                    {
-                        settings.texture_scale_interval = (settings.texture_scale_interval +
-                            Self::SCALE_INTERVAL_STEP)
-                            .min(Self::MAX_TEXTURES_SCALE_INTERVAL);
-                    }
-                    else if inputs.minus.just_pressed()
-                    {
-                        settings.texture_scale_interval = (settings.texture_scale_interval -
-                            Self::SCALE_INTERVAL_STEP)
-                            .max(Self::MIN_TEXTURE_SCALE_INTERVAL);
-                    }
-                }
-
                 if inputs.tab.just_pressed()
                 {
                     if inputs.alt_pressed()
@@ -629,26 +606,6 @@ impl ScaleTool
                 Corner::BottomLeft => bottom_left.highlight(),
                 Corner::BottomRight => bottom_right.highlight()
             };
-        });
-
-        if settings.entity_editing()
-        {
-            return;
-        }
-
-        ui.horizontal_wrapped(|ui| {
-            ui.label(egui::RichText::new("Texture scale interval:"));
-            ui.add(
-                egui::Slider::new(
-                    &mut settings.texture_scale_interval,
-                    Self::MIN_TEXTURE_SCALE_INTERVAL..=Self::MAX_TEXTURES_SCALE_INTERVAL
-                )
-                .step_by(f64::from(Self::SCALE_INTERVAL_STEP))
-                .drag_value_speed(f64::from(Self::SCALE_INTERVAL_STEP))
-                .show_value(false)
-                .text_color(egui::Color32::WHITE)
-            );
-            ui.label(egui::RichText::new(format!("{:.2}", settings.texture_scale_interval)));
         });
     }
 }

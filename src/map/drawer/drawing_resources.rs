@@ -1483,7 +1483,7 @@ impl<'a> MeshGenerator<'a>
         F: Fn([f32; 2], Vec2, Vec2) -> Uv
     {
         let offset = settings.draw_offset_with_parallax_and_scroll(
-            camera,
+            camera.pos(),
             elapsed_time,
             center,
             parallax_enabled

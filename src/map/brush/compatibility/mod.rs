@@ -155,7 +155,7 @@ macro_rules! tex_settings_061_07 {
             #[inline]
             fn draw_offset_with_parallax_and_scroll(
                 &self,
-                _: &bevy::prelude::Transform,
+                _: Vec2,
                 _: f32,
                 _: Vec2,
                 _: bool

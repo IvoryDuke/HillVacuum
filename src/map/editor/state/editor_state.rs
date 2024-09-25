@@ -551,9 +551,6 @@ pub(in crate::map) struct ToolsSettings
     can_switch: bool,
     /// The resolution of the circle drawing tool (how many sides the circle has).
     pub(in crate::map::editor::state) circle_draw_resolution: u8,
-    /// How much the selected textures should be scaled when using the scale tool and textures only
-    /// are being edited.
-    pub(in crate::map::editor::state) texture_scale_interval: f32,
     /// The minimum angle the entities can be rotated when using the rotate tool.
     pub(in crate::map::editor::state) rotate_angle: RotateAngle,
     /// Whether texture scrolling is enabled while editing the map.
@@ -574,7 +571,6 @@ impl Default for ToolsSettings
             target_switch:          TargetSwitch::default(),
             can_switch:             false,
             circle_draw_resolution: 2,
-            texture_scale_interval: 0.5,
             rotate_angle:           RotateAngle::default(),
             scroll_enabled:         true,
             parallax_enabled:       true,
