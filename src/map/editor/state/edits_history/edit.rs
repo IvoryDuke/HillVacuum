@@ -169,7 +169,7 @@ impl Edit
                 EditType::FreeDrawPointDeletion(..) |
                 EditType::ThingMove(_) |
                 EditType::TextureMove(_) |
-                EditType::TextureScaleDelta(_) |
+                EditType::TextureScale(_) |
                 EditType::TextureRotation(_) |
                 EditType::TextureFlip(..) |
                 EditType::ListAnimationNewFrame(..) |

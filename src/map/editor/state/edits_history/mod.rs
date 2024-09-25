@@ -25,7 +25,14 @@ use crate::{
         drawer::{
             animation::{Animation, Timing},
             drawing_resources::DrawingResources,
-            texture::{Texture, TextureReset, TextureRotation, TextureSettings, TextureSpriteSet}
+            texture::{
+                Texture,
+                TextureReset,
+                TextureRotation,
+                TextureScale,
+                TextureSettings,
+                TextureSpriteSet
+            }
         },
         editor::state::core::UndoRedoInterface,
         hv_vec,
@@ -263,6 +270,7 @@ impl EditsHistory
         (texture_offset_y, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureOffsetY(value))),
         (texture_scroll_x, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureScrollX(value))),
         (texture_scroll_y, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureScrollY(value))),
+        (texture_scale, (identifier: Id, value: TextureScale), (hv_vec![identifier], EditType::TextureScale(value))),
         (texture_scale_x, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureScaleX(value))),
         (texture_scale_y, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureScaleY(value))),
         (texture_parallax_x, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureParallaxX(value))),
@@ -300,6 +308,7 @@ impl EditsHistory
         (texture_removal, TextureSettings),
         (texture_offset_x, f32),
         (texture_offset_y, f32),
+        (texture_scale, TextureScale),
         (texture_scale_x, f32),
         (texture_scale_y, f32),
         (texture_scroll_x, f32),
@@ -331,7 +340,6 @@ impl EditsHistory
     push_with_amount_assertion!(
         (flip, (flip: Flip, flip_texture: bool), EditType::BrushFlip(flip, flip_texture)),
         (texture_flip, (y: bool), EditType::TextureFlip(y)),
-        (texture_scale_delta, (delta: Vec2), EditType::TextureScaleDelta(delta)),
         (animation_move_up, (index: usize, atlas: bool), EditType::ListAnimationFrameMoveUp(index, atlas)),
         (animation_move_down, (index: usize, atlas: bool), EditType::ListAnimationFrameMoveDown(index, atlas)),
         (list_animation_time, (index: usize, time: f32), EditType::ListAnimationTime(index, time)),

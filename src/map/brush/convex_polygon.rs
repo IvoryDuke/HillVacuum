@@ -3878,7 +3878,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub(in crate::map) fn scale_texture(&mut self, value: &TextureScale)
+        pub(in crate::map) fn scale_texture(&mut self, value: &mut TextureScale)
         {
             self.texture_settings_mut_dirty().scale(value);
         }

@@ -20,6 +20,7 @@ use crate::{
                 TextureInterface,
                 TextureReset,
                 TextureRotation,
+                TextureScale,
                 TextureSettings,
                 TextureSpriteSet
             }
@@ -196,7 +197,7 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     /// Texture flip, true -> vertical, false -> horizontal.
     TextureFlip(bool),
     /// Texture scaled with specified delta.
-    TextureScaleDelta(Vec2),
+    TextureScale(TextureScale),
     /// Texture x scale changed.
     TextureScaleX(f32),
     /// Texture y scale changed.
@@ -327,7 +328,7 @@ impl EditType
             Self::TextureChange(..) => "Textures Change",
             Self::TextureRemoval(..) => "Textures Removal",
             Self::SpriteToggle(..) => "Sprites Toggle",
-            Self::TextureFlip(..) | Self::TextureScaleDelta(..) => "Textures Scale",
+            Self::TextureFlip(..) | Self::TextureScale(..) => "Textures Scale",
             Self::TextureScaleX(..) => "Textures Scale X",
             Self::TextureScaleY(..) => "Textures Scale Y",
             Self::TextureOffsetX(..) => "Textures Offset X",
@@ -402,7 +403,7 @@ impl EditType
                 Self::TextureRemoval(_) |
                 Self::SpriteToggle(..) |
                 Self::TextureFlip(_) |
-                Self::TextureScaleDelta(_) |
+                Self::TextureScale(_) |
                 Self::TextureScaleX(_) |
                 Self::TextureScaleY(_) |
                 Self::TextureOffsetX(_) |
@@ -508,25 +509,6 @@ impl EditType
                 for id in identifiers
                 {
                     interface.brush_mut(drawing_resources, *id).move_texture(*delta);
-                }
-            },
-            Self::TextureScaleDelta(delta) =>
-            {
-                *delta = -*delta;
-
-                for id in identifiers
-                {
-                    let mut brush = interface.brush_mut(drawing_resources, *id);
-
-                    let texture = brush.texture_settings().unwrap();
-                    let scale_x = texture.scale_x() + delta.x;
-                    let scale_y = texture.scale_y() + delta.y;
-
-                    assert!(
-                        brush.set_texture_scale_x(scale_x).is_some() |
-                            brush.set_texture_scale_y(scale_y).is_some(),
-                        "Useless texture scale delta undo/redo."
-                    );
                 }
             },
             Self::TextureFlip(y) =>
@@ -680,10 +662,8 @@ impl EditType
                     {
                         paste::paste! { *value = brush.[< set_texture_ $value >](*value).unwrap(); }
                     }),+
-                    Self::TextureRotation(rotation) =>
-                    {
-                        brush.rotate_texture(rotation);
-                    },
+                    Self::TextureScale(scale) => brush.scale_texture(scale),
+                    Self::TextureRotation(rotation) => brush.rotate_texture(rotation),
                     Self::AnimationChange(value) =>
                     {
                         *value = brush.set_texture_animation(std::mem::take(value));

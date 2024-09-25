@@ -2638,7 +2638,7 @@ pub(in crate::map) mod ui_mod
         {
             assert!(payload.id() == self.id, "ScalePayload's ID is not equal to the Brush's ID.");
             self.data.polygon.set_coordinates(payload.1.into_iter());
-            self.data.polygon.scale_texture(&return_if_none!(payload.2));
+            self.data.polygon.scale_texture(&mut return_if_none!(payload.2));
         }
 
         #[inline]
@@ -2655,7 +2655,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn scale_texture(&mut self, value: &TextureScale)
+        pub fn scale_texture(&mut self, value: &mut TextureScale)
         {
             self.data.polygon.scale_texture(value);
         }

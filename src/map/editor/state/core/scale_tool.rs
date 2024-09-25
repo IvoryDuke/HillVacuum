@@ -37,8 +37,7 @@ use crate::{
         math::AroundEqual,
         misc::{Camera, TakeValue}
     },
-    HvVec,
-    TextureInterface
+    HvVec
 };
 
 //=======================================================================//
@@ -244,7 +243,6 @@ impl ScaleTool
                         bundle.drawing_resources,
                         manager,
                         edits_history,
-                        grid,
                         settings,
                         dir
                     );
@@ -259,6 +257,52 @@ impl ScaleTool
             },
             Status::Drag(backup_polygons, start_pos, hull) =>
             {
+                #[inline]
+                fn scale_textures(
+                    drawing_resources: &DrawingResources,
+                    manager: &mut EntitiesManager,
+                    hull: &mut Hull,
+                    selected_corner: &mut Corner,
+                    new_corner_position: Vec2,
+                    backup_polygons: &mut HvVec<(Id, ConvexPolygon)>
+                )
+                {
+                    let (new_hull, mut payloads) = scale_func!(
+                        drawing_resources,
+                        manager,
+                        hull,
+                        selected_corner,
+                        new_corner_position,
+                        (Id, TextureScale),
+                        |drawing_resources,
+                         brush: &mut Brush,
+                         info,
+                         flip_queue,
+                         payloads: &mut HvVec<(Id, TextureScale)>| {
+                            let id = brush.id();
+
+                            match brush.check_texture_scale(drawing_resources, info, flip_queue)
+                            {
+                                Some(p) =>
+                                {
+                                    payloads.push((id, p));
+                                    None
+                                },
+                                None => id.into()
+                            }
+                        }
+                    );
+
+                    *hull = new_hull;
+
+                    fill_backup_polygons(manager, backup_polygons);
+
+                    for (id, p) in &mut payloads
+                    {
+                        manager.brush_mut(drawing_resources, *id).scale_texture(p);
+                    }
+                }
+
                 let cursor_pos = Self::cursor_pos(cursor);
 
                 edit_target!(
@@ -274,7 +318,7 @@ impl ScaleTool
                             scale_textures
                         );
                     },
-                    Self::scale_textures(
+                    scale_textures(
                         bundle.drawing_resources,
                         manager,
                         hull,
@@ -304,9 +348,13 @@ impl ScaleTool
                     {
                         edits_history.override_edit_tag("Brushes Scale");
                     }
+                    else
+                    {
+                        edits_history.override_edit_tag("Textures Scale");
+                    }
                 }
 
-                self.finalize_drag_scale(bundle.drawing_resources, manager, grid, settings);
+                self.status = Status::Keyboard;
             }
         };
     }
@@ -318,11 +366,56 @@ impl ScaleTool
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
         settings: &ToolsSettings,
-        mut dir: Vec2
+        dir: Vec2
     )
     {
+        #[inline]
+        fn scale_textures(
+            drawing_resources: &DrawingResources,
+            manager: &mut EntitiesManager,
+            edits_history: &mut EditsHistory,
+            hull: &mut Hull,
+            selected_corner: &mut Corner,
+            new_corner_position: Vec2
+        )
+        {
+            let (new_hull, mut payloads) = scale_func!(
+                drawing_resources,
+                manager,
+                hull,
+                selected_corner,
+                new_corner_position,
+                (Id, TextureScale),
+                |drawing_resources,
+                 brush: &mut Brush,
+                 info,
+                 flip_queue,
+                 payloads: &mut HvVec<(Id, TextureScale)>| {
+                    let id = brush.id();
+
+                    match brush.check_texture_scale(drawing_resources, info, flip_queue)
+                    {
+                        Some(p) =>
+                        {
+                            payloads.push((id, p));
+                            None
+                        },
+                        None => id.into()
+                    }
+                }
+            );
+
+            *hull = new_hull;
+
+            for (id, p) in &mut payloads
+            {
+                manager.brush_mut(drawing_resources, *id).scale_texture(p);
+            }
+
+            edits_history.texture_scale_cluster(payloads.into_iter());
+        }
+
         let new_corner_position = self.outline.corner_vertex(self.selected_corner) + dir;
 
         edit_target!(
@@ -346,57 +439,14 @@ impl ScaleTool
                     edits_history.override_edit_tag("Brushes Scale");
                 }
             },
-            {
-                if dir.x != 0f32
-                {
-                    dir.x = dir.x.signum() * settings.texture_scale_interval;
-                }
-
-                if dir.y != 0f32
-                {
-                    dir.y = dir.y.signum() * settings.texture_scale_interval;
-                }
-
-                let dir = match self.selected_corner
-                {
-                    Corner::TopRight => dir,
-                    Corner::TopLeft => Vec2::new(-dir.x, dir.y),
-                    Corner::BottomLeft => Vec2::new(-dir.x, -dir.y),
-                    Corner::BottomRight => Vec2::new(dir.x, -dir.y)
-                };
-
-                let valid = manager.test_operation_validity(|manager| {
-                    manager.selected_textured_brushes_mut(drawing_resources).find_map(
-                        |mut brush| {
-                            let texture = brush.texture_settings().unwrap();
-                            let scale_x = texture.scale_x() + dir.x;
-                            let scale_y = texture.scale_y() + dir.y;
-
-                            (!brush.check_texture_scale_x(drawing_resources, scale_x) ||
-                                !brush.check_texture_scale_y(drawing_resources, scale_y))
-                            .then_some(brush.id())
-                        }
-                    )
-                });
-
-                if !valid
-                {
-                    return;
-                }
-
-                for mut brush in manager.selected_textured_brushes_mut(drawing_resources)
-                {
-                    let texture = brush.texture_settings().unwrap();
-                    let scale_x = texture.scale_x() + dir.x;
-                    let scale_y = texture.scale_y() + dir.y;
-
-                    _ = brush.set_texture_scale_x(scale_x);
-                    _ = brush.set_texture_scale_y(scale_y);
-                }
-
-                edits_history.texture_scale_delta(manager.selected_textured_ids().copied(), dir);
-                self.update_outline(drawing_resources, manager, grid, settings);
-            }
+            scale_textures(
+                drawing_resources,
+                manager,
+                edits_history,
+                &mut self.outline,
+                &mut self.selected_corner,
+                new_corner_position
+            )
         );
     }
 
@@ -450,53 +500,6 @@ impl ScaleTool
         }
     }
 
-    /// Scales the textures of the selected brushes and returns the new outline [`Hull`].
-    #[inline]
-    fn scale_textures(
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        hull: &mut Hull,
-        selected_corner: &mut Corner,
-        new_corner_position: Vec2,
-        backup_polygons: &mut HvVec<(Id, ConvexPolygon)>
-    )
-    {
-        let (new_hull, payloads) = scale_func!(
-            drawing_resources,
-            manager,
-            hull,
-            selected_corner,
-            new_corner_position,
-            (Id, TextureScale),
-            |drawing_resources,
-             brush: &mut Brush,
-             info,
-             flip_queue,
-             payloads: &mut HvVec<(Id, TextureScale)>| {
-                let id = brush.id();
-
-                match brush.check_texture_scale(drawing_resources, info, flip_queue)
-                {
-                    Some(p) =>
-                    {
-                        payloads.push((id, p));
-                        None
-                    },
-                    None => id.into()
-                }
-            }
-        );
-
-        *hull = new_hull;
-
-        fill_backup_polygons(manager, backup_polygons);
-
-        for (id, p) in payloads
-        {
-            manager.brush_mut(drawing_resources, id).scale_texture(&p);
-        }
-    }
-
     /// Returns the outline of the tool, if any.
     #[inline]
     #[must_use]
@@ -537,20 +540,6 @@ impl ScaleTool
         {
             self.outline = Self::outline(drawing_resources, manager, grid, settings).unwrap();
         }
-    }
-
-    /// Finalizes a cursor drag scale.
-    #[inline]
-    pub fn finalize_drag_scale(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &EntitiesManager,
-        grid: Grid,
-        settings: &ToolsSettings
-    )
-    {
-        self.status = Status::Keyboard;
-        self.update_outline(drawing_resources, manager, grid, settings);
     }
 
     //==============================================================

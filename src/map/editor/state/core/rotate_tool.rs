@@ -433,21 +433,24 @@ impl RotateTool
         fn rotate_textures(
             drawing_resources: &DrawingResources,
             manager: &mut EntitiesManager,
+            edits_history: &mut EditsHistory,
             pivot: Vec2,
             angle: f32
-        ) -> Option<impl Iterator<Item = (Id, TextureRotation)>>
+        )
         {
-            let mut payloads = return_if_none!(
-                RotateTool::check_textures_rotation(drawing_resources, manager, pivot, angle),
-                None
-            );
+            let mut payloads = return_if_none!(RotateTool::check_textures_rotation(
+                drawing_resources,
+                manager,
+                pivot,
+                angle
+            ));
 
             for (id, p) in &mut payloads
             {
                 manager.brush_mut(drawing_resources, *id).rotate_texture(p);
             }
 
-            payloads.into_iter().into()
+            edits_history.texture_rotation_cluster(payloads.into_iter());
         }
 
         let angle = match settings.rotate_angle
@@ -475,13 +478,7 @@ impl RotateTool
                     edits_history.override_edit_tag("Brushes rotation");
                 }
             },
-            {
-                if let Some(rotations) =
-                    rotate_textures(drawing_resources, manager, self.pivot, angle)
-                {
-                    edits_history.texture_rotation_cluster(rotations);
-                }
-            }
+            rotate_textures(drawing_resources, manager, edits_history, self.pivot, angle)
         );
     }
 

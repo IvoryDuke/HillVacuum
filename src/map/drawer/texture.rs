@@ -39,7 +39,7 @@ macro_rules! sprite_values {
             match self
             {
                 Sprite::True { .. }=> <$t>::default(),
-                Sprite::False { rotation_auxiliary, .. } => rotation_auxiliary.$value
+                Sprite::False { offset_auxiliary, .. } => offset_auxiliary.$value
             }
         }
     )+}};
@@ -144,14 +144,14 @@ pub(in crate::map::drawer) enum Sprite
     False
     {
         /// The horizontal parallax of the texture.
-        parallax_x:         f32,
+        parallax_x:       f32,
         /// The vertical parallax of the texture.
-        parallax_y:         f32,
+        parallax_y:       f32,
         /// The horizontal scrolling of the texture.
-        scroll_x:           f32,
+        scroll_x:         f32,
         /// The vertical scrolling of the texture.
-        scroll_y:           f32,
-        rotation_auxiliary: OffsetAuxiliary
+        scroll_y:         f32,
+        offset_auxiliary: OffsetAuxiliary
     }
 }
 
@@ -554,7 +554,7 @@ pub(in crate::map) mod ui_mod
                             parallax_y: value.parallax_y(),
                             scroll_x:   value.scroll_x(),
                             scroll_y:   value.scroll_y(),
-                            rotation_auxiliary: crate::map::drawer::texture::OffsetAuxiliary::default()
+                            offset_auxiliary: crate::map::drawer::texture::OffsetAuxiliary::default()
                         }
                     };
 
@@ -579,6 +579,10 @@ pub(in crate::map) mod ui_mod
     macro_rules! swap {
         ($self:ident, $source:ident, ($($value:ident),+)) => { $(
             std::mem::swap(&mut $self.$value, &mut $source.$value);
+        )+};
+
+        ($self:ident, ($($value:ident),+)) => { $(
+            std::mem::swap(&mut $self.$value, $value);
         )+};
     }
 
@@ -622,11 +626,11 @@ pub(in crate::map) mod ui_mod
         fn default() -> Self
         {
             Self::False {
-                parallax_x:         0f32,
-                parallax_y:         0f32,
-                scroll_x:           0f32,
-                scroll_y:           0f32,
-                rotation_auxiliary: OffsetAuxiliary::default()
+                parallax_x:       0f32,
+                parallax_y:       0f32,
+                scroll_x:         0f32,
+                scroll_y:         0f32,
+                offset_auxiliary: OffsetAuxiliary::default()
             }
         }
     }
@@ -642,11 +646,11 @@ pub(in crate::map) mod ui_mod
             }
 
             Sprite::False {
-                parallax_x:         0f32,
-                parallax_y:         0f32,
-                scroll_x:           0f32,
-                scroll_y:           0f32,
-                rotation_auxiliary: OffsetAuxiliary::default()
+                parallax_x:       0f32,
+                parallax_y:       0f32,
+                scroll_x:         0f32,
+                scroll_y:         0f32,
+                offset_auxiliary: OffsetAuxiliary::default()
             }
         }
     }
@@ -654,6 +658,20 @@ pub(in crate::map) mod ui_mod
     impl Sprite
     {
         set_sprite_values!(parallax_x, parallax_y, scroll_x, scroll_y);
+
+        #[inline]
+        #[must_use]
+        fn offset(&self) -> (f32, f32)
+        {
+            match_or_panic!(
+                self,
+                Self::False {
+                    offset_auxiliary,
+                    ..
+                },
+                offset_auxiliary.offset()
+            )
+        }
 
         #[inline]
         fn rotation_data(
@@ -666,10 +684,10 @@ pub(in crate::map) mod ui_mod
             match_or_panic!(
                 self,
                 Self::False {
-                    rotation_auxiliary,
+                    offset_auxiliary,
                     ..
                 },
-                rotation_auxiliary
+                offset_auxiliary
             )
             .rotation_data(texture_angle, rotation_angle, pivot)
         }
@@ -678,7 +696,7 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[derive(Debug, Clone, Copy)]
-    enum RotationOffset
+    enum RotationAuxiliary
     {
         Texture(OffsetAuxiliary),
         Sprite(f32, f32)
@@ -686,12 +704,12 @@ pub(in crate::map) mod ui_mod
 
     // //=======================================================================//
 
-    // #[derive(Debug, Clone, Copy)]
-    // enum ScaleOffset
-    // {
-    //     Texture(OffsetAuxiliary),
-    //     Sprite(f32, f32)
-    // }
+    #[derive(Debug, Clone, Copy)]
+    enum ScaleOffset
+    {
+        Texture(f32, f32),
+        Sprite(f32, f32)
+    }
 
     //=======================================================================//
     // STRUCTS
@@ -703,8 +721,8 @@ pub(in crate::map) mod ui_mod
     #[derive(Debug, Clone, Copy)]
     pub(in crate::map) struct TextureRotation
     {
-        offset: RotationOffset,
-        angle:  f32
+        auxiliary: RotationAuxiliary,
+        angle:     f32
     }
 
     //=======================================================================//
@@ -714,10 +732,9 @@ pub(in crate::map) mod ui_mod
     #[derive(Debug)]
     pub(in crate::map) struct TextureScale
     {
-        offset_x: f32,
-        offset_y: f32,
-        scale_x:  f32,
-        scale_y:  f32
+        offset:  ScaleOffset,
+        scale_x: f32,
+        scale_y: f32
     }
 
     //=======================================================================//
@@ -760,11 +777,16 @@ pub(in crate::map) mod ui_mod
 
     impl OffsetAuxiliary
     {
-        // #[inline]
-        // fn scale_offset(&self, ) -> Vec2
-        // {
+        #[inline]
+        #[must_use]
+        const fn offset(&self) -> (f32, f32) { (self.offset_x, self.offset_y) }
 
-        // }
+        #[inline]
+        #[must_use]
+        fn offset_mut(&mut self) -> (&mut f32, &mut f32)
+        {
+            (&mut self.offset_x, &mut self.offset_y)
+        }
 
         #[inline]
         fn rotation_data(&self, texture_angle: f32, rotation_angle: f32, pivot: Vec2) -> Self
@@ -1140,17 +1162,23 @@ pub(in crate::map) mod ui_mod
                 }
             }
 
-            let sprite_hull = return_if_none!(
-                self.sprite_hull(drawing_resources, old_center),
-                TextureScale {
-                    offset_x: self.offset_x,
-                    offset_y: self.offset_y,
-                    scale_x,
-                    scale_y
+            let mut sprite_center = match self.sprite_hull(drawing_resources, old_center)
+            {
+                Some(hull) => hull.center(),
+                None =>
+                {
+                    let offset =
+                        Vec2::from(self.sprite.offset()) - Vec2::new(self.offset_x, self.offset_y);
+                    let offset = -offset + info.scaled_point(offset);
+
+                    return TextureScale {
+                        offset: ScaleOffset::Texture(-offset.x, offset.y),
+                        scale_x,
+                        scale_y
+                    }
+                    .into();
                 }
-                .into()
-            );
-            let mut sprite_center = sprite_hull.center();
+            };
 
             for flip in flip_queue
             {
@@ -1185,8 +1213,7 @@ pub(in crate::map) mod ui_mod
                 Ok(_) =>
                 {
                     TextureScale {
-                        offset_x: new_offset.x,
-                        offset_y: new_offset.y,
+                        offset: ScaleOffset::Sprite(new_offset.x, new_offset.y),
                         scale_x,
                         scale_y
                     }
@@ -1197,12 +1224,29 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub(in crate::map) fn scale(&mut self, value: &TextureScale)
+        pub(in crate::map) fn scale(&mut self, value: &mut TextureScale)
         {
-            self.scale_x = value.scale_x;
-            self.scale_y = value.scale_y;
-            self.offset_x = value.offset_x;
-            self.offset_y = value.offset_y;
+            swap!(self, value, (scale_x, scale_y));
+
+            match (&mut self.sprite, &mut value.offset)
+            {
+                (Sprite::True, ScaleOffset::Sprite(offset_x, offset_y)) =>
+                {
+                    swap!(self, (offset_x, offset_y));
+                },
+                (
+                    Sprite::False {
+                        offset_auxiliary, ..
+                    },
+                    ScaleOffset::Texture(x, y)
+                ) =>
+                {
+                    let (offset_x, offset_y) = offset_auxiliary.offset_mut();
+                    std::mem::swap(offset_x, x);
+                    std::mem::swap(offset_y, y);
+                },
+                _ => unreachable!()
+            }
         }
 
         /// Whether the texture change is valid.
@@ -1319,12 +1363,12 @@ pub(in crate::map) mod ui_mod
                 None =>
                 {
                     return TextureRotation {
-                        offset: RotationOffset::Texture(self.sprite.rotation_data(
+                        auxiliary: RotationAuxiliary::Texture(self.sprite.rotation_data(
                             self.angle.to_radians(),
                             angle,
                             pivot
                         )),
-                        angle:  end_angle
+                        angle:     end_angle
                     }
                     .into();
                 }
@@ -1346,8 +1390,8 @@ pub(in crate::map) mod ui_mod
                 Ok(_) =>
                 {
                     TextureRotation {
-                        offset: RotationOffset::Sprite(x, y),
-                        angle:  end_angle
+                        auxiliary: RotationAuxiliary::Sprite(x, y),
+                        angle:     end_angle
                     }
                     .into()
                 },
@@ -1360,19 +1404,18 @@ pub(in crate::map) mod ui_mod
         {
             swap!(self, payload, (angle));
 
-            match (&mut self.sprite, &mut payload.offset)
+            match (&mut self.sprite, &mut payload.auxiliary)
             {
-                (Sprite::True, RotationOffset::Sprite(x, y)) =>
+                (Sprite::True, RotationAuxiliary::Sprite(offset_x, offset_y)) =>
                 {
-                    std::mem::swap(x, &mut self.offset_x);
-                    std::mem::swap(y, &mut self.offset_y);
+                    swap!(self, (offset_x, offset_y));
                 },
                 (
                     Sprite::False {
-                        rotation_auxiliary, ..
+                        offset_auxiliary, ..
                     },
-                    RotationOffset::Texture(rotation)
-                ) => std::mem::swap(rotation_auxiliary, rotation),
+                    RotationAuxiliary::Texture(auxiliary)
+                ) => std::mem::swap(offset_auxiliary, auxiliary),
                 _ => unreachable!()
             };
         }
@@ -1398,8 +1441,8 @@ pub(in crate::map) mod ui_mod
             {
                 Sprite::True => center,
                 Sprite::False {
-                    rotation_auxiliary, ..
-                } => rotation_auxiliary.last_pivot.unwrap_or_default()
+                    offset_auxiliary, ..
+                } => offset_auxiliary.last_pivot.unwrap_or_default()
             };
 
             let mut rotation = self
