@@ -66,7 +66,7 @@ macro_rules! scale_func {
             $(, $scale_texture: bool)?
         ) -> Option<HvVec<$ret>>
         {
-            let info = ScaleInfo::new(hull, new_hull, flip_queue);
+            let info = ScaleInfo::new(hull, new_hull, flip_queue)?;
             let mut payloads = hv_vec![capacity; manager.selected_brushes_amount()];
 
             let valid = manager.test_operation_validity(|manager| {

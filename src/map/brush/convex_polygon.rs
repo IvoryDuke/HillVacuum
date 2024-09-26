@@ -695,9 +695,15 @@ pub(in crate::map) mod ui_mod
             hull: &Hull,
             new_hull: &Hull,
             flip_queue: &ArrayVec<Flip, CAP>
-        ) -> Self
+        ) -> Option<Self>
         {
             let hull = hull.flipped(flip_queue.iter().copied());
+
+            if hull.around_equal_narrow(new_hull) && flip_queue.is_empty()
+            {
+                return None;
+            }
+
             let flip_queue = flip_queue
                 .into_iter()
                 .map(|flip| {
@@ -726,6 +732,7 @@ pub(in crate::map) mod ui_mod
                 height_multi: new_height / height,
                 flip_queue
             }
+            .into()
         }
 
         #[inline]

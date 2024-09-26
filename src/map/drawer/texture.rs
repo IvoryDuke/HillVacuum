@@ -1136,7 +1136,8 @@ pub(in crate::map) mod ui_mod
                         self.sprite.auxiliary_offset_x(),
                         self.sprite.auxiliary_offset_y()
                     ) - Vec2::new(self.offset_x, self.offset_y);
-                    let offset = -offset + info.scaled_point(offset);
+                    let offset = offset.with_x(-offset.x);
+                    let offset = info.scaled_point(offset) - offset;
 
                     return TextureScale {
                         offset: ScaleOffset::Texture(-offset.x, offset.y),
@@ -1194,8 +1195,11 @@ pub(in crate::map) mod ui_mod
                 ) =>
                 {
                     let (offset_x, offset_y) = offset_auxiliary.offset_mut();
-                    std::mem::swap(offset_x, x);
-                    std::mem::swap(offset_y, y);
+                    *offset_x += *x;
+                    *offset_y += *y;
+
+                    *x = -*x;
+                    *y = -*y;
                 },
                 _ => unreachable!()
             }
