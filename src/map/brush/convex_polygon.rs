@@ -43,7 +43,7 @@ pub(in crate::map) mod ui_mod
     use arrayvec::ArrayVec;
     use bevy::{transform::components::Transform, window::Window};
     use bevy_egui::egui;
-    use glam::{UVec2, Vec2};
+    use glam::Vec2;
     use hill_vacuum_shared::{continue_if_none, iterate_slice_in_triplets, return_if_none};
 
     use super::ConvexPolygon;
@@ -907,6 +907,13 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
+        fn overall_animation<'a>(&'a self, drawing_resources: &'a DrawingResources)
+            -> &'a Animation
+        {
+            self.texture.overall_animation(drawing_resources)
+        }
+
+        #[inline]
         fn sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
@@ -917,16 +924,15 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        fn overall_animation<'a>(&'a self, drawing_resources: &'a DrawingResources)
-            -> &'a Animation
+        fn animated_sprite_vxs(
+            &self,
+            drawing_resources: &DrawingResources,
+            animator: Option<&Animator>,
+            center: Vec2
+        ) -> Option<[Vec2; 4]>
         {
-            self.texture.overall_animation(drawing_resources)
-        }
-
-        #[inline]
-        fn draw_size(&self, drawing_resources: &DrawingResources) -> UVec2
-        {
-            self.texture.draw_size(drawing_resources)
+            self.texture
+                .animated_sprite_vxs(drawing_resources, animator, center + self.delta)
         }
     }
 

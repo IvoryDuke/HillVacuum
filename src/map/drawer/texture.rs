@@ -350,7 +350,10 @@ pub(in crate::map) mod ui_mod
     use crate::{
         map::{
             brush::convex_polygon::ScaleInfo,
-            drawer::{animation::MoveUpDown, drawing_resources::DrawingResources},
+            drawer::{
+                animation::{Animator, MoveUpDown},
+                drawing_resources::DrawingResources
+            },
             editor::Placeholder,
             OutOfBounds
         },
@@ -614,10 +617,6 @@ pub(in crate::map) mod ui_mod
             drawing_resources: &'a DrawingResources
         ) -> &'a Animation;
 
-        /// Returns the size the texture must be drawn.
-        #[must_use]
-        fn draw_size(&self, drawing_resources: &DrawingResources) -> UVec2;
-
         #[must_use]
         fn sprite_hull(&self, drawing_resources: &DrawingResources, center: Vec2) -> Option<Hull>;
 
@@ -625,6 +624,14 @@ pub(in crate::map) mod ui_mod
         fn sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
+            center: Vec2
+        ) -> Option<[Vec2; 4]>;
+
+        #[must_use]
+        fn animated_sprite_vxs(
+            &self,
+            drawing_resources: &DrawingResources,
+            animator: Option<&Animator>,
             center: Vec2
         ) -> Option<[Vec2; 4]>;
     }
@@ -1054,14 +1061,40 @@ pub(in crate::map) mod ui_mod
             center: Vec2
         ) -> Option<[Vec2; 4]>
         {
-            let mut vxs = self.sprite_vxs_at_origin(drawing_resources);
+            self.texture_sprite_vxs(drawing_resources, &self.texture, center)
+        }
 
-            if let Some(vxs) = &mut vxs
+        #[inline]
+        fn animated_sprite_vxs(
+            &self,
+            drawing_resources: &DrawingResources,
+            animator: Option<&Animator>,
+            center: Vec2
+        ) -> Option<[Vec2; 4]>
+        {
+            match animator
             {
-                vxs.translate(center);
-            }
+                Some(animator) =>
+                {
+                    let texture = match animator
+                    {
+                        Animator::List(list_animator) =>
+                        {
+                            list_animator
+                                .texture(
+                                    drawing_resources,
+                                    self.overall_animation(drawing_resources).get_list_animation()
+                                )
+                                .texture()
+                                .name()
+                        },
+                        Animator::Atlas(_) => &self.texture
+                    };
 
-            vxs
+                    self.texture_sprite_vxs(drawing_resources, texture, center)
+                },
+                None => self.sprite_vxs(drawing_resources, center)
+            }
         }
 
         #[inline]
@@ -1075,11 +1108,16 @@ pub(in crate::map) mod ui_mod
 
             &drawing_resources.texture_or_error(&self.texture).animation
         }
+    }
+
+    impl TextureSettings
+    {
+        xy!(x, y);
 
         #[inline]
-        fn draw_size(&self, drawing_resources: &DrawingResources) -> UVec2
+        fn texture_draw_size(&self, drawing_resources: &DrawingResources, texture: &str) -> UVec2
         {
-            let size = drawing_resources.texture_or_error(&self.texture).size;
+            let size = drawing_resources.texture_or_error(texture).size;
 
             if !self.sprite.enabled()
             {
@@ -1094,11 +1132,24 @@ pub(in crate::map) mod ui_mod
             )
             .size(size)
         }
-    }
 
-    impl TextureSettings
-    {
-        xy!(x, y);
+        #[inline]
+        fn texture_sprite_vxs(
+            &self,
+            drawing_resources: &DrawingResources,
+            texture: &str,
+            center: Vec2
+        ) -> Option<[Vec2; 4]>
+        {
+            let mut vxs = self.texture_sprite_vxs_at_origin(drawing_resources, texture);
+
+            if let Some(vxs) = &mut vxs
+            {
+                vxs.translate(center);
+            }
+
+            vxs
+        }
 
         #[inline]
         pub(in crate::map::drawer) const fn sprite_struct(&self) -> &Sprite { &self.sprite }
@@ -1715,14 +1766,18 @@ pub(in crate::map) mod ui_mod
 
         /// Returns the new sprite vertexes if the texture is being rendered as a sprite.
         #[inline]
-        fn sprite_vxs_at_origin(&self, drawing_resources: &DrawingResources) -> Option<[Vec2; 4]>
+        fn texture_sprite_vxs_at_origin(
+            &self,
+            drawing_resources: &DrawingResources,
+            texture: &str
+        ) -> Option<[Vec2; 4]>
         {
             if !self.sprite.enabled()
             {
                 return None;
             }
 
-            let size = self.draw_size(drawing_resources).as_vec2() *
+            let size = self.texture_draw_size(drawing_resources, texture).as_vec2() *
                 Vec2::new(self.scale_x.abs(), self.scale_y.abs()) /
                 2f32;
             let mut rect = Hull::new(size.y, -size.y, -size.x, size.x).rectangle();
@@ -1754,7 +1809,7 @@ pub(in crate::map) mod ui_mod
             center: Vec2
         ) -> Result<Option<[Vec2; 4]>, ()>
         {
-            match self.sprite_vxs_at_origin(drawing_resources)
+            match self.texture_sprite_vxs_at_origin(drawing_resources, &self.texture)
             {
                 Some(rect) =>
                 {
