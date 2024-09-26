@@ -42,7 +42,8 @@ use crate::{
     },
     utils::{
         hull::Flip,
-        identifiers::{EntityId, Id}
+        identifiers::{EntityId, Id},
+        misc::TakeValue
     },
     HvVec
 };
@@ -614,7 +615,7 @@ impl EditsHistory
             }
         }
 
-        self.stack.push(std::mem::take(&mut self.current_edit));
+        self.stack.push(self.current_edit.take_value());
         self.index += 1;
     }
 

@@ -15,7 +15,7 @@ use super::{
 };
 use crate::{
     map::{editor::MAP_HALF_SIZE, MAP_SIZE},
-    utils::{hull::Hull, identifiers::Id}
+    utils::{hull::Hull, identifiers::Id, misc::TakeValue}
 };
 
 //=======================================================================//
@@ -202,7 +202,7 @@ impl Node
     #[must_use]
     pub fn wipe(&mut self) -> Option<Vertexes>
     {
-        let content = std::mem::take(&mut self.content);
+        let content = self.content.take_value();
 
         match content
         {

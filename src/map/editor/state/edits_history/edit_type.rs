@@ -799,7 +799,8 @@ impl EditType
                     }),+
                     Self::TAnimation(_, value) =>
                     {
-                        *value = std::mem::replace(animation, std::mem::take(value));
+                        use crate::utils::misc::{ReplaceValue, TakeValue};
+                        *value = animation.replace_value(value.take_value());
                     },
                     Self::TAnimationMoveUp(_, index, atlas) =>
                     {

@@ -51,7 +51,10 @@ use crate::{
         hv_vec,
         MAP_HALF_SIZE
     },
-    utils::{math::AroundEqual, misc::Camera},
+    utils::{
+        math::AroundEqual,
+        misc::{Camera, TakeValue}
+    },
     EditorState,
     HardcodedActions
 };
@@ -245,11 +248,11 @@ impl Editor
 
         let brushes_default_properties = brush_properties
             .map_or(DefaultProperties::default(), |mut d_p| {
-                DefaultProperties::new(std::mem::take(&mut d_p.0))
+                DefaultProperties::new(d_p.0.take_value())
             });
         let things_default_properties = thing_properties
             .map_or(DefaultProperties::default(), |mut d_p| {
-                DefaultProperties::new(std::mem::take(&mut d_p.0))
+                DefaultProperties::new(d_p.0.take_value())
             });
         let mut map_brushes_default_properties = brushes_default_properties.clone();
         let mut map_things_default_properties = things_default_properties.clone();

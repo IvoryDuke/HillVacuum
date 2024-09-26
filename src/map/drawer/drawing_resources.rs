@@ -59,7 +59,7 @@ use crate::{
         collections::{hv_hash_map, hv_hash_set, hv_vec},
         hull::Hull,
         math::{points::rotate_point_around_origin, HashVec2},
-        misc::{vertex_highlight_square, AssertedInsertRemove, Camera, Translate}
+        misc::{vertex_highlight_square, AssertedInsertRemove, Camera, TakeValue, Translate}
     },
     HvHashMap,
     HvHashSet,
@@ -1139,7 +1139,7 @@ impl Meshes
 
         self.remove.clear();
 
-        if let Some(handle) = std::mem::take(&mut self.grid_handle)
+        if let Some(handle) = self.grid_handle.take_value()
         {
             self.parts.push_grid(meshes.remove(&handle).unwrap());
         }
@@ -1179,10 +1179,11 @@ impl Meshes
     pub fn spawn_batch(&mut self, commands: &mut Commands)
     {
         commands.spawn_batch(
-            std::mem::take(&mut self.spawn)
+            self.spawn
+                .take_value()
                 .into_iter()
                 .map(|mesh| (mesh, NoFrustumCulling))
-                .chain(std::mem::take(&mut self.grid).map(|mesh| (mesh, NoFrustumCulling)))
+                .chain(self.grid.take_value().map(|mesh| (mesh, NoFrustumCulling)))
         );
     }
 
@@ -1704,7 +1705,7 @@ impl<'a> Drop for TextureMut<'a>
             {
                 self.resources
                     .animated_textures
-                    .asserted_insert(std::mem::take(&mut self.name));
+                    .asserted_insert(self.name.take_value());
             }
         }
         else if is_none

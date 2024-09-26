@@ -116,6 +116,9 @@ pub(in crate::map) mod ui_mod
                 AssertNormalizedDegreesAngle,
                 NoneIfEmpty,
                 PointInsideUiHighlight,
+                ReplaceValue,
+                SwapValue,
+                TakeValue,
                 VX_HGL_SIDE,
                 VX_HGL_SIDE_SQUARED
             }
@@ -230,7 +233,7 @@ pub(in crate::map) mod ui_mod
                 {
                     if a.1 > b.1
                     {
-                        std::mem::swap(a, b);
+                        a.swap_value(b);
                     }
                 }
             };
@@ -1311,7 +1314,7 @@ pub(in crate::map) mod ui_mod
         pub fn swap_polygon(&mut self, polygon: &mut Self)
         {
             let had_texture = self.has_texture();
-            std::mem::swap(self, polygon);
+            self.swap_value(polygon);
 
             if self.has_texture() || had_texture
             {
@@ -1324,7 +1327,7 @@ pub(in crate::map) mod ui_mod
         {
             let had_texture = self.has_texture();
             self.transfer_sprite(&mut polygon);
-            let poly = std::mem::replace(self, polygon);
+            let poly = self.replace_value(polygon);
 
             if self.has_texture() || had_texture
             {
@@ -1372,7 +1375,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map::brush) fn texture_edited(&mut self) -> bool
         {
-            std::mem::replace(&mut self.texture_edited, false)
+            self.texture_edited.replace_value(false)
         }
 
         #[inline]
@@ -1462,7 +1465,7 @@ pub(in crate::map) mod ui_mod
         pub fn remove_texture(&mut self) -> TextureSettings
         {
             self.texture_edited = true;
-            std::mem::take(&mut self.texture).unwrap()
+            self.texture.take_value().unwrap()
         }
 
         #[inline]
@@ -2230,7 +2233,7 @@ pub(in crate::map) mod ui_mod
                     continue;
                 }
 
-                if std::mem::replace(&mut svx.selected, true)
+                if svx.selected.replace_value(true)
                 {
                     return None;
                 }
@@ -3031,7 +3034,7 @@ pub(in crate::map) mod ui_mod
                     continue;
                 }
 
-                if std::mem::replace(&mut vx_j.selected, true)
+                if vx_j.selected.replace_value(true)
                 {
                     return None;
                 }
@@ -3484,7 +3487,7 @@ pub(in crate::map) mod ui_mod
                 let normal = (vx_i - vx_j).normalize().perp() * grid_size;
 
                 let left_polygon = leftover.clip_self(&[vx_j + normal, vx_i + normal])?;
-                walls.push(std::mem::replace(&mut leftover, left_polygon));
+                walls.push(leftover.replace_value(left_polygon));
             }
 
             if walls.is_empty()

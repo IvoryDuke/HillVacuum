@@ -120,7 +120,8 @@ pub(in crate::map) mod ui_mod
             hull::{EntityHull, Hull},
             identifiers::{EntityCenter, EntityId},
             iterators::SlicePairIter,
-            math::lines_and_segments::{line_equation, LineEquation}
+            math::lines_and_segments::{line_equation, LineEquation},
+            misc::TakeValue
         },
         Animation,
         HvVec,
@@ -1587,7 +1588,7 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            std::mem::take(&mut self.data.group).into()
+            self.data.group.take_value().into()
         }
 
         #[inline]

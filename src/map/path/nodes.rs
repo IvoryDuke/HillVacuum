@@ -133,7 +133,7 @@ pub(in crate::map) mod ui_mod
 
     use crate::{
         map::selectable_vector::SelectableVector,
-        utils::math::AroundEqual,
+        utils::{math::AroundEqual, misc::ReplaceValue},
         HvVec,
         Movement,
         Node
@@ -204,9 +204,9 @@ pub(in crate::map) mod ui_mod
 
             assert!(value > 0f32, "Max speed is not higher than 0.");
 
-            let delta = value - std::mem::replace(&mut self.max_speed, value);
+            let delta = value - self.max_speed.replace_value(value);
             let opposite = self.min_speed.min(value);
-            Vec2::new(delta, opposite - std::mem::replace(&mut self.min_speed, opposite)).into()
+            Vec2::new(delta, opposite - self.min_speed.replace_value(opposite)).into()
         }
 
         /// Sets the minimum speed.
@@ -220,9 +220,9 @@ pub(in crate::map) mod ui_mod
 
             assert!(value >= 0f32, "Min speed is negative.");
 
-            let delta = value - std::mem::replace(&mut self.min_speed, value);
+            let delta = value - self.min_speed.replace_value(value);
             let opposite = self.max_speed.max(value);
-            Vec2::new(delta, opposite - std::mem::replace(&mut self.max_speed, opposite)).into()
+            Vec2::new(delta, opposite - self.max_speed.replace_value(opposite)).into()
         }
 
         /// Sets the percentage of the travel to the next [`Node`] dedicated to going from the
@@ -241,13 +241,9 @@ pub(in crate::map) mod ui_mod
 
             assert!((0f32..=100f32).contains(&value), "Accel percentage is not within 0 and 100.");
 
-            let delta_accel = value - std::mem::replace(&mut self.accel_travel_percentage, value);
+            let delta_accel = value - self.accel_travel_percentage.replace_value(value);
             let decel = self.decel_travel_percentage.min(100f32 - value);
-            Vec2::new(
-                delta_accel,
-                decel - std::mem::replace(&mut self.decel_travel_percentage, decel)
-            )
-            .into()
+            Vec2::new(delta_accel, decel - self.decel_travel_percentage.replace_value(decel)).into()
         }
 
         /// Returns the percentage of the travel to the next [`Node`] dedicated to going from the
@@ -266,13 +262,9 @@ pub(in crate::map) mod ui_mod
 
             assert!((0f32..=100f32).contains(&value), "Decel percentage is not within 0 and 100.");
 
-            let delta_decel = value - std::mem::replace(&mut self.decel_travel_percentage, value);
+            let delta_decel = value - self.decel_travel_percentage.replace_value(value);
             let accel = self.accel_travel_percentage.min(100f32 - value);
-            Vec2::new(
-                delta_decel,
-                accel - std::mem::replace(&mut self.accel_travel_percentage, accel)
-            )
-            .into()
+            Vec2::new(delta_decel, accel - self.accel_travel_percentage.replace_value(accel)).into()
         }
 
         /// Sets the standby time, that is the time that has to pass before the entity should start
@@ -290,7 +282,7 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            (value - std::mem::replace(&mut self.standby_time, value)).into()
+            (value - self.standby_time.replace_value(value)).into()
         }
 
         /// The speed the entity should start moving. If there is no speed up it is the maximum

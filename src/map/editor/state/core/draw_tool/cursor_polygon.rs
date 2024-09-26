@@ -711,7 +711,7 @@ impl FreeDrawCursorPolygon
             return false;
         }
 
-        let status = std::mem::take(&mut self.0);
+        let status = self.0.take_value();
 
         manager.spawn_drawn_brush(
             drawing_resources,

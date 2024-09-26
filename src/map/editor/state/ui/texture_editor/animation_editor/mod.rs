@@ -45,6 +45,7 @@ use crate::{
     },
     utils::{
         identifiers::EntityId,
+        misc::{ReplaceValue, TakeValue},
         overall_value::{OverallValueToUi, UiOverallValue}
     },
     INDEXES
@@ -1010,7 +1011,7 @@ impl AnimationEditor
                         .unwrap()
                 };
 
-                if std::mem::take(&mut self.update_texture_animation)
+                if self.update_texture_animation.take_value()
                 {
                     update_animation(over, &mut self.animation, selected_texture);
                 }
@@ -1033,7 +1034,7 @@ impl AnimationEditor
                             new_animation: Animation
                         )
                         {
-                            let prev = std::mem::replace(texture.animation_mut(), new_animation);
+                            let prev = texture.animation_mut().replace_value(new_animation);
 
                             if AnimationEditor::check_sprites_within_bounds(
                                 drawing_resources,

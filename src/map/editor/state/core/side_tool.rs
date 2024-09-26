@@ -483,7 +483,7 @@ impl SideTool
                     bundle.camera.scale(),
                     inputs.left_mouse.pressed(),
                     {
-                        if std::mem::take(&mut self.check_xtrusion)
+                        if self.check_xtrusion.take_value()
                         {
                             if let Some(s) = self.selected_sides.initialize_xtrusion(
                                 manager,

@@ -225,7 +225,7 @@ pub(in crate::map) mod ui_mod
         map::{drawer::drawing_resources::DrawingResources, indexed_map::IndexedMap},
         utils::{
             collections::{hv_hash_map, hv_vec},
-            misc::AssertedInsertRemove
+            misc::{AssertedInsertRemove, ReplaceValue}
         },
         HvHashMap,
         HvVec,
@@ -277,7 +277,7 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            std::mem::replace(self, value.clone()).into()
+            self.replace_value(value.clone()).into()
         }
 
         /// Tries to convert `value` to the same type of `self`.

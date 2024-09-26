@@ -60,6 +60,7 @@ pub(in crate::map) mod ui_mod
                 AssertedInsertRemove,
                 NoneIfEmpty,
                 PointInsideUiHighlight,
+                ReplaceValue,
                 TakeValue,
                 Toggle,
                 VX_HGL_SIDE
@@ -1424,7 +1425,7 @@ pub(in crate::map) mod ui_mod
                     return;
                 }
 
-                delta_time = std::mem::replace(&mut self.standby, 0f32).abs();
+                delta_time = self.standby.replace_value(0f32).abs();
             }
 
             // Univorm movement.
@@ -1490,7 +1491,7 @@ pub(in crate::map) mod ui_mod
             // Set travel properties toward the next node.
             let nodes = moving.path().unwrap().nodes();
             self.target_index = next(self.target_index, nodes.len());
-            self.current_node = std::mem::replace(&mut self.target_node, nodes[self.target_index]);
+            self.current_node = self.target_node.replace_value(nodes[self.target_index]);
             self.current_speed = self.current_node.movement.start_speed();
 
             (self.dir, self.travel_distance, self.acceleration, self.deceleration) =

@@ -62,7 +62,8 @@ use crate::{
     },
     utils::{
         hull::{EntityHull, Hull},
-        identifiers::{EntityId, Id}
+        identifiers::{EntityId, Id},
+        misc::ReplaceValue
     },
     HvVec
 };
@@ -597,7 +598,7 @@ impl Clipboard
     )
     {
         assert!(
-            !std::mem::replace(&mut prop_camera.0.is_active, true),
+            !prop_camera.0.is_active.replace_value(true),
             "Tried to assign a prop screenshot to an active camera."
         );
 

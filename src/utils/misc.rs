@@ -491,6 +491,33 @@ pub(crate) mod ui_mod
     }
 
     //=======================================================================//
+
+    pub(crate) trait ReplaceValue
+    {
+        #[must_use]
+        fn replace_value(&mut self, src: Self) -> Self;
+    }
+
+    impl<T> ReplaceValue for T
+    {
+        #[inline]
+        fn replace_value(&mut self, src: Self) -> Self { std::mem::replace(self, src) }
+    }
+
+    //=======================================================================//
+
+    pub(crate) trait SwapValue
+    {
+        fn swap_value(&mut self, src: &mut Self);
+    }
+
+    impl<T> SwapValue for T
+    {
+        #[inline]
+        fn swap_value(&mut self, src: &mut Self) { std::mem::swap(self, src) }
+    }
+
+    //=======================================================================//
     // STRUCTS
     //
     //=======================================================================//

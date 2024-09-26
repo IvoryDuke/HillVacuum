@@ -21,7 +21,7 @@ use crate::{
         hull::Hull,
         identifiers::{EntityId, Id},
         math::AroundEqual,
-        misc::{bumped_vertex_highlight_square, AssertedInsertRemove}
+        misc::{bumped_vertex_highlight_square, AssertedInsertRemove, TakeValue}
     },
     HvHashMap,
     HvVec
@@ -94,7 +94,7 @@ impl MaybeNode
     /// Sets the internal value to [`None`].
     #[inline]
     #[must_use]
-    fn wipe(&mut self) -> Option<Vertexes> { std::mem::take(&mut self.0).unwrap().wipe() }
+    fn wipe(&mut self) -> Option<Vertexes> { self.0.take_value().unwrap().wipe() }
 }
 
 //=======================================================================//

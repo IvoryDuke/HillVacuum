@@ -11,7 +11,7 @@ use crate::{
         hv_vec,
         properties::Value
     },
-    utils::identifiers::Id,
+    utils::{identifiers::Id, misc::ReplaceValue},
     HvVec
 };
 
@@ -210,7 +210,7 @@ impl Edit
     pub fn push_property(&mut self, key: &str, iter: impl Iterator<Item = (Id, Value)>)
     {
         assert!(
-            std::mem::replace(&mut self.property, key.to_owned().into()).is_none(),
+            self.property.replace_value(key.to_owned().into()).is_none(),
             "Property edit already stored."
         );
 

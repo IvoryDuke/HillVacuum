@@ -155,7 +155,11 @@ pub(in crate::map) mod ui_mod
             drawers::Uv,
             drawing_resources::{DrawingResources, TextureMaterials}
         },
-        utils::{collections::hv_vec, math::AroundEqual, misc::next},
+        utils::{
+            collections::hv_vec,
+            math::AroundEqual,
+            misc::{next, ReplaceValue}
+        },
         Animation,
         Atlas,
         HvVec,
@@ -401,7 +405,7 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            let prev = std::mem::replace(&mut self.x, x);
+            let prev = self.x.replace_value(x);
             self.resize_frames(self.maximum_valid_len());
             prev.into()
         }
@@ -417,7 +421,7 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            let prev = std::mem::replace(&mut self.y, y);
+            let prev = self.y.replace_value(y);
             self.resize_frames(self.maximum_valid_len());
             prev.into()
         }
@@ -441,7 +445,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map) fn set_timing(&mut self, timing: Timing) -> Timing
         {
-            std::mem::replace(&mut self.timing, timing)
+            self.timing.replace_value(timing)
         }
 
         /// Sets the [`Timing`] to [`Timing::Uniform`]. Returns the previous value if it was a
@@ -453,7 +457,7 @@ pub(in crate::map) mod ui_mod
             let new = Timing::Uniform(
                 return_if_no_match!(&mut self.timing, Timing::PerFrame(vec), vec, None)[0]
             );
-            std::mem::replace(&mut self.timing, new).into()
+            self.timing.replace_value(new).into()
         }
 
         /// Sets the time of a [`Timing::Uniform`]. Returns the previous value if different.
@@ -469,7 +473,7 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            std::mem::replace(time, value).into()
+            time.replace_value(value).into()
         }
 
         /// Sets the [`Timing`] to [`Timing::PerFrame`]. Returns the previous value if it was a
@@ -494,7 +498,7 @@ pub(in crate::map) mod ui_mod
                 None
             ));
 
-            std::mem::replace(&mut self.timing, new).into()
+            self.timing.replace_value(new).into()
         }
 
         /// Sets the time of the frame at `index`. Returns the preious value if different.
@@ -510,7 +514,7 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            std::mem::replace(time, value).into()
+            time.replace_value(value).into()
         }
     }
 
@@ -575,7 +579,7 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            std::mem::replace(prev, texture.to_owned()).into()
+            prev.replace_value(texture.to_owned()).into()
         }
 
         /// Sets the time of the frame at `index`. Returns the previous value if different.
@@ -590,7 +594,7 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            std::mem::replace(prev, value).into()
+            prev.replace_value(value).into()
         }
     }
 
@@ -633,8 +637,7 @@ pub(in crate::map) mod ui_mod
                 }
 
                 self.index = next(self.index, animation.len());
-                delta_time =
-                    std::mem::replace(&mut self.current_time, animation.0[self.index].1).abs();
+                delta_time = self.current_time.replace_value(animation.0[self.index].1).abs();
             }
         }
 
@@ -720,9 +723,10 @@ pub(in crate::map) mod ui_mod
                     self.column += 1f32;
                 }
 
-                delta_time =
-                    std::mem::replace(&mut self.current_time, animation.timing.time(self.index))
-                        .abs();
+                delta_time = self
+                    .current_time
+                    .replace_value(animation.timing.time(self.index))
+                    .abs();
             }
         }
 

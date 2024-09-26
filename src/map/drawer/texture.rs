@@ -360,7 +360,7 @@ pub(in crate::map) mod ui_mod
                 points::{rotate_point, rotate_point_around_origin},
                 AroundEqual
             },
-            misc::{AssertNormalizedDegreesAngle, TakeValue, Translate}
+            misc::{AssertNormalizedDegreesAngle, ReplaceValue, SwapValue, TakeValue, Translate}
         },
         Animation,
         TextureInterface,
@@ -385,7 +385,7 @@ pub(in crate::map) mod ui_mod
                     return true;
                 }
 
-                let prev = std::mem::replace(&mut self.[< offset_ $xy >], value);
+                let prev = self.[< offset_ $xy >].replace_value(value);
                 let result = self.check_sprite_vxs(drawing_resources, center);
                 self.[< offset_ $xy >] = prev;
 
@@ -401,7 +401,7 @@ pub(in crate::map) mod ui_mod
                     return None;
                 }
 
-                let prev = std::mem::replace(&mut self.[< offset_ $xy >], value);
+                let prev = self.[< offset_ $xy >].replace_value(value);
                 prev.into()
             }
 
@@ -415,7 +415,7 @@ pub(in crate::map) mod ui_mod
                     return true;
                 }
 
-                let prev = std::mem::replace(&mut self.[< scale_ $xy >], value);
+                let prev = self.[< scale_ $xy >].replace_value(value);
                 let result = self.check_sprite_vxs(drawing_resources, center);
                 self.[< scale_ $xy >] = prev;
 
@@ -433,7 +433,7 @@ pub(in crate::map) mod ui_mod
                     return None;
                 }
 
-                let prev = std::mem::replace(&mut self.[< scale_ $xy >], value);
+                let prev = self.[< scale_ $xy >].replace_value(value);
                 prev.into()
             }
 
@@ -442,7 +442,7 @@ pub(in crate::map) mod ui_mod
             {
                 let sprite_center = return_if_none!(self.sprite_hull(drawing_resources, old_center), true).center();
                 let [< new_offset_ $xy >] = mirror - sprite_center.$xy - new_center.$xy;
-                let [< prev_offset_ $xy >] = std::mem::replace(&mut self.[< offset_ $xy >], [< new_offset_ $xy >]);
+                let [< prev_offset_ $xy >] = self.[< offset_ $xy >].replace_value([< new_offset_ $xy >]);
                 let result = self.check_sprite_vxs(drawing_resources, new_center);
 
                 self.[< offset_ $xy >] = [< prev_offset_ $xy >];
@@ -543,7 +543,7 @@ pub(in crate::map) mod ui_mod
                     return None;
                 }
 
-                std::mem::replace($value, value).into()
+                $value.replace_value(value).into()
             }
         )+}};
     }
@@ -592,11 +592,11 @@ pub(in crate::map) mod ui_mod
 
     macro_rules! swap {
         ($self:ident, $source:ident, ($($value:ident),+)) => { $(
-            std::mem::swap(&mut $self.$value, &mut $source.$value);
+            $self.$value.swap_value(&mut $source.$value);
         )+};
 
         ($self:ident, ($($value:ident),+)) => { $(
-            std::mem::swap(&mut $self.$value, $value);
+            $self.$value.swap_value($value);
         )+};
     }
 
@@ -1166,10 +1166,10 @@ pub(in crate::map) mod ui_mod
             };
 
             let new_offset = info.scaled_point(sprite_center) - new_center;
-            let prev_offset_x = std::mem::replace(&mut self.offset_x, new_offset.x);
-            let prev_offset_y = std::mem::replace(&mut self.offset_y, new_offset.y);
-            let prev_scale_x = std::mem::replace(&mut self.scale_x, scale_x);
-            let prev_scale_y = std::mem::replace(&mut self.scale_y, scale_y);
+            let prev_offset_x = self.offset_x.replace_value(new_offset.x);
+            let prev_offset_y = self.offset_y.replace_value(new_offset.y);
+            let prev_scale_x = self.scale_x.replace_value(scale_x);
+            let prev_scale_y = self.scale_y.replace_value(scale_y);
 
             let result = self.check_sprite_vxs(drawing_resources, new_center);
 
@@ -1235,7 +1235,7 @@ pub(in crate::map) mod ui_mod
                 return true;
             }
 
-            let prev = std::mem::replace(&mut self.texture, texture.to_owned());
+            let prev = self.texture.replace_value(texture.to_owned());
             let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
             self.texture = prev;
             result
@@ -1286,7 +1286,7 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            std::mem::replace(&mut self.height, value).into()
+            self.height.replace_value(value).into()
         }
 
         /// Whether the new angle is valid.
@@ -1305,7 +1305,7 @@ pub(in crate::map) mod ui_mod
                 return true;
             }
 
-            let prev = std::mem::replace(&mut self.angle, value);
+            let prev = self.angle.replace_value(value);
             let result = self.check_sprite_vxs(drawing_resources, center);
             self.angle = prev;
 
@@ -1347,9 +1347,9 @@ pub(in crate::map) mod ui_mod
             };
 
             let [x, y] = (rotate_point(sprite_center, pivot, angle) - new_center).to_array();
-            let prev_offset_x = std::mem::replace(&mut self.offset_x, x);
-            let prev_offset_y = std::mem::replace(&mut self.offset_y, y);
-            let prev_angle = std::mem::replace(&mut self.angle, end_angle);
+            let prev_offset_x = self.offset_x.replace_value(x);
+            let prev_offset_y = self.offset_y.replace_value(y);
+            let prev_angle = self.angle.replace_value(end_angle);
 
             let result = self.check_sprite_vxs(drawing_resources, new_center);
 
@@ -1387,7 +1387,7 @@ pub(in crate::map) mod ui_mod
                         offset_auxiliary, ..
                     },
                     RotationAuxiliary::Texture(auxiliary)
-                ) => std::mem::swap(&mut offset_auxiliary.rotation, auxiliary),
+                ) => offset_auxiliary.rotation.swap_value(auxiliary),
                 _ => unreachable!()
             };
         }
@@ -1446,11 +1446,11 @@ pub(in crate::map) mod ui_mod
                 return true;
             }
 
-            let prev_offset_x = std::mem::replace(&mut self.offset_x, 0f32);
-            let prev_offset_y = std::mem::replace(&mut self.offset_y, 0f32);
+            let prev_offset_x = self.offset_x.replace_value(0f32);
+            let prev_offset_y = self.offset_y.replace_value(0f32);
             let new = Sprite::from(true);
 
-            let prev_sprite = std::mem::replace(&mut self.sprite, new);
+            let prev_sprite = self.sprite.replace_value(new);
             let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
 
             self.offset_x = prev_offset_x;
@@ -1477,7 +1477,7 @@ pub(in crate::map) mod ui_mod
                 self.offset_y = 0f32;
             }
 
-            let prev = std::mem::replace(&mut self.sprite, Sprite::from(value));
+            let prev = self.sprite.replace_value(Sprite::from(value));
             let offset_x = self.offset_x;
             let offset_y = self.offset_y;
 
@@ -1492,9 +1492,9 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map) fn undo_redo_sprite(&mut self, value: &mut TextureSpriteSet)
         {
-            std::mem::swap(&mut self.sprite, &mut value.sprite);
-            std::mem::swap(&mut self.offset_x, &mut value.offset_x);
-            std::mem::swap(&mut self.offset_y, &mut value.offset_y);
+            self.sprite.swap_value(&mut value.sprite);
+            self.offset_x.swap_value(&mut value.offset_x);
+            self.offset_y.swap_value(&mut value.offset_y);
         }
 
         /// Checks whether the texture is within bounds.
@@ -1524,7 +1524,7 @@ pub(in crate::map) mod ui_mod
                 return true;
             }
 
-            let prev = std::mem::replace(&mut self.animation, animation.clone());
+            let prev = self.animation.replace_value(animation.clone());
             let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
             self.animation = prev;
             result
@@ -1534,7 +1534,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map) fn set_animation(&mut self, animation: Animation) -> Animation
         {
-            std::mem::replace(&mut self.animation, animation)
+            self.animation.replace_value(animation)
         }
 
         /// Sets the [`Animation`] to list, using `texture` for the first frame, and returns the
@@ -1542,14 +1542,14 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map) fn set_list_animation(&mut self, texture: &str) -> Animation
         {
-            std::mem::replace(&mut self.animation, Animation::list_animation(texture))
+            self.animation.replace_value(Animation::list_animation(texture))
         }
 
         /// Sets the [`Animation`] to list and returns the previous one.
         #[inline]
         pub(in crate::map) fn generate_list_animation(&mut self) -> Animation
         {
-            std::mem::replace(&mut self.animation, Animation::list_animation(&self.texture))
+            self.animation.replace_value(Animation::list_animation(&self.texture))
         }
 
         /// Sets the amount of frames of the atlas animation. Returns the previous value, if
@@ -1698,8 +1698,8 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn reset(&mut self) -> TextureReset
         {
             TextureReset {
-                scale_x:  std::mem::replace(&mut self.scale_x, 1f32),
-                scale_y:  std::mem::replace(&mut self.scale_y, 1f32),
+                scale_x:  self.scale_x.replace_value(1f32),
+                scale_y:  self.scale_y.replace_value(1f32),
                 offset_x: self.offset_x.take_value(),
                 offset_y: self.offset_y.take_value(),
                 angle:    self.angle.take_value(),

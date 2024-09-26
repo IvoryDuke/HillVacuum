@@ -2592,7 +2592,7 @@ impl State
         drawing_resources: &DrawingResources
     )
     {
-        assert!(std::mem::take(&mut self.reloading_textures), "No ongoing texture reload.");
+        assert!(self.reloading_textures.take_value(), "No ongoing texture reload.");
 
         self.edits_history.purge_texture_edits();
         self.clipboard.reload_textures(

@@ -22,7 +22,10 @@ use bevy_egui::{egui, EguiUserTextures};
 use threadpool::ThreadPool;
 
 use super::texture::Texture;
-use crate::map::editor::state::ui::centered_window;
+use crate::{
+    map::editor::state::ui::centered_window,
+    utils::misc::{ReplaceValue, TakeValue}
+};
 
 //=======================================================================//
 // CONSTANTS
@@ -145,14 +148,14 @@ impl TextureLoader
     pub fn loaded_textures(&mut self) -> Vec<(Texture, egui::TextureId)>
     {
         assert!(matches!(self.images, LoadedImages::Empty), "Texture load in progress.");
-        std::mem::take(&mut self.textures)
+        self.textures.take_value()
     }
 
     /// Extracts the vector inside `images`.
     #[inline]
     fn extract_images(mut images: PartialImages) -> Vec<(String, Image)>
     {
-        Arc::try_unwrap(std::mem::replace(&mut images, Arc::new(Mutex::new(vec![]))))
+        Arc::try_unwrap(images.replace_value(Arc::new(Mutex::new(vec![]))))
             .unwrap()
             .into_inner()
             .unwrap()

@@ -82,7 +82,7 @@ use crate::{
         hull::{EntityHull, Hull},
         identifiers::{EntityCenter, EntityId, Id, IdGenerator},
         math::AroundEqual,
-        misc::{Blinker, ReplaceValues}
+        misc::{Blinker, ReplaceValues, TakeValue}
     },
     HvHashSet,
     HvVec
@@ -1887,7 +1887,7 @@ impl EntitiesManager
         settings: &mut ToolsSettings
     )
     {
-        if std::mem::replace(&mut self.innards.outline_update, false)
+        if self.innards.outline_update.take_value()
         {
             core.update_outline(drawing_resources, self, grid, settings);
         }
@@ -1898,34 +1898,34 @@ impl EntitiesManager
             self.innards.selected_vertexes_update.clear();
         }
 
-        if std::mem::take(&mut self.innards.overall_texture_update)
+        if self.innards.overall_texture_update.take_value()
         {
             ui.update_overall_texture(drawing_resources, self);
         }
 
-        if std::mem::take(&mut self.innards.overall_node_update)
+        if self.innards.overall_node_update.take_value()
         {
             core.update_overall_node(self);
         }
 
-        if std::mem::take(&mut self.innards.overall_collision_update)
+        if self.innards.overall_collision_update.take_value()
         {
             ui.update_overall_brushes_collision(self);
         }
 
-        match std::mem::take(&mut self.innards.overall_brushes_properties_update)
+        match self.innards.overall_brushes_properties_update.take_value()
         {
             PropertyUpdate::None => (),
             PropertyUpdate::Total => ui.update_overall_total_brush_properties(self),
             PropertyUpdate::Single(key) => ui.update_overall_brushes_property(self, &key)
         };
 
-        if std::mem::take(&mut self.innards.overall_things_info_update)
+        if self.innards.overall_things_info_update.take_value()
         {
             ui.update_overall_things_info(self);
         }
 
-        match std::mem::take(&mut self.innards.overall_things_properties_update)
+        match self.innards.overall_things_properties_update.take_value()
         {
             PropertyUpdate::None => (),
             PropertyUpdate::Total => ui.update_overall_total_things_properties(self),

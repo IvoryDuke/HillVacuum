@@ -210,7 +210,7 @@ pub mod ui_mod
             hull::{EntityHull, Hull},
             identifiers::{EntityCenter, EntityId},
             math::AroundEqual,
-            misc::Camera
+            misc::{Camera, ReplaceValue, TakeValue}
         },
         Id,
         ThingId,
@@ -296,7 +296,7 @@ pub mod ui_mod
                 return None;
             }
 
-            std::mem::replace(&mut self.thing, thing.id).into()
+            self.thing.replace_value(thing.id).into()
         }
 
         /// Draw `self` displaced by `delta` for a prop screenshot.
@@ -576,7 +576,7 @@ pub mod ui_mod
         }
 
         #[inline]
-        fn take_path(&mut self) -> Path { std::mem::take(&mut self.data.path).unwrap() }
+        fn take_path(&mut self) -> Path { self.data.path.take_value().unwrap() }
     }
 
     impl ThingInstance
@@ -681,7 +681,7 @@ pub mod ui_mod
                 return None;
             }
 
-            std::mem::replace(&mut self.data.draw_height, height).into()
+            self.data.draw_height.replace_value(height).into()
         }
 
         /// Sets the angle of `self`.
@@ -696,7 +696,7 @@ pub mod ui_mod
                 return None;
             }
 
-            std::mem::replace(&mut self.data.angle, angle).into()
+            self.data.angle.replace_value(angle).into()
         }
 
         /// Snaps `self` to the grid. Returns how much `self` was moved, if it was.
