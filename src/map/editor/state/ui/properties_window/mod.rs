@@ -101,6 +101,7 @@ impl Innards
     {
         /// The height of the rows of the grid.
         const ROW_HEIGHT: f32 = 22f32;
+        const COLUMNS: usize = 3;
 
         ui.horizontal(|ui| {
             ui.label("Entities");
@@ -139,10 +140,10 @@ impl Innards
         });
 
         egui::Grid::new("properties")
-            .num_columns(2)
+            .num_columns(COLUMNS)
             .spacing([0f32, 4f32])
             .striped(true)
-            .min_col_width(ui.available_width() / 2f32)
+            .min_col_width(ui.available_width() / COLUMNS as f32)
             .min_row_height(ROW_HEIGHT)
             .show(ui, |ui| {
                 self.grid(
@@ -235,12 +236,17 @@ impl Innards
             }
         }
 
+        ui.label("Name");
+        ui.label("Type");
+        ui.end_row();
+
         match self.target
         {
             Target::None => filler(ui, self.max_rows),
             Target::Brushes =>
             {
                 ui.label("Collision");
+                ui.label("bool");
 
                 if let Some(value) = CheckBox::show(ui, &self.overall_brushes_collision, |v| *v)
                 {
@@ -273,9 +279,10 @@ impl Innards
             {
                 /// The angle and draw height UI elements.
                 macro_rules! angle_height {
-                    ($label:literal, $value:ident, $min:expr, $max:expr) => {{
+                    ($label:literal, $value:ident, $t:expr, $min:expr, $max:expr) => {{
                         paste::paste! {
                             ui.label($label);
+                            ui.label($t);
 
                             OverallValueField::show_always_enabled(
                                 ui,
@@ -307,10 +314,17 @@ impl Innards
                 angle_height!(
                     "Draw height",
                     draw_height,
+                    Value::discriminant_type(std::mem::discriminant(&Value::I8(0))),
                     *TEXTURE_HEIGHT_RANGE.start(),
                     *TEXTURE_HEIGHT_RANGE.end()
                 );
-                angle_height!("Angle", angle, 0, 359);
+                angle_height!(
+                    "Angle",
+                    angle,
+                    Value::discriminant_type(std::mem::discriminant(&Value::I16(0))),
+                    0,
+                    359
+                );
 
                 self.overall_things_properties.show(
                     drawing_resources,
@@ -396,7 +410,7 @@ impl PropertiesWindow
     {
         let b_len = brushes_default_properties.len() + 1;
         let t_len = things_default_properties.len() + 2;
-        let max_rows = b_len.max(t_len).max(10);
+        let max_rows = b_len.max(t_len).max(10) + 1;
 
         Self {
             window:  Window::default(),
@@ -551,7 +565,6 @@ impl PropertiesWindow
         self.window
             .show(
                 egui_context,
-                #[allow(clippy::cast_precision_loss)]
                 egui::Window::new("Properties")
                     .vscroll(true)
                     .collapsible(true)

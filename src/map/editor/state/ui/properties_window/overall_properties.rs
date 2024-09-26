@@ -179,6 +179,7 @@ impl UiOverallProperties
             assert!(o.d == std::mem::discriminant(d_v), "Mismatching discriminants.");
 
             ui.label(k);
+            ui.label(Value::discriminant_type(o.d));
 
             if Value::BOOL_DISCRIMINANT == o.d
             {

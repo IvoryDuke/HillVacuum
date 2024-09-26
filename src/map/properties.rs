@@ -3,8 +3,6 @@
 //
 //=======================================================================//
 
-use std::str::FromStr;
-
 use serde::{Deserialize, Serialize};
 
 use crate::{map::indexed_map::IndexedMap, HvHashMap};
@@ -14,9 +12,54 @@ use crate::{map::indexed_map::IndexedMap, HvHashMap};
 //
 //=======================================================================//
 
+#[rustfmt::skip]
+macro_rules! for_each_value {
+    ($macro:ident) => {
+        $macro!(
+            Bool, bool, "bool", true,
+            U8, u8, "u8", 0,
+            U16, u16, "u16", 0,
+            U32, u32, "u32", 0,
+            U64, u64, "u64", 0,
+            U128, u128, "u128", 0,
+            I8, i8, "i8", 0,
+            I16, i16, "i16", 0,
+            I32, i32, "i32", 0,
+            I64, i64, "i64", 0,
+            I128, i128, "i128", 0,
+            F32, f32, "f32", 0f32,
+            F64, f64, "f64", 0f64,
+            String, String, "String", String::new()
+        );
+    };
+
+    (ret, $macro:ident) => {
+        $macro!(
+            Bool, bool, "bool", true,
+            U8, u8, "u8", 0,
+            U16, u16, "u16", 0,
+            U32, u32, "u32", 0,
+            U64, u64, "u64", 0,
+            U128, u128, "u128", 0,
+            I8, i8, "i8", 0,
+            I16, i16, "i16", 0,
+            I32, i32, "i32", 0,
+            I64, i64, "i64", 0,
+            I128, i128, "i128", 0,
+            F32, f32, "f32", 0f32,
+            F64, f64, "f64", 0f64,
+            String, String, "String", String::new()
+        )
+    }
+}
+
+use for_each_value;
+
+//=======================================================================//
+
 /// Generates [`ToValue`] implementations for `t`.
 macro_rules! to_value {
-    ($(($value:ident, $t:ty)),+) => {$(
+    ($($value:ident, $t:ty, $str:literal, $default:expr),+) => {$(
         impl ToValue for $t
         {
             #[inline]
@@ -80,48 +123,7 @@ pub enum Value
     String(String)
 }
 
-impl PartialEq for Value
-{
-    #[inline]
-    fn eq(&self, other: &Self) -> bool
-    {
-        match (self, other)
-        {
-            (Self::Bool(l0), Self::Bool(r0)) => l0 == r0,
-            (Self::U8(l0), Self::U8(r0)) => l0 == r0,
-            (Self::U16(l0), Self::U16(r0)) => l0 == r0,
-            (Self::U32(l0), Self::U32(r0)) => l0 == r0,
-            (Self::U64(l0), Self::U64(r0)) => l0 == r0,
-            (Self::U128(l0), Self::U128(r0)) => l0 == r0,
-            (Self::I8(l0), Self::I8(r0)) => l0 == r0,
-            (Self::I16(l0), Self::I16(r0)) => l0 == r0,
-            (Self::I32(l0), Self::I32(r0)) => l0 == r0,
-            (Self::I64(l0), Self::I64(r0)) => l0 == r0,
-            (Self::I128(l0), Self::I128(r0)) => l0 == r0,
-            (Self::F32(l0), Self::F32(r0)) => l0 == r0,
-            (Self::F64(l0), Self::F64(r0)) => l0 == r0,
-            (Self::String(l0), Self::String(r0)) => l0 == r0,
-            _ => panic!("Tried comparing values that differ in type.")
-        }
-    }
-}
-
-to_value!(
-    (Bool, bool),
-    (U8, u8),
-    (U16, u16),
-    (U32, u32),
-    (U64, u64),
-    (U128, u128),
-    (I8, i8),
-    (I16, i16),
-    (I32, i32),
-    (I64, i64),
-    (I128, i128),
-    (F32, f32),
-    (F64, f64),
-    (String, &str)
-);
+for_each_value!(to_value);
 
 impl std::fmt::Debug for Value
 {
@@ -130,39 +132,16 @@ impl std::fmt::Debug for Value
     {
         /// Implements debug for all enum arms.
         macro_rules! debug {
-            ($(($value:ident, $t:literal)),+) => {
+            ($($value:ident, $t:ty, $str:literal, $default:expr),+) => {
                 match self
                 {
-                    $(Self::$value(value) => write!(f, "{}: {value}", $t)),+
+                    $(Self::$value(value) => write!(f, "{}: {value}", $str)),+
                 }
             }
         }
 
-        debug!(
-            (Bool, "bool"),
-            (U8, "u8"),
-            (U16, "u16"),
-            (U32, "u32"),
-            (U64, "u64"),
-            (U128, "u128"),
-            (I8, "i8"),
-            (I16, "i16"),
-            (I32, "i32"),
-            (I64, "i64"),
-            (I128, "i128"),
-            (F32, "f32"),
-            (F64, "f64"),
-            (String, "String")
-        )
+        for_each_value!(ret, debug)
     }
-}
-
-impl FromStr for Value
-{
-    type Err = ();
-
-    #[inline]
-    fn from_str(s: &str) -> Result<Self, Self::Err> { Ok(Self::String(s.to_string())) }
 }
 
 impl std::fmt::Display for Value
@@ -252,6 +231,33 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
+    impl PartialEq for Value
+    {
+        #[inline]
+        fn eq(&self, other: &Self) -> bool
+        {
+            macro_rules! cmp {
+                ($($value:ident, $t:ty, $str:literal, $default:expr),+) => {
+                    match (self, other)
+                    {
+                        $((Self::$value(l0), Self::$value(r0)) => l0 == r0,)+
+                        _ => panic!("Tried comparing values that differ in type.")
+                    }
+                }
+            }
+
+            for_each_value!(ret, cmp)
+        }
+    }
+
+    impl FromStr for Value
+    {
+        type Err = ();
+
+        #[inline]
+        fn from_str(s: &str) -> Result<Self, Self::Err> { Ok(Self::String(s.to_string())) }
+    }
+
     impl Value
     {
         /// The [`Discriminant`] of the boolean value.
@@ -264,6 +270,26 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn eq_discriminant(&self, other: &Self) -> bool
         {
             std::mem::discriminant(self) == std::mem::discriminant(other)
+        }
+
+        #[inline]
+        #[must_use]
+        pub(in crate::map) fn discriminant_type(discriminant: Discriminant<Self>) -> &'static str
+        {
+            macro_rules! match_discriminant {
+                ($($value:ident, $t:ty, $str:literal, $default:expr),+) => {{
+                    $(
+                        if discriminant == std::mem::discriminant(&Value::$value($default))
+                        {
+                            return $str;
+                        }
+                    )+
+
+                    unreachable!()
+                }};
+            }
+
+            for_each_value!(ret, match_discriminant)
         }
 
         /// Sets `self` to `value`. Returns the previous value if different.
@@ -285,45 +311,25 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map) fn parse(&self, value: &Self) -> Option<Self>
         {
-            if matches!(self, Self::String(_))
-            {
-                return value.clone().into();
-            }
-
             let string = match_or_panic!(value, Self::String(s), s);
 
             /// Implements the conversion of `string` to the [`Value`] variant of `self`, if
             /// possible.
             macro_rules! convert {
-                ($(($value:ident, $t:ty)),+) => {
-                    match value
+                ($($value:ident, $t:ty, $str:literal, $default:expr),+) => {
+                    match self
                     {
                         $(Self::$value(_) =>
                         {
                             <$t>::from_str(string)
                                 .ok()
                                 .map(|value| Self::$value(value))
-                        },)+
-                        _ => unreachable!()
+                        }),+
                     }
                 };
             }
 
-            convert!(
-                (Bool, bool),
-                (U8, u8),
-                (U16, u16),
-                (U32, u32),
-                (U64, u64),
-                (U128, u128),
-                (I8, i8),
-                (I16, i16),
-                (I32, i32),
-                (I64, i64),
-                (I128, i128),
-                (F32, f32),
-                (F64, f64)
-            )
+            for_each_value!(ret, convert)
         }
     }
 
