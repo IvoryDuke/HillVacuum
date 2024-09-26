@@ -214,15 +214,18 @@ impl ScaleTool
                     }
                 }
 
-                if let Some(dir) = inputs.directional_keys_vector(grid.size())
+                if !inputs.ctrl_pressed()
                 {
-                    self.keyboard_scale(
-                        bundle.drawing_resources,
-                        manager,
-                        edits_history,
-                        settings,
-                        dir
-                    );
+                    if let Some(dir) = inputs.directional_keys_vector(grid.size())
+                    {
+                        self.keyboard_scale(
+                            bundle.drawing_resources,
+                            manager,
+                            edits_history,
+                            settings,
+                            dir
+                        );
+                    }
                 }
                 else if inputs.left_mouse.just_pressed()
                 {
