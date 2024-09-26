@@ -9,7 +9,7 @@
 #![warn(clippy::missing_const_for_fn)]
 #![warn(clippy::missing_errors_doc)]
 #![warn(clippy::missing_panics_doc)]
-#![forbid(clippy::wildcard_imports)]
+// #![forbid(clippy::wildcard_imports)]
 // #![warn(clippy::missing_docs_in_private_items)]
 #![cfg_attr(feature = "arena_alloc", feature(allocator_api))]
 

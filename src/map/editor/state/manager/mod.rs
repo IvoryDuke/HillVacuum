@@ -2159,7 +2159,7 @@ impl EntitiesManager
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         identifier: Id
-    ) -> BrushMut<'_>
+    ) -> BrushMut<'a>
     {
         BrushMut::new(drawing_resources, &mut self.innards, &mut self.quad_trees, identifier)
     }
@@ -2186,7 +2186,7 @@ impl EntitiesManager
     pub fn selected_brushes_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources
-    ) -> impl Iterator<Item = BrushMut<'_>>
+    ) -> impl Iterator<Item = BrushMut<'a>>
     {
         self.auxiliary.replace_values(&self.innards.selected_brushes);
         SelectedBrushesMut::new(
@@ -2239,7 +2239,7 @@ impl EntitiesManager
         drawing_resources: &'a DrawingResources,
         cursor_pos: Vec2,
         camera_scale: impl Into<Option<f32>>
-    ) -> impl Iterator<Item = BrushMut<'_>>
+    ) -> impl Iterator<Item = BrushMut<'a>>
     {
         self.auxiliary.replace_values(
             self.quad_trees
@@ -2549,7 +2549,7 @@ impl EntitiesManager
     pub fn selected_brushes_with_sprite_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources
-    ) -> impl Iterator<Item = BrushMut>
+    ) -> impl Iterator<Item = BrushMut<'a>>
     {
         self.auxiliary.clear();
 
@@ -2573,7 +2573,7 @@ impl EntitiesManager
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         texture: &str
-    ) -> Option<impl Iterator<Item = BrushMut>>
+    ) -> Option<impl Iterator<Item = BrushMut<'a>>>
     {
         self.auxiliary
             .replace_values(self.innards.selected_sprites.get(texture)?);
@@ -3077,7 +3077,7 @@ impl EntitiesManager
     pub fn selected_textured_brushes_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources
-    ) -> impl Iterator<Item = BrushMut>
+    ) -> impl Iterator<Item = BrushMut<'a>>
     {
         self.auxiliary.replace_values(&self.innards.selected_textured);
         SelectedBrushesMut::new(
@@ -3596,7 +3596,7 @@ impl EntitiesManager
     pub fn selected_movings_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources
-    ) -> impl Iterator<Item = MovingMut<'_>>
+    ) -> impl Iterator<Item = MovingMut<'a>>
     {
         self.auxiliary.replace_values(&self.innards.selected_moving);
         SelectedMovingsMut::new(
@@ -3638,7 +3638,7 @@ impl EntitiesManager
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         identifier: Id
-    ) -> MovingMut<'_>
+    ) -> MovingMut<'a>
     {
         self.innards
             .moving_mut(drawing_resources, &mut self.quad_trees, identifier)

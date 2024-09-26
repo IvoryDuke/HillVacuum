@@ -505,7 +505,7 @@ impl<'a> UndoRedoInterface<'a>
         &'b mut self,
         drawing_resources: &'b DrawingResources,
         identifier: Id
-    ) -> BrushMut
+    ) -> BrushMut<'b>
     {
         self.manager.brush_mut(drawing_resources, identifier)
     }
@@ -516,7 +516,7 @@ impl<'a> UndoRedoInterface<'a>
         &'b mut self,
         drawing_resources: &'b DrawingResources,
         identifier: Id
-    ) -> MovingMut<'_>
+    ) -> MovingMut<'b>
     {
         self.manager.moving_mut(drawing_resources, identifier)
     }

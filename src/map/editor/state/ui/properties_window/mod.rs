@@ -139,6 +139,7 @@ impl Innards
             };
         });
 
+        #[allow(clippy::cast_precision_loss)]
         egui::Grid::new("properties")
             .num_columns(COLUMNS)
             .spacing([0f32, 4f32])
