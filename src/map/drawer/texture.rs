@@ -73,7 +73,7 @@ pub trait TextureInterface
 
     /// Returns the offset necessary to draw the texture as displayed in the editor also accounting
     /// for scroll and parallax.  
-    /// !! If the texture is rendered as a sprite scroll and parallax are both 0.
+    /// !! If the texture is rendered as a sprite, scroll and parallax are both always 0.
     #[must_use]
     fn draw_offset_with_parallax_and_scroll(
         &self,
@@ -1154,7 +1154,7 @@ pub(in crate::map) mod ui_mod
                     let offset = Vec2::new(
                         self.sprite.auxiliary_offset_x(),
                         self.sprite.auxiliary_offset_y()
-                    ) - Vec2::new(self.offset_x, self.offset_y);
+                    ) + Vec2::new(self.offset_x, -self.offset_y);
                     let offset = offset.with_x(-offset.x);
                     let offset = info.scaled_point(offset) - offset;
 
