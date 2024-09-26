@@ -326,7 +326,7 @@ pub(in crate::map) mod ui_mod
         prelude::*,
         render::{camera::RenderTarget, render_resource::Extent3d},
         sprite::Mesh2dHandle,
-        window::{PrimaryWindow, WindowCloseRequested, WindowMode},
+        window::{PrimaryWindow, WindowCloseRequested},
         winit::WinitSettings
     };
     use bevy_egui::{
@@ -365,10 +365,7 @@ pub(in crate::map) mod ui_mod
             },
             properties::{BrushProperties, ThingProperties}
         },
-        utils::{
-            hull::{EntityHull, Hull},
-            misc::Toggle
-        },
+        utils::hull::{EntityHull, Hull},
         warning_message,
         EditorState
     };
@@ -402,7 +399,7 @@ pub(in crate::map) mod ui_mod
         8 * (PROP_CAMERAS_ROWS * (PROP_CAMERAS_ROWS + 1)) / 2;
 
     //=======================================================================//
-    // TRAIT
+    // TRAITS
     //
     //=======================================================================//
 
@@ -441,70 +438,6 @@ pub(in crate::map) mod ui_mod
     impl<T: EntityHull> OutOfBounds for T
     {
         fn out_of_bounds(&self) -> bool { self.hull().out_of_bounds() }
-    }
-
-    //=======================================================================//
-
-    pub(in crate::map) trait Translate<T>
-    {
-        fn translate(&mut self, delta: T);
-    }
-
-    impl<const N: usize> Translate<Vec2> for [Vec2; N]
-    {
-        #[inline]
-        fn translate(&mut self, delta: Vec2)
-        {
-            for vx in self
-            {
-                *vx += delta;
-            }
-        }
-    }
-
-    impl<const N: usize> Translate<&[f32; N]> for [f32; N]
-    {
-        #[inline]
-        fn translate(&mut self, delta: &[f32; N])
-        {
-            for (x, y) in self.iter_mut().zip(delta)
-            {
-                *x += *y;
-            }
-        }
-    }
-
-    //=======================================================================//
-
-    pub(in crate::map) trait AssertNormalizedDegreesAngle
-    {
-        fn assert_normalized_degrees_angle(self);
-    }
-
-    impl AssertNormalizedDegreesAngle for f32
-    {
-        #[inline]
-        fn assert_normalized_degrees_angle(self)
-        {
-            assert!((0f32..360f32).contains(&self), "Invalid degrees angle.");
-        }
-    }
-
-    //=======================================================================//
-
-    impl Toggle for WindowMode
-    {
-        /// Switches the [`WindowMode`] from windowed to borderless fullscreen, and viceversa.
-        #[inline]
-        fn toggle(&mut self)
-        {
-            *self = match self
-            {
-                WindowMode::Windowed => WindowMode::BorderlessFullscreen,
-                WindowMode::BorderlessFullscreen => WindowMode::Windowed,
-                _ => unreachable!()
-            };
-        }
     }
 
     //=======================================================================//

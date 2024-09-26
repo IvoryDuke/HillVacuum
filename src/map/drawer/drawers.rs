@@ -36,8 +36,7 @@ use crate::{
             grid::{Grid, GridLines},
             manager::Animators
         },
-        thing::{catalog::ThingsCatalog, ThingInterface},
-        Translate
+        thing::{catalog::ThingsCatalog, ThingInterface}
     },
     utils::{
         hull::{CircleIterator, Corner, EntityHull, Hull, Side},
@@ -46,7 +45,7 @@ use crate::{
             lines_and_segments::{line_equation, LineEquation},
             points::rotate_point
         },
-        misc::{Camera, VX_HGL_SIDE}
+        misc::{Camera, Translate, VX_HGL_SIDE}
     },
     Animation,
     TextureInterface

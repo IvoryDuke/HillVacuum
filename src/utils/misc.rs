@@ -28,7 +28,7 @@ pub(crate) mod ui_mod
     //
     //=======================================================================//
 
-    use bevy::window::Window;
+    use bevy::window::{Window, WindowMode};
     use bevy_egui::egui;
     use glam::Vec2;
 
@@ -408,6 +408,21 @@ pub(crate) mod ui_mod
         fn toggle(&mut self) { *self = -*self; }
     }
 
+    impl Toggle for WindowMode
+    {
+        /// Switches the [`WindowMode`] from windowed to borderless fullscreen, and viceversa.
+        #[inline]
+        fn toggle(&mut self)
+        {
+            *self = match self
+            {
+                WindowMode::Windowed => WindowMode::BorderlessFullscreen,
+                WindowMode::BorderlessFullscreen => WindowMode::Windowed,
+                _ => unreachable!()
+            };
+        }
+    }
+
     //=======================================================================//
 
     /// A trait to determine whether a point is inside the UI rectangle highlight of a point.
@@ -425,6 +440,53 @@ pub(crate) mod ui_mod
         {
             let half_side_length = bumped_vertex_highlight_side_length(camera_scale) / 2f32;
             f32::abs(self.x - p.x) <= half_side_length && f32::abs(self.y - p.y) <= half_side_length
+        }
+    }
+
+    //=======================================================================//
+
+    pub trait Translate<T>
+    {
+        fn translate(&mut self, delta: T);
+    }
+
+    impl<const N: usize> Translate<Vec2> for [Vec2; N]
+    {
+        #[inline]
+        fn translate(&mut self, delta: Vec2)
+        {
+            for vx in self
+            {
+                *vx += delta;
+            }
+        }
+    }
+
+    impl<const N: usize> Translate<&[f32; N]> for [f32; N]
+    {
+        #[inline]
+        fn translate(&mut self, delta: &[f32; N])
+        {
+            for (x, y) in self.iter_mut().zip(delta)
+            {
+                *x += *y;
+            }
+        }
+    }
+
+    //=======================================================================//
+
+    pub trait AssertNormalizedDegreesAngle
+    {
+        fn assert_normalized_degrees_angle(self);
+    }
+
+    impl AssertNormalizedDegreesAngle for f32
+    {
+        #[inline]
+        fn assert_normalized_degrees_angle(self)
+        {
+            assert!((0f32..360f32).contains(&self), "Invalid degrees angle.");
         }
     }
 

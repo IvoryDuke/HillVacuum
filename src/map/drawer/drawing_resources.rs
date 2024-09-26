@@ -53,14 +53,13 @@ use crate::{
             Placeholder
         },
         indexed_map::IndexedMap,
-        thing::{catalog::ThingsCatalog, ThingInterface},
-        Translate
+        thing::{catalog::ThingsCatalog, ThingInterface}
     },
     utils::{
         collections::{hv_hash_map, hv_hash_set, hv_vec},
         hull::Hull,
         math::{points::rotate_point_around_origin, HashVec2},
-        misc::{vertex_highlight_square, AssertedInsertRemove, Camera}
+        misc::{vertex_highlight_square, AssertedInsertRemove, Camera, Translate}
     },
     HvHashMap,
     HvHashSet,

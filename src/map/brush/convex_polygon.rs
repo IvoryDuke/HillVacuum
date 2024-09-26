@@ -70,7 +70,6 @@ pub(in crate::map) mod ui_mod
                 SelectableVector,
                 VectorSelectionResult
             },
-            AssertNormalizedDegreesAngle,
             OutOfBounds,
             MAP_RANGE,
             TOOLTIP_OFFSET
@@ -114,6 +113,7 @@ pub(in crate::map) mod ui_mod
                 prev,
                 prev_element,
                 prev_element_n_steps,
+                AssertNormalizedDegreesAngle,
                 NoneIfEmpty,
                 PointInsideUiHighlight,
                 VX_HGL_SIDE,

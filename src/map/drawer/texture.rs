@@ -352,9 +352,7 @@ pub(in crate::map) mod ui_mod
             brush::convex_polygon::ScaleInfo,
             drawer::{animation::MoveUpDown, drawing_resources::DrawingResources},
             editor::Placeholder,
-            AssertNormalizedDegreesAngle,
-            OutOfBounds,
-            Translate
+            OutOfBounds
         },
         utils::{
             hull::{EntityHull, Hull},
@@ -362,7 +360,7 @@ pub(in crate::map) mod ui_mod
                 points::{rotate_point, rotate_point_around_origin},
                 AroundEqual
             },
-            misc::TakeValue
+            misc::{AssertNormalizedDegreesAngle, TakeValue, Translate}
         },
         Animation,
         TextureInterface,
