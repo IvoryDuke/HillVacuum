@@ -214,7 +214,14 @@ impl ScaleTool
                     }
                 }
 
-                if !inputs.ctrl_pressed()
+                if inputs.left_mouse.just_pressed()
+                {
+                    let cursor_pos = Self::cursor_pos(cursor);
+                    self.selected_corner =
+                        return_if_none!(self.outline.nearby_corner(cursor_pos, camera.scale()));
+                    self.status = Status::Drag(hv_vec![], cursor_pos, self.outline);
+                }
+                else if !inputs.ctrl_pressed()
                 {
                     if let Some(dir) = inputs.directional_keys_vector(grid.size())
                     {
@@ -226,13 +233,6 @@ impl ScaleTool
                             dir
                         );
                     }
-                }
-                else if inputs.left_mouse.just_pressed()
-                {
-                    let cursor_pos = Self::cursor_pos(cursor);
-                    self.selected_corner =
-                        return_if_none!(self.outline.nearby_corner(cursor_pos, camera.scale()));
-                    self.status = Status::Drag(hv_vec![], cursor_pos, self.outline);
                 }
             },
             Status::Drag(backup_polygons, start_pos, hull) =>

@@ -35,7 +35,10 @@ macro_rules! sprite_values {
             match self
             {
                 Sprite::True { .. } => <$t>::default(),
-                Sprite::False { offset_auxiliary, .. } => offset_auxiliary.$value
+                Sprite::False { offset_auxiliary, .. } =>
+                {
+                    offset_auxiliary.scale.$value + offset_auxiliary.rotation.$value
+                }
             }
         }
     )+};
@@ -281,6 +284,24 @@ impl TextureSettings
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub(in crate::map::drawer) struct OffsetAuxiliary
 {
+    scale:    ScaleOffset,
+    rotation: RotationOffset
+}
+
+//=======================================================================//
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+struct ScaleOffset
+{
+    offset_x: f32,
+    offset_y: f32
+}
+
+//=======================================================================//
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+struct RotationOffset
+{
     offset_x:   f32,
     offset_y:   f32,
     pivot_mod:  Vec2,
@@ -325,7 +346,7 @@ pub(in crate::map) mod ui_mod
         TEXTURE_HEIGHT_RANGE
     };
 
-    use super::{OffsetAuxiliary, Sprite};
+    use super::{OffsetAuxiliary, RotationOffset, Sprite};
     use crate::{
         map::{
             brush::convex_polygon::ScaleInfo,
@@ -660,7 +681,7 @@ pub(in crate::map) mod ui_mod
             texture_angle: f32,
             rotation_angle: f32,
             pivot: Vec2
-        ) -> OffsetAuxiliary
+        ) -> RotationOffset
         {
             match_or_panic!(
                 self,
@@ -679,7 +700,7 @@ pub(in crate::map) mod ui_mod
     #[derive(Debug, Clone, Copy)]
     enum RotationAuxiliary
     {
-        Texture(OffsetAuxiliary),
+        Texture(RotationOffset),
         Sprite(f32, f32)
     }
 
@@ -759,16 +780,14 @@ pub(in crate::map) mod ui_mod
     impl OffsetAuxiliary
     {
         #[inline]
-        #[must_use]
-        fn offset_mut(&mut self) -> (&mut f32, &mut f32)
+        fn rotation_data(
+            &self,
+            texture_angle: f32,
+            rotation_angle: f32,
+            pivot: Vec2
+        ) -> RotationOffset
         {
-            (&mut self.offset_x, &mut self.offset_y)
-        }
-
-        #[inline]
-        fn rotation_data(&self, texture_angle: f32, rotation_angle: f32, pivot: Vec2) -> Self
-        {
-            let mut copy = *self;
+            let mut copy = self.rotation;
 
             let pivot = match copy.last_pivot
             {
@@ -1194,9 +1213,8 @@ pub(in crate::map) mod ui_mod
                     ScaleOffset::Texture(x, y)
                 ) =>
                 {
-                    let (offset_x, offset_y) = offset_auxiliary.offset_mut();
-                    *offset_x += *x;
-                    *offset_y += *y;
+                    offset_auxiliary.scale.offset_x += *x;
+                    offset_auxiliary.scale.offset_y += *y;
 
                     *x = -*x;
                     *y = -*y;
@@ -1371,7 +1389,7 @@ pub(in crate::map) mod ui_mod
                         offset_auxiliary, ..
                     },
                     RotationAuxiliary::Texture(auxiliary)
-                ) => std::mem::swap(offset_auxiliary, auxiliary),
+                ) => std::mem::swap(&mut offset_auxiliary.rotation, auxiliary),
                 _ => unreachable!()
             };
         }
@@ -1398,7 +1416,7 @@ pub(in crate::map) mod ui_mod
                 Sprite::True => center,
                 Sprite::False {
                     offset_auxiliary, ..
-                } => offset_auxiliary.last_pivot.unwrap_or_default()
+                } => offset_auxiliary.rotation.last_pivot.unwrap_or_default()
             };
 
             let mut rotation = self
