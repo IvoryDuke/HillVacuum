@@ -451,7 +451,12 @@ impl RotateTool
             ));
 
             edits_history.texture_rotation_cluster(payloads.into_iter().map(|p| {
-                (p.id(), manager.brush_mut(drawing_resources, p.id()).apply_texture_rotation(&p))
+                (
+                    p.id(),
+                    manager
+                        .brush_mut(drawing_resources, p.id())
+                        .apply_texture_rotation(&p)
+                )
             }));
         }
 
@@ -583,7 +588,9 @@ impl RotateTool
 
             for p in payloads
             {
-                _ = manager.brush_mut(drawing_resources, p.id()).apply_texture_rotation(&p);
+                _ = manager
+                    .brush_mut(drawing_resources, p.id())
+                    .apply_texture_rotation(&p);
             }
 
             true

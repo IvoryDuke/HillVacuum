@@ -2821,8 +2821,10 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn apply_texture_rotation(&mut self, payload: &TextureRotationPayload)
-            -> TextureRotation
+        pub fn apply_texture_rotation(
+            &mut self,
+            payload: &TextureRotationPayload
+        ) -> TextureRotation
         {
             assert!(
                 payload.id() == self.id,
