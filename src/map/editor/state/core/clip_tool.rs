@@ -29,6 +29,7 @@ use crate::{
             state::{
                 editor_state::InputsPresses,
                 edits_history::EditsHistory,
+                grid::Grid,
                 manager::EntitiesManager,
                 ui::ToolsButtons
             },
@@ -214,8 +215,9 @@ impl ClipTool
         &mut self,
         bundle: &mut ToolUpdateBundle,
         manager: &mut EntitiesManager,
+        edits_history: &mut EditsHistory,
         inputs: &InputsPresses,
-        edits_history: &mut EditsHistory
+        grid: Grid
     )
     {
         let cursor_pos = self.cursor_pos(bundle.cursor);
@@ -273,7 +275,12 @@ impl ClipTool
                 }
                 else if inputs.enter.just_pressed()
                 {
-                    self.spawn_clipped_brushes(bundle.drawing_resources, manager, edits_history);
+                    self.spawn_clipped_brushes(
+                        bundle.drawing_resources,
+                        manager,
+                        edits_history,
+                        grid
+                    );
                 }
             },
             Status::PickSideUi(clip_side) =>
@@ -351,7 +358,8 @@ impl ClipTool
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        grid: Grid
     )
     {
         let (pick, mut results) = match_or_panic!(
@@ -377,6 +385,7 @@ impl ClipTool
                     _ = manager.replace_brush_with_partition(
                         drawing_resources,
                         edits_history,
+                        grid,
                         Some(result.right).into_iter(),
                         id,
                         |brush| brush.set_polygon(result.left)
@@ -390,6 +399,7 @@ impl ClipTool
                     _ = manager.replace_brush_with_partition(
                         drawing_resources,
                         edits_history,
+                        grid,
                         None.into_iter(),
                         id,
                         |brush| brush.set_polygon(result.left)
@@ -403,6 +413,7 @@ impl ClipTool
                     _ = manager.replace_brush_with_partition(
                         drawing_resources,
                         edits_history,
+                        grid,
                         None.into_iter(),
                         id,
                         |brush| brush.set_polygon(result.right)

@@ -52,7 +52,7 @@ use crate::{
         brush::BrushData,
         camera::scale_viewport,
         drawer::{color::Color, drawing_resources::DrawingResources},
-        editor::{DrawBundle, StateUpdateBundle, ToolUpdateBundle},
+        editor::{DrawBundle, StateUpdateBundle},
         hv_vec,
         path::Path,
         thing::{catalog::ThingsCatalog, ThingInstanceData},
@@ -144,13 +144,18 @@ impl ClipboardData
     /// Whether `self` is out of bounds if moved by the amount `delta`.
     #[inline]
     #[must_use]
-    fn out_of_bounds_moved(&self, drawing_resources: &DrawingResources, delta: Vec2) -> bool
+    fn out_of_bounds_moved(
+        &self,
+        drawing_resources: &DrawingResources,
+        grid: Grid,
+        delta: Vec2
+    ) -> bool
     {
-        (self.hull(drawing_resources) + delta).out_of_bounds()
+        (self.hull(drawing_resources, grid) + delta).out_of_bounds()
     }
 
     #[inline]
-    fn hull(&self, drawing_resources: &DrawingResources) -> Hull
+    fn hull(&self, drawing_resources: &DrawingResources, grid: Grid) -> Hull
     {
         match self
         {
@@ -158,7 +163,7 @@ impl ClipboardData
             {
                 let mut hull = data.polygon_hull();
 
-                if let Some(h) = data.sprite_hull(drawing_resources)
+                if let Some(h) = data.sprite_hull(drawing_resources, grid)
                 {
                     hull = hull.merged(&h);
                 }
@@ -380,7 +385,7 @@ impl Clipboard
         {
             let mut prop =
                 ciborium::from_reader::<Prop, _>(&mut *file).map_err(|_| "Error loading props")?;
-            _ = prop.reload_things(drawing_resources, catalog);
+            _ = prop.reload_things(drawing_resources, catalog, grid);
             props.push(prop);
         }
 
@@ -606,7 +611,7 @@ impl Clipboard
             prop_camera.1,
             (PROP_SCREENSHOT_SIZE.x as f32, PROP_SCREENSHOT_SIZE.y as f32),
             &prop
-                .hull(drawing_resources)
+                .hull(drawing_resources, grid)
                 .transformed(|vx| grid.transform_point(vx)),
             32f32
         );
@@ -638,7 +643,7 @@ impl Clipboard
         {
             let prop = &mut self.props[i];
 
-            if prop.reload_things(bundle.drawing_resources, bundle.things_catalog)
+            if prop.reload_things(bundle.drawing_resources, bundle.things_catalog, grid)
             {
                 self.queue_prop_screenshot(
                     bundle.images,
@@ -669,7 +674,7 @@ impl Clipboard
         {
             let prop = &mut self.props[i];
 
-            if prop.reload_textures(drawing_resources)
+            if prop.reload_textures(drawing_resources, grid)
             {
                 self.queue_prop_screenshot(
                     images,
@@ -709,11 +714,12 @@ impl Clipboard
     pub fn copy<'a, D>(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         iter: impl Iterator<Item = &'a D>
     ) where
         D: CopyToClipboard + ?Sized + 'a
     {
-        self.copy_paste.fill(drawing_resources, iter);
+        self.copy_paste.fill(drawing_resources, grid, iter);
     }
 
     /// Pastes the copied entities.
@@ -722,13 +728,15 @@ impl Clipboard
         &mut self,
         bundle: &StateUpdateBundle,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        grid: Grid
     )
     {
         self.copy_paste.spawn_copy(
             bundle.drawing_resources,
             manager,
             edits_history,
+            grid,
             bundle.cursor.world_snapped()
         );
     }
@@ -739,12 +747,15 @@ impl Clipboard
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         delta: Vec2
     )
     {
-        self.duplicate.fill(drawing_resources, manager.selected_entities());
+        self.duplicate
+            .fill(drawing_resources, grid, manager.selected_entities());
         manager.deselect_selected_entities(edits_history);
-        self.duplicate.spawn(drawing_resources, manager, edits_history, delta);
+        self.duplicate
+            .spawn(drawing_resources, manager, edits_history, grid, delta);
     }
 
     /// Stores `prop` as the quick [`Prop`].
@@ -856,30 +867,33 @@ impl Clipboard
     #[inline]
     pub fn spawn_quick_prop(
         &mut self,
-        bundle: &ToolUpdateBundle,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         cursor_pos: Vec2
     )
     {
         self.quick_prop
-            .paint_copy(bundle.drawing_resources, manager, edits_history, cursor_pos);
+            .paint_copy(drawing_resources, manager, edits_history, grid, cursor_pos);
     }
 
     /// Spawns the selected [`Prop`] on the map.
     #[inline]
     pub fn spawn_selected_prop(
         &mut self,
-        bundle: &ToolUpdateBundle,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         cursor_pos: Vec2
     )
     {
         self.props[self.selected_prop.unwrap()].paint_copy(
-            bundle.drawing_resources,
+            drawing_resources,
             manager,
             edits_history,
+            grid,
             cursor_pos
         );
     }
@@ -1017,6 +1031,7 @@ impl Clipboard
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         identifier: Id
     )
     {
@@ -1031,14 +1046,15 @@ impl Clipboard
 
             manager.replace_selected_path(
                 drawing_resources,
-                identifier,
                 edits_history,
+                grid,
+                identifier,
                 path.clone()
             );
             return;
         }
 
-        manager.create_path(drawing_resources, identifier, path.clone(), edits_history);
+        manager.create_path(drawing_resources, edits_history, grid, identifier, path.clone());
     }
 
     /// Cuts the [`Path`] of the brush with [`Id`] `identifier`.
@@ -1048,11 +1064,12 @@ impl Clipboard
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         identifier: Id
     )
     {
         self.copy_platform_path(manager, identifier);
-        manager.remove_selected_path(drawing_resources, identifier, edits_history);
+        manager.remove_selected_path(drawing_resources, edits_history, grid, identifier);
     }
 
     //==============================================================

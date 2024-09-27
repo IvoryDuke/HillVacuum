@@ -111,7 +111,7 @@ enum PaintingProp
 
 #[allow(clippy::missing_docs_in_private_items)]
 type PropSpawnFunc =
-    fn(&mut Clipboard, &ToolUpdateBundle, &mut EntitiesManager, &mut EditsHistory, Vec2);
+    fn(&mut Clipboard, &DrawingResources, &mut EntitiesManager, &mut EditsHistory, Grid, Vec2);
 
 impl PaintingProp
 {
@@ -184,14 +184,15 @@ impl PaintTool
     #[inline]
     fn quick_spawn(
         &mut self,
-        bundle: &mut ToolUpdateBundle,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        grid: Grid,
         cursor_pos: Vec2
     )
     {
-        clipboard.spawn_quick_prop(bundle, manager, edits_history, cursor_pos);
+        clipboard.spawn_quick_prop(drawing_resources, manager, edits_history, grid, cursor_pos);
         self.status = Status::Paint(PaintingProp::Quick, CursorDelta::new(cursor_pos));
     }
 
@@ -202,9 +203,9 @@ impl PaintTool
         &mut self,
         bundle: &mut ToolUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         grid: Grid
     )
     {
@@ -242,11 +243,24 @@ impl PaintTool
 
                 if inputs.alt_pressed() && clipboard.has_quick_prop()
                 {
-                    self.quick_spawn(bundle, manager, edits_history, clipboard, cursor_pos);
+                    self.quick_spawn(
+                        drawing_resources,
+                        manager,
+                        clipboard,
+                        edits_history,
+                        grid,
+                        cursor_pos
+                    );
                     return;
                 }
 
-                clipboard.spawn_selected_prop(bundle, manager, edits_history, cursor_pos);
+                clipboard.spawn_selected_prop(
+                    drawing_resources,
+                    manager,
+                    edits_history,
+                    grid,
+                    cursor_pos
+                );
                 self.status = Status::Paint(PaintingProp::Slotted, CursorDelta::new(cursor_pos));
             },
             Status::SetPivot(hull) =>
@@ -256,8 +270,13 @@ impl PaintTool
                     return;
                 }
 
-                let mut prop =
-                    Prop::new(drawing_resources, manager.selected_entities(), cursor_pos, None);
+                let mut prop = Prop::new(
+                    drawing_resources,
+                    grid,
+                    manager.selected_entities(),
+                    cursor_pos,
+                    None
+                );
                 Clipboard::assign_camera_to_prop(
                     images,
                     paint_tool_camera,
@@ -306,14 +325,28 @@ impl PaintTool
                     return;
                 }
 
-                self.quick_spawn(bundle, manager, edits_history, clipboard, cursor_pos);
+                self.quick_spawn(
+                    drawing_resources,
+                    manager,
+                    clipboard,
+                    edits_history,
+                    grid,
+                    cursor_pos
+                );
             },
             Status::Paint(prop, drag) =>
             {
                 if cursor.moved()
                 {
                     drag.update(cursor, grid, |_| {
-                        prop.spawn_func()(clipboard, bundle, manager, edits_history, cursor_pos);
+                        prop.spawn_func()(
+                            clipboard,
+                            drawing_resources,
+                            manager,
+                            edits_history,
+                            grid,
+                            cursor_pos
+                        );
                     });
                 }
 
@@ -335,7 +368,7 @@ impl PaintTool
     ) -> Option<Hull>
     {
         manager
-            .selected_entities_hull(drawing_resources)
+            .selected_entities_hull(drawing_resources, grid)
             .map(|hull| grid.snap_hull(&hull))
     }
 

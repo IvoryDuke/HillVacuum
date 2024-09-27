@@ -189,12 +189,14 @@ impl Trees
     pub fn insert_sprite_hull(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         brush: &Brush
     ) -> InsertResult
     {
         self.set_sprites_dirty();
-        self.sprites_tree
-            .insert_entity(brush, |brush| brush.sprite_and_anchor_hull(drawing_resources).unwrap())
+        self.sprites_tree.insert_entity(brush, |brush| {
+            brush.sprite_and_anchor_hull(drawing_resources, grid).unwrap()
+        })
     }
 
     /// Removes the [`Hull`] of the sprite of `brush`.

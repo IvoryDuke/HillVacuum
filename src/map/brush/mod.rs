@@ -418,9 +418,15 @@ pub(in crate::map) mod ui_mod
         ($($side:ident),+) => { paste::paste! { $(
             #[inline]
             #[must_use]
-            pub fn [< check_flip_ $side >](&mut self, drawing_resources: &DrawingResources, value: f32, flip_texture: bool) -> bool
+            pub fn [< check_flip_ $side >](
+                &mut self,
+                drawing_resources: &DrawingResources,
+                grid: Grid,
+                value: f32,
+                flip_texture: bool
+            ) -> bool
             {
-                match self.data.polygon.[< check_flip_ $side >](drawing_resources, value, flip_texture)
+                match self.data.polygon.[< check_flip_ $side >](drawing_resources, grid, value, flip_texture)
                 {
                     Some(new_center) => !self.path_hull_out_of_bounds(new_center),
                     None => false
@@ -428,9 +434,9 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            pub fn [< flip_ $side >](&mut self, drawing_resources: &DrawingResources, value: f32, flip_texture: bool)
+            pub fn [< flip_ $side >](&mut self, value: f32, flip_texture: bool)
             {
-                self.data.polygon.[< flip_ $side >](drawing_resources, value, flip_texture);
+                self.data.polygon.[< flip_ $side >](value, flip_texture);
             }
         )+}};
     }
@@ -899,9 +905,10 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn sprite_hull(&self, drawing_resources: &DrawingResources) -> Option<Hull>
+        pub fn sprite_hull(&self, drawing_resources: &DrawingResources, grid: Grid)
+            -> Option<Hull>
         {
-            self.polygon.sprite_hull(drawing_resources)
+            self.polygon.sprite_hull(drawing_resources, grid)
         }
 
         #[inline]
@@ -1415,48 +1422,42 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn sprite_hull(&self, drawing_resources: &DrawingResources) -> Option<Hull>
+        pub fn sprite_hull(&self, drawing_resources: &DrawingResources, grid: Grid)
+            -> Option<Hull>
         {
-            self.data.polygon.sprite_hull(drawing_resources)
+            self.data.sprite_hull(drawing_resources, grid)
         }
 
         #[inline]
         #[must_use]
-        pub fn sprite_anchor_hull(&self) -> Option<Hull>
+        pub fn sprite_and_anchor_hull(
+            &self,
+            drawing_resources: &DrawingResources,
+            grid: Grid
+        ) -> Option<Hull>
         {
-            if !self.has_sprite()
-            {
-                return None;
-            }
+            self.sprite_hull(drawing_resources, grid).map(|hull| {
+                let anchor_hull = Hull::from_points(
+                    [
+                        grid.transform_point(self.center()),
+                        Vec2::new(hull.right() + hull.half_width(), hull.bottom())
+                    ]
+                    .into_iter()
+                )
+                .unwrap()
+                .bumped(2f32);
 
-            let texture = self.texture_settings().unwrap();
-            let center = self.center();
-
-            Hull::from_points(
-                [
-                    center,
-                    center + Vec2::new(texture.offset_x(), texture.offset_y())
-                ]
-                .into_iter()
-            )
-            .map(|hull| hull.bumped(2f32))
+                hull.merged(&anchor_hull)
+            })
         }
 
         #[inline]
         #[must_use]
-        pub fn sprite_and_anchor_hull(&self, drawing_resources: &DrawingResources) -> Option<Hull>
-        {
-            self.sprite_hull(drawing_resources)
-                .map(|hull| hull.merged(&self.sprite_anchor_hull().unwrap()))
-        }
-
-        #[inline]
-        #[must_use]
-        pub fn global_hull(&self, drawing_resources: &DrawingResources) -> Hull
+        pub fn global_hull(&self, drawing_resources: &DrawingResources, grid: Grid) -> Hull
         {
             let mut hull = self.hull();
 
-            if let Some(s_hull) = self.sprite_hull(drawing_resources)
+            if let Some(s_hull) = self.sprite_hull(drawing_resources, grid)
             {
                 hull = hull.merged(&s_hull);
             }
@@ -1477,19 +1478,27 @@ pub(in crate::map) mod ui_mod
         pub fn check_move(
             &self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             delta: Vec2,
             move_texture: bool
         ) -> bool
         {
-            self.data.polygon.check_move(drawing_resources, delta, move_texture) &&
+            self.data
+                .polygon
+                .check_move(drawing_resources, grid, delta, move_texture) &&
                 !self.path_hull_out_of_bounds(self.center() + delta)
         }
 
         #[inline]
-        pub fn check_texture_move(&self, drawing_resources: &DrawingResources, delta: Vec2)
-            -> bool
+        pub fn check_texture_move(
+            &self,
+            drawing_resources: &DrawingResources,
+            grid: Grid,
+            delta: Vec2
+        ) -> bool
         {
-            !self.has_texture() || self.data.polygon.check_texture_move(drawing_resources, delta)
+            !self.has_texture() ||
+                self.data.polygon.check_texture_move(drawing_resources, grid, delta)
         }
 
         /// Moves the `Brush` by the amount delta.
@@ -1682,10 +1691,13 @@ pub(in crate::map) mod ui_mod
         pub fn check_texture_change(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             texture: &str
         ) -> bool
         {
-            self.data.polygon.check_texture_change(drawing_resources, texture)
+            self.data
+                .polygon
+                .check_texture_change(drawing_resources, grid, texture)
         }
 
         #[inline]
@@ -1738,10 +1750,13 @@ pub(in crate::map) mod ui_mod
         pub fn check_texture_offset_x(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32
         ) -> bool
         {
-            self.data.polygon.check_texture_offset_x(drawing_resources, value)
+            self.data
+                .polygon
+                .check_texture_offset_x(drawing_resources, grid, value)
         }
 
         #[inline]
@@ -1756,10 +1771,13 @@ pub(in crate::map) mod ui_mod
         pub fn check_texture_offset_y(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32
         ) -> bool
         {
-            self.data.polygon.check_texture_offset_y(drawing_resources, value)
+            self.data
+                .polygon
+                .check_texture_offset_y(drawing_resources, grid, value)
         }
 
         #[inline]
@@ -1773,10 +1791,13 @@ pub(in crate::map) mod ui_mod
         pub fn check_texture_scale_x(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32
         ) -> bool
         {
-            self.data.polygon.check_texture_scale_x(drawing_resources, value)
+            self.data
+                .polygon
+                .check_texture_scale_x(drawing_resources, grid, value)
         }
 
         #[inline]
@@ -1793,10 +1814,13 @@ pub(in crate::map) mod ui_mod
         pub fn check_texture_scale_y(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32
         ) -> bool
         {
-            self.data.polygon.check_texture_scale_y(drawing_resources, value)
+            self.data
+                .polygon
+                .check_texture_scale_y(drawing_resources, grid, value)
         }
 
         #[inline]
@@ -1839,10 +1863,11 @@ pub(in crate::map) mod ui_mod
         pub fn check_texture_angle(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32
         ) -> bool
         {
-            self.data.polygon.check_texture_angle(drawing_resources, value)
+            self.data.polygon.check_texture_angle(drawing_resources, grid, value)
         }
 
         #[inline]
@@ -1850,10 +1875,11 @@ pub(in crate::map) mod ui_mod
         pub fn set_texture_angle(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32
         ) -> Option<TextureRotation>
         {
-            self.data.polygon.set_texture_angle(drawing_resources, value)
+            self.data.polygon.set_texture_angle(drawing_resources, grid, value)
         }
 
         #[inline]
@@ -1867,10 +1893,11 @@ pub(in crate::map) mod ui_mod
         pub fn check_texture_sprite(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: bool
         ) -> bool
         {
-            self.data.polygon.check_texture_sprite(drawing_resources, value)
+            self.data.polygon.check_texture_sprite(drawing_resources, grid, value)
         }
 
         #[inline]
@@ -1888,10 +1915,13 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn check_texture_within_bounds(&mut self, drawing_resources: &DrawingResources)
-            -> bool
+        pub fn check_texture_within_bounds(
+            &mut self,
+            drawing_resources: &DrawingResources,
+            grid: Grid
+        ) -> bool
         {
-            self.data.polygon.check_texture_within_bounds(drawing_resources)
+            self.data.polygon.check_texture_within_bounds(drawing_resources, grid)
         }
 
         #[inline]
@@ -1899,12 +1929,13 @@ pub(in crate::map) mod ui_mod
         pub fn check_texture_animation_change(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             animation: &Animation
         ) -> bool
         {
             self.data
                 .polygon
-                .check_texture_animation_change(drawing_resources, animation)
+                .check_texture_animation_change(drawing_resources, grid, animation)
         }
 
         #[inline]
@@ -1930,12 +1961,13 @@ pub(in crate::map) mod ui_mod
         pub fn check_atlas_animation_x_partition(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: u32
         ) -> bool
         {
             self.data
                 .polygon
-                .check_atlas_animation_x_partition(drawing_resources, value)
+                .check_atlas_animation_x_partition(drawing_resources, grid, value)
         }
 
         #[inline]
@@ -1950,12 +1982,13 @@ pub(in crate::map) mod ui_mod
         pub fn check_atlas_animation_y_partition(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: u32
         ) -> bool
         {
             self.data
                 .polygon
-                .check_atlas_animation_y_partition(drawing_resources, value)
+                .check_atlas_animation_y_partition(drawing_resources, grid, value)
         }
 
         #[inline]
@@ -2676,12 +2709,15 @@ pub(in crate::map) mod ui_mod
         pub fn check_scale(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             info: &ScaleInfo,
             scale_texture: bool
         ) -> ScaleResult
         {
             ScaleResult::from_result(
-                self.data.polygon.check_scale(drawing_resources, info, scale_texture),
+                self.data
+                    .polygon
+                    .check_scale(drawing_resources, grid, info, scale_texture),
                 self
             )
         }
@@ -2699,11 +2735,12 @@ pub(in crate::map) mod ui_mod
         pub fn check_texture_scale(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             info: &ScaleInfo
         ) -> TextureScaleResult
         {
             TextureScaleResult::from_result(
-                self.data.polygon.check_texture_scale(drawing_resources, info),
+                self.data.polygon.check_texture_scale(drawing_resources, grid, info),
                 self.id
             )
         }
@@ -2734,11 +2771,14 @@ pub(in crate::map) mod ui_mod
         pub fn check_horizontal_shear(
             &self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             info: &ShearInfo
         ) -> ShearResult
         {
             ShearResult::from_result(
-                self.data.polygon.check_horizontal_shear(drawing_resources, info),
+                self.data
+                    .polygon
+                    .check_horizontal_shear(drawing_resources, grid, info),
                 self
             )
         }
@@ -2756,11 +2796,12 @@ pub(in crate::map) mod ui_mod
         pub fn check_vertical_shear(
             &self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             info: &ShearInfo
         ) -> ShearResult
         {
             ShearResult::from_result(
-                self.data.polygon.check_vertical_shear(drawing_resources, info),
+                self.data.polygon.check_vertical_shear(drawing_resources, grid, info),
                 self
             )
         }
@@ -2781,15 +2822,20 @@ pub(in crate::map) mod ui_mod
         pub fn check_rotation(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             pivot: Vec2,
             angle: f32,
             rotate_texture: bool
         ) -> RotateResult
         {
             RotateResult::from_result(
-                self.data
-                    .polygon
-                    .check_rotation(drawing_resources, pivot, angle, rotate_texture),
+                self.data.polygon.check_rotation(
+                    drawing_resources,
+                    grid,
+                    pivot,
+                    angle,
+                    rotate_texture
+                ),
                 self
             )
         }
@@ -2798,6 +2844,7 @@ pub(in crate::map) mod ui_mod
         pub fn check_texture_rotation(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             pivot: Vec2,
             angle: f32
         ) -> TextureRotationResult
@@ -2806,7 +2853,7 @@ pub(in crate::map) mod ui_mod
                 &self
                     .data
                     .polygon
-                    .check_texture_rotation(drawing_resources, pivot, angle),
+                    .check_texture_rotation(drawing_resources, grid, pivot, angle),
                 self.id
             )
         }

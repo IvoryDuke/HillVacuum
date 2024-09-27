@@ -466,8 +466,8 @@ impl SideTool
         &mut self,
         bundle: &mut ToolUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         grid: Grid
     )
     {

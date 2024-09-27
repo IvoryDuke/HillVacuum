@@ -29,6 +29,7 @@ use crate::{
             state::{
                 editor_state::{InputsPresses, ToolsSettings},
                 edits_history::EditsHistory,
+                grid::Grid,
                 manager::EntitiesManager
             },
             DrawBundle,
@@ -202,10 +203,16 @@ impl DrawTool
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        grid: Grid
     )
     {
-        manager.despawn_drawn_brushes(drawing_resources, &mut self.drawn_brushes, edits_history);
+        manager.despawn_drawn_brushes(
+            drawing_resources,
+            edits_history,
+            grid,
+            &mut self.drawn_brushes
+        );
     }
 
     /// Updates the tool.
@@ -214,8 +221,9 @@ impl DrawTool
         &mut self,
         bundle: &mut ToolUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
+        grid: Grid,
         settings: &mut ToolsSettings
     )
     {
@@ -223,8 +231,9 @@ impl DrawTool
         {
             manager.despawn_drawn_brushes(
                 bundle.drawing_resources,
-                &mut self.drawn_brushes,
-                edits_history
+                edits_history,
+                grid,
+                &mut self.drawn_brushes
             );
             return;
         }
@@ -233,26 +242,27 @@ impl DrawTool
         {
             Shape::Square(cb) =>
             {
-                cb.update(bundle, manager, &mut self.drawn_brushes, inputs, edits_history);
+                cb.update(bundle, manager, edits_history, inputs, grid, &mut self.drawn_brushes);
             },
             Shape::Triangle(cb) =>
             {
-                cb.update(bundle, manager, &mut self.drawn_brushes, inputs, edits_history);
+                cb.update(bundle, manager, edits_history, inputs, grid, &mut self.drawn_brushes);
             },
             Shape::Circle(cb) =>
             {
                 cb.update(
                     bundle,
                     manager,
-                    &mut self.drawn_brushes,
-                    inputs,
                     edits_history,
-                    settings
+                    inputs,
+                    grid,
+                    settings,
+                    &mut self.drawn_brushes
                 );
             },
             Shape::FreeDraw(cb) =>
             {
-                cb.update(bundle, manager, &mut self.drawn_brushes, inputs, edits_history);
+                cb.update(bundle, manager, edits_history, inputs, grid, &mut self.drawn_brushes);
             }
         };
     }

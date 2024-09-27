@@ -201,7 +201,11 @@ pub(in crate::map) mod ui_mod
 
     use super::{DefaultProperties, Properties};
     use crate::{
-        map::{drawer::drawing_resources::DrawingResources, indexed_map::IndexedMap},
+        map::{
+            drawer::drawing_resources::DrawingResources,
+            editor::state::grid::Grid,
+            indexed_map::IndexedMap
+        },
         utils::{
             collections::{hv_hash_map, hv_vec},
             misc::{AssertedInsertRemove, ReplaceValue}
@@ -223,7 +227,13 @@ pub(in crate::map) mod ui_mod
     pub(in crate::map) trait SetProperty
     {
         /// Sets the property `key` to `value`.
-        fn set_property(&mut self, drawing_resources: &DrawingResources, key: &str, value: &Value);
+        fn set_property(
+            &mut self,
+            drawing_resources: &DrawingResources,
+            grid: Grid,
+            key: &str,
+            value: &Value
+        );
     }
 
     //=======================================================================//

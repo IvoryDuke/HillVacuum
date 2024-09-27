@@ -45,7 +45,7 @@ use crate::{
             lines_and_segments::{line_equation, LineEquation},
             points::rotate_point
         },
-        misc::{Camera, Translate, VX_HGL_SIDE}
+        misc::{Camera, VX_HGL_SIDE}
     },
     Animation,
     TextureInterface
@@ -68,35 +68,6 @@ const TOOLTIP_ROUNDING: f32 = 3f32;
 //=======================================================================//
 // MACROS
 //
-//=======================================================================//
-
-macro_rules! sprite_vxs {
-    (
-        $func:ident,
-        $resources:expr,
-        $brush_center:ident,
-        $settings:ident,
-        $grid:expr
-        $(, $animator:ident)?
-    ) => {{
-        let brush_center = $grid.transform_point($brush_center);
-        let mut vxs = $settings.$func($resources, $($animator,)? brush_center).unwrap();
-
-        let offset = $settings.draw_offset();
-        vxs.translate($grid.transform_point(offset) - offset);
-
-        if $grid.isometric()
-        {
-            vxs.translate(Vec2::new(
-                0f32,
-                $settings.sprite_hull($resources, brush_center).unwrap().half_height()
-            ));
-        }
-
-        vxs
-    }};
-}
-
 //=======================================================================//
 
 macro_rules! unskewed_funcs {
@@ -917,7 +888,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         show_outline: bool
     )
     {
-        let vxs = sprite_vxs!(sprite_vxs, self.resources, brush_center, settings, self.grid);
+        let vxs = settings.sprite_vxs(self.resources, self.grid, brush_center).unwrap();
 
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(4);
@@ -1446,14 +1417,9 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
         settings: &T
     )
     {
-        let vxs = sprite_vxs!(
-            animated_sprite_vxs,
-            self.resources,
-            brush_center,
-            settings,
-            self.grid,
-            animator
-        );
+        let vxs = settings
+            .animated_sprite_vxs(self.resources, self.grid, animator, brush_center)
+            .unwrap();
         let resources = unsafe { std::ptr::from_mut(self.resources).as_mut().unwrap() };
 
         let mut mesh_generator = resources.mesh_generator();

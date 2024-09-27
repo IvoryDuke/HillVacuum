@@ -20,6 +20,7 @@ use crate::{
                 clipboard::Clipboard,
                 editor_state::InputsPresses,
                 edits_history::EditsHistory,
+                grid::Grid,
                 manager::EntitiesManager,
                 ui::{checkbox::CheckBox, overall_value_field::OverallValueField}
             },
@@ -94,9 +95,10 @@ impl Innards
         things_default_properties: &DefaultProperties,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
-        inputs: &InputsPresses
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
+        grid: Grid
     )
     {
         /// The height of the rows of the grid.
@@ -153,9 +155,10 @@ impl Innards
                     things_default_properties,
                     drawing_resources,
                     manager,
-                    edits_history,
                     clipboard,
-                    inputs
+                    edits_history,
+                    inputs,
+                    grid
                 );
             });
     }
@@ -169,17 +172,18 @@ impl Innards
         things_default_properties: &DefaultProperties,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
-        inputs: &InputsPresses
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
+        grid: Grid
     )
     {
         /// Sets a property.
         macro_rules! set_property {
-            ($self:ident, $key:ident, $value:ident, $entities:ident $(, $drawing_resources:ident)?) => {
+            ($self:ident, $key:ident, $value:ident, $entities:ident $(, $drawing_resources:ident, $grid:ident)?) => {
                 $self.edits_history.property(
                     $key,
-                    $self.manager.$entities($($drawing_resources)?).filter_map(|mut entity| {
+                    $self.manager.$entities($($drawing_resources, $grid)?).filter_map(|mut entity| {
                         entity.set_property($key, $value).map(|value| (entity.id(), value))
                     })
                 );
@@ -212,11 +216,12 @@ impl Innards
             fn set_property(
                 &mut self,
                 drawing_resources: &DrawingResources,
+                grid: Grid,
                 key: &str,
                 value: &Value
             )
             {
-                set_property!(self, key, value, selected_brushes_mut, drawing_resources);
+                set_property!(self, key, value, selected_brushes_mut, drawing_resources, grid);
             }
         }
 
@@ -231,7 +236,7 @@ impl Innards
         impl<'a> SetProperty for ThingsPropertySetter<'a>
         {
             #[inline]
-            fn set_property(&mut self, _: &DrawingResources, key: &str, value: &Value)
+            fn set_property(&mut self, _: &DrawingResources, _: Grid, key: &str, value: &Value)
             {
                 set_property!(self, key, value, selected_things_mut);
             }
@@ -251,7 +256,7 @@ impl Innards
 
                 if let Some(value) = CheckBox::show(ui, &self.overall_brushes_collision, |v| *v)
                 {
-                    for mut brush in manager.selected_brushes_mut(drawing_resources)
+                    for mut brush in manager.selected_brushes_mut(drawing_resources, grid)
                     {
                         edits_history
                             .collision(brush.id(), continue_if_none!(brush.set_collision(value)));
@@ -263,15 +268,16 @@ impl Innards
                 ui.end_row();
 
                 self.overall_brushes_properties.show(
-                    drawing_resources,
                     ui,
+                    drawing_resources,
+                    brushes_default_properties,
+                    clipboard,
+                    inputs,
+                    grid,
                     &mut BrushesPropertySetter {
                         manager,
                         edits_history
-                    },
-                    clipboard,
-                    inputs,
-                    brushes_default_properties
+                    }
                 );
 
                 filler(ui, self.brushes_filler);
@@ -328,15 +334,16 @@ impl Innards
                 );
 
                 self.overall_things_properties.show(
-                    drawing_resources,
                     ui,
+                    drawing_resources,
+                    things_default_properties,
+                    clipboard,
+                    inputs,
+                    grid,
                     &mut ThingsPropertySetter {
                         manager,
                         edits_history
-                    },
-                    clipboard,
-                    inputs,
-                    things_default_properties
+                    }
                 );
 
                 filler(ui, self.things_filler);
@@ -527,9 +534,10 @@ impl PropertiesWindow
         &mut self,
         bundle: &mut StateUpdateBundle,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
-        inputs: &InputsPresses
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
+        grid: Grid
     ) -> bool
     {
         let StateUpdateBundle {
@@ -578,9 +586,10 @@ impl PropertiesWindow
                         map_things,
                         bundle.drawing_resources,
                         manager,
-                        edits_history,
                         clipboard,
-                        inputs
+                        edits_history,
+                        inputs,
+                        grid
                     );
                 }
             )

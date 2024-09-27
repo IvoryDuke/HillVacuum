@@ -11,7 +11,7 @@ use hill_vacuum_shared::{return_if_none, TEXTURE_HEIGHT_RANGE};
 use self::animation_editor::{AnimationEditor, Target};
 use super::{
     checkbox::CheckBox,
-    overall_value_field::{MinusPlusOverallValueField, OverallValueField},
+    overall_value_field::{MinusPlusOverallValueField, MinusPlusUiOverallValue, OverallValueField},
     window::Window,
     ActuallyLostFocus,
     WindowCloser,
@@ -31,6 +31,7 @@ use crate::{
                 editor_state::{InputsPresses, ToolsSettings},
                 edits_history::EditsHistory,
                 format_texture_preview,
+                grid::Grid,
                 manager::{EntitiesManager, TextureResult},
                 ui::{minus_plus_buttons::MinusPlusButtons, texture_per_row}
             },
@@ -41,7 +42,7 @@ use crate::{
         collections::hv_vec,
         identifiers::EntityId,
         misc::Toggle,
-        overall_value::{OverallValue, OverallValueInterface, OverallValueToUi}
+        overall_value::{OverallValue, OverallValueInterface, OverallValueToUi, UiOverallValue}
     },
     HvVec
 };
@@ -73,33 +74,24 @@ const DELETE_BUTTON_WIDTH: f32 = 12f32;
 //
 //=======================================================================//
 
-/// Generates the function surrounding a [`MinusPlusOverallValueField`] related to a texture
-/// setting.
-macro_rules! plus_minus_textedit {
-    (
-        $self:ident,
-        $bundle:ident,
-        $t:ty,
-        $value:ident,
-        $step:expr,
-        $strip:ident,
-        $clamp:expr
-        $(, $default_if_none:literal)?
-        $(, $drawing_resources:ident)?
-    ) => {{ paste::paste! {
-        #[allow(unused_mut)]
+macro_rules! scale_offset_setters {
+    ($(($value:ident, $($xy:ident),+)),+) => { paste::paste! {$($(
         #[inline]
-        fn set(
-            value: $t,
+        fn [< $value _ $xy _setter >](
+            drawing_resources: &DrawingResources,
             manager: &mut EntitiesManager,
             edits_history: &mut EditsHistory,
-            drawing_resources: &DrawingResources
+            grid: Grid,
+            value: f32
         ) -> bool
         {
             let valid = manager.test_operation_validity(|manager| {
-                manager.selected_textured_brushes_mut(drawing_resources).find_map(|mut brush| {
-                    (!brush.[< check_texture_ $value >](drawing_resources, value)).then_some(brush.id())
-                })
+                manager
+                    .selected_textured_brushes_mut(drawing_resources, grid)
+                    .find_map(|mut brush| {
+                        (!brush.[< check_texture_ $value _ $xy >](drawing_resources, grid, value))
+                            .then_some(brush.id())
+                    })
             });
 
             if !valid
@@ -107,55 +99,44 @@ macro_rules! plus_minus_textedit {
                 return false;
             }
 
-            $(let $drawing_resources = drawing_resources;)?
-
-            edits_history.[< texture_ $value _cluster >](
-                manager.selected_textured_brushes_mut(drawing_resources).filter_map(|mut brush| {
-                    brush.[< set_texture_ $value >]($($drawing_resources,)? value).map(|prev| (brush.id(), prev))
-                })
+            edits_history.[< texture_ $value _ $xy _cluster >](
+                manager
+                    .selected_textured_brushes_mut(drawing_resources, grid)
+                    .filter_map(|mut brush| {
+                        brush.[< set_texture_ $value _ $xy >](value).map(|prev| (brush.id(), prev))
+                    })
             );
 
             manager.schedule_outline_update();
             true
         }
+    )+)+}};
+}
 
-        let value = &mut $self.overall_texture.$value;
-        $(
-            let _ = $default_if_none;
-            let value = match value
-            {
-                Some(value) => value,
-                None => &mut crate::utils::overall_value::UiOverallValue::none()
-            };
-        )?
+//=======================================================================//
 
-        let Bundle {
-            clipboard,
-            inputs,
-            manager,
-            edits_history,
-            drawing_resources,
-            ..
-        } = $bundle;
-
-        MinusPlusOverallValueField::new((MINUS_PLUS_WIDTH, MINUS_PLUS_HEIGHT).into())
-            .show(
-                &mut $strip,
-                clipboard,
-                inputs,
-                value,
-                $step,
-                $clamp,
-                |value| {
-                    set(
-                        value,
-                        manager,
-                        edits_history,
-                        drawing_resources
-                    ).then_some(value)
-                }
+macro_rules! height_parallax_scroll_setters {
+    ($($value:ident, $t:ty),+) => { paste::paste! {$(
+        #[inline]
+        fn [< $value _setter >](
+            drawing_resources: &DrawingResources,
+            manager: &mut EntitiesManager,
+            edits_history: &mut EditsHistory,
+            grid: Grid,
+            value: $t
+        ) -> bool
+        {
+            edits_history.[< texture_ $value _cluster>](
+                manager
+                    .selected_textured_brushes_mut(drawing_resources, grid)
+                    .filter_map(|mut brush| {
+                        brush.[< set_texture_ $value >](value).map(|prev| (brush.id(), prev))
+                    })
             );
-    }}};
+
+            true
+        }
+    )+}};
 }
 
 //=======================================================================//
@@ -194,15 +175,23 @@ macro_rules! scale_offset_scroll_parallax {
                 .horizontal(|mut strip| {
                     strip.cell(|ui| { ui.label(X_LABEL); });
 
-                    plus_minus_textedit!(
-                        self,
+                    let value = &mut self.overall_texture.[< $value _x >];
+                    $(
+                        let _ = $default_if_none;
+                        let value = match value
+                        {
+                            Some(value) => value,
+                            None => &mut UiOverallValue::none()
+                        };
+                    )?
+
+                    Self::minus_plus_textedit(
+                        &mut strip,
                         bundle,
-                        f32,
-                        [< $value _x >],
+                        value,
                         $step,
-                        strip,
-                        $clamp
-                        $(, $default_if_none)?
+                        $clamp,
+                        Self::[< $value _x_setter >]
                     );
 
                     strip.cell(|ui| {
@@ -210,15 +199,23 @@ macro_rules! scale_offset_scroll_parallax {
                         ui.label(Y_LABEL);
                     });
 
-                    plus_minus_textedit!(
-                        self,
+                    let value = &mut self.overall_texture.[< $value _y >];
+                    $(
+                        let _ = $default_if_none;
+                        let value = match value
+                        {
+                            Some(value) => value,
+                            None => &mut UiOverallValue::none()
+                        };
+                    )?
+
+                    Self::minus_plus_textedit(
+                        &mut strip,
                         bundle,
-                        f32,
-                        [< $value _y >],
+                        value,
                         $step,
-                        strip,
-                        $clamp
-                        $(, $default_if_none)?
+                        $clamp,
+                        Self::[< $value _y_setter >]
                     );
                 });
         }
@@ -228,8 +225,13 @@ macro_rules! scale_offset_scroll_parallax {
 //=======================================================================//
 
 /// Creates the definition for the angle and height texture settings functions.
-macro_rules! angle_and_height {
-    ($(($value:ident, $label:literal, $t:ty, $clamp:expr $(, $drawing_resources:ident)?)),+) => { paste::paste! { $(
+macro_rules! angle_height {
+    ($((
+        $value:ident,
+        $label:literal,
+        $t:ty,
+        $clamp:expr
+    )),+) => { paste::paste! {$(
         #[inline]
         fn [< set_ $value >](
             &mut self,
@@ -248,19 +250,17 @@ macro_rules! angle_and_height {
 
                     strip.cell(|ui| { ui.label($label); });
 
-                    plus_minus_textedit!(
-                        self,
+                    Self::minus_plus_textedit(
+                        &mut strip,
                         bundle,
-                        $t,
-                        $value,
+                        &mut self.overall_texture.$value,
                         ONE,
-                        strip,
-                        $clamp
-                        $(, $drawing_resources)?
+                        $clamp,
+                        Self::[< $value _setter >]
                     );
                 });
         }
-    )+ }};
+    )+}};
 }
 
 //=======================================================================//
@@ -364,6 +364,7 @@ struct Bundle<'a>
     edits_history:     &'a mut EditsHistory,
     clipboard:         &'a mut Clipboard,
     inputs:            &'a InputsPresses,
+    grid:              Grid,
     settings:          &'a mut ToolsSettings
 }
 
@@ -384,6 +385,12 @@ struct Innards
 
 impl Innards
 {
+    scale_offset_setters!((scale, x, y), (offset, x, y));
+
+    height_parallax_scroll_setters!(
+        height, i8, parallax_x, f32, parallax_y, f32, scroll_x, f32, scroll_y, f32
+    );
+
     scale_offset_scroll_parallax!(
         (scale, "Scale", 0.5, |scale, step| {
             if scale == 0f32
@@ -398,8 +405,8 @@ impl Innards
         (parallax, "Parallax", 0.05, no_clamp, 0)
     );
 
-    angle_and_height!(
-        (angle, "Angle", f32, |angle, _| angle.rem_euclid(360f32), drawing_resources),
+    angle_height!(
+        (angle, "Angle", f32, |angle, _| angle.rem_euclid(360f32)),
         (height, "Height", i8, |height, _| {
             height.clamp(*TEXTURE_HEIGHT_RANGE.start(), *TEXTURE_HEIGHT_RANGE.end())
         })
@@ -411,10 +418,11 @@ impl Innards
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         texture: &str
     ) -> bool
     {
-        match manager.set_selected_brushes_texture(drawing_resources, edits_history, texture)
+        match manager.set_selected_brushes_texture(drawing_resources, edits_history, grid, texture)
         {
             TextureResult::Invalid => false,
             TextureResult::Valid => true,
@@ -449,6 +457,40 @@ impl Innards
             .egui_texture(return_if_none!(self.selected_texture_name()));
         format_texture_preview!(Image, ui, texture.0, texture.1, TEXTURE_PREVIEW_FRAME_SIDE);
         ui.vertical_centered(|ui| ui.label(texture.2));
+    }
+
+    #[inline]
+    fn minus_plus_textedit<T, F, C>(
+        strip: &mut egui_extras::Strip,
+        bundle: &mut Bundle,
+        value: &mut UiOverallValue<T>,
+        step: T,
+        clamp: C,
+        mut f: F
+    ) where
+        T: MinusPlusUiOverallValue,
+        C: Fn(T, T) -> T,
+        F: FnMut(&DrawingResources, &mut EntitiesManager, &mut EditsHistory, Grid, T) -> bool
+    {
+        let Bundle {
+            clipboard,
+            inputs,
+            manager,
+            edits_history,
+            drawing_resources,
+            grid,
+            ..
+        } = bundle;
+
+        MinusPlusOverallValueField::new((MINUS_PLUS_WIDTH, MINUS_PLUS_HEIGHT).into()).show(
+            strip,
+            clipboard,
+            inputs,
+            value,
+            step,
+            clamp,
+            |value| f(drawing_resources, manager, edits_history, *grid, value).then_some(value)
+        );
     }
 
     /// Draws the UI elements of the texture editor.
@@ -505,6 +547,7 @@ impl Innards
             drawing_resources,
             manager,
             edits_history,
+            grid,
             settings,
             ..
         } = bundle;
@@ -525,7 +568,7 @@ impl Innards
                 {
                     edits_history.texture_reset_cluster(
                         manager
-                            .selected_textured_brushes_mut(drawing_resources)
+                            .selected_textured_brushes_mut(drawing_resources, *grid)
                             .map(|mut brush| (brush.id(), brush.reset_texture()))
                     );
                 }
@@ -689,6 +732,7 @@ impl Innards
             drawing_resources,
             manager,
             edits_history,
+            grid,
             ..
         } = bundle;
 
@@ -748,6 +792,7 @@ impl Innards
                 drawing_resources,
                 manager,
                 edits_history,
+                *grid,
                 &self.overall_texture,
                 return_if_none!(clicked_texture).as_str()
             );
@@ -768,6 +813,7 @@ impl Innards
                         drawing_resources,
                         manager,
                         edits_history,
+                        *grid,
                         texture.name()
                     );
                 }
@@ -912,6 +958,7 @@ impl Innards
                             drawing_resources,
                             manager,
                             edits_history,
+                            grid,
                             ..
                         } = bundle;
 
@@ -921,6 +968,7 @@ impl Innards
                                 drawing_resources,
                                 manager,
                                 edits_history,
+                                *grid,
                                 texture.name()
                             )
                             .then_some(value);
@@ -939,9 +987,11 @@ impl Innards
             strip.cell(|ui| {
                 if delete_button(ui)
                 {
-                    bundle
-                        .manager
-                        .remove_selected_textures(bundle.drawing_resources, bundle.edits_history);
+                    bundle.manager.remove_selected_textures(
+                        bundle.drawing_resources,
+                        bundle.edits_history,
+                        bundle.grid
+                    );
                     bundle.manager.schedule_outline_update();
                 }
             });
@@ -956,11 +1006,19 @@ impl Innards
             .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
             .size(egui_extras::Size::remainder())
             .horizontal(|mut strip| {
+                let Bundle {
+                    drawing_resources,
+                    manager,
+                    edits_history,
+                    grid,
+                    ..
+                } = bundle;
+
                 strip.cell(|ui| {
                     ui.label("Sprite");
                 });
 
-                if !bundle.manager.any_selected_brushes() ||
+                if !manager.any_selected_brushes() ||
                     matches!(self.overall_texture.sprite, OverallValue::None)
                 {
                     strip.cell(|ui| {
@@ -974,14 +1032,48 @@ impl Innards
                     let value =
                         return_if_none!(CheckBox::show(ui, &self.overall_texture.sprite, |v| *v));
 
-                    bundle.manager.set_sprite(
-                        bundle.drawing_resources,
-                        bundle.edits_history,
-                        value
-                    );
-                    bundle.manager.schedule_outline_update();
+                    manager.set_sprite(drawing_resources, edits_history, *grid, value);
+                    manager.schedule_outline_update();
                 });
             });
+    }
+
+    #[allow(unused_mut)]
+    #[inline]
+    fn angle_setter(
+        drawing_resources: &DrawingResources,
+        manager: &mut EntitiesManager,
+        edits_history: &mut EditsHistory,
+        grid: Grid,
+        value: f32
+    ) -> bool
+    {
+        let valid = manager.test_operation_validity(|manager| {
+            manager
+                .selected_textured_brushes_mut(drawing_resources, grid)
+                .find_map(|mut brush| {
+                    (!brush.check_texture_angle(drawing_resources, grid, value))
+                        .then_some(brush.id())
+                })
+        });
+
+        if !valid
+        {
+            return false;
+        }
+
+        edits_history.texture_angle_cluster(
+            manager
+                .selected_textured_brushes_mut(drawing_resources, grid)
+                .filter_map(|mut brush| {
+                    brush
+                        .set_texture_angle(drawing_resources, grid, value)
+                        .map(|prev| (brush.id(), prev))
+                })
+        );
+
+        manager.schedule_outline_update();
+        true
     }
 }
 
@@ -1084,9 +1176,10 @@ impl TextureEditor
         &mut self,
         bundle: &mut StateUpdateBundle,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
         inputs: &InputsPresses,
+        grid: Grid,
         settings: &mut ToolsSettings
     ) -> bool
     {
@@ -1114,6 +1207,7 @@ impl TextureEditor
             edits_history,
             clipboard,
             inputs,
+            grid,
             settings
         };
 

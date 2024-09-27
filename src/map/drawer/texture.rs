@@ -79,7 +79,7 @@ pub trait TextureInterface
         &self,
         camera_pos: Vec2,
         elapsed_time: f32,
-        center: Vec2,
+        brush_center: Vec2,
         parallax_enabled: bool
     ) -> Vec2;
 
@@ -214,14 +214,14 @@ impl TextureInterface for TextureSettings
         &self,
         camera_pos: Vec2,
         elapsed_time: f32,
-        center: Vec2,
+        brush_center: Vec2,
         parallax_enabled: bool
     ) -> Vec2
     {
         #[allow(clippy::match_bool)]
         let p_s = match parallax_enabled
         {
-            true => -(center - camera_pos) * Vec2::new(self.parallax_x(), self.parallax_y()),
+            true => -(brush_center - camera_pos) * Vec2::new(self.parallax_x(), self.parallax_y()),
             false => Vec2::ZERO
         } + Vec2::new(self.scroll_x(), self.scroll_y()) * elapsed_time;
 
@@ -354,7 +354,7 @@ pub(in crate::map) mod ui_mod
                 animation::{Animator, MoveUpDown},
                 drawing_resources::DrawingResources
             },
-            editor::Placeholder,
+            editor::{state::grid::Grid, Placeholder},
             OutOfBounds
         },
         utils::{
@@ -381,7 +381,13 @@ pub(in crate::map) mod ui_mod
         ($($xy:ident),+) => { paste::paste! { $(
             #[inline]
             #[must_use]
-            pub(in crate::map) fn [< check_offset_ $xy >](&mut self, drawing_resources: &DrawingResources, value: f32, center: Vec2) -> bool
+            pub(in crate::map) fn [< check_offset_ $xy >](
+                &mut self,
+                drawing_resources: &DrawingResources,
+                grid: Grid,
+                value: f32,
+                brush_center: Vec2
+            ) -> bool
             {
                 if !self.sprite.enabled() || value.around_equal_narrow(&self.[< offset_ $xy >])
                 {
@@ -389,7 +395,7 @@ pub(in crate::map) mod ui_mod
                 }
 
                 let prev = self.[< offset_ $xy >].replace_value(value);
-                let result = self.check_sprite_vxs(drawing_resources, center);
+                let result = self.check_sprite_vxs(drawing_resources, grid, brush_center);
                 self.[< offset_ $xy >] = prev;
 
                 result.is_ok()
@@ -409,7 +415,13 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            pub(in crate::map) fn [< check_scale_ $xy >](&mut self, drawing_resources: &DrawingResources, value: f32, center: Vec2) -> bool
+            pub(in crate::map) fn [< check_scale_ $xy >](
+                &mut self,
+                drawing_resources: &DrawingResources,
+                grid: Grid,
+                value: f32,
+                brush_center: Vec2
+            ) -> bool
             {
                 assert!(value != 0f32, "Scale is 0.");
 
@@ -419,7 +431,7 @@ pub(in crate::map) mod ui_mod
                 }
 
                 let prev = self.[< scale_ $xy >].replace_value(value);
-                let result = self.check_sprite_vxs(drawing_resources, center);
+                let result = self.check_sprite_vxs(drawing_resources, grid, brush_center);
                 self.[< scale_ $xy >] = prev;
 
                 result.is_ok()
@@ -441,12 +453,19 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            pub(in crate::map) fn [< check_ $xy _flip >](&mut self, drawing_resources: &DrawingResources, mirror: f32, old_center: Vec2, new_center: Vec2) -> bool
+            pub(in crate::map) fn [< check_ $xy _flip >](
+                &mut self,
+                drawing_resources: &DrawingResources,
+                grid: Grid,
+                mirror: f32,
+                old_brush_center: Vec2,
+                new_center: Vec2
+            ) -> bool
             {
-                let sprite_center = return_if_none!(self.sprite_hull(drawing_resources, old_center), true).center();
-                let [< new_offset_ $xy >] = mirror - sprite_center.$xy - new_center.$xy;
+                let sprite_pivot = return_if_none!(self.sprite_pivot(old_brush_center), true);
+                let [< new_offset_ $xy >] = mirror - sprite_pivot.$xy - new_center.$xy;
                 let [< prev_offset_ $xy >] = self.[< offset_ $xy >].replace_value([< new_offset_ $xy >]);
-                let result = self.check_sprite_vxs(drawing_resources, new_center);
+                let result = self.check_sprite_vxs(drawing_resources, grid, new_center);
 
                 self.[< offset_ $xy >] = [< prev_offset_ $xy >];
 
@@ -454,11 +473,16 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            pub(in crate::map) fn [< $xy _flip >](&mut self, drawing_resources: &DrawingResources, mirror: f32, old_center: Vec2, new_center: Vec2)
+            pub(in crate::map) fn [< $xy _flip >](
+                &mut self,
+                mirror: f32,
+                old_brush_center: Vec2,
+                new_center: Vec2
+            )
             {
                 self.[< scale_ $xy >] = -self.[< scale_ $xy >];
-                let sprite_center = return_if_none!(self.sprite_hull(drawing_resources, old_center)).center();
-                self.[< offset_ $xy >] = mirror - sprite_center.$xy - new_center.$xy;
+                let sprite_pivot = return_if_none!(self.sprite_pivot(old_brush_center));
+                self.[< offset_ $xy >] = mirror - sprite_pivot.$xy - new_center.$xy;
             }
 
             #[inline]
@@ -496,8 +520,9 @@ pub(in crate::map) mod ui_mod
             pub(in crate::map) fn [< check_atlas_animation_ $xy _partition >](
                 &mut self,
                 drawing_resources: &DrawingResources,
+                grid: Grid,
                 value: u32,
-                center: Vec2
+                brush_center: Vec2
             ) -> bool
             {
                 let prev = {
@@ -513,7 +538,7 @@ pub(in crate::map) mod ui_mod
                     prev
                 };
 
-                let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
+                let result = self.check_sprite_vxs(drawing_resources, grid, brush_center).is_ok();
                 _ = self.animation
                     .get_atlas_animation_mut()
                     .[< set _$xy _partition >](prev);
@@ -618,22 +643,32 @@ pub(in crate::map) mod ui_mod
         ) -> &'a Animation;
 
         #[must_use]
-        fn sprite_hull(&self, drawing_resources: &DrawingResources, center: Vec2) -> Option<Hull>;
+        fn sprite_hull(
+            &self,
+            drawing_resources: &DrawingResources,
+            grid: Grid,
+            brush_center: Vec2
+        ) -> Option<Hull>;
 
         #[must_use]
         fn sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
-            center: Vec2
+            grid: Grid,
+            brush_center: Vec2
         ) -> Option<[Vec2; 4]>;
 
         #[must_use]
         fn animated_sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             animator: Option<&Animator>,
-            center: Vec2
+            brush_center: Vec2
         ) -> Option<[Vec2; 4]>;
+
+        #[must_use]
+        fn sprite_pivot(&self, brush_center: Vec2) -> Option<Vec2>;
     }
 
     //=======================================================================//
@@ -1048,9 +1083,26 @@ pub(in crate::map) mod ui_mod
     impl TextureInterfaceExtra for TextureSettings
     {
         #[inline]
-        fn sprite_hull(&self, drawing_resources: &DrawingResources, center: Vec2) -> Option<Hull>
+        fn overall_animation<'a>(&'a self, drawing_resources: &'a DrawingResources)
+            -> &'a Animation
         {
-            self.sprite_vxs(drawing_resources, center)
+            if !self.animation.is_none()
+            {
+                return &self.animation;
+            }
+
+            &drawing_resources.texture_or_error(&self.texture).animation
+        }
+
+        #[inline]
+        fn sprite_hull(
+            &self,
+            drawing_resources: &DrawingResources,
+            grid: Grid,
+            brush_center: Vec2
+        ) -> Option<Hull>
+        {
+            self.texture_sprite_vxs(drawing_resources, grid, &self.texture, brush_center)
                 .map(|vxs| Hull::from_points(vxs.into_iter()).unwrap())
         }
 
@@ -1058,18 +1110,20 @@ pub(in crate::map) mod ui_mod
         fn sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
-            center: Vec2
+            grid: Grid,
+            brush_center: Vec2
         ) -> Option<[Vec2; 4]>
         {
-            self.texture_sprite_vxs(drawing_resources, &self.texture, center)
+            self.texture_sprite_vxs(drawing_resources, grid, &self.texture, brush_center)
         }
 
         #[inline]
         fn animated_sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             animator: Option<&Animator>,
-            center: Vec2
+            brush_center: Vec2
         ) -> Option<[Vec2; 4]>
         {
             match animator
@@ -1091,22 +1145,16 @@ pub(in crate::map) mod ui_mod
                         Animator::Atlas(_) => &self.texture
                     };
 
-                    self.texture_sprite_vxs(drawing_resources, texture, center)
+                    self.texture_sprite_vxs(drawing_resources, grid, texture, brush_center)
                 },
-                None => self.sprite_vxs(drawing_resources, center)
+                None => self.sprite_vxs(drawing_resources, grid, brush_center)
             }
         }
 
         #[inline]
-        fn overall_animation<'a>(&'a self, drawing_resources: &'a DrawingResources)
-            -> &'a Animation
+        fn sprite_pivot(&self, brush_center: Vec2) -> Option<Vec2>
         {
-            if !self.animation.is_none()
-            {
-                return &self.animation;
-            }
-
-            &drawing_resources.texture_or_error(&self.texture).animation
+            self.sprite.enabled().then(|| brush_center + self.draw_offset())
         }
     }
 
@@ -1134,24 +1182,6 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        fn texture_sprite_vxs(
-            &self,
-            drawing_resources: &DrawingResources,
-            texture: &str,
-            center: Vec2
-        ) -> Option<[Vec2; 4]>
-        {
-            let mut vxs = self.texture_sprite_vxs_at_origin(drawing_resources, texture);
-
-            if let Some(vxs) = &mut vxs
-            {
-                vxs.translate(center);
-            }
-
-            vxs
-        }
-
-        #[inline]
         pub(in crate::map::drawer) const fn sprite_struct(&self) -> &Sprite { &self.sprite }
 
         /// Returns the maximum possible frames of the atlas animation.
@@ -1175,11 +1205,13 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_move(
             &self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             delta: Vec2,
-            center: Vec2
+            brush_center: Vec2
         ) -> bool
         {
-            !(return_if_none!(self.sprite_hull(drawing_resources, center), true) + delta)
+            !(return_if_none!(self.sprite_hull(drawing_resources, grid, brush_center), true) +
+                delta)
                 .out_of_bounds()
         }
 
@@ -1189,15 +1221,16 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_scale(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             info: &ScaleInfo,
-            old_center: Vec2,
+            old_brush_center: Vec2,
             new_center: Vec2
         ) -> Option<TextureScale>
         {
             let (scale_x, scale_y) = info.texture_scale(self.scale_x, self.scale_y);
-            let sprite_center = match self.sprite_hull(drawing_resources, old_center)
+            let sprite_pivot = match self.sprite_pivot(old_brush_center)
             {
-                Some(hull) => hull.center(),
+                Some(pivot) => pivot,
                 None =>
                 {
                     let offset = Vec2::new(
@@ -1216,13 +1249,13 @@ pub(in crate::map) mod ui_mod
                 }
             };
 
-            let new_offset = info.scaled_point(sprite_center) - new_center;
+            let new_offset = info.scaled_point(sprite_pivot) - new_center;
             let prev_offset_x = self.offset_x.replace_value(new_offset.x);
             let prev_offset_y = self.offset_y.replace_value(new_offset.y);
             let prev_scale_x = self.scale_x.replace_value(scale_x);
             let prev_scale_y = self.scale_y.replace_value(scale_y);
 
-            let result = self.check_sprite_vxs(drawing_resources, new_center);
+            let result = self.check_sprite_vxs(drawing_resources, grid, new_center);
 
             self.offset_x = prev_offset_x;
             self.offset_y = prev_offset_y;
@@ -1277,8 +1310,9 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_texture_change(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             texture: &str,
-            center: Vec2
+            brush_center: Vec2
         ) -> bool
         {
             if !self.sprite.enabled()
@@ -1287,7 +1321,7 @@ pub(in crate::map) mod ui_mod
             }
 
             let prev = self.texture.replace_value(texture.to_owned());
-            let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
+            let result = self.check_sprite_vxs(drawing_resources, grid, brush_center).is_ok();
             self.texture = prev;
             result
         }
@@ -1345,8 +1379,9 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_angle(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32,
-            center: Vec2
+            brush_center: Vec2
         ) -> bool
         {
             value.assert_normalized_degrees_angle();
@@ -1357,7 +1392,7 @@ pub(in crate::map) mod ui_mod
             }
 
             let prev = self.angle.replace_value(value);
-            let result = self.check_sprite_vxs(drawing_resources, center);
+            let result = self.check_sprite_vxs(drawing_resources, grid, brush_center);
             self.angle = prev;
 
             result.is_ok()
@@ -1369,9 +1404,10 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_rotation(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             pivot: Vec2,
             angle: f32,
-            old_center: Vec2,
+            old_brush_center: Vec2,
             new_center: Vec2
         ) -> Option<TextureRotation>
         {
@@ -1379,10 +1415,9 @@ pub(in crate::map) mod ui_mod
 
             let end_angle = (self.angle - angle).rem_euclid(360f32);
             let angle = angle.to_radians();
-
-            let sprite_center = match self.sprite_hull(drawing_resources, old_center)
+            let sprite_pivot = match self.sprite_pivot(old_brush_center)
             {
-                Some(hull) => hull.center(),
+                Some(pivot) => pivot,
                 None =>
                 {
                     return TextureRotation {
@@ -1397,12 +1432,12 @@ pub(in crate::map) mod ui_mod
                 }
             };
 
-            let [x, y] = (rotate_point(sprite_center, pivot, angle) - new_center).to_array();
+            let [x, y] = (rotate_point(sprite_pivot, pivot, angle) - new_center).to_array();
             let prev_offset_x = self.offset_x.replace_value(x);
             let prev_offset_y = self.offset_y.replace_value(y);
             let prev_angle = self.angle.replace_value(end_angle);
 
-            let result = self.check_sprite_vxs(drawing_resources, new_center);
+            let result = self.check_sprite_vxs(drawing_resources, grid, new_center);
 
             self.offset_x = prev_offset_x;
             self.offset_y = prev_offset_y;
@@ -1449,8 +1484,9 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn set_angle(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32,
-            center: Vec2
+            brush_center: Vec2
         ) -> Option<TextureRotation>
         {
             value.assert_normalized_degrees_angle();
@@ -1462,7 +1498,7 @@ pub(in crate::map) mod ui_mod
 
             let pivot = match &self.sprite
             {
-                Sprite::True => center,
+                Sprite::True => brush_center,
                 Sprite::False {
                     offset_auxiliary, ..
                 } => offset_auxiliary.rotation.last_pivot.unwrap_or_default()
@@ -1471,10 +1507,11 @@ pub(in crate::map) mod ui_mod
             let mut rotation = self
                 .check_rotation(
                     drawing_resources,
+                    grid,
                     pivot,
                     (self.angle - value).rem_euclid(360f32),
-                    center,
-                    center
+                    brush_center,
+                    brush_center
                 )
                 .unwrap();
             self.rotate(&mut rotation);
@@ -1488,8 +1525,9 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_sprite(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: bool,
-            center: Vec2
+            brush_center: Vec2
         ) -> bool
         {
             if !value || self.sprite.enabled()
@@ -1502,7 +1540,7 @@ pub(in crate::map) mod ui_mod
             let new = Sprite::from(true);
 
             let prev_sprite = self.sprite.replace_value(new);
-            let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
+            let result = self.check_sprite_vxs(drawing_resources, grid, brush_center).is_ok();
 
             self.offset_x = prev_offset_x;
             self.offset_y = prev_offset_y;
@@ -1554,10 +1592,11 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_within_bounds(
             &self,
             drawing_resources: &DrawingResources,
-            center: Vec2
+            grid: Grid,
+            brush_center: Vec2
         ) -> bool
         {
-            self.check_sprite_vxs(drawing_resources, center).is_ok()
+            self.check_sprite_vxs(drawing_resources, grid, brush_center).is_ok()
         }
 
         /// Checks whether changing animation makes the sprite, if any, go out of bounds.
@@ -1566,8 +1605,9 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_animation_change(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             animation: &Animation,
-            center: Vec2
+            brush_center: Vec2
         ) -> bool
         {
             if !self.sprite.enabled()
@@ -1576,7 +1616,7 @@ pub(in crate::map) mod ui_mod
             }
 
             let prev = self.animation.replace_value(animation.clone());
-            let result = self.check_sprite_vxs(drawing_resources, center).is_ok();
+            let result = self.check_sprite_vxs(drawing_resources, grid, brush_center).is_ok();
             self.animation = prev;
             result
         }
@@ -1764,11 +1804,11 @@ pub(in crate::map) mod ui_mod
             swap!(self, value, (scale_x, scale_y, offset_x, offset_y, angle, sprite));
         }
 
-        /// Returns the new sprite vertexes if the texture is being rendered as a sprite.
         #[inline]
-        fn texture_sprite_vxs_at_origin(
+        fn texture_sprite_vxs_at_origin_no_offset(
             &self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             texture: &str
         ) -> Option<[Vec2; 4]>
         {
@@ -1791,14 +1831,66 @@ pub(in crate::map) mod ui_mod
                 }
             }
 
-            let offset = Vec2::new(self.offset_x, self.offset_y);
-
-            for vx in &mut rect
+            if grid.isometric()
             {
-                *vx += offset;
+                rect.translate(Vec2::new(
+                    0f32,
+                    Hull::from_points(rect.iter().copied()).unwrap().half_height()
+                ));
             }
 
             rect.into()
+        }
+
+        #[inline]
+        fn texture_sprite_vxs_at_origin(
+            &self,
+            drawing_resources: &DrawingResources,
+            grid: Grid,
+            texture: &str
+        ) -> Option<[Vec2; 4]>
+        {
+            self.texture_sprite_vxs_at_origin_no_offset(drawing_resources, grid, texture)
+                .map(|mut rect| {
+                    let offset = self.draw_offset();
+                    rect.translate(grid.transform_point(offset) - offset);
+                    rect
+                })
+        }
+
+        #[inline]
+        fn transform_texture_sprite_vxs(grid: Grid, vxs: &mut Option<[Vec2; 4]>, brush_center: Vec2)
+        {
+            if let Some(vxs) = vxs
+            {
+                vxs.translate(grid.transform_point(brush_center));
+            }
+        }
+
+        #[inline]
+        fn texture_sprite_vxs(
+            &self,
+            drawing_resources: &DrawingResources,
+            grid: Grid,
+            texture: &str,
+            brush_center: Vec2
+        ) -> Option<[Vec2; 4]>
+        {
+            let mut vxs = self.texture_sprite_vxs_at_origin(drawing_resources, grid, texture);
+
+            if let Some(vxs) = &mut vxs
+            {
+                vxs.translate(grid.transform_point(brush_center));
+            }
+
+            vxs
+        }
+
+        #[inline]
+        #[must_use]
+        fn sprite_pivot(&self, brush_center: Vec2) -> Option<Vec2>
+        {
+            self.sprite.enabled().then(|| brush_center + self.draw_offset())
         }
 
         /// Checks whether the sprite, if any, fits within the map.
@@ -1806,14 +1898,15 @@ pub(in crate::map) mod ui_mod
         fn check_sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
-            center: Vec2
+            grid: Grid,
+            brush_center: Vec2
         ) -> Result<Option<[Vec2; 4]>, ()>
         {
-            match self.texture_sprite_vxs_at_origin(drawing_resources, &self.texture)
+            match self.texture_sprite_vxs(drawing_resources, grid, &self.texture, brush_center)
             {
                 Some(rect) =>
                 {
-                    if rect.iter().any(|vx| (*vx + center).out_of_bounds())
+                    if rect.iter().any(OutOfBounds::out_of_bounds)
                     {
                         Result::Err(())
                     }

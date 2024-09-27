@@ -15,6 +15,7 @@ use crate::{
             state::{
                 clipboard::Clipboard,
                 editor_state::InputsPresses,
+                grid::Grid,
                 ui::{checkbox::CheckBox, overall_value_field::OverallValueField}
             },
             Placeholder
@@ -163,12 +164,13 @@ impl UiOverallProperties
     #[inline]
     pub fn show<S: SetProperty>(
         &mut self,
-        drawing_resources: &DrawingResources,
         ui: &mut egui::Ui,
-        value_setter: &mut S,
+        drawing_resources: &DrawingResources,
+        default_properties: &DefaultProperties,
         clipboard: &mut Clipboard,
         inputs: &InputsPresses,
-        default_properties: &DefaultProperties
+        grid: Grid,
+        value_setter: &mut S
     )
     {
         assert!(default_properties.len() == self.0.len(), "Different lengths.");
@@ -187,7 +189,7 @@ impl UiOverallProperties
                     CheckBox::show(ui, &o.value, |v| match_or_panic!(v, Value::Bool(value), *value))
                 {
                     let value = Value::Bool(value);
-                    value_setter.set_property(drawing_resources, k, &value);
+                    value_setter.set_property(drawing_resources, grid, k, &value);
                     o.value = value.into();
                     o.ui = o.value.clone().ui();
                 }
@@ -201,7 +203,7 @@ impl UiOverallProperties
                     &mut o.ui,
                     |new_value| {
                         let new_value = d_v.parse(&new_value)?;
-                        value_setter.set_property(drawing_resources, k, &new_value);
+                        value_setter.set_property(drawing_resources, grid, k, &new_value);
                         new_value.into()
                     }
                 );

@@ -901,12 +901,6 @@ pub(in crate::map) mod ui_mod
     impl<'b> TextureInterfaceExtra for MovingTextureSettings<'b>
     {
         #[inline]
-        fn sprite_hull(&self, drawing_resources: &DrawingResources, center: Vec2) -> Option<Hull>
-        {
-            self.texture.sprite_hull(drawing_resources, center + self.delta)
-        }
-
-        #[inline]
         fn overall_animation<'a>(&'a self, drawing_resources: &'a DrawingResources)
             -> &'a Animation
         {
@@ -914,25 +908,50 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
+        fn sprite_hull(
+            &self,
+            drawing_resources: &DrawingResources,
+            grid: Grid,
+            brush_center: Vec2
+        ) -> Option<Hull>
+        {
+            self.texture
+                .sprite_hull(drawing_resources, grid, brush_center + self.delta)
+        }
+
+        #[inline]
         fn sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
-            center: Vec2
+            grid: Grid,
+            brush_center: Vec2
         ) -> Option<[Vec2; 4]>
         {
-            self.texture.sprite_vxs(drawing_resources, center + self.delta)
+            self.texture
+                .sprite_vxs(drawing_resources, grid, brush_center + self.delta)
         }
 
         #[inline]
         fn animated_sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             animator: Option<&Animator>,
-            center: Vec2
+            brush_center: Vec2
         ) -> Option<[Vec2; 4]>
         {
-            self.texture
-                .animated_sprite_vxs(drawing_resources, animator, center + self.delta)
+            self.texture.animated_sprite_vxs(
+                drawing_resources,
+                grid,
+                animator,
+                brush_center + self.delta
+            )
+        }
+
+        #[inline]
+        fn sprite_pivot(&self, brush_center: Vec2) -> Option<Vec2>
+        {
+            self.texture.sprite_pivot(brush_center)
         }
     }
 
@@ -1183,9 +1202,11 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn sprite_hull(&self, drawing_resources: &DrawingResources) -> Option<Hull>
+        pub fn sprite_hull(&self, drawing_resources: &DrawingResources, grid: Grid)
+            -> Option<Hull>
         {
-            self.texture.as_ref()?.sprite_hull(drawing_resources, self.center)
+            self.texture_settings()?
+                .sprite_hull(drawing_resources, grid, self.center)
         }
 
         #[inline]
@@ -1193,11 +1214,12 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn sprite_hull_out_of_bounds(
             &self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             center: Vec2
         ) -> bool
         {
             return_if_none!(self.texture_settings(), false)
-                .sprite_hull(drawing_resources, center)
+                .sprite_hull(drawing_resources, grid, center)
                 .map_or(false, |hull| hull.out_of_bounds())
         }
 
@@ -1245,6 +1267,7 @@ pub(in crate::map) mod ui_mod
         pub fn check_move(
             &self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             delta: Vec2,
             move_texture: bool
         ) -> bool
@@ -1258,6 +1281,7 @@ pub(in crate::map) mod ui_mod
             {
                 return self.texture_settings().unwrap().check_move(
                     drawing_resources,
+                    grid,
                     delta,
                     self.center
                 );
@@ -1414,6 +1438,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_change(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             texture: &str
         ) -> bool
         {
@@ -1421,7 +1446,7 @@ pub(in crate::map) mod ui_mod
             {
                 Some(tex_set) =>
                 {
-                    tex_set.check_texture_change(drawing_resources, texture, self.center)
+                    tex_set.check_texture_change(drawing_resources, grid, texture, self.center)
                 },
                 None => true
             }
@@ -1478,12 +1503,13 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_move(
             &self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: Vec2
         ) -> bool
         {
             self.texture_settings()
                 .unwrap()
-                .check_move(drawing_resources, value, self.center)
+                .check_move(drawing_resources, grid, value, self.center)
         }
 
         #[inline]
@@ -1497,12 +1523,13 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_offset_x(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32
         ) -> bool
         {
             let center = self.center;
             self.texture_settings_mut()
-                .check_offset_x(drawing_resources, value, center)
+                .check_offset_x(drawing_resources, grid, value, center)
         }
 
         #[inline]
@@ -1518,12 +1545,13 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_offset_y(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32
         ) -> bool
         {
             let center = self.center;
             self.texture_settings_mut()
-                .check_offset_y(drawing_resources, value, center)
+                .check_offset_y(drawing_resources, grid, value, center)
         }
 
         #[inline]
@@ -1539,12 +1567,13 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_scale_x(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32
         ) -> bool
         {
             let center = self.center;
             self.texture_settings_mut()
-                .check_scale_x(drawing_resources, value, center)
+                .check_scale_x(drawing_resources, grid, value, center)
         }
 
         #[inline]
@@ -1567,12 +1596,13 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_scale_y(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32
         ) -> bool
         {
             let center = self.center;
             self.texture_settings_mut_dirty()
-                .check_scale_y(drawing_resources, value, center)
+                .check_scale_y(drawing_resources, grid, value, center)
         }
 
         #[inline]
@@ -1627,12 +1657,13 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_angle(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32
         ) -> bool
         {
             let center = self.center;
             self.texture_settings_mut()
-                .check_angle(drawing_resources, value, center)
+                .check_angle(drawing_resources, grid, value, center)
         }
 
         #[inline]
@@ -1640,13 +1671,14 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn set_texture_angle(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: f32
         ) -> Option<TextureRotation>
         {
             let center = self.center;
-            let result = self
-                .texture_settings_mut()
-                .set_angle(drawing_resources, value, center);
+            let result =
+                self.texture_settings_mut()
+                    .set_angle(drawing_resources, grid, value, center);
             self.set_texture_updated(result)
         }
 
@@ -1664,12 +1696,13 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_sprite(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: bool
         ) -> bool
         {
             let center = self.center;
             self.texture_settings_mut()
-                .check_sprite(drawing_resources, value, center)
+                .check_sprite(drawing_resources, grid, value, center)
         }
 
         #[inline]
@@ -1709,12 +1742,17 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn check_texture_within_bounds(&mut self, drawing_resources: &DrawingResources)
-            -> bool
+        pub fn check_texture_within_bounds(
+            &mut self,
+            drawing_resources: &DrawingResources,
+            grid: Grid
+        ) -> bool
         {
-            self.texture_settings()
-                .unwrap()
-                .check_within_bounds(drawing_resources, self.center)
+            self.texture_settings().unwrap().check_within_bounds(
+                drawing_resources,
+                grid,
+                self.center
+            )
         }
 
         #[inline]
@@ -1722,12 +1760,17 @@ pub(in crate::map) mod ui_mod
         pub fn check_texture_animation_change(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             animation: &Animation
         ) -> bool
         {
             let center = self.center;
-            self.texture_settings_mut()
-                .check_animation_change(drawing_resources, animation, center)
+            self.texture_settings_mut().check_animation_change(
+                drawing_resources,
+                grid,
+                animation,
+                center
+            )
         }
 
         #[inline]
@@ -1759,12 +1802,14 @@ pub(in crate::map) mod ui_mod
         pub fn check_atlas_animation_x_partition(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: u32
         ) -> bool
         {
             let center = self.center;
             self.texture_settings_mut().check_atlas_animation_x_partition(
                 drawing_resources,
+                grid,
                 value,
                 center
             )
@@ -1787,12 +1832,14 @@ pub(in crate::map) mod ui_mod
         pub fn check_atlas_animation_y_partition(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             value: u32
         ) -> bool
         {
             let center = self.center;
             self.texture_settings_mut().check_atlas_animation_y_partition(
                 drawing_resources,
+                grid,
                 value,
                 center
             )
@@ -3817,6 +3864,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_scale(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             info: &ScaleInfo,
             scale_texture: bool
         ) -> ScaleResult
@@ -3850,6 +3898,7 @@ pub(in crate::map) mod ui_mod
                 let scale = return_if_none!(
                     self.texture_settings_mut().check_scale(
                         drawing_resources,
+                        grid,
                         info,
                         center,
                         new_center
@@ -3875,12 +3924,13 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_texture_scale(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             info: &ScaleInfo
         ) -> Option<TextureScale>
         {
             let center = self.center;
             self.texture_settings_mut()
-                .check_scale(drawing_resources, info, center, center)
+                .check_scale(drawing_resources, grid, info, center, center)
         }
 
         #[inline]
@@ -3897,6 +3947,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_horizontal_shear(
             &self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             info: &ShearInfo
         ) -> Option<(Vec2, HvVec<f32>)>
         {
@@ -3919,7 +3970,7 @@ pub(in crate::map) mod ui_mod
 
             new_center /= self.sides_f32();
 
-            if self.sprite_hull_out_of_bounds(drawing_resources, new_center)
+            if self.sprite_hull_out_of_bounds(drawing_resources, grid, new_center)
             {
                 return None;
             }
@@ -3944,6 +3995,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_vertical_shear(
             &self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             info: &ShearInfo
         ) -> Option<(Vec2, HvVec<f32>)>
         {
@@ -3966,7 +4018,7 @@ pub(in crate::map) mod ui_mod
 
             new_center /= self.sides_f32();
 
-            if self.sprite_hull_out_of_bounds(drawing_resources, new_center)
+            if self.sprite_hull_out_of_bounds(drawing_resources, grid, new_center)
             {
                 return None;
             }
@@ -3994,6 +4046,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_rotation(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             pivot: Vec2,
             angle: f32,
             rotate_texture: bool
@@ -4026,7 +4079,7 @@ pub(in crate::map) mod ui_mod
 
                 return self
                     .texture_settings_mut()
-                    .check_rotation(drawing_resources, pivot, angle, center, new_center)
+                    .check_rotation(drawing_resources, grid, pivot, angle, center, new_center)
                     .map_or(RotateResult::Invalid, |t_rotation| {
                         RotateResult::Valid {
                             new_center,
@@ -4048,6 +4101,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_rotation(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             pivot: Vec2,
             angle: f32
         ) -> Option<TextureRotation>
@@ -4056,6 +4110,7 @@ pub(in crate::map) mod ui_mod
             let new_center = center;
             self.texture_settings_mut().check_rotation(
                 drawing_resources,
+                grid,
                 pivot,
                 angle,
                 center,
@@ -4088,6 +4143,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_y_flip(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             y: f32,
             flip_texture: bool
         ) -> Option<Vec2>
@@ -4107,17 +4163,19 @@ pub(in crate::map) mod ui_mod
 
                 return self
                     .texture_settings_mut()
-                    .check_y_flip(drawing_resources, y, center, new_center)
+                    .check_y_flip(drawing_resources, grid, y, center, new_center)
                     .then_some(new_center);
             }
 
-            (!self.sprite_hull_out_of_bounds(drawing_resources, new_center)).then_some(new_center)
+            (!self.sprite_hull_out_of_bounds(drawing_resources, grid, new_center))
+                .then_some(new_center)
         }
 
         #[inline]
         pub(in crate::map::brush) fn check_x_flip(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             x: f32,
             flip_texture: bool
         ) -> Option<Vec2>
@@ -4137,11 +4195,12 @@ pub(in crate::map) mod ui_mod
 
                 return self
                     .texture_settings_mut()
-                    .check_x_flip(drawing_resources, x, center, new_center)
+                    .check_x_flip(drawing_resources, grid, x, center, new_center)
                     .then_some(new_center);
             }
 
-            (!self.sprite_hull_out_of_bounds(drawing_resources, new_center)).then_some(new_center)
+            (!self.sprite_hull_out_of_bounds(drawing_resources, grid, new_center))
+                .then_some(new_center)
         }
 
         #[inline]
@@ -4149,6 +4208,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_flip_above(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             y: f32,
             flip_texture: bool
         ) -> Option<Vec2>
@@ -4158,23 +4218,18 @@ pub(in crate::map) mod ui_mod
                 "Y vertical flip pivot {y} is lower than the hull's top {}",
                 self.hull.top()
             );
-            self.check_y_flip(drawing_resources, y, flip_texture)
+            self.check_y_flip(drawing_resources, grid, y, flip_texture)
         }
 
         #[inline]
-        pub(in crate::map::brush) fn flip_above(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            y: f32,
-            flip_texture: bool
-        )
+        pub(in crate::map::brush) fn flip_above(&mut self, y: f32, flip_texture: bool)
         {
             assert!(
                 y >= self.hull.top(),
                 "Y vertical flip pivot {y} is lower than the hull's top {}",
                 self.hull.top()
             );
-            self.flip_horizontal(drawing_resources, y, flip_texture);
+            self.flip_horizontal(y, flip_texture);
         }
 
         #[inline]
@@ -4182,6 +4237,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_flip_below(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             y: f32,
             flip_texture: bool
         ) -> Option<Vec2>
@@ -4191,32 +4247,22 @@ pub(in crate::map) mod ui_mod
                 "Y vertical flip pivot {y} is lower than the hull's top {}",
                 self.hull.bottom()
             );
-            self.check_y_flip(drawing_resources, y, flip_texture)
+            self.check_y_flip(drawing_resources, grid, y, flip_texture)
         }
 
         #[inline]
-        pub(in crate::map::brush) fn flip_below(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            y: f32,
-            flip_texture: bool
-        )
+        pub(in crate::map::brush) fn flip_below(&mut self, y: f32, flip_texture: bool)
         {
             assert!(
                 y <= self.hull.bottom(),
                 "Y vertical flip pivot {y} is lower than the hull's top {}",
                 self.hull.bottom()
             );
-            self.flip_horizontal(drawing_resources, y, flip_texture);
+            self.flip_horizontal(y, flip_texture);
         }
 
         #[inline]
-        pub(in crate::map::brush) fn flip_horizontal(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            y: f32,
-            flip_texture: bool
-        )
+        pub(in crate::map::brush) fn flip_horizontal(&mut self, y: f32, flip_texture: bool)
         {
             let y = 2f32 * y;
 
@@ -4234,8 +4280,7 @@ pub(in crate::map) mod ui_mod
             if flip_texture
             {
                 let center = self.center;
-                self.texture_settings_mut_dirty()
-                    .y_flip(drawing_resources, y, old_center, center);
+                self.texture_settings_mut_dirty().y_flip(y, old_center, center);
             }
         }
 
@@ -4244,6 +4289,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_flip_left(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             x: f32,
             flip_texture: bool
         ) -> Option<Vec2>
@@ -4253,23 +4299,18 @@ pub(in crate::map) mod ui_mod
                 "Y vertical flip pivot {x} is higher than the hull's left {}",
                 self.hull.left()
             );
-            self.check_x_flip(drawing_resources, x, flip_texture)
+            self.check_x_flip(drawing_resources, grid, x, flip_texture)
         }
 
         #[inline]
-        pub(in crate::map::brush) fn flip_left(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            x: f32,
-            flip_texture: bool
-        )
+        pub(in crate::map::brush) fn flip_left(&mut self, x: f32, flip_texture: bool)
         {
             assert!(
                 x <= self.hull.left(),
                 "Y vertical flip pivot {x} is higher than the hull's left {}",
                 self.hull.left()
             );
-            self.flip_vertical(drawing_resources, x, flip_texture);
+            self.flip_vertical(x, flip_texture);
         }
 
         #[inline]
@@ -4277,6 +4318,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_flip_right(
             &mut self,
             drawing_resources: &DrawingResources,
+            grid: Grid,
             x: f32,
             flip_texture: bool
         ) -> Option<Vec2>
@@ -4286,32 +4328,22 @@ pub(in crate::map) mod ui_mod
                 "Y vertical flip pivot {x} is lower than the hull's right {}",
                 self.hull.right()
             );
-            self.check_x_flip(drawing_resources, x, flip_texture)
+            self.check_x_flip(drawing_resources, grid, x, flip_texture)
         }
 
         #[inline]
-        pub(in crate::map::brush) fn flip_right(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            x: f32,
-            flip_texture: bool
-        )
+        pub(in crate::map::brush) fn flip_right(&mut self, x: f32, flip_texture: bool)
         {
             assert!(
                 x >= self.hull.right(),
                 "Y vertical flip pivot {x} is lower than the hull's right {}",
                 self.hull.right()
             );
-            self.flip_vertical(drawing_resources, x, flip_texture);
+            self.flip_vertical(x, flip_texture);
         }
 
         #[inline]
-        pub(in crate::map::brush) fn flip_vertical(
-            &mut self,
-            drawing_resources: &DrawingResources,
-            x: f32,
-            flip_texture: bool
-        )
+        pub(in crate::map::brush) fn flip_vertical(&mut self, x: f32, flip_texture: bool)
         {
             let x = 2f32 * x;
 
@@ -4329,8 +4361,7 @@ pub(in crate::map) mod ui_mod
             if flip_texture
             {
                 let center = self.center;
-                self.texture_settings_mut_dirty()
-                    .x_flip(drawing_resources, x, old_center, center);
+                self.texture_settings_mut_dirty().x_flip(x, old_center, center);
             }
         }
 
@@ -4737,14 +4768,11 @@ pub(in crate::map) mod ui_mod
             settings: &T
         )
         {
-            let hull_center = settings
-                .sprite_hull(drawer.resources(), self.center)
-                .unwrap()
-                .center();
+            let pivot = settings.sprite_pivot(self.center).unwrap();
 
             drawer.square_highlight(center, Color::SpriteAnchor);
-            drawer.square_highlight(hull_center, Color::SpriteAnchor);
-            drawer.line(hull_center, center, Color::SpriteAnchor);
+            drawer.square_highlight(pivot, Color::SpriteAnchor);
+            drawer.line(pivot, center, Color::SpriteAnchor);
             drawer.sprite_highlight(center, Color::SpriteAnchor);
         }
 

@@ -623,6 +623,7 @@ impl Innards
         file: &mut BufReader<File>,
         drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,
+        grid: Grid,
         default_properties: &mut AllDefaultProperties,
         steps: &mut I,
         quad_trees: &mut Trees
@@ -705,7 +706,7 @@ impl Innards
                     .texture_or_error(brush.texture_settings().unwrap().name())
                     .name();
 
-                if !brush.check_texture_change(drawing_resources, texture)
+                if !brush.check_texture_change(drawing_resources, grid, texture)
                 {
                     continue;
                 }
@@ -777,12 +778,12 @@ impl Innards
 
         for brush in brushes
         {
-            self.insert_brush(drawing_resources, quad_trees, brush, false);
+            self.insert_brush(drawing_resources, grid, quad_trees, brush, false);
         }
 
         for brush in with_attachments
         {
-            self.insert_brush(drawing_resources, quad_trees, brush, false);
+            self.insert_brush(drawing_resources, grid, quad_trees, brush, false);
         }
 
         for thing in things
@@ -837,6 +838,7 @@ impl Innards
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         quad_trees: &mut Trees,
         data: ClipboardData,
         delta: Vec2
@@ -851,7 +853,7 @@ impl Innards
                 let mut brush = Brush::from_parts(data, id);
                 brush.move_by_delta(delta, true);
                 edits_history.brush_spawn(brush.id(), true);
-                self.insert_brush(drawing_resources, quad_trees, brush, true);
+                self.insert_brush(drawing_resources, grid, quad_trees, brush, true);
             },
             ClipboardData::Thing(data, _) =>
             {
@@ -1022,13 +1024,14 @@ impl Innards
     pub fn remove_texture(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         quad_trees: &mut Trees,
         identifier: Id
     ) -> TextureSettings
     {
         assert!(self.is_selected(identifier), "Brush is not selected.");
         let texture = self
-            .brush_mut(drawing_resources, quad_trees, identifier)
+            .brush_mut(drawing_resources, grid, quad_trees, identifier)
             .remove_texture();
 
         if texture.sprite()
@@ -1138,11 +1141,12 @@ impl Innards
     pub fn brush_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
+        grid: Grid,
         quad_trees: &'a mut Trees,
         identifier: Id
     ) -> BrushMut<'a>
     {
-        BrushMut::new(drawing_resources, self, quad_trees, identifier)
+        BrushMut::new(drawing_resources, self, grid, quad_trees, identifier)
     }
 
     /// Returns a [`Brushes`] wrapping the existing brushes.
@@ -1216,6 +1220,7 @@ impl Innards
     fn insert_brush(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         quad_trees: &mut Trees,
         brush: Brush,
         selected: bool
@@ -1261,14 +1266,15 @@ impl Innards
         {
             for id in brush.attachments_iter().unwrap()
             {
-                self.brush_mut(drawing_resources, quad_trees, *id).attach(brush.id());
+                self.brush_mut(drawing_resources, grid, quad_trees, *id)
+                    .attach(brush.id());
                 self.possible_moving.asserted_remove(id);
                 self.selected_possible_moving.remove(id);
             }
         }
         else if let Some(id) = attached
         {
-            self.brush_mut(drawing_resources, quad_trees, id)
+            self.brush_mut(drawing_resources, grid, quad_trees, id)
                 .insert_attachment(&brush);
         }
 
@@ -1293,7 +1299,7 @@ impl Innards
         {
             assert!(
                 quad_trees
-                    .insert_sprite_hull(drawing_resources, self.brush(id))
+                    .insert_sprite_hull(drawing_resources, grid, self.brush(id))
                     .inserted(),
                 "Sprite hull was already in the quad tree."
             );
@@ -1308,6 +1314,7 @@ impl Innards
     fn remove_brush(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         quad_trees: &mut Trees,
         identifier: Id
     ) -> (Brush, bool)
@@ -1366,7 +1373,7 @@ impl Innards
         {
             for id in brush.attachments_iter().unwrap()
             {
-                self.brush_mut(drawing_resources, quad_trees, *id).detach();
+                self.brush_mut(drawing_resources, grid, quad_trees, *id).detach();
                 self.possible_moving.asserted_insert(*id);
 
                 if self.is_selected(*id)
@@ -1377,7 +1384,7 @@ impl Innards
         }
         else if let Some(id) = brush.attached()
         {
-            self.brush_mut(drawing_resources, quad_trees, id)
+            self.brush_mut(drawing_resources, grid, quad_trees, id)
                 .remove_attachment(&brush);
             self.replace_anchors_hull(quad_trees, id);
         }
@@ -1406,9 +1413,10 @@ impl Innards
     pub fn spawn_brush<'a>(
         &mut self,
         drawing_resources: &DrawingResources,
+        edits_history: &mut EditsHistory,
+        grid: Grid,
         quad_trees: &mut Trees,
         polygon: impl Into<Cow<'a, ConvexPolygon>>,
-        edits_history: &mut EditsHistory,
         properties: Properties
     ) -> Id
     {
@@ -1417,7 +1425,7 @@ impl Innards
         let brush = Brush::from_polygon(polygon, id, properties);
 
         edits_history.brush_spawn(id, true);
-        self.insert_brush(drawing_resources, quad_trees, brush, true);
+        self.insert_brush(drawing_resources, grid, quad_trees, brush, true);
 
         id
     }
@@ -1427,12 +1435,13 @@ impl Innards
     fn despawn_brush(
         &mut self,
         drawing_resources: &DrawingResources,
+        edits_history: &mut EditsHistory,
+        grid: Grid,
         quad_trees: &mut Trees,
-        identifier: Id,
-        edits_history: &mut EditsHistory
+        identifier: Id
     )
     {
-        let (brush, selected) = self.remove_brush(drawing_resources, quad_trees, identifier);
+        let (brush, selected) = self.remove_brush(drawing_resources, grid, quad_trees, identifier);
         edits_history.brush_despawn(brush, selected);
     }
 
@@ -1441,12 +1450,13 @@ impl Innards
     fn despawn_selected_brush(
         &mut self,
         drawing_resources: &DrawingResources,
+        edits_history: &mut EditsHistory,
+        grid: Grid,
         quad_trees: &mut Trees,
-        identifier: Id,
-        edits_history: &mut EditsHistory
+        identifier: Id
     )
     {
-        self.despawn_brush(drawing_resources, quad_trees, identifier, edits_history);
+        self.despawn_brush(drawing_resources, edits_history, grid, quad_trees, identifier);
     }
 
     /// Sets the texture of the brush with [`Id`] `identifier`.
@@ -1458,6 +1468,7 @@ impl Innards
     pub fn set_texture(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         quad_trees: &mut Trees,
         identifier: Id,
         texture: &str
@@ -1466,7 +1477,7 @@ impl Innards
         assert!(self.is_selected(identifier), "Brush is not selected.");
 
         let (sprite, result) = {
-            let mut brush = self.brush_mut(drawing_resources, quad_trees, identifier);
+            let mut brush = self.brush_mut(drawing_resources, grid, quad_trees, identifier);
             (brush.has_sprite(), brush.set_texture(drawing_resources, texture))
         };
 
@@ -1494,15 +1505,16 @@ impl Innards
     pub fn create_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        edits_history: &mut EditsHistory,
+        grid: Grid,
         quad_trees: &mut Trees,
         identifier: Id,
-        path: Path,
-        edits_history: &mut EditsHistory
+        path: Path
     )
     {
         assert!(self.is_selected(identifier), "Entity is not selected.");
 
-        self.set_path(drawing_resources, quad_trees, identifier, path);
+        self.set_path(drawing_resources, grid, quad_trees, identifier, path);
         edits_history.path_creation(identifier);
     }
 
@@ -1511,12 +1523,14 @@ impl Innards
     pub fn set_path(
         &mut self,
         resources: &DrawingResources,
+        grid: Grid,
         quad_trees: &mut Trees,
         identifier: Id,
         path: Path
     )
     {
-        self.moving_mut(resources, quad_trees, identifier).set_path(path);
+        self.moving_mut(resources, grid, quad_trees, identifier)
+            .set_path(path);
 
         self.moving.asserted_insert(identifier);
         self.selected_moving.asserted_insert(identifier);
@@ -1529,9 +1543,10 @@ impl Innards
     fn remove_selected_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        edits_history: &mut EditsHistory,
+        grid: Grid,
         quad_trees: &mut Trees,
-        identifier: Id,
-        edits_history: &mut EditsHistory
+        identifier: Id
     )
     {
         assert!(self.is_selected(identifier), "Entity is not selected.");
@@ -1545,7 +1560,8 @@ impl Innards
 
         edits_history.path_deletion(
             identifier,
-            self.moving_mut(drawing_resources, quad_trees, identifier).take_path()
+            self.moving_mut(drawing_resources, grid, quad_trees, identifier)
+                .take_path()
         );
     }
 
@@ -1554,14 +1570,15 @@ impl Innards
     fn replace_selected_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        edits_history: &mut EditsHistory,
+        grid: Grid,
         quad_trees: &mut Trees,
         identifier: Id,
-        edits_history: &mut EditsHistory,
         path: Path
     )
     {
-        self.remove_selected_path(drawing_resources, quad_trees, identifier, edits_history);
-        self.create_path(drawing_resources, quad_trees, identifier, path, edits_history);
+        self.remove_selected_path(drawing_resources, edits_history, grid, quad_trees, identifier);
+        self.create_path(drawing_resources, edits_history, grid, quad_trees, identifier, path);
     }
 
     /// Replaces in the quad trees the [`Hull`] of the attachments of the brush with [`Id`]
@@ -1774,11 +1791,12 @@ impl Innards
     pub fn moving_mut<'a>(
         &'a mut self,
         resources: &'a DrawingResources,
+        grid: Grid,
         quad_trees: &'a mut Trees,
         identifier: Id
     ) -> MovingMut<'a>
     {
-        MovingMut::new(resources, self, quad_trees, identifier)
+        MovingMut::new(resources, self, grid, quad_trees, identifier)
     }
 }
 
@@ -1820,6 +1838,7 @@ impl EntitiesManager
         file: &mut BufReader<File>,
         drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,
+        grid: Grid,
         default_properties: &mut AllDefaultProperties,
         steps: &mut I
     ) -> Result<Self, &'static str>
@@ -1831,6 +1850,7 @@ impl EntitiesManager
             file,
             drawing_resources,
             things_catalog,
+            grid,
             default_properties,
             steps,
             &mut manager.quad_trees
@@ -2090,10 +2110,11 @@ impl EntitiesManager
     pub fn despawn_selected_entities(
         &mut self,
         drawing_resources: &DrawingResources,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        grid: Grid
     )
     {
-        self.despawn_selected_brushes(drawing_resources, edits_history);
+        self.despawn_selected_brushes(drawing_resources, edits_history, grid);
 
         self.auxiliary.replace_values(self.innards.selected_things.iter());
 
@@ -2158,10 +2179,11 @@ impl EntitiesManager
     pub fn brush_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
+        grid: Grid,
         identifier: Id
     ) -> BrushMut<'a>
     {
-        BrushMut::new(drawing_resources, &mut self.innards, &mut self.quad_trees, identifier)
+        BrushMut::new(drawing_resources, &mut self.innards, grid, &mut self.quad_trees, identifier)
     }
 
     /// Returns an iterator to the non selected brushes.
@@ -2185,13 +2207,15 @@ impl EntitiesManager
     #[inline]
     pub fn selected_brushes_mut<'a>(
         &'a mut self,
-        drawing_resources: &'a DrawingResources
+        drawing_resources: &'a DrawingResources,
+        grid: Grid
     ) -> impl Iterator<Item = BrushMut<'a>>
     {
         self.auxiliary.replace_values(&self.innards.selected_brushes);
         SelectedBrushesMut::new(
             drawing_resources,
             &mut self.innards,
+            grid,
             &mut self.quad_trees,
             &self.auxiliary
         )
@@ -2237,6 +2261,7 @@ impl EntitiesManager
     pub fn selected_brushes_mut_at_pos<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
+        grid: Grid,
         cursor_pos: Vec2,
         camera_scale: impl Into<Option<f32>>
     ) -> impl Iterator<Item = BrushMut<'a>>
@@ -2251,6 +2276,7 @@ impl EntitiesManager
         SelectedBrushesMut::new(
             drawing_resources,
             &mut self.innards,
+            grid,
             &mut self.quad_trees,
             &self.auxiliary
         )
@@ -2268,8 +2294,8 @@ impl EntitiesManager
     pub fn select_entities_in_range(
         &mut self,
         range: &Hull,
-        inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         settings: &ToolsSettings
     )
     {
@@ -2323,8 +2349,8 @@ impl EntitiesManager
     pub fn exclusively_select_entities_in_range(
         &mut self,
         range: &Hull,
-        inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         settings: &ToolsSettings
     )
     {
@@ -2479,23 +2505,28 @@ impl EntitiesManager
     #[must_use]
     pub fn selected_textured_brushes_hull(
         &self,
-        drawing_resources: &DrawingResources
+        drawing_resources: &DrawingResources,
+        grid: Grid
     ) -> Option<Hull>
     {
         Hull::from_hulls_iter(
             self.selected_textured_brushes()
-                .map(|brush| brush.sprite_hull(drawing_resources).unwrap_or(brush.hull()))
+                .map(|brush| brush.sprite_hull(drawing_resources, grid).unwrap_or(brush.hull()))
         )
     }
 
     /// Returns the [`Hull`] describing the rectangle encompassing all selected entities, if any.
     #[inline]
     #[must_use]
-    pub fn selected_entities_hull(&self, drawing_resources: &DrawingResources) -> Option<Hull>
+    pub fn selected_entities_hull(
+        &self,
+        drawing_resources: &DrawingResources,
+        grid: Grid
+    ) -> Option<Hull>
     {
         Hull::from_hulls_iter(
             self.selected_brushes()
-                .map(|brush| brush.global_hull(drawing_resources))
+                .map(|brush| brush.global_hull(drawing_resources, grid))
                 .chain(self.selected_things().map(EntityHull::hull))
         )
     }
@@ -2548,7 +2579,8 @@ impl EntitiesManager
     #[inline]
     pub fn selected_brushes_with_sprite_mut<'a>(
         &'a mut self,
-        drawing_resources: &'a DrawingResources
+        drawing_resources: &'a DrawingResources,
+        grid: Grid
     ) -> impl Iterator<Item = BrushMut<'a>>
     {
         self.auxiliary.clear();
@@ -2561,6 +2593,7 @@ impl EntitiesManager
         SelectedBrushesMut::new(
             drawing_resources,
             &mut self.innards,
+            grid,
             &mut self.quad_trees,
             &self.auxiliary
         )
@@ -2572,6 +2605,7 @@ impl EntitiesManager
     pub fn selected_brushes_with_sprites_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
+        grid: Grid,
         texture: &str
     ) -> Option<impl Iterator<Item = BrushMut<'a>>>
     {
@@ -2580,6 +2614,7 @@ impl EntitiesManager
         SelectedBrushesMut::new(
             drawing_resources,
             &mut self.innards,
+            grid,
             &mut self.quad_trees,
             &self.auxiliary
         )
@@ -2591,16 +2626,18 @@ impl EntitiesManager
     pub fn spawn_brush<'d>(
         &mut self,
         drawing_resources: &DrawingResources,
-        polygon: impl Into<Cow<'d, ConvexPolygon>>,
         edits_history: &mut EditsHistory,
+        grid: Grid,
+        polygon: impl Into<Cow<'d, ConvexPolygon>>,
         properties: Properties
     ) -> Id
     {
         self.innards.spawn_brush(
             drawing_resources,
+            edits_history,
+            grid,
             &mut self.quad_trees,
             polygon,
-            edits_history,
             properties
         )
     }
@@ -2610,6 +2647,7 @@ impl EntitiesManager
     pub fn spawn_brush_from_parts(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifier: Id,
         data: BrushData,
         selected: bool
@@ -2617,7 +2655,7 @@ impl EntitiesManager
     {
         let brush = Brush::from_parts(data, identifier);
         self.innards
-            .insert_brush(drawing_resources, &mut self.quad_trees, brush, selected);
+            .insert_brush(drawing_resources, grid, &mut self.quad_trees, brush, selected);
     }
 
     /// Spawns the entities created from `data`.
@@ -2627,6 +2665,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         data: ClipboardData,
         delta: Vec2
     ) -> Id
@@ -2634,6 +2673,7 @@ impl EntitiesManager
         self.innards.spawn_pasted_entity(
             drawing_resources,
             edits_history,
+            grid,
             &mut self.quad_trees,
             data,
             delta
@@ -2645,8 +2685,9 @@ impl EntitiesManager
     pub fn spawn_brushes(
         &mut self,
         drawing_resources: &DrawingResources,
-        mut polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
         edits_history: &mut EditsHistory,
+        grid: Grid,
+        mut polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
         properties: Properties
     )
     {
@@ -2654,13 +2695,14 @@ impl EntitiesManager
         {
             self.spawn_brush(
                 drawing_resources,
-                polygons.next_value(),
                 edits_history,
+                grid,
+                polygons.next_value(),
                 properties.clone()
             );
         }
 
-        self.spawn_brush(drawing_resources, polygons.next_value(), edits_history, properties);
+        self.spawn_brush(drawing_resources, edits_history, grid, polygons.next_value(), properties);
     }
 
     #[inline]
@@ -2668,6 +2710,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         others: impl ExactSizeIterator<Item = ConvexPolygon>,
         identifier: Id,
         f: F
@@ -2702,8 +2745,9 @@ impl EntitiesManager
         fn spawn_brushes_with_ids(
             manager: &mut EntitiesManager,
             drawing_resources: &DrawingResources,
-            mut polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
             edits_history: &mut EditsHistory,
+            grid: Grid,
+            mut polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
             properties: Properties
         ) -> HvHashSet<Id>
         {
@@ -2718,16 +2762,18 @@ impl EntitiesManager
             {
                 ids.asserted_insert(manager.spawn_brush(
                     drawing_resources,
-                    polygons.next_value(),
                     edits_history,
+                    grid,
+                    polygons.next_value(),
                     properties.clone()
                 ));
             }
 
             ids.asserted_insert(manager.spawn_brush(
                 drawing_resources,
-                polygons.next_value(),
                 edits_history,
+                grid,
+                polygons.next_value(),
                 properties
             ));
 
@@ -2735,7 +2781,7 @@ impl EntitiesManager
         }
 
         let (properties, path_status) = {
-            let mut brush = self.brush_mut(drawing_resources, identifier);
+            let mut brush = self.brush_mut(drawing_resources, grid, identifier);
             edits_history.polygon_edit(identifier, f(&mut brush));
             (brush.properties(), path_status(&brush))
         };
@@ -2744,15 +2790,23 @@ impl EntitiesManager
         {
             PathStatus::None =>
             {
-                spawn_brushes_with_ids(self, drawing_resources, others, edits_history, properties)
+                spawn_brushes_with_ids(
+                    self,
+                    drawing_resources,
+                    edits_history,
+                    grid,
+                    others,
+                    properties
+                )
             },
             PathStatus::OwnsOrPath =>
             {
                 let ids = spawn_brushes_with_ids(
                     self,
                     drawing_resources,
-                    others,
                     edits_history,
+                    grid,
+                    others,
                     properties
                 );
 
@@ -2768,8 +2822,9 @@ impl EntitiesManager
                 let ids = spawn_brushes_with_ids(
                     self,
                     drawing_resources,
-                    others,
                     edits_history,
+                    grid,
+                    others,
                     properties
                 );
 
@@ -2789,10 +2844,11 @@ impl EntitiesManager
     pub fn spawn_drawn_brush(
         &mut self,
         drawing_resources: &DrawingResources,
-        polygon: ConvexPolygon,
-        drawn_brushes: &mut Ids,
+        default_properties: &DefaultProperties,
         edits_history: &mut EditsHistory,
-        default_properties: &DefaultProperties
+        grid: Grid,
+        polygon: ConvexPolygon,
+        drawn_brushes: &mut Ids
     )
     {
         let id = self.innards.id_generator.new_id();
@@ -2803,15 +2859,20 @@ impl EntitiesManager
         drawn_brushes.asserted_insert(id);
 
         self.innards
-            .insert_brush(drawing_resources, &mut self.quad_trees, brush, true);
+            .insert_brush(drawing_resources, grid, &mut self.quad_trees, brush, true);
     }
 
     /// Removes the brush with [`Id`] `identifier` from the internal data structures.
     #[inline]
-    fn remove_brush(&mut self, drawing_resources: &DrawingResources, identifier: Id) -> Brush
+    fn remove_brush(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        grid: Grid,
+        identifier: Id
+    ) -> Brush
     {
         self.innards
-            .remove_brush(drawing_resources, &mut self.quad_trees, identifier)
+            .remove_brush(drawing_resources, grid, &mut self.quad_trees, identifier)
             .0
     }
 
@@ -2821,13 +2882,14 @@ impl EntitiesManager
     pub fn despawn_drawn_brushes(
         &mut self,
         drawing_resources: &DrawingResources,
-        drawn_brushes: &mut Ids,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        grid: Grid,
+        drawn_brushes: &mut Ids
     )
     {
         for id in &*drawn_brushes
         {
-            edits_history.drawn_brush_despawn(self.remove_brush(drawing_resources, *id));
+            edits_history.drawn_brush_despawn(self.remove_brush(drawing_resources, grid, *id));
         }
 
         drawn_brushes.clear();
@@ -2838,15 +2900,17 @@ impl EntitiesManager
     pub fn despawn_brush(
         &mut self,
         drawing_resources: &DrawingResources,
-        identifier: Id,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        grid: Grid,
+        identifier: Id
     )
     {
         self.innards.despawn_brush(
             drawing_resources,
+            edits_history,
+            grid,
             &mut self.quad_trees,
-            identifier,
-            edits_history
+            identifier
         );
     }
 
@@ -2855,10 +2919,11 @@ impl EntitiesManager
     pub fn despawn_brush_into_parts(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifier: Id
     ) -> BrushData
     {
-        self.remove_brush(drawing_resources, identifier).into_parts().0
+        self.remove_brush(drawing_resources, grid, identifier).into_parts().0
     }
 
     /// Despawns the selected brushes.
@@ -2866,7 +2931,8 @@ impl EntitiesManager
     pub fn despawn_selected_brushes(
         &mut self,
         drawing_resources: &DrawingResources,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        grid: Grid
     )
     {
         self.brushes_despawn
@@ -2884,9 +2950,10 @@ impl EntitiesManager
         {
             self.innards.despawn_selected_brush(
                 drawing_resources,
+                edits_history,
+                grid,
                 &mut self.quad_trees,
-                *id,
-                edits_history
+                *id
             );
         }
     }
@@ -2896,13 +2963,14 @@ impl EntitiesManager
     pub fn replace_selected_brushes(
         &mut self,
         drawing_resources: &DrawingResources,
-        polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
         edits_history: &mut EditsHistory,
+        grid: Grid,
+        polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
         properties: Properties
     )
     {
-        self.despawn_selected_brushes(drawing_resources, edits_history);
-        self.spawn_brushes(drawing_resources, polygons, edits_history, properties);
+        self.despawn_selected_brushes(drawing_resources, edits_history, grid);
+        self.spawn_brushes(drawing_resources, edits_history, grid, polygons, properties);
     }
 
     /// Duplicates the selected entities crating copies displaced by `delta`.
@@ -2911,8 +2979,9 @@ impl EntitiesManager
     pub fn duplicate_selected_entities(
         &mut self,
         drawing_resources: &DrawingResources,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        grid: Grid,
         delta: Vec2
     ) -> bool
     {
@@ -2927,7 +2996,7 @@ impl EntitiesManager
             return false;
         }
 
-        clipboard.duplicate(drawing_resources, self, edits_history, delta);
+        clipboard.duplicate(drawing_resources, self, edits_history, grid, delta);
         true
     }
 
@@ -2936,31 +3005,44 @@ impl EntitiesManager
     pub fn create_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        edits_history: &mut EditsHistory,
+        grid: Grid,
         identifier: Id,
-        path: Path,
-        edits_history: &mut EditsHistory
+        path: Path
     )
     {
         self.innards.create_path(
             drawing_resources,
+            edits_history,
+            grid,
             &mut self.quad_trees,
             identifier,
-            path,
-            edits_history
+            path
         );
     }
 
     /// Gives the brush with [`Id`] `identifier` a [`Path`].
     #[inline]
-    pub fn set_path(&mut self, drawing_resources: &DrawingResources, identifier: Id, path: Path)
+    pub fn set_path(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        grid: Grid,
+        identifier: Id,
+        path: Path
+    )
     {
         self.innards
-            .set_path(drawing_resources, &mut self.quad_trees, identifier, path);
+            .set_path(drawing_resources, grid, &mut self.quad_trees, identifier, path);
     }
 
     /// Removes the [`Path`] from the brush with [`Id`] `identifier`.
     #[inline]
-    pub fn remove_path(&mut self, drawing_resources: &DrawingResources, identifier: Id) -> Path
+    pub fn remove_path(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        grid: Grid,
+        identifier: Id
+    ) -> Path
     {
         self.innards.selected_moving.remove(&identifier);
         self.innards.moving.asserted_remove(&identifier);
@@ -2973,7 +3055,7 @@ impl EntitiesManager
             self.innards.selected_possible_moving.asserted_insert(identifier);
         }
 
-        self.moving_mut(drawing_resources, identifier).take_path()
+        self.moving_mut(drawing_resources, grid, identifier).take_path()
     }
 
     /// Removes the [`Path`] from the selected brush with [`Id`] `identifier`.
@@ -2981,15 +3063,17 @@ impl EntitiesManager
     pub fn remove_selected_path(
         &mut self,
         drawing_resources: &DrawingResources,
-        identifier: Id,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        grid: Grid,
+        identifier: Id
     )
     {
         self.innards.remove_selected_path(
             drawing_resources,
+            edits_history,
+            grid,
             &mut self.quad_trees,
-            identifier,
-            edits_history
+            identifier
         );
     }
 
@@ -2999,16 +3083,18 @@ impl EntitiesManager
     pub fn replace_selected_path(
         &mut self,
         drawing_resources: &DrawingResources,
-        identifier: Id,
         edits_history: &mut EditsHistory,
+        grid: Grid,
+        identifier: Id,
         path: Path
     )
     {
         self.innards.replace_selected_path(
             drawing_resources,
+            edits_history,
+            grid,
             &mut self.quad_trees,
             identifier,
-            edits_history,
             path
         );
     }
@@ -3018,7 +3104,8 @@ impl EntitiesManager
     pub fn remove_selected_paths(
         &mut self,
         drawing_resources: &DrawingResources,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        grid: Grid
     )
     {
         self.auxiliary.replace_values(&self.innards.selected_moving);
@@ -3027,9 +3114,10 @@ impl EntitiesManager
         {
             self.innards.remove_selected_path(
                 drawing_resources,
+                edits_history,
+                grid,
                 &mut self.quad_trees,
-                *id,
-                edits_history
+                *id
             );
         }
     }
@@ -3076,13 +3164,15 @@ impl EntitiesManager
     #[inline]
     pub fn selected_textured_brushes_mut<'a>(
         &'a mut self,
-        drawing_resources: &'a DrawingResources
+        drawing_resources: &'a DrawingResources,
+        grid: Grid
     ) -> impl Iterator<Item = BrushMut<'a>>
     {
         self.auxiliary.replace_values(&self.innards.selected_textured);
         SelectedBrushesMut::new(
             drawing_resources,
             &mut self.innards,
+            grid,
             &mut self.quad_trees,
             &self.auxiliary
         )
@@ -3129,12 +3219,13 @@ impl EntitiesManager
     pub fn set_texture(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifier: Id,
         texture: &str
     ) -> TextureSetResult
     {
         self.innards
-            .set_texture(drawing_resources, &mut self.quad_trees, identifier, texture)
+            .set_texture(drawing_resources, grid, &mut self.quad_trees, identifier, texture)
     }
 
     /// Removes the texture from the brush with [`Id`] identifier, and returns its
@@ -3143,11 +3234,12 @@ impl EntitiesManager
     pub fn remove_texture(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifier: Id
     ) -> TextureSettings
     {
         self.innards
-            .remove_texture(drawing_resources, &mut self.quad_trees, identifier)
+            .remove_texture(drawing_resources, grid, &mut self.quad_trees, identifier)
     }
 
     /// Set the [`TextureSettings`] of the brush with [`Id`] `identifier`.
@@ -3155,6 +3247,7 @@ impl EntitiesManager
     pub fn set_texture_settings(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifier: Id,
         texture: TextureSettings
     )
@@ -3163,7 +3256,7 @@ impl EntitiesManager
 
         let sprite = texture.sprite();
 
-        self.brush_mut(drawing_resources, identifier)
+        self.brush_mut(drawing_resources, grid, identifier)
             .set_texture_settings(texture);
         self.innards.textured.asserted_insert(identifier);
         self.innards.selected_textured.asserted_insert(identifier);
@@ -3181,14 +3274,16 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         texture: &str
     ) -> TextureResult
     {
         let valid = self.test_operation_validity(|manager| {
             manager
-                .selected_brushes_with_sprite_mut(drawing_resources)
+                .selected_brushes_with_sprite_mut(drawing_resources, grid)
                 .find_map(|mut brush| {
-                    (!brush.check_texture_change(drawing_resources, texture)).then_some(brush.id)
+                    (!brush.check_texture_change(drawing_resources, grid, texture))
+                        .then_some(brush.id)
                 })
         });
 
@@ -3215,9 +3310,13 @@ impl EntitiesManager
 
             let has_sprite = brush.has_sprite();
 
-            match self
-                .innards
-                .set_texture(drawing_resources, &mut self.quad_trees, *id, texture)
+            match self.innards.set_texture(
+                drawing_resources,
+                grid,
+                &mut self.quad_trees,
+                *id,
+                texture
+            )
             {
                 TextureSetResult::Unchanged => continue,
                 TextureSetResult::Changed(prev) => edits_history.texture(*id, prev.into()),
@@ -3232,9 +3331,13 @@ impl EntitiesManager
         }
 
         edits_history.texture_cluster(iter.filter_map(|id| {
-            match self
-                .innards
-                .set_texture(drawing_resources, &mut self.quad_trees, *id, texture)
+            match self.innards.set_texture(
+                drawing_resources,
+                grid,
+                &mut self.quad_trees,
+                *id,
+                texture
+            )
             {
                 TextureSetResult::Unchanged => None,
                 TextureSetResult::Changed(prev) => (*id, prev.into()).into(),
@@ -3255,7 +3358,8 @@ impl EntitiesManager
     pub fn remove_selected_textures(
         &mut self,
         drawing_resources: &DrawingResources,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        grid: Grid
     )
     {
         self.auxiliary.replace_values(&self.innards.selected_textured);
@@ -3264,7 +3368,7 @@ impl EntitiesManager
             (
                 *id,
                 self.innards
-                    .remove_texture(drawing_resources, &mut self.quad_trees, *id)
+                    .remove_texture(drawing_resources, grid, &mut self.quad_trees, *id)
             )
         }));
 
@@ -3277,6 +3381,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         value: bool
     )
     {
@@ -3284,9 +3389,9 @@ impl EntitiesManager
         {
             let valid = self.test_operation_validity(|manager| {
                 manager
-                    .selected_textured_brushes_mut(drawing_resources)
+                    .selected_textured_brushes_mut(drawing_resources, grid)
                     .find_map(|mut brush| {
-                        (!brush.check_texture_sprite(drawing_resources, value))
+                        (!brush.check_texture_sprite(drawing_resources, grid, value))
                             .then_some(brush.id())
                     })
             });
@@ -3305,8 +3410,12 @@ impl EntitiesManager
                 for id in &self.auxiliary
                 {
                     {
-                        let mut brush =
-                            self.innards.brush_mut(drawing_resources, &mut self.quad_trees, *id);
+                        let mut brush = self.innards.brush_mut(
+                            drawing_resources,
+                            grid,
+                            &mut self.quad_trees,
+                            *id
+                        );
                         let value = continue_if_none!(brush.set_texture_sprite(value));
                         edits_history.sprite(brush.id(), value);
                     }
@@ -3331,12 +3440,13 @@ impl EntitiesManager
     pub fn undo_redo_texture_sprite(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifier: Id,
         value: &mut TextureSpriteSet
     )
     {
         let enabled = value.enabled();
-        self.brush_mut(drawing_resources, identifier)
+        self.brush_mut(drawing_resources, grid, identifier)
             .undo_redo_texture_sprite(value);
 
         if enabled
@@ -3351,13 +3461,15 @@ impl EntitiesManager
 
     /// Completes the texture reload.
     #[inline]
-    pub fn finish_textures_reload(&mut self, drawing_resources: &DrawingResources)
+    pub fn finish_textures_reload(&mut self, drawing_resources: &DrawingResources, grid: Grid)
     {
         self.auxiliary.replace_values(&self.innards.textured);
 
         for id in &self.auxiliary
         {
-            let mut brush = self.innards.brush_mut(drawing_resources, &mut self.quad_trees, *id);
+            let mut brush =
+                self.innards
+                    .brush_mut(drawing_resources, grid, &mut self.quad_trees, *id);
             let name = {
                 let settings = brush.texture_settings().unwrap();
 
@@ -3369,7 +3481,7 @@ impl EntitiesManager
                 continue_if_none!(drawing_resources.texture(settings.name())).name()
             };
 
-            if !brush.check_texture_change(drawing_resources, name)
+            if !brush.check_texture_change(drawing_resources, grid, name)
             {
                 _ = brush.set_texture(drawing_resources, "error");
             }
@@ -3595,13 +3707,15 @@ impl EntitiesManager
     #[inline]
     pub fn selected_movings_mut<'a>(
         &'a mut self,
-        drawing_resources: &'a DrawingResources
+        drawing_resources: &'a DrawingResources,
+        grid: Grid
     ) -> impl Iterator<Item = MovingMut<'a>>
     {
         self.auxiliary.replace_values(&self.innards.selected_moving);
         SelectedMovingsMut::new(
             drawing_resources,
             &mut self.innards,
+            grid,
             &mut self.quad_trees,
             &self.auxiliary
         )
@@ -3637,11 +3751,12 @@ impl EntitiesManager
     pub fn moving_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
+        grid: Grid,
         identifier: Id
     ) -> MovingMut<'a>
     {
         self.innards
-            .moving_mut(drawing_resources, &mut self.quad_trees, identifier)
+            .moving_mut(drawing_resources, grid, &mut self.quad_trees, identifier)
     }
 
     /// Returns a [`SelectedMovingsIter`] returning an iterator to the selected entities with
@@ -3723,6 +3838,7 @@ pub(in crate::map) struct BrushMut<'a>
     resources:         &'a DrawingResources,
     /// A mutable reference to the [`EntitiesManager`] core.
     manager:           &'a mut Innards,
+    grid:              Grid,
     /// A mutable reference to the [`QuadTree`]s.
     quad_trees:        &'a mut Trees,
     /// The [`Id`] of the brush.
@@ -3795,7 +3911,7 @@ impl<'a> Drop for BrushMut<'a>
         if brush.has_sprite()
         {
             if matches!(
-                self.quad_trees.insert_sprite_hull(self.resources, brush),
+                self.quad_trees.insert_sprite_hull(self.resources, self.grid, brush),
                 InsertResult::Inserted | InsertResult::Replaced
             )
             {
@@ -3830,6 +3946,7 @@ impl<'a> BrushMut<'a>
     fn new(
         resources: &'a DrawingResources,
         manager: &'a mut Innards,
+        grid: Grid,
         quad_trees: &'a mut Trees,
         identifier: Id
     ) -> Self
@@ -3841,6 +3958,7 @@ impl<'a> BrushMut<'a>
         Self {
             resources,
             manager,
+            grid,
             quad_trees,
             id: identifier,
             center,
@@ -4000,6 +4118,7 @@ impl<'a> MovingMut<'a>
     pub(in crate::map::editor::state::manager) fn new(
         resources: &'a DrawingResources,
         manager: &'a mut Innards,
+        grid: Grid,
         quad_trees: &'a mut Trees,
         identifier: Id
     ) -> Self
@@ -4009,6 +4128,6 @@ impl<'a> MovingMut<'a>
             return Self::Thing(ThingMut::new(manager, quad_trees, identifier));
         }
 
-        Self::Brush(BrushMut::new(resources, manager, quad_trees, identifier))
+        Self::Brush(BrushMut::new(resources, manager, grid, quad_trees, identifier))
     }
 }

@@ -1031,7 +1031,6 @@ impl EditType
                 {
                     func(
                         &mut interface.brush_mut(drawing_resources, *id),
-                        drawing_resources,
                         flip.mirror(),
                         *flip_texture
                     );
@@ -1322,7 +1321,6 @@ impl EditType
                 {
                     func(
                         &mut interface.brush_mut(drawing_resources, *id),
-                        drawing_resources,
                         flip.mirror(),
                         *flip_texture
                     );

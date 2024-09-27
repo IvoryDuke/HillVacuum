@@ -3,7 +3,6 @@
 //
 //=======================================================================//
 
-use glam::Vec2;
 use hill_vacuum_shared::{return_if_none, NextValue};
 
 use super::{
@@ -22,6 +21,7 @@ use crate::{
                 core::rect,
                 editor_state::InputsPresses,
                 edits_history::EditsHistory,
+                grid::Grid,
                 manager::EntitiesManager
             },
             DrawBundle,
@@ -57,11 +57,13 @@ impl Selector
         fn selector(
             _: &DrawingResources,
             manager: &EntitiesManager,
-            cursor_pos: Vec2,
+            cursor: &Cursor,
             _: f32,
             items: &mut ItemsBeneathCursor<Id>
         )
         {
+            let cursor_pos = cursor.world();
+
             for brush in manager
                 .brushes_at_pos(cursor_pos, None)
                 .iter()
@@ -156,8 +158,9 @@ impl SubtractTool
         &mut self,
         bundle: &mut ToolUpdateBundle,
         manager: &mut EntitiesManager,
+        edits_history: &mut EditsHistory,
         inputs: &InputsPresses,
-        edits_history: &mut EditsHistory
+        grid: Grid
     ) -> bool
     {
         let ToolUpdateBundle {
@@ -182,6 +185,7 @@ impl SubtractTool
                         bundle.drawing_resources,
                         manager,
                         edits_history,
+                        grid,
                         &mut self.subtractees
                     );
                     return true;
@@ -261,6 +265,7 @@ impl SubtractTool
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         subtractees: &mut Ids
     )
     {
@@ -273,13 +278,14 @@ impl SubtractTool
                 SubtractResult::None => continue,
                 SubtractResult::Despawn =>
                 {
-                    manager.despawn_brush(drawing_resources, id, edits_history);
+                    manager.despawn_brush(drawing_resources, edits_history, grid, id);
                 },
                 SubtractResult::Some { main, others } =>
                 {
                     _ = manager.replace_brush_with_partition(
                         drawing_resources,
                         edits_history,
+                        grid,
                         others.into_iter(),
                         id,
                         |brush| brush.set_polygon(main)

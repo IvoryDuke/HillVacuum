@@ -88,6 +88,7 @@ impl Prop
     #[inline]
     pub(in crate::map::editor::state) fn new<'a, D>(
         drawing_resources: &DrawingResources,
+        grid: Grid,
         iter: impl Iterator<Item = &'a D>,
         cursor_pos: Vec2,
         screenshot: Option<egui::TextureId>
@@ -96,7 +97,7 @@ impl Prop
         D: CopyToClipboard + ?Sized + 'a
     {
         let mut new = Self::default();
-        new.fill(drawing_resources, iter);
+        new.fill(drawing_resources, grid, iter);
         new.pivot = new.data_center - cursor_pos;
         new.screenshot = screenshot;
         new
@@ -145,10 +146,12 @@ impl Prop
     #[inline]
     pub(in crate::map::editor::state::clipboard) fn hull(
         &self,
-        drawing_resources: &DrawingResources
+        drawing_resources: &DrawingResources,
+        grid: Grid
     ) -> Hull
     {
-        Hull::from_hulls_iter(self.data.iter().map(|data| data.hull(drawing_resources))).unwrap()
+        Hull::from_hulls_iter(self.data.iter().map(|data| data.hull(drawing_resources, grid)))
+            .unwrap()
     }
 
     /// Whether `self` contains copied entities.
@@ -183,6 +186,7 @@ impl Prop
     pub(in crate::map::editor::state::clipboard) fn fill<'a, D>(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         iter: impl Iterator<Item = &'a D>
     ) where
         D: CopyToClipboard + ?Sized + 'a
@@ -278,15 +282,15 @@ impl Prop
             self.attachments_owners += 1;
         }
 
-        self.reset_data_center(drawing_resources);
+        self.reset_data_center(drawing_resources, grid);
     }
 
     /// Resets the center of `self`.
     #[inline]
-    fn reset_data_center(&mut self, drawing_resources: &DrawingResources)
+    fn reset_data_center(&mut self, drawing_resources: &DrawingResources, grid: Grid)
     {
         self.data_center =
-            Hull::from_hulls_iter(self.data.iter().map(|data| data.hull(drawing_resources)))
+            Hull::from_hulls_iter(self.data.iter().map(|data| data.hull(drawing_resources, grid)))
                 .unwrap()
                 .center();
     }
@@ -298,7 +302,8 @@ impl Prop
     pub(in crate::map::editor::state::clipboard) fn reload_things(
         &mut self,
         drawing_resources: &DrawingResources,
-        catalog: &ThingsCatalog
+        catalog: &ThingsCatalog,
+        grid: Grid
     ) -> bool
     {
         let mut changed = false;
@@ -312,7 +317,7 @@ impl Prop
 
         if changed
         {
-            self.reset_data_center(drawing_resources);
+            self.reset_data_center(drawing_resources, grid);
             return true;
         }
 
@@ -325,7 +330,8 @@ impl Prop
     #[must_use]
     pub(in crate::map::editor::state::clipboard) fn reload_textures(
         &mut self,
-        drawing_resources: &DrawingResources
+        drawing_resources: &DrawingResources,
+        grid: Grid
     ) -> bool
     {
         let mut changed = false;
@@ -352,7 +358,7 @@ impl Prop
 
         if changed
         {
-            self.reset_data_center(drawing_resources);
+            self.reset_data_center(drawing_resources, grid);
             return true;
         }
 
@@ -369,6 +375,7 @@ impl Prop
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         delta: Vec2
     )
     {
@@ -379,6 +386,7 @@ impl Prop
             drawing_resources: &DrawingResources,
             manager: &mut EntitiesManager,
             edits_history: &mut EditsHistory,
+            grid: Grid,
             range: Rev<Range<usize>>,
             delta: Vec2
         )
@@ -389,6 +397,7 @@ impl Prop
                 let new_id = manager.spawn_pasted_entity(
                     drawing_resources,
                     edits_history,
+                    grid,
                     item.clone(),
                     delta
                 );
@@ -405,7 +414,7 @@ impl Prop
         if self
             .data
             .iter()
-            .any(|item| item.out_of_bounds_moved(drawing_resources, delta))
+            .any(|item| item.out_of_bounds_moved(drawing_resources, grid, delta))
         {
             error_message("Cannot spawn copy: out of bounds");
             return;
@@ -416,6 +425,7 @@ impl Prop
             drawing_resources,
             manager,
             edits_history,
+            grid,
             (self.attached_range.end..self.data.len()).rev(),
             delta
         );
@@ -424,8 +434,13 @@ impl Prop
         {
             let item = &mut self.data[i];
             let old_id = item.id();
-            let new_id =
-                manager.spawn_pasted_entity(drawing_resources, edits_history, item.clone(), delta);
+            let new_id = manager.spawn_pasted_entity(
+                drawing_resources,
+                edits_history,
+                grid,
+                item.clone(),
+                delta
+            );
 
             match item
             {
@@ -448,6 +463,7 @@ impl Prop
             drawing_resources,
             manager,
             edits_history,
+            grid,
             (0..self.attached_range.start).rev(),
             delta
         );
@@ -460,6 +476,7 @@ impl Prop
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         cursor_pos: Vec2
     )
     {
@@ -468,7 +485,7 @@ impl Prop
         // If the pasted and the original overlap pull them apart.
         if self.data.len() == 1 && manager.entity_exists(self.data[0].id())
         {
-            let hull = self.data[0].hull(drawing_resources);
+            let hull = self.data[0].hull(drawing_resources, grid);
 
             if let Some(overlap_vector) = hull.overlap_vector(&(hull + delta))
             {
@@ -476,7 +493,7 @@ impl Prop
             }
         }
 
-        self.spawn(drawing_resources, manager, edits_history, delta);
+        self.spawn(drawing_resources, manager, edits_history, grid, delta);
     }
 
     /// Spawns a copy of `self` as if it were a brush of a image editing software.
@@ -486,10 +503,11 @@ impl Prop
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         cursor_pos: Vec2
     )
     {
-        self.spawn(drawing_resources, manager, edits_history, self.spawn_delta(cursor_pos));
+        self.spawn(drawing_resources, manager, edits_history, grid, self.spawn_delta(cursor_pos));
     }
 
     //==============================================================

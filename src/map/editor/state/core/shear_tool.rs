@@ -100,8 +100,8 @@ impl ShearTool
         &mut self,
         bundle: &mut ToolUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         grid: Grid
     )
     {
@@ -223,7 +223,7 @@ impl ShearTool
 
                 let valid = manager.test_operation_validity(|manager| {
                     manager.selected_brushes().find_map(|brush| {
-                        match brush.$check(drawing_resources, &info)
+                        match brush.$check(drawing_resources, grid, &info)
                         {
                             ShearResult::Valid(payload) =>
                             {
@@ -248,7 +248,7 @@ impl ShearTool
 
                 for payload in payloads.into_iter()
                 {
-                    manager.brush_mut(drawing_resources, payload.id()).$shear(payload);
+                    manager.brush_mut(drawing_resources, grid, payload.id()).$shear(payload);
                 }
 
                 info

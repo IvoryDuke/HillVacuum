@@ -18,7 +18,7 @@ use crate::{
     map::{
         brush::Brush,
         drawer::drawing_resources::DrawingResources,
-        editor::state::manager::quad_tree::QuadTreeIds,
+        editor::state::{grid::Grid, manager::quad_tree::QuadTreeIds},
         path::Moving,
         thing::ThingInstance
     },
@@ -153,6 +153,7 @@ pub(in crate::map::editor::state::manager) struct SelectedBrushesMut<'a>
     resources:  &'a DrawingResources,
     /// The manager.
     manager:    &'a mut Innards,
+    grid:       Grid,
     /// The [`QuadTree`]s.
     quad_trees: &'a mut Trees
 }
@@ -169,6 +170,7 @@ impl<'a> Iterator for SelectedBrushesMut<'a>
                 BrushMut::new(
                     self.resources,
                     std::ptr::from_mut(self.manager).as_mut().unwrap(),
+                    self.grid,
                     std::ptr::from_mut(self.quad_trees).as_mut().unwrap(),
                     *id
                 )
@@ -184,6 +186,7 @@ impl<'a> SelectedBrushesMut<'a>
     pub fn new(
         resources: &'a DrawingResources,
         manager: &'a mut Innards,
+        grid: Grid,
         quad_trees: &'a mut Trees,
         selected_brushes: &'a AuxiliaryIds
     ) -> Self
@@ -192,6 +195,7 @@ impl<'a> SelectedBrushesMut<'a>
             iter: selected_brushes.iter(),
             resources,
             manager,
+            grid,
             quad_trees
         }
     }
@@ -364,6 +368,7 @@ pub(in crate::map::editor::state::manager) struct SelectedMovingsMut<'a>
     resources:  &'a DrawingResources,
     /// The entities manager.
     manager:    &'a mut Innards,
+    grid:       Grid,
     /// The [`QuadTree`]s.
     quad_trees: &'a mut Trees
 }
@@ -379,6 +384,7 @@ impl<'a> Iterator for SelectedMovingsMut<'a>
             self.iter.next().map(|id| {
                 std::ptr::from_mut(self.manager).as_mut().unwrap().moving_mut(
                     self.resources,
+                    self.grid,
                     std::ptr::from_mut(self.quad_trees).as_mut().unwrap(),
                     *id
                 )
@@ -394,6 +400,7 @@ impl<'a> SelectedMovingsMut<'a>
     pub fn new(
         resources: &'a DrawingResources,
         manager: &'a mut Innards,
+        grid: Grid,
         quad_trees: &'a mut Trees,
         selected_brushes: &'a AuxiliaryIds
     ) -> Self
@@ -402,6 +409,7 @@ impl<'a> SelectedMovingsMut<'a>
             iter: selected_brushes.iter(),
             resources,
             manager,
+            grid,
             quad_trees
         }
     }

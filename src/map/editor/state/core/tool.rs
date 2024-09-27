@@ -548,9 +548,9 @@ impl ActiveTool
         &mut self,
         bundle: &StateUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
         clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses
     )
     {
         assert!(self.copy_paste_available(), "Cut is not available.");
@@ -583,9 +583,10 @@ impl ActiveTool
         &mut self,
         bundle: &StateUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
         clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
+        grid: Grid
     )
     {
         assert!(self.copy_paste_available(), "Paste is not available.");
@@ -596,6 +597,7 @@ impl ActiveTool
                 bundle.drawing_resources,
                 manager,
                 edits_history,
+                grid,
                 return_if_none!(t.possible_moving_beneath_cursor(bundle, manager, inputs))
             );
 
@@ -774,9 +776,9 @@ impl ActiveTool
         &mut self,
         bundle: &mut ToolUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         grid: Grid,
         settings: &mut ToolsSettings
     )
@@ -1485,9 +1487,9 @@ impl ActiveTool
         &mut self,
         bundle: &mut StateUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
+        clipboard: &mut Clipboard,
         edits_history: &mut EditsHistory,
-        clipboard: &mut Clipboard
+        inputs: &InputsPresses
     )
     {
         match self
@@ -1507,9 +1509,9 @@ impl ActiveTool
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         ui: &mut egui::Ui,
         settings: &mut ToolsSettings
     )
@@ -1520,9 +1522,9 @@ impl ActiveTool
             tool: &mut ActiveTool,
             drawing_resources: &DrawingResources,
             manager: &mut EntitiesManager,
-            inputs: &InputsPresses,
-            edits_history: &mut EditsHistory,
             clipboard: &mut Clipboard,
+            edits_history: &mut EditsHistory,
+            inputs: &InputsPresses,
             ui: &mut egui::Ui,
             settings: &mut ToolsSettings
         )

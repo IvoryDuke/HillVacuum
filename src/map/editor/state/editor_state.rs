@@ -818,7 +818,7 @@ impl State
                 };
 
                 state.manager.finish_things_reload(things_catalog);
-                state.manager.finish_textures_reload(drawing_resources);
+                state.manager.finish_textures_reload(drawing_resources, grid);
 
                 (state, path.into())
             },
@@ -1811,6 +1811,7 @@ impl State
             &mut file,
             drawing_resources,
             things_catalog,
+            grid,
             default_properties,
             &mut steps
         )?;
@@ -1955,9 +1956,9 @@ impl State
         self.core.cut(
             bundle,
             &mut self.manager,
-            &self.inputs,
             &mut self.clipboard,
-            &mut self.edits_history
+            &mut self.edits_history,
+            &self.inputs
         );
     }
 
@@ -1968,9 +1969,9 @@ impl State
         self.core.paste(
             bundle,
             &mut self.manager,
-            &self.inputs,
             &mut self.clipboard,
-            &mut self.edits_history
+            &mut self.edits_history,
+            &self.inputs
         );
     }
 
@@ -2028,8 +2029,8 @@ impl State
             &mut self.core,
             &mut self.manager,
             &mut self.inputs,
-            &mut self.edits_history,
             &mut self.clipboard,
+            &mut self.edits_history,
             &mut self.grid,
             &mut self.tools_settings,
             &tool_change_conditions
@@ -2416,9 +2417,9 @@ impl State
         self.core.update(
             bundle,
             &mut self.manager,
-            &self.inputs,
-            &mut self.edits_history,
             &mut self.clipboard,
+            &mut self.edits_history,
+            &self.inputs,
             self.grid,
             &mut self.tools_settings
         );
@@ -2533,7 +2534,7 @@ impl State
     {
         if Bind::Zoom.alt_just_pressed(key_inputs, binds)
         {
-            return self.manager.selected_entities_hull(drawing_resources);
+            return self.manager.selected_entities_hull(drawing_resources, self.grid);
         }
 
         None
@@ -2602,7 +2603,7 @@ impl State
             drawing_resources,
             self.grid
         );
-        self.manager.finish_textures_reload(drawing_resources);
+        self.manager.finish_textures_reload(drawing_resources, self.grid);
         self.ui.update_overall_texture(drawing_resources, &self.manager);
     }
 

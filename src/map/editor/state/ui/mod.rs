@@ -586,8 +586,8 @@ impl Ui
         core: &mut Core,
         manager: &mut EntitiesManager,
         inputs: &mut InputsPresses,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
         grid: &mut Grid,
         settings: &mut ToolsSettings,
         tool_change_conditions: &ChangeConditions
@@ -636,9 +636,10 @@ impl Ui
                 self.texture_editor.show(
                     bundle,
                     manager,
-                    edits_history,
                     clipboard,
+                    edits_history,
                     inputs,
+                    *grid,
                     settings
                 )
             })
@@ -648,7 +649,7 @@ impl Ui
             self.settings_window.show(bundle, clipboard, inputs, grid)
         }) | show_and_clear_inputs(bundle, inputs, |bundle, inputs| {
             self.properties_window
-                .show(bundle, manager, edits_history, clipboard, inputs)
+                .show(bundle, manager, clipboard, edits_history, inputs, *grid)
         });
 
         if let Some(clicked) = self.edits_history_window.show(bundle, core, edits_history)
@@ -725,9 +726,9 @@ impl Ui
                     core.tool_ui(
                         bundle.drawing_resources,
                         manager,
-                        inputs,
-                        edits_history,
                         clipboard,
+                        edits_history,
+                        inputs,
                         ui,
                         settings
                     );
@@ -737,7 +738,7 @@ impl Ui
             .layer_id;
 
         // Bottom panel
-        core.bottom_panel(bundle, manager, inputs, edits_history, clipboard);
+        core.bottom_panel(bundle, manager, clipboard, edits_history, inputs);
 
         // Close windows.
         bundle.egui_context.memory(|mem| {

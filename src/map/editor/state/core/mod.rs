@@ -889,9 +889,9 @@ impl Core
         &mut self,
         bundle: &StateUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
         clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses
     )
     {
         self.active_tool
@@ -904,9 +904,9 @@ impl Core
         &mut self,
         bundle: &StateUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
         clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses
     )
     {
         self.active_tool
@@ -979,9 +979,9 @@ impl Core
         &mut self,
         bundle: &mut ToolUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         grid: Grid,
         settings: &mut ToolsSettings
     )
@@ -1109,9 +1109,9 @@ impl Core
         &mut self,
         bundle: &mut StateUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
+        clipboard: &mut Clipboard,
         edits_history: &mut EditsHistory,
-        clipboard: &mut Clipboard
+        inputs: &InputsPresses
     )
     {
         self.active_tool
@@ -1124,9 +1124,9 @@ impl Core
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         ui: &mut egui::Ui,
         settings: &mut ToolsSettings
     )

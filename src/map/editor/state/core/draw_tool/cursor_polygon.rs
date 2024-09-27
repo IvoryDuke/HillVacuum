@@ -21,6 +21,7 @@ use crate::{
                 },
                 editor_state::{InputsPresses, ToolsSettings},
                 edits_history::EditsHistory,
+                grid::Grid,
                 manager::EntitiesManager
             },
             DrawBundle,
@@ -67,10 +68,11 @@ macro_rules! shape_cursor_brush {
                 &mut self,
                 bundle: &ToolUpdateBundle,
                 manager: &mut EntitiesManager,
-                drawn_brushes: &mut Ids,
+                edits_history: &mut EditsHistory,
                 inputs: &InputsPresses,
-                edits_history: &mut EditsHistory
-                $(, $settings: &mut ToolsSettings)?
+                grid: Grid,
+                $($settings: &mut ToolsSettings,)?
+                drawn_brushes: &mut Ids
             )
             {
                 self.state_update(inputs, bundle.cursor $(, $settings)?);
@@ -91,10 +93,11 @@ macro_rules! shape_cursor_brush {
 
                 manager.spawn_drawn_brush(
                     bundle.drawing_resources,
-                    ConvexPolygon::new(vxs),
-                    drawn_brushes,
+                    bundle.brushes_default_properties,
                     edits_history,
-                    bundle.brushes_default_properties
+                    grid,
+                    ConvexPolygon::new(vxs),
+                    drawn_brushes
                 );
             }
 
@@ -583,19 +586,21 @@ impl FreeDrawCursorPolygon
         &mut self,
         bundle: &ToolUpdateBundle,
         manager: &mut EntitiesManager,
-        drawn_brushes: &mut Ids,
+        edits_history: &mut EditsHistory,
         inputs: &InputsPresses,
-        edits_history: &mut EditsHistory
+        grid: Grid,
+        drawn_brushes: &mut Ids
     )
     {
         if inputs.enter.just_pressed()
         {
             self.generate_polygon(
                 bundle.drawing_resources,
+                bundle.brushes_default_properties,
                 manager,
                 drawn_brushes,
                 edits_history,
-                bundle.brushes_default_properties
+                grid
             );
             edits_history.purge_free_draw_edits();
             return;
@@ -700,10 +705,11 @@ impl FreeDrawCursorPolygon
     fn generate_polygon(
         &mut self,
         drawing_resources: &DrawingResources,
+        default_properties: &DefaultProperties,
         manager: &mut EntitiesManager,
         drawn_brushes: &mut Ids,
         edits_history: &mut EditsHistory,
-        default_properties: &DefaultProperties
+        grid: Grid
     ) -> bool
     {
         if !matches!(self.0, Status::Polygon(_))
@@ -715,10 +721,11 @@ impl FreeDrawCursorPolygon
 
         manager.spawn_drawn_brush(
             drawing_resources,
-            match_or_panic!(status, Status::Polygon(poly), poly),
-            drawn_brushes,
+            default_properties,
             edits_history,
-            default_properties
+            grid,
+            match_or_panic!(status, Status::Polygon(poly), poly),
+            drawn_brushes
         );
 
         true

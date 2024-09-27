@@ -157,16 +157,15 @@ impl Selector
     #[inline]
     fn new() -> Self
     {
-        /// brush and [`ThingInstance`] selection update.
         #[inline]
-        fn entity_selector(
-            _: &DrawingResources,
+        fn scan_brushes(
             manager: &EntitiesManager,
-            cursor_pos: Vec2,
-            _: f32,
+            cursor: &Cursor,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
         {
+            let cursor_pos = cursor.world();
+
             for brush in manager
                 .brushes_at_pos(cursor_pos, None)
                 .iter()
@@ -175,6 +174,41 @@ impl Selector
                 let id = brush.id();
                 items.push(ItemBeneathCursor::Polygon(id), manager.is_selected(id));
             }
+        }
+
+        #[inline]
+        fn scan_sprites(
+            drawing_resources: &DrawingResources,
+            manager: &EntitiesManager,
+            cursor: &Cursor,
+            items: &mut ItemsBeneathCursor<ItemBeneathCursor>
+        )
+        {
+            for brush in manager.sprites_at_pos(cursor_pos).iter().filter(|brush| {
+                brush
+                    .sprite_hull(drawing_resources)
+                    .unwrap()
+                    .contains_point(cursor_pos)
+            })
+            {
+                let id = brush.id();
+                items.push(ItemBeneathCursor::Sprite(id), manager.is_selected(id));
+            }
+        }
+
+        /// brush and [`ThingInstance`] selection update.
+        #[inline]
+        fn entity_selector(
+            _: &DrawingResources,
+            manager: &EntitiesManager,
+            cursor: &Cursor,
+            _: f32,
+            items: &mut ItemsBeneathCursor<ItemBeneathCursor>
+        )
+        {
+            let cursor_pos = cursor.world();
+
+            scan_brushes(manager, cursor, items);
 
             for thing in manager
                 .things_at_pos(cursor_pos, None)
@@ -191,19 +225,12 @@ impl Selector
         fn polygon_selector(
             _: &DrawingResources,
             manager: &EntitiesManager,
-            cursor_pos: Vec2,
+            cursor: &Cursor,
             _: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
         {
-            for brush in manager
-                .brushes_at_pos(cursor_pos, None)
-                .iter()
-                .filter(|brush| brush.contains_point(cursor_pos))
-            {
-                let id = brush.id();
-                items.push(ItemBeneathCursor::Polygon(id), manager.is_selected(id));
-            }
+            scan_brushes(manager, cursor, items);
         }
 
         /// Textured brush selection update.
@@ -211,21 +238,14 @@ impl Selector
         fn textured_brush_selector(
             drawing_resources: &DrawingResources,
             manager: &EntitiesManager,
-            cursor_pos: Vec2,
+            cursor: &Cursor,
             _: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
         {
-            for brush in manager.sprites_at_pos(cursor_pos).iter().filter(|brush| {
-                brush
-                    .sprite_hull(drawing_resources)
-                    .unwrap()
-                    .contains_point(cursor_pos)
-            })
-            {
-                let id = brush.id();
-                items.push(ItemBeneathCursor::Sprite(id), manager.is_selected(id));
-            }
+            scan_sprites(drawing_resources, manager, cursor, items);
+
+            let cursor_pos = cursor.world();
 
             for brush in manager.brushes_at_pos(cursor_pos, None).iter().filter(|brush| {
                 brush.has_texture() && !brush.has_sprite() && brush.contains_point(cursor_pos)
@@ -241,39 +261,13 @@ impl Selector
         fn both_selector(
             drawing_resources: &DrawingResources,
             manager: &EntitiesManager,
-            cursor_pos: Vec2,
-            _: f32,
+            cursor: &Cursor,
+            camera_scale: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
         {
-            for brush in manager.sprites_at_pos(cursor_pos).iter().filter(|brush| {
-                brush
-                    .sprite_hull(drawing_resources)
-                    .unwrap()
-                    .contains_point(cursor_pos)
-            })
-            {
-                let id = brush.id();
-                items.push(ItemBeneathCursor::Sprite(id), manager.is_selected(id));
-            }
-
-            for brush in manager
-                .brushes_at_pos(cursor_pos, None)
-                .iter()
-                .filter(|brush| brush.contains_point(cursor_pos))
-            {
-                let id = brush.id();
-                items.push(ItemBeneathCursor::Polygon(id), manager.is_selected(id));
-            }
-
-            for thing in manager
-                .things_at_pos(cursor_pos, None)
-                .iter()
-                .filter(|thing| thing.contains_point(cursor_pos))
-            {
-                let id = thing.id();
-                items.push(ItemBeneathCursor::Thing(id), manager.is_selected(id));
-            }
+            scan_sprites(drawing_resources, manager, cursor, items);
+            entity_selector(drawing_resources, manager, cursor, camera_scale, items);
         }
 
         Self {
@@ -455,9 +449,9 @@ impl EntityTool
         &mut self,
         bundle: &mut ToolUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         grid: Grid,
         settings: &ToolsSettings
     )
@@ -806,8 +800,8 @@ impl EntityTool
     #[inline]
     fn toggle_entity_selection(
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         identifier: Id
     )
     {
@@ -824,8 +818,8 @@ impl EntityTool
     #[inline]
     fn exclusively_select_entity(
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         identifier: Id
     )
     {
@@ -838,8 +832,8 @@ impl EntityTool
     fn select_entities_from_drag_selection(
         manager: &mut EntitiesManager,
         drag_selection: &Hull,
-        inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         settings: &ToolsSettings
     )
     {

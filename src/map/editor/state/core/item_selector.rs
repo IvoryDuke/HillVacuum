@@ -6,8 +6,6 @@
 use core::panic;
 use std::{cmp::Ordering, fmt::Debug, ops::Index};
 
-use glam::Vec2;
-
 use crate::{
     map::{
         drawer::drawing_resources::DrawingResources,
@@ -44,7 +42,7 @@ enum Position
 
 #[allow(clippy::missing_docs_in_private_items)]
 type SelectorFunc<T> =
-    fn(&DrawingResources, &EntitiesManager, Vec2, f32, &mut ItemsBeneathCursor<T>);
+    fn(&DrawingResources, &EntitiesManager, &Cursor, f32, &mut ItemsBeneathCursor<T>);
 
 //=======================================================================//
 
@@ -211,7 +209,7 @@ where
     ) -> Option<T>
     {
         self.items.clear();
-        (self.selector)(drawing_resources, manager, cursor.world(), camera_scale, &mut self.items);
+        (self.selector)(drawing_resources, manager, cursor, camera_scale, &mut self.items);
 
         if self.items.is_empty()
         {

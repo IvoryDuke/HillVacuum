@@ -31,6 +31,7 @@ use crate::{
             clipboard::Clipboard,
             editor_state::InputsPresses,
             edits_history::EditsHistory,
+            grid::Grid,
             manager::EntitiesManager,
             ui::{
                 overall_value_field::OverallValueField,
@@ -639,6 +640,7 @@ impl AnimationEditor
         drawing_resources: &mut DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         overall_texture: &UiOverallTextureSettings,
         new_texture: &str
     )
@@ -681,12 +683,12 @@ impl AnimationEditor
             Target::Brushes =>
             {
                 edits_history.list_animation_new_frame(
-                    manager
-                        .selected_textured_brushes_mut(drawing_resources)
-                        .map(|mut brush| {
+                    manager.selected_textured_brushes_mut(drawing_resources, grid).map(
+                        |mut brush| {
                             brush.push_list_animation_frame(new_texture);
                             brush.id()
-                        }),
+                        }
+                    ),
                     new_texture
                 );
             }
@@ -720,17 +722,18 @@ impl AnimationEditor
     #[must_use]
     fn check_sprites_within_bounds(
         drawing_resources: &DrawingResources,
+        grid: Grid,
         texture: &str,
         manager: &mut EntitiesManager
     ) -> bool
     {
         manager.test_operation_validity(|manager| {
             return_if_none!(
-                manager.selected_brushes_with_sprites_mut(drawing_resources, texture),
+                manager.selected_brushes_with_sprites_mut(drawing_resources, grid, texture),
                 None
             )
             .find_map(|mut brush| {
-                (!brush.check_texture_within_bounds(drawing_resources)).then_some(brush.id())
+                (!brush.check_texture_within_bounds(drawing_resources, grid)).then_some(brush.id())
             })
         })
     }
@@ -824,6 +827,7 @@ impl AnimationEditor
             edits_history,
             clipboard,
             inputs,
+            grid,
             ..
         } = bundle;
 
@@ -834,6 +838,7 @@ impl AnimationEditor
                     |value| {
                         if !Self::check_sprites_within_bounds(
                             drawing_resources,
+                            *grid,
                             texture.name(),
                             manager
                         )
@@ -994,6 +999,7 @@ impl AnimationEditor
                     drawing_resources,
                     manager,
                     edits_history,
+                    grid,
                     ..
                 } = bundle;
 
@@ -1029,6 +1035,7 @@ impl AnimationEditor
                             drawing_resources: &DrawingResources,
                             manager: &mut EntitiesManager,
                             edits_history: &mut EditsHistory,
+                            grid: Grid,
                             texture: &mut Texture,
                             ui_animation: &mut UiOverallAnimation,
                             new_animation: Animation
@@ -1038,6 +1045,7 @@ impl AnimationEditor
 
                             if AnimationEditor::check_sprites_within_bounds(
                                 drawing_resources,
+                                grid,
                                 texture.name(),
                                 manager
                             )
@@ -1057,6 +1065,7 @@ impl AnimationEditor
                                 drawing_resources,
                                 manager,
                                 edits_history,
+                                *grid,
                                 selected_texture,
                                 ui_animation,
                                 Animation::None
@@ -1070,6 +1079,7 @@ impl AnimationEditor
                                 drawing_resources,
                                 manager,
                                 edits_history,
+                                *grid,
                                 selected_texture,
                                 ui_animation,
                                 new_animation
@@ -1081,6 +1091,7 @@ impl AnimationEditor
                                 drawing_resources,
                                 manager,
                                 edits_history,
+                                *grid,
                                 selected_texture,
                                 ui_animation,
                                 Animation::atlas_animation()

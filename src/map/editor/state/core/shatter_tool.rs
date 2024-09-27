@@ -17,6 +17,7 @@ use crate::{
                 core::{draw_selected_and_non_selected_brushes, ActiveTool},
                 editor_state::InputsPresses,
                 edits_history::EditsHistory,
+                grid::Grid,
                 manager::EntitiesManager
             },
             DrawBundle,
@@ -51,11 +52,13 @@ impl Selector
         fn selector(
             _: &DrawingResources,
             manager: &EntitiesManager,
-            cursor_pos: Vec2,
+            cursor: &Cursor,
             _: f32,
             items: &mut ItemsBeneathCursor<Id>
         )
         {
+            let cursor_pos = cursor.world();
+
             for brush in manager
                 .selected_brushes_at_pos(cursor_pos, None)
                 .iter()
@@ -110,8 +113,9 @@ impl ShatterTool
         &mut self,
         bundle: &mut ToolUpdateBundle,
         manager: &mut EntitiesManager,
+        edits_history: &mut EditsHistory,
         inputs: &InputsPresses,
-        edits_history: &mut EditsHistory
+        grid: Grid
     )
     {
         self.0 =
@@ -120,7 +124,7 @@ impl ShatterTool
 
         if inputs.left_mouse.just_pressed()
         {
-            self.shatter(bundle, manager, edits_history);
+            self.shatter(bundle, manager, edits_history, grid);
         }
     }
 
@@ -130,7 +134,8 @@ impl ShatterTool
         &mut self,
         bundle: &mut ToolUpdateBundle,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory
+        edits_history: &mut EditsHistory,
+        grid: Grid
     )
     {
         let ToolUpdateBundle {
@@ -147,6 +152,7 @@ impl ShatterTool
         _ = manager.replace_brush_with_partition(
             drawing_resources,
             edits_history,
+            grid,
             shards.into_iter(),
             id,
             |brush| brush.set_polygon(main)

@@ -178,11 +178,13 @@ impl Selector
         fn selector(
             _: &DrawingResources,
             manager: &EntitiesManager,
-            cursor_pos: Vec2,
+            cursor: &Cursor,
             camera_scale: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
         {
+            let cursor_pos = cursor.world();
+
             for entity in manager.selected_movings_at_pos(cursor_pos, camera_scale).iter()
             {
                 let id = entity.id();
@@ -461,8 +463,8 @@ impl PathTool
         &mut self,
         bundle: &mut ToolUpdateBundle,
         manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
         edits_history: &mut EditsHistory,
+        inputs: &InputsPresses,
         grid: Grid
     )
     {
@@ -1378,8 +1380,8 @@ impl PathTool
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
         inputs: &InputsPresses,
         ui: &mut egui::Ui
     )

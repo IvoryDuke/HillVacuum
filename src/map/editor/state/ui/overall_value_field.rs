@@ -20,6 +20,34 @@ use crate::{
 };
 
 //=======================================================================//
+// TRAITS
+//
+//=======================================================================//
+
+pub(in crate::map::editor::state::ui) trait MinusPlusUiOverallValue:
+    ToString
+    + FromStr
+    + std::ops::Add<Output = Self>
+    + std::ops::Neg<Output = Self>
+    + Clone
+    + Copy
+    + PartialEq
+{
+}
+
+impl<
+        T: ToString
+            + FromStr
+            + std::ops::Add<Output = Self>
+            + std::ops::Neg<Output = Self>
+            + Clone
+            + Copy
+            + PartialEq
+    > MinusPlusUiOverallValue for T
+{
+}
+
+//=======================================================================//
 // STRUCTS
 //
 //=======================================================================//
@@ -73,7 +101,7 @@ impl<T: ToString + FromStr + PartialEq> OverallValueField<T>
 #[must_use]
 pub(in crate::map::editor::state) struct MinusPlusOverallValueField<T>
 where
-    T: ToString + FromStr + std::ops::Add<Output = T> + std::ops::Neg<Output = T> + Clone + Copy
+    T: MinusPlusUiOverallValue
 {
     /// The minus and plus buttons.
     minus_plus: MinusPlusButtons,
@@ -83,13 +111,7 @@ where
 
 impl<T> MinusPlusOverallValueField<T>
 where
-    T: ToString
-        + FromStr
-        + std::ops::Add<Output = T>
-        + std::ops::Neg<Output = T>
-        + Clone
-        + Copy
-        + PartialEq
+    T: MinusPlusUiOverallValue
 {
     /// Returns a new [`MinusPlusOverallValueField`].
     #[inline]

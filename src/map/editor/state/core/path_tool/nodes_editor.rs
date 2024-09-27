@@ -59,8 +59,8 @@ macro_rules! movement_values {
             &mut self,
             drawing_resources: &DrawingResources,
             manager: &mut EntitiesManager,
-            edits_history: &mut EditsHistory,
             clipboard: &mut Clipboard,
+            edits_history: &mut EditsHistory,
             inputs: &InputsPresses,
             ui: &mut egui::Ui,
             simulation_active: bool
@@ -159,8 +159,8 @@ impl NodesEditor
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
         clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
         inputs: &InputsPresses,
         ui: &mut egui::Ui,
         simulation_active: bool
@@ -177,8 +177,8 @@ impl NodesEditor
                 self.standby_time(
                     drawing_resources,
                     manager,
-                    edits_history,
                     clipboard,
+                    edits_history,
                     inputs,
                     ui,
                     simulation_active
@@ -186,8 +186,8 @@ impl NodesEditor
                 self.max_speed(
                     drawing_resources,
                     manager,
-                    edits_history,
                     clipboard,
+                    edits_history,
                     inputs,
                     ui,
                     simulation_active
@@ -195,8 +195,8 @@ impl NodesEditor
                 self.min_speed(
                     drawing_resources,
                     manager,
-                    edits_history,
                     clipboard,
+                    edits_history,
                     inputs,
                     ui,
                     simulation_active
@@ -204,8 +204,8 @@ impl NodesEditor
                 self.accel_travel_percentage(
                     drawing_resources,
                     manager,
-                    edits_history,
                     clipboard,
+                    edits_history,
                     inputs,
                     ui,
                     simulation_active
@@ -213,8 +213,8 @@ impl NodesEditor
                 self.decel_travel_percentage(
                     drawing_resources,
                     manager,
-                    edits_history,
                     clipboard,
+                    edits_history,
                     inputs,
                     ui,
                     simulation_active
