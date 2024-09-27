@@ -914,7 +914,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(4);
         mesh_generator.push_positions(vxs.iter().copied());
-        mesh_generator.set_sprite_uv(settings.name(), settings);
+        mesh_generator.set_sprite_uv(settings);
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
         self.resources
@@ -1462,7 +1462,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
                             self.resources,
                             settings.overall_animation(self.resources).get_list_animation()
                         );
-                        mesh_generator.set_sprite_uv(materials.texture().name(), settings);
+                        mesh_generator.set_sprite_uv(settings);
                         materials
                     },
                     Animator::Atlas(animator) =>
@@ -1475,7 +1475,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
             None =>
             {
                 let texture = self.resources.texture_or_error(settings.name()).name();
-                mesh_generator.set_sprite_uv(texture, settings);
+                mesh_generator.set_sprite_uv(settings);
                 self.resources.texture_materials(texture)
             }
         };

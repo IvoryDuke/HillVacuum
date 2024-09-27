@@ -1370,18 +1370,17 @@ impl<'a> MeshGenerator<'a>
     #[allow(clippy::cast_precision_loss)]
     #[inline]
     #[must_use]
-    fn sprite_uv<T: TextureInterface + TextureInterfaceExtra>(
-        &self,
-        texture: &str,
-        settings: &T
-    ) -> [Uv; 4]
+    fn sprite_uv<T: TextureInterface + TextureInterfaceExtra>(&self, settings: &T) -> [Uv; 4]
     {
-        let size = self.4.texture_or_error(texture).size().as_vec2();
-
-        let mut left = 1f32 / (size.x * settings.scale_x());
-        let mut top = 1f32 / (size.y * settings.scale_y());
-        let mut right = settings.scale_x().signum() + left;
-        let mut bottom = settings.scale_y().signum() + top;
+        let (mut right, mut bottom, mut left, mut top) =
+            match (settings.scale_x().signum(), settings.scale_y().signum())
+            {
+                (1f32, 1f32) => (1f32, 1f32, 0f32, 0f32),
+                (-1f32, 1f32) => (0f32, 1f32, 1f32, 0f32),
+                (1f32, -1f32) => (1f32, 0f32, 0f32, 1f32),
+                (-1f32, -1f32) => (0f32, 0f32, 1f32, 1f32),
+                _ => unreachable!()
+            };
 
         if let Animation::Atlas(anim) = settings.overall_animation(self.4)
         {
@@ -1404,13 +1403,9 @@ impl<'a> MeshGenerator<'a>
 
     /// Sets the UV to the one of a sprite.
     #[inline]
-    pub fn set_sprite_uv<T: TextureInterface + TextureInterfaceExtra>(
-        &mut self,
-        texture: &str,
-        settings: &T
-    )
+    pub fn set_sprite_uv<T: TextureInterface + TextureInterfaceExtra>(&mut self, settings: &T)
     {
-        let uvs = self.sprite_uv(texture, settings);
+        let uvs = self.sprite_uv(settings);
         self.3.extend(uvs);
     }
 
@@ -1423,7 +1418,7 @@ impl<'a> MeshGenerator<'a>
     )
     {
         let pivot = animator.pivot();
-        let mut uvs = self.sprite_uv(settings.name(), settings);
+        let mut uvs = self.sprite_uv(settings);
 
         for uv in &mut uvs
         {
