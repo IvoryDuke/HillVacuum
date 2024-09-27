@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.3
+## 0.8.0
 
 ### Changes
 - Working pivoted textures rotation;
@@ -14,7 +14,8 @@
 ### Fixes
 - Fixed overlapping actions in rotate tool;
 - fixed an issue where undoing changes past the last saved edit would not result in the map marked as in need of being saved when quitting the application;
-- fixed an issue where properties could all be converted to a String.
+- fixed an issue where properties could all be converted to a String;
+- fixes sprites being incorrectly rendered.
 
 ## 0.7.2
 
