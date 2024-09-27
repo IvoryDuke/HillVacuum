@@ -17,8 +17,13 @@ use super::{
 };
 use crate::{
     map::{
-        brush::{convex_polygon::ConvexPolygon, RotateResult},
-        drawer::{drawing_resources::DrawingResources, texture::TextureRotation},
+        brush::{
+            convex_polygon::ConvexPolygon,
+            RotateResult,
+            TextureRotationPayload,
+            TextureRotationResult
+        },
+        drawer::drawing_resources::DrawingResources,
         editor::{
             cursor::Cursor,
             state::{
@@ -438,19 +443,16 @@ impl RotateTool
             angle: f32
         )
         {
-            let mut payloads = return_if_none!(RotateTool::check_textures_rotation(
+            let payloads = return_if_none!(RotateTool::check_textures_rotation(
                 drawing_resources,
                 manager,
                 pivot,
                 angle
             ));
 
-            for (id, p) in &mut payloads
-            {
-                manager.brush_mut(drawing_resources, *id).rotate_texture(p);
-            }
-
-            edits_history.texture_rotation_cluster(payloads.into_iter());
+            edits_history.texture_rotation_cluster(payloads.into_iter().map(|p| {
+                (p.id(), manager.brush_mut(drawing_resources, p.id()).apply_texture_rotation(&p))
+            }));
         }
 
         let angle = match settings.rotate_angle
@@ -526,7 +528,7 @@ impl RotateTool
         manager: &mut EntitiesManager,
         pivot: Vec2,
         angle: f32
-    ) -> Option<HvVec<(Id, TextureRotation)>>
+    ) -> Option<HvVec<TextureRotationPayload>>
     {
         let mut payloads = hv_vec![];
 
@@ -536,12 +538,12 @@ impl RotateTool
                 .find_map(|mut brush| {
                     match brush.check_texture_rotation(drawing_resources, pivot, angle)
                     {
-                        Some(p) =>
+                        TextureRotationResult::Invalid => brush.id().into(),
+                        TextureRotationResult::Valid(p) =>
                         {
-                            payloads.push((brush.id(), p));
+                            payloads.push(p);
                             None
-                        },
-                        None => brush.id().into()
+                        }
                     }
                 })
         });
@@ -572,16 +574,16 @@ impl RotateTool
             backup_polygons: &mut HvVec<(Id, ConvexPolygon)>
         ) -> bool
         {
-            let mut payloads = return_if_none!(
+            let payloads = return_if_none!(
                 RotateTool::check_textures_rotation(drawing_resources, manager, pivot, angle),
                 false
             );
 
             fill_backup_polygons(manager, backup_polygons);
 
-            for (id, p) in &mut payloads
+            for p in payloads
             {
-                manager.brush_mut(drawing_resources, *id).rotate_texture(p);
+                _ = manager.brush_mut(drawing_resources, p.id()).apply_texture_rotation(&p);
             }
 
             true

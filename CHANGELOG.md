@@ -3,8 +3,7 @@
 ## 0.8.0
 
 ### Changes
-- Working pivoted textures rotation;
-- made behavior in horizontal and vertical texture offset consistent;
+- Revamped texture scale and rotation;
 - improved texture editor;
 - added "Reset" button in the texture editor;
 - scroll and parallax direction are now always perpendicular to the x and y axis regardless of the texture angle. Scroll values from older map files are automatically converted to the new system, unfortunately parallax is a breaking change;
@@ -15,7 +14,7 @@
 - Fixed overlapping actions in rotate tool;
 - fixed an issue where undoing changes past the last saved edit would not result in the map marked as in need of being saved when quitting the application;
 - fixed an issue where properties could all be converted to a String;
-- fixes sprites being incorrectly rendered.
+- fixes brush sprites being incorrectly rendered.
 
 ## 0.7.2
 

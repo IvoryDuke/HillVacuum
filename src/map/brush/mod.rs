@@ -518,7 +518,9 @@ pub(in crate::map) mod ui_mod
         SidesDeletionPayload,
         ScalePayload,
         ShearPayload,
-        RotatePayload
+        RotatePayload,
+        TextureScalePayload,
+        TextureRotationPayload
     );
 
     //=======================================================================//
@@ -715,6 +717,33 @@ pub(in crate::map) mod ui_mod
 
     #[must_use]
     #[derive(Debug)]
+    pub(in crate::map) enum TextureScaleResult
+    {
+        Invalid,
+        Valid(TextureScalePayload)
+    }
+
+    impl TextureScaleResult
+    {
+        #[inline]
+        const fn from_result(value: Option<TextureScale>, identifier: Id) -> Self
+        {
+            match value
+            {
+                Some(value) => Self::Valid(TextureScalePayload(identifier, value)),
+                None => Self::Invalid
+            }
+        }
+    }
+
+    #[must_use]
+    #[derive(Debug)]
+    pub(in crate::map) struct TextureScalePayload(Id, TextureScale);
+
+    //=======================================================================//
+
+    #[must_use]
+    #[derive(Debug)]
     pub(in crate::map) enum ShearResult
     {
         Invalid,
@@ -782,6 +811,33 @@ pub(in crate::map) mod ui_mod
             }
         }
     }
+
+    //=======================================================================//
+
+    #[must_use]
+    #[derive(Debug)]
+    pub(in crate::map) enum TextureRotationResult
+    {
+        Invalid,
+        Valid(TextureRotationPayload)
+    }
+
+    impl TextureRotationResult
+    {
+        #[inline]
+        const fn from_result(value: &Option<TextureRotation>, identifier: Id) -> Self
+        {
+            match value
+            {
+                Some(value) => Self::Valid(TextureRotationPayload(identifier, *value)),
+                None => Self::Invalid
+            }
+        }
+    }
+
+    #[must_use]
+    #[derive(Debug)]
+    pub(in crate::map) struct TextureRotationPayload(Id, TextureRotation);
 
     //=======================================================================//
     // STRUCTS
@@ -2644,9 +2700,24 @@ pub(in crate::map) mod ui_mod
             &mut self,
             drawing_resources: &DrawingResources,
             info: &ScaleInfo
-        ) -> Option<TextureScale>
+        ) -> TextureScaleResult
         {
-            self.data.polygon.check_texture_scale(drawing_resources, info)
+            TextureScaleResult::from_result(
+                self.data.polygon.check_texture_scale(drawing_resources, info),
+                self.id
+            )
+        }
+
+        #[inline]
+        pub fn apply_texture_scale(&mut self, payload: TextureScalePayload) -> TextureScale
+        {
+            assert!(
+                payload.id() == self.id,
+                "TextureScalePayload's ID is not equal to the Brush's ID."
+            );
+            let mut payload = payload.1;
+            self.scale_texture(&mut payload);
+            payload
         }
 
         #[inline]
@@ -2729,11 +2800,15 @@ pub(in crate::map) mod ui_mod
             drawing_resources: &DrawingResources,
             pivot: Vec2,
             angle: f32
-        ) -> Option<TextureRotation>
+        ) -> TextureRotationResult
         {
-            self.data
-                .polygon
-                .check_texture_rotation(drawing_resources, pivot, angle)
+            TextureRotationResult::from_result(
+                &self
+                    .data
+                    .polygon
+                    .check_texture_rotation(drawing_resources, pivot, angle),
+                self.id
+            )
         }
 
         /// Rotates `self` based on `payload`.
@@ -2743,6 +2818,19 @@ pub(in crate::map) mod ui_mod
             assert!(payload.id() == self.id, "RotatePayload's ID is not equal to the Brush's ID.");
             self.data.polygon.set_coordinates(payload.1.into_iter());
             self.rotate_texture(return_if_none!(&mut payload.2));
+        }
+
+        #[inline]
+        pub fn apply_texture_rotation(&mut self, payload: &TextureRotationPayload)
+            -> TextureRotation
+        {
+            assert!(
+                payload.id() == self.id,
+                "TextureRotationPayload's ID is not equal to the Brush's ID."
+            );
+            let mut payload = payload.1;
+            self.rotate_texture(&mut payload);
+            payload
         }
 
         #[inline]
