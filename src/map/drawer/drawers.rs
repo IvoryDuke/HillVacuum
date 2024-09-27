@@ -98,6 +98,41 @@ macro_rules! sprite_vxs {
 }
 
 //=======================================================================//
+
+macro_rules! unskewed_funcs {
+    ($(($(^ $unskewed:ident,)? $positions:ident $(, $grid:ident)?)),+) => { paste::paste! {$(
+        /// Draws the sides of a polygon.
+        #[inline]
+        pub fn [< $($unskewed _)? sides >](&mut self, mut vertexes: impl Iterator<Item = Vec2>, color: Color)
+        {
+            let mut mesh = self.resources.mesh_generator();
+
+            let vx_0 = vertexes.next_value();
+            mesh.$positions(
+                $(self.$grid,)?
+                Some(vx_0).into_iter().chain(vertexes).chain(Some(vx_0))
+            );
+
+            let mesh = mesh.mesh(PrimitiveTopology::LineStrip);
+            self.push_mesh(mesh, self.color_resources.line_material(color), color.line_height());
+        }
+
+        /// Returns the [`Mesh`] of a polygon.
+        #[inline]
+        #[must_use]
+        fn [< $($unskewed _)? polygon_mesh >](&mut self, vertexes: impl ExactSizeIterator<Item = Vec2>) -> Mesh
+        {
+            let len = vertexes.len();
+
+            let mut mesh = self.resources.mesh_generator();
+            mesh.$positions($(self.$grid,)? vertexes);
+            mesh.set_indexes(len);
+            mesh.mesh(PrimitiveTopology::TriangleList)
+        }
+    )+}};
+}
+
+//=======================================================================//
 // TRAITS
 //
 //=======================================================================//
@@ -205,6 +240,8 @@ impl<'w: 'a, 's: 'a, 'a> Drop for EditDrawer<'w, 's, 'a>
 
 impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 {
+    unskewed_funcs!((push_positions_skewed, grid), (^unskewed, push_positions));
+
     //==============================================================
     // New
 
@@ -365,19 +402,6 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         mesh.mesh(PrimitiveTopology::LineStrip)
     }
 
-    /// Returns the [`Mesh`] of a polygon.
-    #[inline]
-    #[must_use]
-    fn polygon_mesh(&mut self, vertexes: impl ExactSizeIterator<Item = Vec2>) -> Mesh
-    {
-        let len = vertexes.len();
-
-        let mut mesh = self.resources.mesh_generator();
-        mesh.push_positions_skewed(self.grid, vertexes);
-        mesh.set_indexes(len);
-        mesh.mesh(PrimitiveTopology::TriangleList)
-    }
-
     //==============================================================
     // Info
 
@@ -436,22 +460,6 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             self.color_resources.semitransparent_line_material(color),
             color.line_height()
         );
-    }
-
-    /// Draws the sides of a polygon.
-    #[inline]
-    pub fn sides(&mut self, mut vertexes: impl Iterator<Item = Vec2>, color: Color)
-    {
-        let mut mesh = self.resources.mesh_generator();
-
-        let vx_0 = vertexes.next_value();
-        mesh.push_positions_skewed(
-            self.grid,
-            Some(vx_0).into_iter().chain(vertexes).chain(Some(vx_0))
-        );
-
-        let mesh = mesh.mesh(PrimitiveTopology::LineStrip);
-        self.push_mesh(mesh, self.color_resources.line_material(color), color.line_height());
     }
 
     /// Draws `grid`.
@@ -925,8 +933,9 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             return;
         }
 
-        self.hull(&Hull::from_points(vxs.iter().copied()).unwrap(), color);
-        let mesh = self.polygon_mesh(vxs.into_iter());
+        self.unskewed_sides(vxs.iter().copied(), color);
+
+        let mesh = self.unskewed_polygon_mesh(vxs.into_iter());
         self.push_mesh(mesh, self.color_resources.polygon_material(color), color.polygon_height());
     }
 

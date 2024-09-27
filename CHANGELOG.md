@@ -15,7 +15,8 @@
 - fixed an issue where undoing changes past the last saved edit would not result in the map marked as in need of being saved when quitting the application;
 - fixed an issue where properties could all be converted to a String;
 - fixes brush sprites being incorrectly rendered;
-- fixed entity tool crash when attempting to move textures but none were selected.
+- fixed entity tool crash when attempting to move textures but none were selected;
+- fixed incorrect sprite hull drawing when using isometric grid.
 
 ## 0.7.2
 
