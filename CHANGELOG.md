@@ -14,7 +14,8 @@
 - Fixed overlapping actions in rotate tool;
 - fixed an issue where undoing changes past the last saved edit would not result in the map marked as in need of being saved when quitting the application;
 - fixed an issue where properties could all be converted to a String;
-- fixes brush sprites being incorrectly rendered.
+- fixes brush sprites being incorrectly rendered;
+- fixed entity tool crash when attempting to move textures but none were selected.
 
 ## 0.7.2
 
