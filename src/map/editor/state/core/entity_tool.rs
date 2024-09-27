@@ -617,7 +617,8 @@ impl EntityTool
                         }
                     },
                     {
-                        if Self::move_selected_textures(bundle.drawing_resources, manager, delta)
+                        if Self::move_selected_textures(bundle.drawing_resources, manager, delta) &&
+                            manager.selected_textured_amount() != 0
                         {
                             edits_history.texture_move_cluster(manager, delta);
                         }
