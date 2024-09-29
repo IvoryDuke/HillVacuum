@@ -8,7 +8,7 @@ mod instances_editor;
 use bevy_egui::egui;
 use hill_vacuum_shared::{match_or_panic, return_if_none};
 
-use super::{Bundle, FIELD_NAME_WIDTH, MINUS_PLUS_WIDTH, SETTING_HEIGHT};
+use super::{UiBundle, FIELD_NAME_WIDTH, MINUS_PLUS_WIDTH, SETTING_HEIGHT};
 use crate::{
     map::{
         drawer::{
@@ -29,9 +29,9 @@ use crate::{
         },
         editor::state::{
             clipboard::Clipboard,
-            editor_state::InputsPresses,
             edits_history::EditsHistory,
             grid::Grid,
+            inputs_presses::InputsPresses,
             manager::EntitiesManager,
             ui::{
                 overall_value_field::OverallValueField,
@@ -742,13 +742,13 @@ impl AnimationEditor
     #[inline]
     fn list(
         ui: &mut egui::Ui,
-        bundle: &mut Bundle,
+        bundle: &mut UiBundle,
         texture: &mut Texture,
         animation: &mut UiOverallListAnimation,
         field_width: f32
     )
     {
-        let Bundle {
+        let UiBundle {
             drawing_resources,
             edits_history,
             clipboard,
@@ -815,13 +815,13 @@ impl AnimationEditor
     #[inline]
     fn atlas(
         ui: &mut egui::Ui,
-        bundle: &mut Bundle,
+        bundle: &mut UiBundle,
         texture: &mut Texture,
         atlas: &mut UiOverallAtlasAnimation,
         field_width: f32
     )
     {
-        let Bundle {
+        let UiBundle {
             drawing_resources,
             manager,
             edits_history,
@@ -956,7 +956,7 @@ impl AnimationEditor
     pub fn show(
         &mut self,
         ui: &mut egui::Ui,
-        bundle: &mut Bundle,
+        bundle: &mut UiBundle,
         overall_texture: &mut UiOverallTextureSettings,
         available_width: f32
     )
@@ -995,7 +995,7 @@ impl AnimationEditor
                     *animation = OverallAnimation::from(selected_texture.animation()).into();
                 }
 
-                let Bundle {
+                let UiBundle {
                     drawing_resources,
                     manager,
                     edits_history,

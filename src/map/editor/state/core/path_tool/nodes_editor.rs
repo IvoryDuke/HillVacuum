@@ -11,10 +11,11 @@ use crate::{
         drawer::drawing_resources::DrawingResources,
         editor::state::{
             clipboard::Clipboard,
-            editor_state::InputsPresses,
             edits_history::EditsHistory,
+            grid::Grid,
+            inputs_presses::InputsPresses,
             manager::EntitiesManager,
-            ui::overall_value_field::OverallValueField
+            ui::{overall_value_field::OverallValueField, UiBundle}
         },
         path::overall_values::{OverallMovement, UiOverallMovement}
     },
@@ -37,13 +38,14 @@ macro_rules! movement_values {
             drawing_resources: &DrawingResources,
             manager: &mut EntitiesManager,
             edits_history: &mut EditsHistory,
+            grid: Grid,
             new_value: f32,
             overall: &mut OverallMovement
         ) -> f32
         {
             let new_value = ($clamp)(new_value);
 
-            edits_history.[< path_nodes_ $value _cluster >](manager.selected_movings_mut(drawing_resources).filter_map(|mut entity| {
+            edits_history.[< path_nodes_ $value _cluster >](manager.selected_movings_mut(drawing_resources, grid).filter_map(|mut entity| {
                 entity.[< set_selected_path_nodes_ $value >](new_value).map(|edit| {
                     _ = overall.merge(entity.overall_selected_path_nodes_movement());
                     (entity.id(), edit)
@@ -53,16 +55,11 @@ macro_rules! movement_values {
             new_value
         }
 
-
         #[inline]
         fn $value(
             &mut self,
-            drawing_resources: &DrawingResources,
-            manager: &mut EntitiesManager,
-            clipboard: &mut Clipboard,
-            edits_history: &mut EditsHistory,
-            inputs: &InputsPresses,
             ui: &mut egui::Ui,
+            bundle: &mut UiBundle,
             simulation_active: bool
         )
         {
@@ -71,12 +68,19 @@ macro_rules! movement_values {
             let interacting = Self::textedit(
                 ui,
                 &mut self.selected_nodes_movement.$value,
-                clipboard,
-                inputs,
+                bundle.clipboard,
+                bundle.inputs,
                 $label,
                 simulation_active,
                 |new_value| {
-                    Self::[< set_ $value >](drawing_resources, manager, edits_history, new_value, &mut overall).into()
+                    Self::[< set_ $value >](
+                        bundle.drawing_resources,
+                        bundle.manager,
+                        bundle.edits_history,
+                        bundle.grid,
+                        new_value,
+                        &mut overall
+                    ).into()
                 }
             );
 
@@ -155,16 +159,7 @@ impl NodesEditor
 
     /// Shows the UI elements.
     #[inline]
-    pub fn show(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        ui: &mut egui::Ui,
-        simulation_active: bool
-    )
+    pub fn show(&mut self, ui: &mut egui::Ui, bundle: &mut UiBundle, simulation_active: bool)
     {
         self.interacting = [false; 5];
         ui.label(egui::RichText::new("PLATFORM TOOL"));
@@ -174,51 +169,11 @@ impl NodesEditor
             .spacing([10f32, 4f32])
             .striped(true)
             .show(ui, |ui| {
-                self.standby_time(
-                    drawing_resources,
-                    manager,
-                    clipboard,
-                    edits_history,
-                    inputs,
-                    ui,
-                    simulation_active
-                );
-                self.max_speed(
-                    drawing_resources,
-                    manager,
-                    clipboard,
-                    edits_history,
-                    inputs,
-                    ui,
-                    simulation_active
-                );
-                self.min_speed(
-                    drawing_resources,
-                    manager,
-                    clipboard,
-                    edits_history,
-                    inputs,
-                    ui,
-                    simulation_active
-                );
-                self.accel_travel_percentage(
-                    drawing_resources,
-                    manager,
-                    clipboard,
-                    edits_history,
-                    inputs,
-                    ui,
-                    simulation_active
-                );
-                self.decel_travel_percentage(
-                    drawing_resources,
-                    manager,
-                    clipboard,
-                    edits_history,
-                    inputs,
-                    ui,
-                    simulation_active
-                );
+                self.standby_time(ui, bundle, simulation_active);
+                self.max_speed(ui, bundle, simulation_active);
+                self.min_speed(ui, bundle, simulation_active);
+                self.accel_travel_percentage(ui, bundle, simulation_active);
+                self.decel_travel_percentage(ui, bundle, simulation_active);
             });
     }
 
@@ -242,12 +197,7 @@ impl NodesEditor
     /// Forces the start of a movement simulation, updating the WIP value being edited if possible
     /// to parse.
     #[inline]
-    pub fn force_simulation(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory
-    )
+    pub fn force_simulation(&mut self, bundle: &mut UiBundle)
     {
         #[allow(clippy::missing_docs_in_private_items)]
         type ValueSetPair<'a> = (
@@ -256,6 +206,7 @@ impl NodesEditor
                 &DrawingResources,
                 &mut EntitiesManager,
                 &mut EditsHistory,
+                Grid,
                 f32,
                 &mut OverallMovement
             ) -> f32
@@ -279,8 +230,15 @@ impl NodesEditor
             return_if_none!(self.interacting.iter_mut().zip(set_array).find(|(i, _)| **i));
 
         value.update(false, true, |value| {
-            func(drawing_resources, manager, edits_history, value, &mut OverallMovement::new())
-                .into()
+            func(
+                bundle.drawing_resources,
+                bundle.manager,
+                bundle.edits_history,
+                bundle.grid,
+                value,
+                &mut OverallMovement::new()
+            )
+            .into()
         });
         *i = false;
     }

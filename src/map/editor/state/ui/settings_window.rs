@@ -8,13 +8,10 @@ use bevy_egui::egui;
 use hill_vacuum_shared::return_if_no_match;
 use is_executable::IsExecutable;
 
-use super::{window::Window, WindowCloserInfo};
+use super::{window::Window, UiBundle, WindowCloserInfo};
 use crate::{
     config::{controls::bind::Bind, Config},
-    map::editor::{
-        state::{clipboard::Clipboard, editor_state::InputsPresses, grid::Grid, ui::WindowCloser},
-        StateUpdateBundle
-    },
+    map::editor::state::{grid::Grid, ui::WindowCloser},
     utils::misc::{Blinker, Toggle}
 };
 
@@ -121,22 +118,14 @@ impl SettingsWindow
     /// Shows the settings window.
     #[inline]
     #[must_use]
-    pub fn show(
-        &mut self,
-        bundle: &mut StateUpdateBundle,
-        clipboard: &mut Clipboard,
-        inputs: &mut InputsPresses,
-        grid: &mut Grid
-    ) -> bool
+    pub fn show(&mut self, egui_context: &egui::Context, bundle: &mut UiBundle) -> bool
     {
-        let StateUpdateBundle {
+        let UiBundle {
             images,
             prop_cameras,
-            delta_time,
             key_inputs,
-            egui_context,
             user_textures,
-            drawing_resources,
+            delta_time,
             config:
                 Config {
                     binds,
@@ -144,6 +133,10 @@ impl SettingsWindow
                     exporter,
                     ..
                 },
+            drawing_resources,
+            clipboard,
+            inputs,
+            grid,
             ..
         } = bundle;
 

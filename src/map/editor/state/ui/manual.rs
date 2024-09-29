@@ -3,10 +3,11 @@
 //
 //=======================================================================//
 
+use bevy::{input::ButtonInput, prelude::KeyCode};
 use bevy_egui::egui;
 
 use super::{window::Window, ToolsButtons, WindowCloser, WindowCloserInfo};
-use crate::{map::editor::StateUpdateBundle, utils::misc::Toggle, HardcodedActions};
+use crate::{utils::misc::Toggle, HardcodedActions};
 
 //=======================================================================//
 // STRUCTS
@@ -42,14 +43,13 @@ impl Manual
 {
     /// Shows the manual window.
     #[inline]
-    pub fn show(&mut self, bundle: &mut StateUpdateBundle, tools_buttons: &ToolsButtons)
+    pub fn show(
+        &mut self,
+        egui_context: &egui::Context,
+        key_inputs: &ButtonInput<KeyCode>,
+        tools_buttons: &ToolsButtons
+    )
     {
-        let StateUpdateBundle {
-            egui_context,
-            key_inputs,
-            ..
-        } = bundle;
-
         if !self.0.check_open(HardcodedActions::ToggleManual.pressed(key_inputs))
         {
             return;

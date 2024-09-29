@@ -518,11 +518,10 @@ impl Prop
     pub(in crate::map::editor::state) fn draw(
         &self,
         bundle: &mut DrawBundle,
-        grid: Grid,
         camera_id: Option<Entity>
     )
     {
-        let delta = grid.point_projection(
+        let delta = bundle.drawer.grid().point_projection(
             crate::map::editor::state::clipboard::draw_camera!(bundle, camera_id)
                 .translation
                 .truncate()

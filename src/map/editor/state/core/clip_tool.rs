@@ -10,31 +10,20 @@ use hill_vacuum_shared::{continue_if_none, match_or_panic, return_if_no_match, r
 
 use super::{
     draw_selected_and_non_selected_brushes,
-    tool::{
-        subtools_buttons,
-        ChangeConditions,
-        DisableSubtool,
-        EnabledTool,
-        OngoingMultiframeChange,
-        SubTool
-    },
+    tool::{subtools_buttons, DisableSubtool, EnabledTool, OngoingMultiframeChange, SubTool},
     ActiveTool
 };
 use crate::{
     map::{
         brush::{convex_polygon::ConvexPolygon, ClipResult},
-        drawer::{color::Color, drawers::EditDrawer, drawing_resources::DrawingResources},
+        drawer::{color::Color, drawers::EditDrawer},
         editor::{
             cursor::Cursor,
             state::{
-                editor_state::InputsPresses,
-                edits_history::EditsHistory,
-                grid::Grid,
                 manager::EntitiesManager,
-                ui::ToolsButtons
+                ui::{ToolsButtons, UiBundle}
             },
             DrawBundle,
-            StateUpdateBundle,
             ToolUpdateBundle
         }
     },
@@ -211,14 +200,7 @@ impl ClipTool
 
     /// Updates the tool.
     #[inline]
-    pub fn update(
-        &mut self,
-        bundle: &mut ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid
-    )
+    pub fn update(&mut self, bundle: &mut ToolUpdateBundle)
     {
         let cursor_pos = self.cursor_pos(bundle.cursor);
 
@@ -227,19 +209,19 @@ impl ClipTool
             Status::Inactive(clip_side) =>
             {
                 let cursor_pos = cursor_pos.unwrap();
-                let left_mouse_just_pressed = inputs.left_mouse.just_pressed();
+                let left_mouse_just_pressed = bundle.inputs.left_mouse.just_pressed();
                 *clip_side = None;
 
-                if inputs.alt_pressed() && manager.selected_brushes_amount() > 1
+                if bundle.inputs.alt_pressed() && bundle.manager.selected_brushes_amount() > 1
                 {
-                    Self::set_clip_side(bundle, manager, clip_side);
+                    Self::set_clip_side(bundle, clip_side);
 
                     if !left_mouse_just_pressed
                     {
                         return;
                     }
 
-                    self.clip_brushes_with_side(manager);
+                    self.clip_brushes_with_side(bundle.manager);
                 }
                 else if left_mouse_just_pressed
                 {
@@ -255,16 +237,16 @@ impl ClipTool
                     *ce = cursor_pos.into();
                 }
 
-                if inputs.left_mouse.just_pressed()
+                if bundle.inputs.left_mouse.just_pressed()
                 {
-                    self.clip_brushes_with_line(manager);
+                    self.clip_brushes_with_line(bundle.manager);
                 }
             },
             Status::PostClip { pick, .. } =>
             {
-                if inputs.tab.just_pressed()
+                if bundle.inputs.tab.just_pressed()
                 {
-                    if inputs.alt_pressed()
+                    if bundle.inputs.alt_pressed()
                     {
                         pick.previous();
                     }
@@ -273,24 +255,19 @@ impl ClipTool
                         pick.next();
                     }
                 }
-                else if inputs.enter.just_pressed()
+                else if bundle.inputs.enter.just_pressed()
                 {
-                    self.spawn_clipped_brushes(
-                        bundle.drawing_resources,
-                        manager,
-                        edits_history,
-                        grid
-                    );
+                    self.spawn_clipped_brushes(bundle);
                 }
             },
             Status::PickSideUi(clip_side) =>
             {
                 *clip_side = None;
-                Self::set_clip_side(bundle, manager, clip_side);
+                Self::set_clip_side(bundle, clip_side);
 
-                if inputs.left_mouse.just_pressed()
+                if bundle.inputs.left_mouse.just_pressed()
                 {
-                    self.clip_brushes_with_side(manager);
+                    self.clip_brushes_with_side(bundle.manager);
                 }
             }
         };
@@ -298,16 +275,13 @@ impl ClipTool
 
     /// Uses the side beneath the cursor, if any, to generate the clip line.
     #[inline]
-    fn set_clip_side(
-        bundle: &ToolUpdateBundle,
-        manager: &EntitiesManager,
-        clip_side: &mut Option<ClipSide>
-    )
+    fn set_clip_side(bundle: &ToolUpdateBundle, clip_side: &mut Option<ClipSide>)
     {
         let cursor_pos = bundle.cursor.world();
         let camera_scale = bundle.camera.scale();
 
-        let (id, side) = return_if_none!(manager
+        let (id, side) = return_if_none!(bundle
+            .manager
             .selected_brushes_at_pos(cursor_pos, camera_scale)
             .iter()
             .find_map(|brush| {
@@ -354,13 +328,7 @@ impl ClipTool
 
     /// Spawns the generated brushes.
     #[inline]
-    fn spawn_clipped_brushes(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        grid: Grid
-    )
+    fn spawn_clipped_brushes(&mut self, bundle: &mut ToolUpdateBundle)
     {
         let (pick, mut results) = match_or_panic!(
             &mut self.0,
@@ -382,10 +350,10 @@ impl ClipTool
 
                 for (id, result) in results
                 {
-                    _ = manager.replace_brush_with_partition(
-                        drawing_resources,
-                        edits_history,
-                        grid,
+                    _ = bundle.manager.replace_brush_with_partition(
+                        bundle.drawing_resources,
+                        bundle.edits_history,
+                        bundle.grid,
                         Some(result.right).into_iter(),
                         id,
                         |brush| brush.set_polygon(result.left)
@@ -396,10 +364,10 @@ impl ClipTool
             {
                 for (id, result) in results
                 {
-                    _ = manager.replace_brush_with_partition(
-                        drawing_resources,
-                        edits_history,
-                        grid,
+                    _ = bundle.manager.replace_brush_with_partition(
+                        bundle.drawing_resources,
+                        bundle.edits_history,
+                        bundle.grid,
                         None.into_iter(),
                         id,
                         |brush| brush.set_polygon(result.left)
@@ -410,10 +378,10 @@ impl ClipTool
             {
                 for (id, result) in results
                 {
-                    _ = manager.replace_brush_with_partition(
-                        drawing_resources,
-                        edits_history,
-                        grid,
+                    _ = bundle.manager.replace_brush_with_partition(
+                        bundle.drawing_resources,
+                        bundle.edits_history,
+                        bundle.grid,
                         None.into_iter(),
                         id,
                         |brush| brush.set_polygon(result.right)
@@ -422,7 +390,7 @@ impl ClipTool
             }
         };
 
-        edits_history.override_edit_tag("Brushes Clip");
+        bundle.edits_history.override_edit_tag("Brushes Clip");
         self.0 = Status::default();
     }
 
@@ -431,7 +399,7 @@ impl ClipTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
+    pub fn draw(&self, bundle: &mut DrawBundle)
     {
         if let Some(pos) = self.cursor_pos(bundle.cursor)
         {
@@ -442,10 +410,10 @@ impl ClipTool
         {
             Status::Inactive(hgl_s) | Status::PickSideUi(hgl_s) =>
             {
-                draw_selected_and_non_selected_brushes!(bundle, manager);
+                draw_selected_and_non_selected_brushes!(bundle);
 
                 let hgl_s = return_if_none!(hgl_s);
-                manager.brush(hgl_s.id).draw_extended_side(
+                bundle.manager.brush(hgl_s.id).draw_extended_side(
                     bundle.window,
                     bundle.camera,
                     &mut bundle.drawer,
@@ -455,7 +423,7 @@ impl ClipTool
             },
             Status::Active(co, ce) =>
             {
-                draw_selected_and_non_selected_brushes!(bundle, manager);
+                draw_selected_and_non_selected_brushes!(bundle);
                 bundle.drawer.square_highlight(*co, Color::ToolCursor);
 
                 // If the clip extremity is in place draw its square and the line
@@ -490,6 +458,7 @@ impl ClipTool
                     window,
                     drawer,
                     camera,
+                    manager,
                     ..
                 } = bundle;
 
@@ -609,9 +578,8 @@ impl ClipTool
     pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
-        bundle: &StateUpdateBundle,
-        buttons: &mut ToolsButtons,
-        tool_change_conditions: &ChangeConditions
+        bundle: &mut UiBundle,
+        buttons: &mut ToolsButtons
     )
     {
         subtools_buttons!(
@@ -619,7 +587,6 @@ impl ClipTool
             ui,
             bundle,
             buttons,
-            tool_change_conditions,
             (ClipSide, Status::PickSideUi(None), Status::PickSideUi(_))
         );
     }

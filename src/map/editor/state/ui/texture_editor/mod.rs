@@ -14,6 +14,7 @@ use super::{
     overall_value_field::{MinusPlusOverallValueField, MinusPlusUiOverallValue, OverallValueField},
     window::Window,
     ActuallyLostFocus,
+    UiBundle,
     WindowCloser,
     WindowCloserInfo
 };
@@ -25,17 +26,12 @@ use crate::{
             overall_values::{OverallTextureSettings, UiOverallTextureSettings},
             texture::Texture
         },
-        editor::{
-            state::{
-                clipboard::Clipboard,
-                editor_state::{InputsPresses, ToolsSettings},
-                edits_history::EditsHistory,
-                format_texture_preview,
-                grid::Grid,
-                manager::{EntitiesManager, TextureResult},
-                ui::{minus_plus_buttons::MinusPlusButtons, texture_per_row}
-            },
-            StateUpdateBundle
+        editor::state::{
+            edits_history::EditsHistory,
+            format_texture_preview,
+            grid::Grid,
+            manager::{EntitiesManager, TextureResult},
+            ui::{minus_plus_buttons::MinusPlusButtons, texture_per_row}
         }
     },
     utils::{
@@ -154,7 +150,7 @@ macro_rules! scale_offset_scroll_parallax {
         fn [< set_ $value >](
             &mut self,
             strip: egui_extras::StripBuilder,
-            bundle: &mut Bundle,
+            bundle: &mut UiBundle,
             field_width: f32
         )
         {
@@ -236,7 +232,7 @@ macro_rules! angle_height {
         fn [< set_ $value >](
             &mut self,
             strip: egui_extras::StripBuilder,
-            bundle: &mut Bundle,
+            bundle: &mut UiBundle,
             field_width: f32
         )
         {
@@ -292,7 +288,7 @@ impl Default for SizeFilter
 impl SizeFilter
 {
     #[inline]
-    fn show(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle) -> bool
+    fn show(&mut self, ui: &mut egui::Ui, bundle: &mut UiBundle) -> bool
     {
         use super::minus_plus_buttons::Response;
 
@@ -351,21 +347,6 @@ impl SizeFilter
 
         response.has_focus() || response.actually_lost_focus()
     }
-}
-
-//=======================================================================//
-
-/// A bundle of references to data necessary for the texture editor.
-#[allow(clippy::missing_docs_in_private_items)]
-struct Bundle<'a>
-{
-    drawing_resources: &'a mut DrawingResources,
-    manager:           &'a mut EntitiesManager,
-    edits_history:     &'a mut EditsHistory,
-    clipboard:         &'a mut Clipboard,
-    inputs:            &'a InputsPresses,
-    grid:              Grid,
-    settings:          &'a mut ToolsSettings
 }
 
 //=======================================================================//
@@ -446,7 +427,7 @@ impl Innards
 
     /// Draws the selected texture.
     #[inline]
-    fn selected_texture(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle)
+    fn selected_texture(&mut self, ui: &mut egui::Ui, bundle: &mut UiBundle)
     {
         /// The side of the texture preview.
         const TEXTURE_PREVIEW_FRAME_SIDE: f32 = 224f32;
@@ -462,7 +443,7 @@ impl Innards
     #[inline]
     fn minus_plus_textedit<T, F, C>(
         strip: &mut egui_extras::Strip,
-        bundle: &mut Bundle,
+        bundle: &mut UiBundle,
         value: &mut UiOverallValue<T>,
         step: T,
         clamp: C,
@@ -472,7 +453,7 @@ impl Innards
         C: Fn(T, T) -> T,
         F: FnMut(&DrawingResources, &mut EntitiesManager, &mut EditsHistory, Grid, T) -> bool
     {
-        let Bundle {
+        let UiBundle {
             clipboard,
             inputs,
             manager,
@@ -495,7 +476,7 @@ impl Innards
 
     /// Draws the UI elements of the texture editor.
     #[inline]
-    fn texture_settings(&mut self, ui: &mut egui::Ui, bundle: &mut Bundle, available_width: f32)
+    fn texture_settings(&mut self, ui: &mut egui::Ui, bundle: &mut UiBundle, available_width: f32)
     {
         egui_extras::StripBuilder::new(ui)
             .sizes(egui_extras::Size::exact(SETTING_HEIGHT), 9)
@@ -541,9 +522,9 @@ impl Innards
     }
 
     #[inline]
-    fn settings(strip: egui_extras::StripBuilder, bundle: &mut Bundle)
+    fn settings(strip: egui_extras::StripBuilder, bundle: &mut UiBundle)
     {
-        let Bundle {
+        let UiBundle {
             drawing_resources,
             manager,
             edits_history,
@@ -622,7 +603,7 @@ impl Innards
     fn textures_gallery(
         &mut self,
         ui: &mut egui::Ui,
-        bundle: &mut Bundle,
+        bundle: &mut UiBundle,
         chunked_textures_container: &mut HvVec<&'static TextureMaterials>
     )
     {
@@ -728,7 +709,7 @@ impl Innards
 
         filter_gen!((width, height), (name, width), (name, height), (name, width, height));
 
-        let Bundle {
+        let UiBundle {
             drawing_resources,
             manager,
             edits_history,
@@ -830,7 +811,7 @@ impl Innards
     fn show(
         &mut self,
         ui: &mut egui::Ui,
-        bundle: &mut Bundle,
+        bundle: &mut UiBundle,
         chunked_textures_container: &mut HvVec<&'static TextureMaterials>
     )
     {
@@ -920,7 +901,7 @@ impl Innards
     fn set_texture(
         &mut self,
         mut strip: egui_extras::StripBuilder,
-        bundle: &mut Bundle,
+        bundle: &mut UiBundle,
         available_width: f32
     )
     {
@@ -954,7 +935,7 @@ impl Innards
                     bundle.inputs,
                     &mut self.overall_texture.name,
                     |value| {
-                        let Bundle {
+                        let UiBundle {
                             drawing_resources,
                             manager,
                             edits_history,
@@ -1000,13 +981,13 @@ impl Innards
 
     /// Sets the sprite value of the selected textures.
     #[inline]
-    fn set_sprite(&mut self, strip: egui_extras::StripBuilder, bundle: &mut Bundle)
+    fn set_sprite(&mut self, strip: egui_extras::StripBuilder, bundle: &mut UiBundle)
     {
         strip
             .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
             .size(egui_extras::Size::remainder())
             .horizontal(|mut strip| {
-                let Bundle {
+                let UiBundle {
                     drawing_resources,
                     manager,
                     edits_history,
@@ -1172,44 +1153,19 @@ impl TextureEditor
     /// Draws the texture editor.
     #[inline]
     #[must_use]
-    pub fn show(
-        &mut self,
-        bundle: &mut StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid,
-        settings: &mut ToolsSettings
-    ) -> bool
+    pub fn show(&mut self, egui_context: &egui::Context, bundle: &mut UiBundle) -> bool
     {
         /// The minimum texture editor size.
         const WINDOW_MIN_SIZE: f32 = 742f32;
 
         if !self.window.check_open(
-            !inputs.alt_pressed() &&
-                !inputs.ctrl_pressed() &&
+            !bundle.inputs.alt_pressed() &&
+                !bundle.inputs.ctrl_pressed() &&
                 Bind::TextureEditor.just_pressed(bundle.key_inputs, &bundle.config.binds)
         )
         {
             return false;
         }
-
-        let StateUpdateBundle {
-            egui_context,
-            drawing_resources,
-            ..
-        } = bundle;
-
-        let mut bundle = Bundle {
-            drawing_resources,
-            manager,
-            edits_history,
-            clipboard,
-            inputs,
-            grid,
-            settings
-        };
 
         self.window
             .show(
@@ -1219,8 +1175,7 @@ impl TextureEditor
                     .min_height(300f32)
                     .default_height(WINDOW_MIN_SIZE),
                 |ui| {
-                    self.innards
-                        .show(ui, &mut bundle, &mut self.chunked_textures_container);
+                    self.innards.show(ui, bundle, &mut self.chunked_textures_container);
                 }
             )
             .unwrap_or_default()

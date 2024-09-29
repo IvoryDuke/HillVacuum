@@ -14,11 +14,7 @@ use super::{
 use crate::{
     map::{
         drawer::color::Color,
-        editor::{
-            state::{core::rect, editor_state::InputsPresses, grid::Grid},
-            DrawBundle,
-            ToolUpdateBundle
-        }
+        editor::{state::core::rect, DrawBundle, ToolUpdateBundle}
     },
     utils::{collections::hv_box, misc::Camera}
 };
@@ -61,15 +57,15 @@ impl ZoomTool
     #[inline]
     pub fn update<'a>(
         &'a mut self,
-        bundle: &mut ToolUpdateBundle,
-        inputs: &InputsPresses,
-        grid: Grid
+        bundle: &mut ToolUpdateBundle
     ) -> Option<&'a mut PreviousActiveTool>
     {
         let ToolUpdateBundle {
             window,
             camera,
             cursor,
+            inputs,
+            grid,
             ..
         } = bundle;
 
@@ -84,7 +80,7 @@ impl ZoomTool
             },
             hull,
             {
-                camera.scale_viewport_to_hull(window, grid, &hull, 0f32);
+                camera.scale_viewport_to_hull(window, *grid, &hull, 0f32);
                 return Some(&mut self.previous_active_tool);
             }
         );

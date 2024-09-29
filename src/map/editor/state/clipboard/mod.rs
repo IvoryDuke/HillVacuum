@@ -41,9 +41,9 @@ use prop::{Prop, PropScreenshotTimer};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    editor_state::InputsPresses,
     edits_history::EditsHistory,
     grid::Grid,
+    inputs_presses::InputsPresses,
     manager::EntitiesManager,
     ui::singleline_textedit
 };
@@ -52,7 +52,7 @@ use crate::{
         brush::BrushData,
         camera::scale_viewport,
         drawer::{color::Color, drawing_resources::DrawingResources},
-        editor::{DrawBundle, StateUpdateBundle},
+        editor::DrawBundle,
         hv_vec,
         path::Path,
         thing::{catalog::ThingsCatalog, ThingInstanceData},
@@ -258,7 +258,7 @@ pub(in crate::map) struct ChunkItem<'a>
 //=======================================================================//
 
 /// A clipboard where data to be pasted around the map is stored.
-pub(in crate::map::editor::state) struct Clipboard
+pub(in crate::map) struct Clipboard
 {
     /// The copy-paste stored entities.
     copy_paste: Prop,
@@ -303,7 +303,7 @@ impl Clipboard
     /// Returns an empty clipboard.
     #[inline]
     #[must_use]
-    pub fn new() -> Self
+    pub(in crate::map::editor) fn new() -> Self
     {
         Self {
             copy_paste: Prop::default(),
@@ -323,7 +323,7 @@ impl Clipboard
 
     /// Creates a new [`Clipboard`] from the data stored in `file`.
     #[inline]
-    pub fn from_file(
+    pub(in crate::map::editor::state) fn from_file(
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
@@ -367,7 +367,7 @@ impl Clipboard
 
     /// Import the [`Prop`]s in `file`.
     #[inline]
-    pub fn import_props(
+    pub(in crate::map::editor::state) fn import_props(
         &mut self,
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
@@ -447,7 +447,7 @@ impl Clipboard
     }
 
     #[inline]
-    pub fn queue_all_props_screenshots(
+    pub(in crate::map::editor::state) fn queue_all_props_screenshots(
         &mut self,
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
@@ -477,32 +477,41 @@ impl Clipboard
     /// Whether `self` was edited.
     #[inline]
     #[must_use]
-    pub const fn props_changed(&self) -> bool { self.props_changed }
+    pub(in crate::map::editor::state) const fn props_changed(&self) -> bool { self.props_changed }
 
     /// Returns true if there is data to be pasted.
     #[inline]
     #[must_use]
-    pub fn has_copy_data(&self) -> bool { self.copy_paste.has_data() }
+    pub(in crate::map::editor::state) fn has_copy_data(&self) -> bool { self.copy_paste.has_data() }
 
     /// The amount of slotted props stored.
     #[inline]
     #[must_use]
-    pub fn props_amount(&self) -> usize { self.props.len() }
+    pub(in crate::map::editor::state) fn props_amount(&self) -> usize { self.props.len() }
 
     /// The index of the selected [`Prop`], if any.
     #[inline]
     #[must_use]
-    pub const fn selected_prop_index(&self) -> Option<usize> { self.selected_prop }
+    pub(in crate::map::editor::state) const fn selected_prop_index(&self) -> Option<usize>
+    {
+        self.selected_prop
+    }
 
     /// Whether the quick prop stored contains entities.
     #[inline]
     #[must_use]
-    pub fn has_quick_prop(&self) -> bool { self.quick_prop.has_data() }
+    pub(in crate::map::editor::state) fn has_quick_prop(&self) -> bool
+    {
+        self.quick_prop.has_data()
+    }
 
     /// Whether there are no [`Prop`]s stored.
     #[inline]
     #[must_use]
-    pub fn no_props(&self) -> bool { self.props.is_empty() && !self.has_quick_prop() }
+    pub(in crate::map::editor::state) fn no_props(&self) -> bool
+    {
+        self.props.is_empty() && !self.has_quick_prop()
+    }
 
     //==============================================================
     // Update
@@ -578,7 +587,7 @@ impl Clipboard
 
     /// Updates `self`.
     #[inline]
-    pub fn update(
+    pub(in crate::map::editor::state) fn update(
         &mut self,
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
@@ -593,7 +602,7 @@ impl Clipboard
     /// Assigns a camera to a [`Prop`] to take its screenshot.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    pub fn assign_camera_to_prop(
+    pub(in crate::map::editor::state) fn assign_camera_to_prop(
         images: &mut Assets<Image>,
         prop_camera: &mut (&mut Camera, &mut Transform),
         user_textures: &mut EguiUserTextures,
@@ -623,7 +632,10 @@ impl Clipboard
 
     /// Writes the serialized [`Prop`]s in `writer`.
     #[inline]
-    pub fn export_props(&self, writer: &mut BufWriter<&mut Vec<u8>>) -> Result<(), &'static str>
+    pub(in crate::map::editor::state) fn export_props(
+        &self,
+        writer: &mut BufWriter<&mut Vec<u8>>
+    ) -> Result<(), &'static str>
     {
         for prop in &self.props
         {
@@ -635,21 +647,29 @@ impl Clipboard
 
     /// Queues the screenshots of the [`Prop`]s that must be retaken after a things reload.
     #[inline]
-    pub fn reload_things(&mut self, bundle: &mut StateUpdateBundle, grid: Grid)
+    pub(in crate::map::editor::state) fn reload_things(
+        &mut self,
+        images: &mut Assets<Image>,
+        user_textures: &mut EguiUserTextures,
+        prop_cameras: &mut PropCamerasMut,
+        drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
+        grid: Grid
+    )
     {
-        let mut prop_cameras = bundle.prop_cameras.iter_mut();
+        let mut prop_cameras = prop_cameras.iter_mut();
 
         for i in 0..self.props.len()
         {
             let prop = &mut self.props[i];
 
-            if prop.reload_things(bundle.drawing_resources, bundle.things_catalog, grid)
+            if prop.reload_things(drawing_resources, things_catalog, grid)
             {
                 self.queue_prop_screenshot(
-                    bundle.images,
-                    bundle.user_textures,
+                    images,
+                    user_textures,
                     prop_cameras.next(),
-                    bundle.drawing_resources,
+                    drawing_resources,
                     grid,
                     i
                 );
@@ -659,7 +679,7 @@ impl Clipboard
 
     /// Queues the screenshots of the [`Prop`]s that must be retaken after a texture reload.
     #[inline]
-    pub fn reload_textures(
+    pub(in crate::map::editor::state) fn reload_textures(
         &mut self,
         images: &mut Assets<Image>,
         user_textures: &mut EguiUserTextures,
@@ -690,13 +710,16 @@ impl Clipboard
 
     /// Resets the state changed flag.
     #[inline]
-    pub fn reset_props_changed(&mut self) { self.props_changed = false; }
+    pub(in crate::map::editor::state) fn reset_props_changed(&mut self)
+    {
+        self.props_changed = false;
+    }
 
     /// Sets the index of the selected slotted [`Prop`].
     /// # Panics
     /// Panics if `slot` is equal or higher than the length of the slotted [`Prop`]s.
     #[inline]
-    pub fn set_selected_prop_index(&mut self, slot: usize)
+    pub(in crate::map::editor::state) fn set_selected_prop_index(&mut self, slot: usize)
     {
         assert!(
             slot < self.props.len(),
@@ -711,7 +734,7 @@ impl Clipboard
 
     /// Stores the entities in `iter` as a copy-paste [`Prop`].
     #[inline]
-    pub fn copy<'a, D>(
+    pub(in crate::map::editor::state) fn copy<'a, D>(
         &mut self,
         drawing_resources: &DrawingResources,
         grid: Grid,
@@ -724,25 +747,21 @@ impl Clipboard
 
     /// Pastes the copied entities.
     #[inline]
-    pub fn paste(
+    pub(in crate::map::editor::state) fn paste(
         &mut self,
-        bundle: &StateUpdateBundle,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid
+        grid: Grid,
+        cursor_pos: Vec2
     )
     {
-        self.copy_paste.spawn_copy(
-            bundle.drawing_resources,
-            manager,
-            edits_history,
-            grid,
-            bundle.cursor.world_snapped()
-        );
+        self.copy_paste
+            .spawn_copy(drawing_resources, manager, edits_history, grid, cursor_pos);
     }
 
     #[inline]
-    pub fn duplicate(
+    pub(in crate::map::editor::state) fn duplicate(
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
@@ -760,11 +779,14 @@ impl Clipboard
 
     /// Stores `prop` as the quick [`Prop`].
     #[inline]
-    pub fn create_quick_prop(&mut self, prop: Prop) { self.quick_prop = prop; }
+    pub(in crate::map::editor::state) fn create_quick_prop(&mut self, prop: Prop)
+    {
+        self.quick_prop = prop;
+    }
 
     /// Inserts a slotted [`Prop`] at the specified `slot`.
     #[inline]
-    pub fn insert_prop(&mut self, prop: Prop, slot: usize)
+    pub(in crate::map::editor::state) fn insert_prop(&mut self, prop: Prop, slot: usize)
     {
         assert!(prop.screenshot.is_some(), "Tried to insert prop without a screenshot.");
 
@@ -793,7 +815,10 @@ impl Clipboard
 
     /// Deletes the [`Prop`] stored at the selected index, if any.
     #[inline]
-    pub fn delete_selected_prop(&mut self, prop_cameras: &mut PropCamerasMut)
+    pub(in crate::map::editor::state) fn delete_selected_prop(
+        &mut self,
+        prop_cameras: &mut PropCamerasMut
+    )
     {
         let selected_prop = return_if_none!(self.selected_prop);
         self.props_changed = true;
@@ -865,7 +890,7 @@ impl Clipboard
 
     /// Spawns the quick [`Prop`] on the map.
     #[inline]
-    pub fn spawn_quick_prop(
+    pub(in crate::map::editor::state) fn spawn_quick_prop(
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
@@ -880,7 +905,7 @@ impl Clipboard
 
     /// Spawns the selected [`Prop`] on the map.
     #[inline]
-    pub fn spawn_selected_prop(
+    pub(in crate::map::editor::state) fn spawn_selected_prop(
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
@@ -905,7 +930,7 @@ impl Clipboard
     /// selected range of characters.
     #[inline]
     #[must_use]
-    pub fn copy_paste_text_editor(
+    pub(in crate::map::editor::state) fn copy_paste_text_editor(
         &mut self,
         inputs: &InputsPresses,
         ui: &mut egui::Ui,
@@ -1017,7 +1042,11 @@ impl Clipboard
 
     /// Copies the [`Path`] of the brush with [`Id`] `identifier`.
     #[inline]
-    pub fn copy_platform_path(&mut self, manager: &mut EntitiesManager, identifier: Id)
+    pub(in crate::map::editor::state) fn copy_platform_path(
+        &mut self,
+        manager: &mut EntitiesManager,
+        identifier: Id
+    )
     {
         let mut path = manager.moving(identifier).path().unwrap().clone();
         path.deselect_nodes_no_indexes();
@@ -1026,7 +1055,7 @@ impl Clipboard
 
     /// Pastes the copied [`Path`] in the brush with [`Id`] `identifier`.
     #[inline]
-    pub fn paste_platform_path(
+    pub(in crate::map::editor::state) fn paste_platform_path(
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
@@ -1059,7 +1088,7 @@ impl Clipboard
 
     /// Cuts the [`Path`] of the brush with [`Id`] `identifier`.
     #[inline]
-    pub fn cut_platform_path(
+    pub(in crate::map::editor::state) fn cut_platform_path(
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
@@ -1078,7 +1107,7 @@ impl Clipboard
     /// Returns a [`Chunks`] iterator to the slotted [`Prop`]s with size `chunk_size`.
     #[inline]
     #[must_use]
-    pub fn chunked_props(
+    pub(in crate::map::editor::state) fn chunked_props(
         &self,
         chunk_size: usize
     ) -> impl ExactSizeIterator<Item = impl Iterator<Item = ChunkItem<'_>>>
@@ -1100,11 +1129,11 @@ impl Clipboard
 
     /// Draws the [`Prop`]s to photograph for the preview.
     #[inline]
-    pub fn draw_props_to_photograph(&self, bundle: &mut DrawBundle, grid: Grid)
+    pub(in crate::map::editor::state) fn draw_props_to_photograph(&self, bundle: &mut DrawBundle)
     {
         for (timer, idx) in &self.props_with_assigned_camera
         {
-            self.props[*idx].draw(bundle, grid, (timer.id()).into());
+            self.props[*idx].draw(bundle, (timer.id()).into());
         }
     }
 }

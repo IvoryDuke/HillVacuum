@@ -13,6 +13,7 @@ use hill_vacuum_shared::{continue_if_none, return_if_none};
 use self::{edit::Edit, edit_type::EditType};
 use super::{
     core::{draw_tool::cursor_polygon::FreeDrawStatus, tool::EditingTarget, Core},
+    grid::Grid,
     manager::EntitiesManager,
     ui::Ui
 };
@@ -57,7 +58,7 @@ use crate::{
 macro_rules! push_edit {
     ($(($func:ident, ($($arg:ident: $t:ty),+), ($identifier:expr, $edit:expr))), +) => { paste::paste! { $(
         #[inline]
-        pub fn [< $func >](&mut self, $($arg: $t, )+)
+        pub(in crate::map::editor::state) fn [< $func >](&mut self, $($arg: $t, )+)
         {
             self.push_onto_current_edit($identifier, $edit);
         }
@@ -70,7 +71,7 @@ macro_rules! push_edit {
 macro_rules! push_cluster {
     ($(($func:ident, $t:ty)),+) => { paste::paste! { $(
         #[inline]
-        pub fn [< $func _cluster >](&mut self, iter: impl Iterator<Item = (Id, $t)>)
+        pub(in crate::map::editor::state) fn [< $func _cluster >](&mut self, iter: impl Iterator<Item = (Id, $t)>)
         {
             for item in iter
             {
@@ -86,7 +87,7 @@ macro_rules! push_cluster {
 macro_rules! push_cluster_if_not_empty {
     ($(($func:ident, $ed_type:ident)),+) => { paste::paste! { $(
         #[inline]
-        pub fn [< $func _cluster >]<'a>(&mut self, iter: impl Iterator<Item = &'a Id>)
+        pub(in crate::map::editor::state) fn [< $func _cluster >]<'a>(&mut self, iter: impl Iterator<Item = &'a Id>)
         {
             self.push_if_not_empty(iter, EditType::$ed_type);
         }
@@ -100,7 +101,7 @@ macro_rules! push_cluster_if_not_empty {
 macro_rules! push_with_amount_assertion {
     ($(($func:ident, ($($arg:ident: $t:ty),+), $edit:expr)),+) => { paste::paste! { $(
         #[inline]
-        pub fn [< $func >](&mut self, iter: impl Iterator<Item = Id>, $($arg: $t, )+)
+        pub(in crate::map::editor::state) fn [< $func >](&mut self, iter: impl Iterator<Item = Id>, $($arg: $t, )+)
         {
             self.push_with_amount_assertion(iter, $edit);
         }
@@ -113,7 +114,7 @@ macro_rules! push_with_amount_assertion {
 macro_rules! push_snap {
     ($(($func:ident, $edit:ident)),+) => { paste::paste! { $(
         #[inline]
-        pub fn [< $func _snap >](&mut self, identifier: Id, value: HvVec<(HvVec<u8>, Vec2)>)
+        pub(in crate::map::editor::state) fn [< $func _snap >](&mut self, identifier: Id, value: HvVec<(HvVec<u8>, Vec2)>)
         {
             let empty = value.is_empty();
             let edit = EditType::[< $edit Snap >](value);
@@ -131,7 +132,7 @@ macro_rules! push_snap {
 macro_rules! default_animation {
     ($(($($func:ident)?, ($($arg:ident: $t:ty),+), $edit:expr)), +) => { paste::paste! { $(
         #[inline]
-        pub fn [< default_animation $(_$func)? >](&mut self, $($arg: $t, )+)
+        pub(in crate::map::editor::state) fn [< default_animation $(_$func)? >](&mut self, $($arg: $t, )+)
         {
             self.push_onto_current_edit(hv_vec![], $edit);
         }
@@ -144,7 +145,7 @@ macro_rules! default_animation {
 macro_rules! purge {
     ($(($item:ident, $other:ident)),+) => { paste::paste! { $(
         #[inline]
-        pub fn [< purge_ $item _edits >](&mut self)
+        pub(in crate::map::editor::state) fn [< purge_ $item _edits >](&mut self)
         {
             let mut i = return_if_none!(self.[< earliest_ $item _edit >]);
             self.[< earliest_ $item _edit >] = None;
@@ -182,7 +183,7 @@ macro_rules! purge {
 //=======================================================================//
 
 /// Stack of chronologically ordered pre-edit brush states.
-pub(in crate::map::editor::state) struct EditsHistory
+pub(in crate::map::editor) struct EditsHistory
 {
     /// The chronology of the edits.
     stack: HvVec<Edit>,
@@ -416,7 +417,7 @@ impl EditsHistory
 
     #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
-    pub fn brush_despawn(&mut self, brush: Brush, selected: bool)
+    pub(in crate::map::editor::state) fn brush_despawn(&mut self, brush: Brush, selected: bool)
     {
         let (data, id) = brush.into_parts();
         self.push_onto_current_edit(hv_vec![id], EditType::BrushDespawn(Some(data), selected));
@@ -424,7 +425,10 @@ impl EditsHistory
 
     #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
-    pub fn vertexes_move(&mut self, vxs_move: HvVec<(Id, HvVec<VertexesMove>)>)
+    pub(in crate::map::editor::state) fn vertexes_move(
+        &mut self,
+        vxs_move: HvVec<(Id, HvVec<VertexesMove>)>
+    )
     {
         if vxs_move.is_empty()
         {
@@ -439,7 +443,7 @@ impl EditsHistory
 
     #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
-    pub fn entity_move_cluster(
+    pub(in crate::map::editor::state) fn entity_move_cluster(
         &mut self,
         manager: &EntitiesManager,
         delta: Vec2,
@@ -465,14 +469,18 @@ impl EditsHistory
 
     #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
-    pub fn thing_move(&mut self, identifier: Id, delta: Vec2)
+    pub(in crate::map::editor::state) fn thing_move(&mut self, identifier: Id, delta: Vec2)
     {
         self.push_onto_current_edit(hv_vec![identifier], EditType::ThingMove(delta));
     }
 
     #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
-    pub fn texture_move_cluster(&mut self, manager: &EntitiesManager, delta: Vec2)
+    pub(in crate::map::editor::state) fn texture_move_cluster(
+        &mut self,
+        manager: &EntitiesManager,
+        delta: Vec2
+    )
     {
         let mut identifiers = hv_vec![];
 
@@ -492,7 +500,10 @@ impl EditsHistory
 
     #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
-    pub fn path_nodes_move(&mut self, nodes_move: HvVec<(Id, HvVec<NodesMove>)>)
+    pub(in crate::map::editor::state) fn path_nodes_move(
+        &mut self,
+        nodes_move: HvVec<(Id, HvVec<NodesMove>)>
+    )
     {
         if nodes_move.is_empty()
         {
@@ -508,7 +519,7 @@ impl EditsHistory
     #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
     #[must_use]
-    pub fn path_nodes_selection_cluster(
+    pub(in crate::map::editor::state) fn path_nodes_selection_cluster(
         &mut self,
         iter: impl Iterator<Item = (Id, HvVec<u8>)>
     ) -> bool
@@ -521,7 +532,11 @@ impl EditsHistory
 
     #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
-    pub fn property(&mut self, key: &str, iter: impl Iterator<Item = (Id, Value)>)
+    pub(in crate::map::editor::state) fn property(
+        &mut self,
+        key: &str,
+        iter: impl Iterator<Item = (Id, Value)>
+    )
     {
         if self.selections_only_edit_halted
         {
@@ -622,7 +637,7 @@ impl EditsHistory
     /// Pushes the current [`Edit`] on the history unless it is empty, or it is not concluded, or if
     /// edit push is halted by a selection only edit.
     #[inline]
-    pub fn push_frame_edit(&mut self)
+    pub(in crate::map::editor::state) fn push_frame_edit(&mut self)
     {
         if self.current_edit.is_empty() || !self.concluded_edit()
         {
@@ -656,7 +671,7 @@ impl EditsHistory
 
     /// Removes all sub-edits only necessary to the previously active tool from the history.
     #[inline]
-    pub fn purge_tools_edits(
+    pub(in crate::map::editor::state) fn purge_tools_edits(
         &mut self,
         prev_editing_target: EditingTarget,
         current_editing_target: EditingTarget
@@ -705,7 +720,7 @@ impl EditsHistory
 
     /// Removes all free draw sub-edits from the history.
     #[inline]
-    pub fn purge_free_draw_edits(&mut self)
+    pub(in crate::map::editor::state) fn purge_free_draw_edits(&mut self)
     {
         let mut i = return_if_none!(self.earliest_tool_edit);
 
@@ -734,11 +749,14 @@ impl EditsHistory
     /// Whether there is an ongoing multiframe edit.
     #[inline]
     #[must_use]
-    pub const fn multiframe_edit(&self) -> bool { self.multiframe_edit }
+    pub(in crate::map::editor::state) const fn multiframe_edit(&self) -> bool
+    {
+        self.multiframe_edit
+    }
 
     /// Starts a multiframe edit.
     #[inline]
-    pub fn start_multiframe_edit(&mut self)
+    pub(in crate::map::editor::state) fn start_multiframe_edit(&mut self)
     {
         assert!(!self.multiframe_edit, "Multiframe edit already enabled.");
         self.multiframe_edit = true;
@@ -746,7 +764,7 @@ impl EditsHistory
 
     /// Ends a multiframe edit.
     #[inline]
-    pub fn end_multiframe_edit(&mut self)
+    pub(in crate::map::editor::state) fn end_multiframe_edit(&mut self)
     {
         assert!(self.multiframe_edit, "Multiframe edit not enabled.");
         self.multiframe_edit = false;
@@ -755,7 +773,7 @@ impl EditsHistory
     /// Whether there are no unsaved edits.
     #[inline]
     #[must_use]
-    pub fn no_unsaved_edits(&self) -> bool
+    pub(in crate::map::editor::state) fn no_unsaved_edits(&self) -> bool
     {
         let idx = match self.last_save_edit
         {
@@ -781,17 +799,23 @@ impl EditsHistory
 
     /// Sets the current edit to be the one of the last save.
     #[inline]
-    pub fn reset_last_save_edit(&mut self) { self.last_save_edit = self.index.into(); }
+    pub(in crate::map::editor::state) fn reset_last_save_edit(&mut self)
+    {
+        self.last_save_edit = self.index.into();
+    }
 
     #[inline]
-    pub fn override_edit_tag(&mut self, tag: &str) { self.current_edit.override_tag(tag); }
+    pub(in crate::map::editor::state) fn override_edit_tag(&mut self, tag: &str)
+    {
+        self.current_edit.override_tag(tag);
+    }
 
     //=======================================================================//
     // Info
 
     #[inline]
     #[must_use]
-    pub const fn index(&self) -> usize { self.index }
+    pub(in crate::map::editor::state) const fn index(&self) -> usize { self.index }
 
     /// Whether there is no ongoing edit.
     #[inline]
@@ -804,10 +828,11 @@ impl EditsHistory
     /// Undoes a change, ergo reverts identifiers which were modified with a single
     /// action to their previous state.
     #[inline]
-    pub fn undo(
+    pub(in crate::map::editor::state) fn undo(
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
+        grid: Grid,
         ui: &mut Ui
     )
     {
@@ -825,7 +850,7 @@ impl EditsHistory
         self.index -= 1;
 
         let edit = &mut self.stack[self.index];
-        edit.undo(interface, drawing_resources, ui);
+        edit.undo(interface, drawing_resources, grid, ui);
 
         if edit.only_contains_selection_edits()
         {
@@ -838,10 +863,11 @@ impl EditsHistory
 
     /// Redoes a change for a cluster of identifiers that were edited in group.
     #[inline]
-    pub fn redo(
+    pub(in crate::map::editor::state) fn redo(
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
+        grid: Grid,
         ui: &mut Ui
     )
     {
@@ -852,13 +878,13 @@ impl EditsHistory
 
         if self.current_edit.only_contains_entity_selection_edits()
         {
-            self.current_edit.undo(interface, drawing_resources, ui);
+            self.current_edit.undo(interface, drawing_resources, grid, ui);
             self.current_edit.clear();
             self.selections_only_edit_halted = false;
         }
 
         let edit = &mut self.stack[self.index];
-        edit.redo(interface, drawing_resources, ui);
+        edit.redo(interface, drawing_resources, grid, ui);
 
         if edit.only_contains_selection_edits()
         {
@@ -873,7 +899,11 @@ impl EditsHistory
 
     #[inline]
     #[must_use]
-    pub fn show(&self, ui: &mut egui::Ui, core: &Core) -> Option<usize>
+    pub(in crate::map::editor::state) fn show(
+        &self,
+        ui: &mut egui::Ui,
+        core: &Core
+    ) -> Option<usize>
     {
         #[inline]
         fn set_post_index_visuals(ui: &mut egui::Ui)

@@ -15,9 +15,7 @@ use crate::{
             cursor::Cursor,
             state::{
                 core::{draw_selected_and_non_selected_brushes, ActiveTool},
-                editor_state::InputsPresses,
-                edits_history::EditsHistory,
-                grid::Grid,
+                inputs_presses::InputsPresses,
                 manager::EntitiesManager
             },
             DrawBundle,
@@ -109,39 +107,32 @@ impl ShatterTool
 
     /// Updates the tool.
     #[inline]
-    pub fn update(
-        &mut self,
-        bundle: &mut ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid
-    )
+    pub fn update(&mut self, bundle: &mut ToolUpdateBundle)
     {
-        self.0 =
-            self.1
-                .brush_beneath_cursor(bundle.drawing_resources, manager, bundle.cursor, inputs);
+        self.0 = self.1.brush_beneath_cursor(
+            bundle.drawing_resources,
+            bundle.manager,
+            bundle.cursor,
+            bundle.inputs
+        );
 
-        if inputs.left_mouse.just_pressed()
+        if bundle.inputs.left_mouse.just_pressed()
         {
-            self.shatter(bundle, manager, edits_history, grid);
+            self.shatter(bundle);
         }
     }
 
     /// Shatters the selected brush.
     #[inline]
-    fn shatter(
-        &mut self,
-        bundle: &mut ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        grid: Grid
-    )
+    fn shatter(&mut self, bundle: &mut ToolUpdateBundle)
     {
         let ToolUpdateBundle {
             drawing_resources,
             camera,
             cursor,
+            manager,
+            edits_history,
+            grid,
             ..
         } = bundle;
 
@@ -152,7 +143,7 @@ impl ShatterTool
         _ = manager.replace_brush_with_partition(
             drawing_resources,
             edits_history,
-            grid,
+            *grid,
             shards.into_iter(),
             id,
             |brush| brush.set_polygon(main)
@@ -167,36 +158,41 @@ impl ShatterTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
+    pub fn draw(&self, bundle: &mut DrawBundle)
     {
-        bundle
-            .drawer
-            .square_highlight(Self::cursor_pos(bundle.cursor), Color::ToolCursor);
+        let DrawBundle {
+            window,
+            drawer,
+            camera,
+            cursor,
+            manager,
+            ..
+        } = bundle;
+
+        drawer.square_highlight(Self::cursor_pos(cursor), Color::ToolCursor);
 
         if let Some(hgl_e) = self.0
         {
-            manager
-                .brush(hgl_e)
-                .draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
+            manager.brush(hgl_e).draw_highlighted_selected(camera, drawer);
 
             for brush in manager
-                .visible_brushes(bundle.window, bundle.camera, bundle.drawer.grid())
+                .visible_brushes(window, camera, drawer.grid())
                 .iter()
                 .filter_set_with_predicate(hgl_e, |brush| brush.id())
             {
                 if manager.is_selected(brush.id())
                 {
-                    brush.draw_selected(bundle.camera, &mut bundle.drawer);
+                    brush.draw_selected(camera, drawer);
                 }
                 else
                 {
-                    brush.draw_non_selected(bundle.camera, &mut bundle.drawer);
+                    brush.draw_non_selected(camera, drawer);
                 }
             }
         }
         else
         {
-            draw_selected_and_non_selected_brushes!(bundle, manager);
+            draw_selected_and_non_selected_brushes!(bundle);
         }
     }
 }

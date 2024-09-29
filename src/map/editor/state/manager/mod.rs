@@ -38,9 +38,10 @@ use self::{
 use super::{
     clipboard::{Clipboard, ClipboardData, CopyToClipboard},
     core::Core,
-    editor_state::{InputsPresses, ToolsSettings},
+    editor_state::ToolsSettings,
     edits_history::EditsHistory,
     grid::Grid,
+    inputs_presses::InputsPresses,
     ui::Ui
 };
 use crate::{
@@ -53,6 +54,7 @@ use crate::{
         drawer::{
             animation::Animator,
             color::Color,
+            drawers::EditDrawer,
             drawing_resources::DrawingResources,
             texture::{TextureInterface, TextureInterfaceExtra, TextureSettings, TextureSpriteSet}
         },
@@ -63,7 +65,6 @@ use crate::{
                 read_default_properties
             },
             AllDefaultProperties,
-            DrawBundle,
             StateUpdateBundle,
             ToolUpdateBundle
         },
@@ -372,7 +373,7 @@ impl ErrorHighlight
 
     /// Draws the error on screen.
     #[inline]
-    fn draw(&mut self, bundle: &mut DrawBundle) -> Option<Id>
+    fn draw(&mut self, delta_time: f32) -> Option<Id>
     {
         if self.blinks == 0
         {
@@ -380,7 +381,7 @@ impl ErrorHighlight
         }
 
         let prev = self.blinker.on();
-        let cur = self.blinker.update(bundle.delta_time);
+        let cur = self.blinker.update(delta_time);
 
         if prev != cur
         {
@@ -459,12 +460,7 @@ impl Animators
 
     /// Updates the contained [`Animator`]s based of the time that has passed since the last update.
     #[inline]
-    pub(in crate::map::editor::state) fn update(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &EntitiesManager,
-        delta_time: f32
-    )
+    pub(in crate::map::editor::state) fn update(&mut self, bundle: &ToolUpdateBundle)
     {
         for (id, a) in &mut self.brushes
         {
@@ -473,25 +469,27 @@ impl Animators
                 Animator::List(a) =>
                 {
                     a.update(
-                        manager
+                        bundle
+                            .manager
                             .brush(*id)
                             .texture_settings()
                             .unwrap()
-                            .overall_animation(drawing_resources)
+                            .overall_animation(bundle.drawing_resources)
                             .get_list_animation(),
-                        delta_time
+                        bundle.delta_time
                     );
                 },
                 Animator::Atlas(a) =>
                 {
                     a.update(
-                        manager
+                        bundle
+                            .manager
                             .brush(*id)
                             .texture_settings()
                             .unwrap()
-                            .overall_animation(drawing_resources)
+                            .overall_animation(bundle.drawing_resources)
                             .get_atlas_animation(),
-                        delta_time
+                        bundle.delta_time
                     );
                 }
             };
@@ -504,21 +502,23 @@ impl Animators
                 Animator::List(a) =>
                 {
                     a.update(
-                        drawing_resources
+                        bundle
+                            .drawing_resources
                             .texture_or_error(name)
                             .animation()
                             .get_list_animation(),
-                        delta_time
+                        bundle.delta_time
                     );
                 },
                 Animator::Atlas(a) =>
                 {
                     a.update(
-                        drawing_resources
+                        bundle
+                            .drawing_resources
                             .texture_or_error(name)
                             .animation()
                             .get_atlas_animation(),
-                        delta_time
+                        bundle.delta_time
                     );
                 }
             };
@@ -617,7 +617,7 @@ impl Innards
     /// Reads the brushes and [`Thing`]s from `file`.
     /// Returns an error if it occurred.
     #[inline]
-    pub fn load<I: Iterator<Item = FileStructure>>(
+    pub(in crate::map::editor::state) fn load<I: Iterator<Item = FileStructure>>(
         &mut self,
         header: &MapHeader,
         file: &mut BufReader<File>,
@@ -822,7 +822,7 @@ impl Innards
     /// Panics if `identifier` belongs to an entity that does not exist.
     #[inline]
     #[must_use]
-    pub fn entity(&self, identifier: Id) -> &dyn Entity
+    pub(in crate::map::editor::state) fn entity(&self, identifier: Id) -> &dyn Entity
     {
         self.brushes
             .get(&identifier)
@@ -834,7 +834,7 @@ impl Innards
     /// Spawns an entity pasted from the [`Clipboard`].
     #[inline]
     #[must_use]
-    pub fn spawn_pasted_entity(
+    pub(in crate::map::editor::state) fn spawn_pasted_entity(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -872,18 +872,23 @@ impl Innards
     /// Returns the amount of selected brushes.
     #[inline]
     #[must_use]
-    pub fn selected_brushes_amount(&self) -> usize { self.selected_brushes.len() }
+    pub(in crate::map::editor::state) fn selected_brushes_amount(&self) -> usize
+    {
+        self.selected_brushes.len()
+    }
 
     /// Returns the [`Id`]s of the selected brushes.
     #[inline]
-    pub fn selected_brushes_ids(&self) -> impl ExactSizeIterator<Item = &Id> + Clone
+    pub(in crate::map::editor::state) fn selected_brushes_ids(
+        &self
+    ) -> impl ExactSizeIterator<Item = &Id> + Clone
     {
         self.selected_brushes.iter()
     }
 
     /// Returns the [`Id`]s of the selected brushes and [`Thing`]s.
     #[inline]
-    pub fn selected_entities_ids(&self) -> impl Iterator<Item = &Id>
+    pub(in crate::map::editor::state) fn selected_entities_ids(&self) -> impl Iterator<Item = &Id>
     {
         self.selected_brushes_ids().chain(&self.selected_things)
     }
@@ -1021,7 +1026,7 @@ impl Innards
     /// Removes the texture from the brush with [`Id`] `identifier`, and returns its
     /// [`TextureSettings`].
     #[inline]
-    pub fn remove_texture(
+    pub(in crate::map::editor::state) fn remove_texture(
         &mut self,
         drawing_resources: &DrawingResources,
         grid: Grid,
@@ -1127,7 +1132,7 @@ impl Innards
     /// # Panics
     /// Panics if the brush does not exist.
     #[inline]
-    pub fn brush(&self, identifier: Id) -> &Brush
+    pub(in crate::map::editor::state) fn brush(&self, identifier: Id) -> &Brush
     {
         self.brushes
             .get(&identifier)
@@ -1138,7 +1143,7 @@ impl Innards
     /// # Panics
     /// Panics if the brush does not exist.
     #[inline]
-    pub fn brush_mut<'a>(
+    pub(in crate::map::editor::state) fn brush_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         grid: Grid,
@@ -1169,7 +1174,12 @@ impl Innards
 
     /// Detaches the brush with [`Id`] `attachment` from the one with [`Id`] `owner`.
     #[inline]
-    pub fn detach(&mut self, quad_trees: &mut Trees, owner: Id, attachment: Id)
+    pub(in crate::map::editor::state) fn detach(
+        &mut self,
+        quad_trees: &mut Trees,
+        owner: Id,
+        attachment: Id
+    )
     {
         assert!(
             self.remove_anchors_hull(quad_trees, owner),
@@ -1410,7 +1420,7 @@ impl Innards
 
     /// Spawns a brush in the map and returns its [`Id`].
     #[inline]
-    pub fn spawn_brush<'a>(
+    pub(in crate::map::editor::state) fn spawn_brush<'a>(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -1465,7 +1475,7 @@ impl Innards
     /// Panics if the brush is not selected.
     #[inline]
     #[must_use]
-    pub fn set_texture(
+    pub(in crate::map::editor::state) fn set_texture(
         &mut self,
         drawing_resources: &DrawingResources,
         grid: Grid,
@@ -1502,7 +1512,7 @@ impl Innards
     /// Sets the [`Path`] of the entity with [`Id`] `identifier` to `path` and updates the edits
     /// history.
     #[inline]
-    pub fn create_path(
+    pub(in crate::map::editor::state) fn create_path(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -1520,7 +1530,7 @@ impl Innards
 
     /// Sets the [`Path`] of the entity with [`Id`] `identifier` to `path`.
     #[inline]
-    pub fn set_path(
+    pub(in crate::map::editor::state) fn set_path(
         &mut self,
         resources: &DrawingResources,
         grid: Grid,
@@ -1631,15 +1641,21 @@ impl Innards
     /// Whether `identifier` belongs to a [`ThingInstance`].
     #[inline]
     #[must_use]
-    pub fn is_thing(&self, identifier: Id) -> bool { self.things.contains_key(&identifier) }
+    pub(in crate::map::editor::state) fn is_thing(&self, identifier: Id) -> bool
+    {
+        self.things.contains_key(&identifier)
+    }
 
     /// Returns the amount of selected [`ThingInstance`]s.
     #[inline]
-    pub fn selected_things_amount(&self) -> usize { self.selected_things.len() }
+    pub(in crate::map::editor::state) fn selected_things_amount(&self) -> usize
+    {
+        self.selected_things.len()
+    }
 
     /// Returns a reference to the [`ThingInstance`] with [`Id`] `identifier`.
     #[inline]
-    pub fn thing(&self, identifier: Id) -> &ThingInstance
+    pub(in crate::map::editor::state) fn thing(&self, identifier: Id) -> &ThingInstance
     {
         self.things
             .get(&identifier)
@@ -1648,14 +1664,23 @@ impl Innards
 
     /// Returns a [`ThingMut`] wrapper to the [`ThingInstance`] with [`Id`] `identifier`.
     #[inline]
-    pub fn thing_mut<'a>(&'a mut self, quad_trees: &'a mut Trees, identifier: Id) -> ThingMut<'a>
+    pub(in crate::map::editor::state) fn thing_mut<'a>(
+        &'a mut self,
+        quad_trees: &'a mut Trees,
+        identifier: Id
+    ) -> ThingMut<'a>
     {
         ThingMut::new(self, quad_trees, identifier)
     }
 
     /// Inserts a `thing` in the map.
     #[inline]
-    pub fn insert_thing(&mut self, thing: ThingInstance, quad_trees: &mut Trees, selected: bool)
+    pub(in crate::map::editor::state) fn insert_thing(
+        &mut self,
+        thing: ThingInstance,
+        quad_trees: &mut Trees,
+        selected: bool
+    )
     {
         self.overall_things_info_update = true;
         self.overall_things_properties_update = PropertyUpdate::Total;
@@ -1699,7 +1724,11 @@ impl Innards
 
     /// Removes a [`ThingInstance`] from the map and returns it.
     #[inline]
-    pub fn remove_thing(&mut self, quad_trees: &mut Trees, identifier: Id) -> ThingInstance
+    pub(in crate::map::editor::state) fn remove_thing(
+        &mut self,
+        quad_trees: &mut Trees,
+        identifier: Id
+    ) -> ThingInstance
     {
         self.overall_things_info_update = true;
         self.overall_things_properties_update = PropertyUpdate::Total;
@@ -1733,7 +1762,7 @@ impl Innards
 
     /// Spawns `thing` into the map.
     #[inline]
-    pub fn spawn_thing(
+    pub(in crate::map::editor::state) fn spawn_thing(
         &mut self,
         thing: ThingInstance,
         quad_trees: &mut Trees,
@@ -1746,7 +1775,7 @@ impl Innards
 
     /// Draws `thing` into the map.
     #[inline]
-    pub fn draw_thing(
+    pub(in crate::map::editor::state) fn draw_thing(
         &mut self,
         thing: ThingInstance,
         quad_trees: &mut Trees,
@@ -1759,7 +1788,7 @@ impl Innards
 
     /// Despawns the [`ThingInstance`] with [`Id`] `identifier`.
     #[inline]
-    pub fn despawn_thing(
+    pub(in crate::map::editor::state) fn despawn_thing(
         &mut self,
         quad_trees: &mut Trees,
         edits_history: &mut EditsHistory,
@@ -1776,7 +1805,7 @@ impl Innards
     /// Returns a reference to the entity with id `identifier` as a trait object which implements
     /// the [`Moving`] trait.
     #[inline]
-    pub fn moving(&self, identifier: Id) -> &dyn Moving
+    pub(in crate::map::editor::state) fn moving(&self, identifier: Id) -> &dyn Moving
     {
         if self.is_thing(identifier)
         {
@@ -1788,7 +1817,7 @@ impl Innards
 
     /// Returns a [`MovingMut`] wrapping the entity with id `identifier`.
     #[inline]
-    pub fn moving_mut<'a>(
+    pub(in crate::map::editor::state) fn moving_mut<'a>(
         &'a mut self,
         resources: &'a DrawingResources,
         grid: Grid,
@@ -1803,7 +1832,7 @@ impl Innards
 //=======================================================================//
 
 /// The manager of all entities placed on the map.
-pub(in crate::map::editor::state) struct EntitiesManager
+pub(in crate::map::editor) struct EntitiesManager
 {
     /// The core of the manager.
     innards:         Innards,
@@ -1833,7 +1862,7 @@ impl EntitiesManager
     /// Returns a new [`EntitiesManager`] along with the [`MapHeader`] read from `file` if the read
     /// process was successful.
     #[inline]
-    pub fn from_file<I: Iterator<Item = FileStructure>>(
+    pub(in crate::map::editor::state) fn from_file<I: Iterator<Item = FileStructure>>(
         header: &MapHeader,
         file: &mut BufReader<File>,
         drawing_resources: &DrawingResources,
@@ -1871,12 +1900,15 @@ impl EntitiesManager
 
     /// Turns off the refactored properties flag.
     #[inline]
-    pub fn reset_refactored_properties(&mut self) { self.innards.refactored_properties = false; }
+    pub(in crate::map::editor::state) fn reset_refactored_properties(&mut self)
+    {
+        self.innards.refactored_properties = false;
+    }
 
     /// Whether an entity with [`Id`] `identifier` exists.
     #[inline]
     #[must_use]
-    pub fn entity_exists(&self, identifier: Id) -> bool
+    pub(in crate::map::editor::state) fn entity_exists(&self, identifier: Id) -> bool
     {
         self.innards.brushes.get(&identifier).is_some() ||
             self.innards.things.get(&identifier).is_some()
@@ -1885,20 +1917,29 @@ impl EntitiesManager
     /// Returns the amount of entities placed on the map.
     #[inline]
     #[must_use]
-    pub fn entities_amount(&self) -> usize { self.brushes_amount() + self.things_amount() }
+    pub(in crate::map::editor::state) fn entities_amount(&self) -> usize
+    {
+        self.brushes_amount() + self.things_amount()
+    }
 
     /// Returns a reference to the [`Entity`] trait object with [`Id`] `identifier`.
     #[inline]
     #[must_use]
-    pub fn entity(&self, identifier: Id) -> &dyn Entity { self.innards.entity(identifier) }
+    pub(in crate::map::editor::state) fn entity(&self, identifier: Id) -> &dyn Entity
+    {
+        self.innards.entity(identifier)
+    }
 
     /// Schedule a tool outline update.
     #[inline]
-    pub fn schedule_outline_update(&mut self) { self.innards.outline_update = true; }
+    pub(in crate::map::editor::state) fn schedule_outline_update(&mut self)
+    {
+        self.innards.outline_update = true;
+    }
 
     /// Updates certain tool and UI properties.
     #[inline]
-    pub fn update_tool_and_overall_values(
+    pub(in crate::map::editor::state) fn update_tool_and_overall_values(
         &mut self,
         drawing_resources: &DrawingResources,
         core: &mut Core,
@@ -1956,7 +1997,7 @@ impl EntitiesManager
     /// Executes `f` and stores the error returned if any.
     #[inline]
     #[must_use]
-    pub fn test_operation_validity<F>(&mut self, f: F) -> bool
+    pub(in crate::map::editor::state) fn test_operation_validity<F>(&mut self, f: F) -> bool
     where
         F: FnOnce(&mut Self) -> Option<Id>
     {
@@ -1967,35 +2008,41 @@ impl EntitiesManager
 
     /// Schedules the update of the overall collision of the brushes.
     #[inline]
-    pub fn schedule_overall_collision_update(&mut self)
+    pub(in crate::map::editor::state) fn schedule_overall_collision_update(&mut self)
     {
         self.innards.overall_collision_update = true;
     }
 
     /// Schedules the update of the overall brushs property with key `k` value.
     #[inline]
-    pub fn schedule_overall_brushes_property_update(&mut self, k: &str)
+    pub(in crate::map::editor::state) fn schedule_overall_brushes_property_update(
+        &mut self,
+        k: &str
+    )
     {
         self.innards.overall_brushes_properties_update = PropertyUpdate::Single(k.to_string());
     }
 
     /// Schedules the update of the overall [`ThingInstance`]s infos.
     #[inline]
-    pub fn schedule_overall_things_info_update(&mut self)
+    pub(in crate::map::editor::state) fn schedule_overall_things_info_update(&mut self)
     {
         self.innards.overall_things_info_update = true;
     }
 
     /// Schedules the update of the overall [`ThingInstance`]s property with key `k` value.
     #[inline]
-    pub fn schedule_overall_things_property_update(&mut self, k: &str)
+    pub(in crate::map::editor::state) fn schedule_overall_things_property_update(&mut self, k: &str)
     {
         self.innards.overall_things_properties_update = PropertyUpdate::Single(k.to_string());
     }
 
     /// Schedules the update of the overall [`Path`]s node values.
     #[inline]
-    pub fn schedule_overall_node_update(&mut self) { self.innards.overall_node_update = true; }
+    pub(in crate::map::editor::state) fn schedule_overall_node_update(&mut self)
+    {
+        self.innards.overall_node_update = true;
+    }
 
     //==============================================================
     // Selection
@@ -2003,14 +2050,16 @@ impl EntitiesManager
     /// Whether there are any currently selected entities.
     #[inline]
     #[must_use]
-    pub fn any_selected_entities(&self) -> bool
+    pub(in crate::map::editor::state) fn any_selected_entities(&self) -> bool
     {
         self.any_selected_brushes() || self.any_selected_things()
     }
 
     /// Returns an iterator to the [`Entity`] trait objects in the map.
     #[inline]
-    pub fn selected_entities(&self) -> impl Iterator<Item = &dyn Entity>
+    pub(in crate::map::editor::state) fn selected_entities(
+        &self
+    ) -> impl Iterator<Item = &dyn Entity>
     {
         self.selected_brushes_ids()
             .chain(self.selected_things_ids())
@@ -2020,11 +2069,14 @@ impl EntitiesManager
     /// Whether the entity with [`Id`] `identifier` is selected.
     #[inline]
     #[must_use]
-    pub fn is_selected(&self, identifier: Id) -> bool { self.innards.is_selected(identifier) }
+    pub(in crate::map::editor::state) fn is_selected(&self, identifier: Id) -> bool
+    {
+        self.innards.is_selected(identifier)
+    }
 
     /// Selects the entity with [`Id`] `identifier`.
     #[inline]
-    pub fn select_entity(
+    pub(in crate::map::editor::state) fn select_entity(
         &mut self,
         identifier: Id,
         inputs: &InputsPresses,
@@ -2045,7 +2097,7 @@ impl EntitiesManager
 
     /// Deselects the entity with [`Id`] `identifier`.
     #[inline]
-    pub fn deselect_entity(
+    pub(in crate::map::editor::state) fn deselect_entity(
         &mut self,
         identifier: Id,
         inputs: &InputsPresses,
@@ -2066,7 +2118,8 @@ impl EntitiesManager
     /// Updates the value related to entity selection for the entity identifier. Returns true if
     /// entity is a [`ThingInstance`].
     #[inline]
-    pub fn insert_entity_selection(&mut self, identifier: Id) -> bool
+    pub(in crate::map::editor::state) fn insert_entity_selection(&mut self, identifier: Id)
+        -> bool
     {
         self.innards.insert_entity_selection(identifier)
     }
@@ -2074,14 +2127,18 @@ impl EntitiesManager
     /// Updates the value related to entity deselection for the entity identifier. Returns true if
     /// entity is a [`ThingInstance`].
     #[inline]
-    pub fn remove_entity_selection(&mut self, identifier: Id) -> bool
+    pub(in crate::map::editor::state) fn remove_entity_selection(&mut self, identifier: Id)
+        -> bool
     {
         self.innards.remove_entity_selection(identifier)
     }
 
     /// Deselects all selected entities.
     #[inline]
-    pub fn deselect_selected_entities(&mut self, edits_history: &mut EditsHistory)
+    pub(in crate::map::editor::state) fn deselect_selected_entities(
+        &mut self,
+        edits_history: &mut EditsHistory
+    )
     {
         self.auxiliary.replace_values(
             self.innards
@@ -2100,14 +2157,17 @@ impl EntitiesManager
 
     /// Selects all entities.
     #[inline]
-    pub fn select_all_entities(&mut self, edits_history: &mut EditsHistory)
+    pub(in crate::map::editor::state) fn select_all_entities(
+        &mut self,
+        edits_history: &mut EditsHistory
+    )
     {
         self.innards.select_all_entities(edits_history, &mut self.auxiliary);
     }
 
     /// Despawns the selected entities.
     #[inline]
-    pub fn despawn_selected_entities(
+    pub(in crate::map::editor::state) fn despawn_selected_entities(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -2130,25 +2190,39 @@ impl EntitiesManager
     /// Returns the amount of brushes.
     #[inline]
     #[must_use]
-    pub fn brushes_amount(&self) -> usize { self.innards.brushes.len() }
+    pub(in crate::map::editor::state) fn brushes_amount(&self) -> usize
+    {
+        self.innards.brushes.len()
+    }
 
     /// Returns the amount of selected brushes.
     #[inline]
     #[must_use]
-    pub fn selected_brushes_amount(&self) -> usize { self.innards.selected_brushes_amount() }
+    pub(in crate::map::editor::state) fn selected_brushes_amount(&self) -> usize
+    {
+        self.innards.selected_brushes_amount()
+    }
 
     /// Whether there are any currently selected brushes.
     #[inline]
     #[must_use]
-    pub fn any_selected_brushes(&self) -> bool { self.selected_brushes_amount() != 0 }
+    pub(in crate::map::editor::state) fn any_selected_brushes(&self) -> bool
+    {
+        self.selected_brushes_amount() != 0
+    }
 
     /// Returns a reference to the brush with [`Id`] identifier.
     #[inline]
-    pub fn brush(&self, identifier: Id) -> &Brush { self.innards.brush(identifier) }
+    pub(in crate::map::editor::state) fn brush(&self, identifier: Id) -> &Brush
+    {
+        self.innards.brush(identifier)
+    }
 
     /// Returns an iterator to the [`Id`]s of the selected brushes.
     #[inline]
-    pub fn selected_brushes_ids(&self) -> impl ExactSizeIterator<Item = &Id> + Clone
+    pub(in crate::map::editor::state) fn selected_brushes_ids(
+        &self
+    ) -> impl ExactSizeIterator<Item = &Id> + Clone
     {
         self.innards.selected_brushes.iter()
     }
@@ -2176,7 +2250,7 @@ impl EntitiesManager
 
     /// Returns a [`BrushMut`] wrapping the brush with [`Id`] `identifier`.
     #[inline]
-    pub fn brush_mut<'a>(
+    pub(in crate::map::editor::state) fn brush_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         grid: Grid,
@@ -2188,7 +2262,9 @@ impl EntitiesManager
 
     /// Returns an iterator to the non selected brushes.
     #[inline]
-    pub fn non_selected_brushes(&mut self) -> impl Iterator<Item = &Brush>
+    pub(in crate::map::editor::state) fn non_selected_brushes(
+        &mut self
+    ) -> impl Iterator<Item = &Brush>
     {
         self.innards
             .brushes
@@ -2198,14 +2274,14 @@ impl EntitiesManager
 
     /// Returns an iterator to the selected brushes.
     #[inline]
-    pub fn selected_brushes(&self) -> impl Iterator<Item = &Brush>
+    pub(in crate::map::editor::state) fn selected_brushes(&self) -> impl Iterator<Item = &Brush>
     {
         self.selected_brushes_ids().map(|id| self.brush(*id))
     }
 
     /// Returns an iterator to [`BrushMut`] wrapping the selected brushes.
     #[inline]
-    pub fn selected_brushes_mut<'a>(
+    pub(in crate::map::editor::state) fn selected_brushes_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         grid: Grid
@@ -2224,14 +2300,18 @@ impl EntitiesManager
     /// Returns a [`BrushesIter`] that returns the brushes near `cursor_pos`.
     /// If `camera_scale` contains a value it wraps brushes within the cursor highlight.
     #[inline]
-    pub fn brushes_at_pos(&self, cursor_pos: Vec2, camera_scale: Option<f32>) -> BrushesIter<'_>
+    pub(in crate::map::editor::state) fn brushes_at_pos(
+        &self,
+        cursor_pos: Vec2,
+        camera_scale: Option<f32>
+    ) -> BrushesIter<'_>
     {
         self.brushes_iter(self.quad_trees.brushes_at_pos(cursor_pos, camera_scale))
     }
 
     /// Returns an iterator to the visible brushes.
     #[inline]
-    pub fn visible_brushes(
+    pub(in crate::map::editor::state) fn visible_brushes(
         &self,
         window: &Window,
         camera: &Transform,
@@ -2245,7 +2325,7 @@ impl EntitiesManager
     /// If `camera_scale` contains a value it wraps the selected brushes within the cursor
     /// highlight.
     #[inline]
-    pub fn selected_brushes_at_pos(
+    pub(in crate::map::editor::state) fn selected_brushes_at_pos(
         &self,
         cursor_pos: Vec2,
         camera_scale: impl Into<Option<f32>>
@@ -2258,7 +2338,7 @@ impl EntitiesManager
     /// If `camera_scale` contains a value it wraps the selected brushes within the cursor
     /// highlight.
     #[inline]
-    pub fn selected_brushes_mut_at_pos<'a>(
+    pub(in crate::map::editor::state) fn selected_brushes_mut_at_pos<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         grid: Grid,
@@ -2284,14 +2364,14 @@ impl EntitiesManager
 
     /// Returns an [`IdsInRange`] returning the [`Id`]s of brushes intersecting `range`.
     #[inline]
-    pub fn brushes_in_range(&self, range: &Hull) -> IdsInRange<'_>
+    pub(in crate::map::editor::state) fn brushes_in_range(&self, range: &Hull) -> IdsInRange<'_>
     {
         IdsInRange::new(self.quad_trees.brushes_in_range(range))
     }
 
     /// Selects all entities that are fully contained in `range`.
     #[inline]
-    pub fn select_entities_in_range(
+    pub(in crate::map::editor::state) fn select_entities_in_range(
         &mut self,
         range: &Hull,
         edits_history: &mut EditsHistory,
@@ -2346,7 +2426,7 @@ impl EntitiesManager
 
     /// Exclusively selects all entities that are fully within `range`.
     #[inline]
-    pub fn exclusively_select_entities_in_range(
+    pub(in crate::map::editor::state) fn exclusively_select_entities_in_range(
         &mut self,
         range: &Hull,
         edits_history: &mut EditsHistory,
@@ -2457,7 +2537,10 @@ impl EntitiesManager
     /// `ids`, if any.
     #[inline]
     #[must_use]
-    pub fn brushes_center(&self, ids: impl ExactSizeIterator<Item = Id>) -> Option<Vec2>
+    pub(in crate::map::editor::state) fn brushes_center(
+        &self,
+        ids: impl ExactSizeIterator<Item = Id>
+    ) -> Option<Vec2>
     {
         if ids.len() == 0
         {
@@ -2478,7 +2561,7 @@ impl EntitiesManager
     /// Returns the center of the rectangle encompassing the selected brushes, if any.
     #[inline]
     #[must_use]
-    pub fn selected_brushes_center(&self) -> Option<Vec2>
+    pub(in crate::map::editor::state) fn selected_brushes_center(&self) -> Option<Vec2>
     {
         self.brushes_center(self.selected_brushes_ids().copied())
     }
@@ -2486,7 +2569,7 @@ impl EntitiesManager
     /// Returns the center of the rectangle encompassing the selected textured brushes, if any.
     #[inline]
     #[must_use]
-    pub fn selected_textured_brushes_center(&self) -> Option<Vec2>
+    pub(in crate::map::editor::state) fn selected_textured_brushes_center(&self) -> Option<Vec2>
     {
         self.brushes_center(self.selected_textured_ids().copied())
     }
@@ -2494,7 +2577,7 @@ impl EntitiesManager
     /// Returns the [`Hull`] describing the rectangle encompassing all selected brushes, if any.
     #[inline]
     #[must_use]
-    pub fn selected_brushes_hull(&self) -> Option<Hull>
+    pub(in crate::map::editor::state) fn selected_brushes_hull(&self) -> Option<Hull>
     {
         Hull::from_hulls_iter(self.selected_brushes_ids().map(|id| self.brush(*id).hull()))
     }
@@ -2503,7 +2586,7 @@ impl EntitiesManager
     /// brushes, if any.
     #[inline]
     #[must_use]
-    pub fn selected_textured_brushes_hull(
+    pub(in crate::map::editor::state) fn selected_textured_brushes_hull(
         &self,
         drawing_resources: &DrawingResources,
         grid: Grid
@@ -2518,7 +2601,7 @@ impl EntitiesManager
     /// Returns the [`Hull`] describing the rectangle encompassing all selected entities, if any.
     #[inline]
     #[must_use]
-    pub fn selected_entities_hull(
+    pub(in crate::map::editor::state) fn selected_entities_hull(
         &self,
         drawing_resources: &DrawingResources,
         grid: Grid
@@ -2533,7 +2616,9 @@ impl EntitiesManager
 
     /// Returns an iterator to all the selected brushes with sprites.
     #[inline]
-    pub fn selected_brushes_with_sprites(&mut self) -> Option<impl Iterator<Item = &Brush>>
+    pub(in crate::map::editor::state) fn selected_brushes_with_sprites(
+        &mut self
+    ) -> Option<impl Iterator<Item = &Brush>>
     {
         /// The iterator to the brushes.
         struct Iter<'a>
@@ -2577,7 +2662,7 @@ impl EntitiesManager
 
     /// Returns an iterator to the [`BrushMut`]s wrapping the selected brushes with sprites.
     #[inline]
-    pub fn selected_brushes_with_sprite_mut<'a>(
+    pub(in crate::map::editor::state) fn selected_brushes_with_sprite_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         grid: Grid
@@ -2602,7 +2687,7 @@ impl EntitiesManager
     /// Returns an iterator to the [`BrushMut`]s wrapping the selected brushes with sprite
     /// `texture`.
     #[inline]
-    pub fn selected_brushes_with_sprites_mut<'a>(
+    pub(in crate::map::editor::state) fn selected_brushes_with_sprites_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         grid: Grid,
@@ -2623,7 +2708,7 @@ impl EntitiesManager
 
     /// Spawns a brush generated from `polygon` and returns its [`Id`].
     #[inline]
-    pub fn spawn_brush<'d>(
+    pub(in crate::map::editor::state) fn spawn_brush<'d>(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -2644,7 +2729,7 @@ impl EntitiesManager
 
     /// Spawns a brush generated from the arguments.
     #[inline]
-    pub fn spawn_brush_from_parts(
+    pub(in crate::map::editor::state) fn spawn_brush_from_parts(
         &mut self,
         drawing_resources: &DrawingResources,
         grid: Grid,
@@ -2661,7 +2746,7 @@ impl EntitiesManager
     /// Spawns the entities created from `data`.
     #[inline]
     #[must_use]
-    pub fn spawn_pasted_entity(
+    pub(in crate::map::editor::state) fn spawn_pasted_entity(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -2682,7 +2767,7 @@ impl EntitiesManager
 
     /// Spawns the brushes created from `polygons`.
     #[inline]
-    pub fn spawn_brushes(
+    pub(in crate::map::editor::state) fn spawn_brushes(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -2706,7 +2791,9 @@ impl EntitiesManager
     }
 
     #[inline]
-    pub fn replace_brush_with_partition<F: FnOnce(&mut Brush) -> ConvexPolygon>(
+    pub(in crate::map::editor::state) fn replace_brush_with_partition<
+        F: FnOnce(&mut Brush) -> ConvexPolygon
+    >(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -2841,7 +2928,7 @@ impl EntitiesManager
 
     /// Spawns a brush created with a draw tool.
     #[inline]
-    pub fn spawn_drawn_brush(
+    pub(in crate::map::editor::state) fn spawn_drawn_brush(
         &mut self,
         drawing_resources: &DrawingResources,
         default_properties: &DefaultProperties,
@@ -2879,7 +2966,7 @@ impl EntitiesManager
     /// Despawns the brushes created with a draw tool whose [`Id`]s are contained in
     /// `drawn_brushes`.
     #[inline]
-    pub fn despawn_drawn_brushes(
+    pub(in crate::map::editor::state) fn despawn_drawn_brushes(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -2897,7 +2984,7 @@ impl EntitiesManager
 
     /// Despawns the brush with [`Id`] `identifier`.
     #[inline]
-    pub fn despawn_brush(
+    pub(in crate::map::editor::state) fn despawn_brush(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -2916,7 +3003,7 @@ impl EntitiesManager
 
     /// Despawns the brush with [`Id`] `identifier` and returns its parts.
     #[inline]
-    pub fn despawn_brush_into_parts(
+    pub(in crate::map::editor::state) fn despawn_brush_into_parts(
         &mut self,
         drawing_resources: &DrawingResources,
         grid: Grid,
@@ -2928,7 +3015,7 @@ impl EntitiesManager
 
     /// Despawns the selected brushes.
     #[inline]
-    pub fn despawn_selected_brushes(
+    pub(in crate::map::editor::state) fn despawn_selected_brushes(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -2960,7 +3047,7 @@ impl EntitiesManager
 
     /// Replaces the selected brushes with the ones generated by `polygons`.
     #[inline]
-    pub fn replace_selected_brushes(
+    pub(in crate::map::editor::state) fn replace_selected_brushes(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -2976,7 +3063,7 @@ impl EntitiesManager
     /// Duplicates the selected entities crating copies displaced by `delta`.
     #[inline]
     #[must_use]
-    pub fn duplicate_selected_entities(
+    pub(in crate::map::editor::state) fn duplicate_selected_entities(
         &mut self,
         drawing_resources: &DrawingResources,
         clipboard: &mut Clipboard,
@@ -3002,7 +3089,7 @@ impl EntitiesManager
 
     /// Makes the Brush with [`Id`] `identifier` moving.
     #[inline]
-    pub fn create_path(
+    pub(in crate::map::editor::state) fn create_path(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -3023,7 +3110,7 @@ impl EntitiesManager
 
     /// Gives the brush with [`Id`] `identifier` a [`Path`].
     #[inline]
-    pub fn set_path(
+    pub(in crate::map::editor::state) fn set_path(
         &mut self,
         drawing_resources: &DrawingResources,
         grid: Grid,
@@ -3037,7 +3124,7 @@ impl EntitiesManager
 
     /// Removes the [`Path`] from the brush with [`Id`] `identifier`.
     #[inline]
-    pub fn remove_path(
+    pub(in crate::map::editor::state) fn remove_path(
         &mut self,
         drawing_resources: &DrawingResources,
         grid: Grid,
@@ -3060,7 +3147,7 @@ impl EntitiesManager
 
     /// Removes the [`Path`] from the selected brush with [`Id`] `identifier`.
     #[inline]
-    pub fn remove_selected_path(
+    pub(in crate::map::editor::state) fn remove_selected_path(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -3080,7 +3167,7 @@ impl EntitiesManager
     /// Replaces the [`Path`] of the selected brush with [`Id`] `identifier` with the one
     /// generated from `path`.
     #[inline]
-    pub fn replace_selected_path(
+    pub(in crate::map::editor::state) fn replace_selected_path(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -3101,7 +3188,7 @@ impl EntitiesManager
 
     /// Removes the [`Path`]s from the selected brushes.
     #[inline]
-    pub fn remove_selected_paths(
+    pub(in crate::map::editor::state) fn remove_selected_paths(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -3124,7 +3211,7 @@ impl EntitiesManager
 
     /// Returns a [`BrushesIter`] returning the visible attachments.
     #[inline]
-    pub fn visible_anchors(
+    pub(in crate::map::editor::state) fn visible_anchors(
         &self,
         window: &Window,
         camera: &Transform,
@@ -3136,11 +3223,17 @@ impl EntitiesManager
 
     /// Returns the amount of selected textured brushes.
     #[inline]
-    pub fn selected_textured_amount(&self) -> usize { self.innards.selected_textured.len() }
+    pub(in crate::map::editor::state) fn selected_textured_amount(&self) -> usize
+    {
+        self.innards.selected_textured.len()
+    }
 
     /// Returns the amount of textured brushes.
     #[inline]
-    pub fn textured_amount(&self) -> usize { self.innards.textured.len() }
+    pub(in crate::map::editor::state) fn textured_amount(&self) -> usize
+    {
+        self.innards.textured.len()
+    }
 
     /// Returns the amount of selected brushes with sprites.
     #[inline]
@@ -3148,21 +3241,25 @@ impl EntitiesManager
 
     /// Returns an iterator to the [`Id`]s of the selected textured brushes.
     #[inline]
-    pub fn selected_textured_ids(&self) -> impl ExactSizeIterator<Item = &Id>
+    pub(in crate::map::editor::state) fn selected_textured_ids(
+        &self
+    ) -> impl ExactSizeIterator<Item = &Id>
     {
         self.innards.selected_textured.iter()
     }
 
     /// Returns an iterator to the selected textured brushes.
     #[inline]
-    pub fn selected_textured_brushes(&self) -> impl Iterator<Item = &Brush>
+    pub(in crate::map::editor::state) fn selected_textured_brushes(
+        &self
+    ) -> impl Iterator<Item = &Brush>
     {
         self.selected_textured_ids().map(|id| self.brush(*id))
     }
 
     /// Returns an iterator to the [`BrushMut`] wrapping the selected textured brushes.
     #[inline]
-    pub fn selected_textured_brushes_mut<'a>(
+    pub(in crate::map::editor::state) fn selected_textured_brushes_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         grid: Grid
@@ -3181,14 +3278,15 @@ impl EntitiesManager
     /// Returns a [`BrushesIter`] returning the brushes with sprites at the position
     /// `cursor_pos`.
     #[inline]
-    pub fn sprites_at_pos(&self, cursor_pos: Vec2) -> BrushesIter<'_>
+    pub(in crate::map::editor::state) fn sprites_at_pos(&self, cursor_pos: Vec2)
+        -> BrushesIter<'_>
     {
         self.brushes_iter(self.quad_trees.sprites_at_pos(cursor_pos))
     }
 
     /// Returns the visible brushes with sprites.
     #[inline]
-    pub fn visible_sprites(
+    pub(in crate::map::editor::state) fn visible_sprites(
         &self,
         window: &Window,
         camera: &Transform,
@@ -3200,14 +3298,14 @@ impl EntitiesManager
 
     /// Anchors the brush with [`Id`] `attachment` to the one with [`Id`] `owner`.
     #[inline]
-    pub fn attach(&mut self, owner: Id, attachment: Id)
+    pub(in crate::map::editor::state) fn attach(&mut self, owner: Id, attachment: Id)
     {
         self.innards.attach(&mut self.quad_trees, owner, attachment);
     }
 
     /// Detaches the brush with [`Id`] `attachment` from the one with [`Id`] `owner`.
     #[inline]
-    pub fn detach(&mut self, owner: Id, attachment: Id)
+    pub(in crate::map::editor::state) fn detach(&mut self, owner: Id, attachment: Id)
     {
         self.innards.detach(&mut self.quad_trees, owner, attachment);
     }
@@ -3216,7 +3314,7 @@ impl EntitiesManager
     /// Returns the name of the replaced texture, if any.
     #[inline]
     #[must_use]
-    pub fn set_texture(
+    pub(in crate::map::editor::state) fn set_texture(
         &mut self,
         drawing_resources: &DrawingResources,
         grid: Grid,
@@ -3231,7 +3329,7 @@ impl EntitiesManager
     /// Removes the texture from the brush with [`Id`] identifier, and returns its
     /// [`TextureSettings`].
     #[inline]
-    pub fn remove_texture(
+    pub(in crate::map::editor::state) fn remove_texture(
         &mut self,
         drawing_resources: &DrawingResources,
         grid: Grid,
@@ -3244,7 +3342,7 @@ impl EntitiesManager
 
     /// Set the [`TextureSettings`] of the brush with [`Id`] `identifier`.
     #[inline]
-    pub fn set_texture_settings(
+    pub(in crate::map::editor::state) fn set_texture_settings(
         &mut self,
         drawing_resources: &DrawingResources,
         grid: Grid,
@@ -3270,7 +3368,7 @@ impl EntitiesManager
     /// Sets the texture of the selected brushes and returns a [`TextureResult`] describing the
     /// result of the procedure.
     #[inline]
-    pub fn set_selected_brushes_texture(
+    pub(in crate::map::editor::state) fn set_selected_brushes_texture(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -3355,7 +3453,7 @@ impl EntitiesManager
 
     /// Removes the textures from the selected brushes.
     #[inline]
-    pub fn remove_selected_textures(
+    pub(in crate::map::editor::state) fn remove_selected_textures(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -3377,7 +3475,7 @@ impl EntitiesManager
 
     /// Sets whether the texture of the selected brushes should be rendered as a sprite or not.
     #[inline]
-    pub fn set_sprite(
+    pub(in crate::map::editor::state) fn set_sprite(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -3437,7 +3535,7 @@ impl EntitiesManager
     /// Sets whether the texture of the selected brush with [`Id`] `identifier` should be
     /// rendered as a sprite or not. Returns the previous sprite rendering parameters.
     #[inline]
-    pub fn undo_redo_texture_sprite(
+    pub(in crate::map::editor::state) fn undo_redo_texture_sprite(
         &mut self,
         drawing_resources: &DrawingResources,
         grid: Grid,
@@ -3461,7 +3559,11 @@ impl EntitiesManager
 
     /// Completes the texture reload.
     #[inline]
-    pub fn finish_textures_reload(&mut self, drawing_resources: &DrawingResources, grid: Grid)
+    pub(in crate::map::editor::state) fn finish_textures_reload(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        grid: Grid
+    )
     {
         self.auxiliary.replace_values(&self.innards.textured);
 
@@ -3494,15 +3596,21 @@ impl EntitiesManager
     /// Whether `identifier` belongs to a [`ThingInstance`].
     #[inline]
     #[must_use]
-    pub fn is_thing(&self, identifier: Id) -> bool { self.innards.is_thing(identifier) }
+    pub(in crate::map::editor::state) fn is_thing(&self, identifier: Id) -> bool
+    {
+        self.innards.is_thing(identifier)
+    }
 
     /// Returns a reference to the [`ThingInstance`] with [`Id`] `identifier`.
     #[inline]
-    pub fn thing(&self, identifier: Id) -> &ThingInstance { self.innards.thing(identifier) }
+    pub(in crate::map::editor::state) fn thing(&self, identifier: Id) -> &ThingInstance
+    {
+        self.innards.thing(identifier)
+    }
 
     /// Returns a [`ThingMut`] wrapper to the [`ThingInstance`] with [`Id`] `identifier`.
     #[inline]
-    pub fn thing_mut(&mut self, identifier: Id) -> ThingMut<'_>
+    pub(in crate::map::editor::state) fn thing_mut(&mut self, identifier: Id) -> ThingMut<'_>
     {
         self.innards.thing_mut(&mut self.quad_trees, identifier)
     }
@@ -3510,38 +3618,51 @@ impl EntitiesManager
     /// Returns the amount of [`ThingInstance`] in the map.
     #[inline]
     #[must_use]
-    pub fn things_amount(&self) -> usize { self.innards.things.len() }
+    pub(in crate::map::editor::state) fn things_amount(&self) -> usize { self.innards.things.len() }
 
     /// Returns an iterator to all [`ThingInstance`]s in the map.
     #[inline]
-    pub fn things(&self) -> impl Iterator<Item = &ThingInstance> { self.innards.things.values() }
+    pub(in crate::map::editor::state) fn things(&self) -> impl Iterator<Item = &ThingInstance>
+    {
+        self.innards.things.values()
+    }
 
     /// Returns the amount of [`ThingInstance`]s.
     #[inline]
-    pub fn selected_things_amount(&self) -> usize { self.innards.selected_things_amount() }
+    pub(in crate::map::editor::state) fn selected_things_amount(&self) -> usize
+    {
+        self.innards.selected_things_amount()
+    }
 
     /// Whether any [`ThingInstance`] is currently selected.
     #[inline]
     #[must_use]
-    pub fn any_selected_things(&self) -> bool { self.selected_things_amount() != 0 }
+    pub(in crate::map::editor::state) fn any_selected_things(&self) -> bool
+    {
+        self.selected_things_amount() != 0
+    }
 
     /// Returns the [`Id`]s of the selected [`ThingInstance`]s.
     #[inline]
-    pub fn selected_things_ids(&self) -> impl Iterator<Item = &Id>
+    pub(in crate::map::editor::state) fn selected_things_ids(&self) -> impl Iterator<Item = &Id>
     {
         self.innards.selected_things.iter()
     }
 
     /// Returns an iterator to the selected [`ThingInstance`]s.
     #[inline]
-    pub fn selected_things(&self) -> impl Iterator<Item = &ThingInstance>
+    pub(in crate::map::editor::state) fn selected_things(
+        &self
+    ) -> impl Iterator<Item = &ThingInstance>
     {
         self.selected_things_ids().map(|id| self.thing(*id))
     }
 
     /// Returns an iterator to the [`ThingMut`]s wrapping the selected [`ThingInstance`]s.
     #[inline]
-    pub fn selected_things_mut(&mut self) -> impl Iterator<Item = ThingMut<'_>>
+    pub(in crate::map::editor::state) fn selected_things_mut(
+        &mut self
+    ) -> impl Iterator<Item = ThingMut<'_>>
     {
         self.auxiliary.replace_values(&self.innards.selected_things);
         SelectedThingsMut::new(&mut self.innards, &mut self.quad_trees, &self.auxiliary)
@@ -3549,7 +3670,11 @@ impl EntitiesManager
 
     /// Spawns a new [`ThingInstance`] with id [`identifier`].
     #[inline]
-    pub fn spawn_thing_from_parts(&mut self, identifier: Id, data: ThingInstanceData)
+    pub(in crate::map::editor::state) fn spawn_thing_from_parts(
+        &mut self,
+        identifier: Id,
+        data: ThingInstanceData
+    )
     {
         self.innards.insert_thing(
             ThingInstance::from_parts(identifier, data),
@@ -3560,24 +3685,25 @@ impl EntitiesManager
 
     /// Spawns a selected [`ThingInstance`] from the selected [`Thing`]. Returns its [`Id`].
     #[inline]
-    pub fn spawn_selected_thing(
+    pub(in crate::map::editor::state) fn spawn_selected_thing(
         &mut self,
-        bundle: &ToolUpdateBundle,
+        things_catalog: &ThingsCatalog,
+        things_default_properties: &DefaultProperties,
         edits_history: &mut EditsHistory,
-        settings: &mut ToolsSettings
+        settings: &mut ToolsSettings,
+        cursor_pos: Vec2
     ) -> Id
     {
         let id = self.innards.new_id();
 
         self.innards.draw_thing(
-            bundle.things_catalog.thing_instance(
+            things_catalog.thing_instance(
                 id,
-                bundle.things_catalog.selected_thing().id(),
-                settings.thing_pivot.spawn_pos(
-                    bundle.things_catalog.selected_thing(),
-                    bundle.cursor.world_snapped()
-                ),
-                bundle.things_default_properties
+                things_catalog.selected_thing().id(),
+                settings
+                    .thing_pivot
+                    .spawn_pos(things_catalog.selected_thing(), cursor_pos),
+                things_default_properties
             ),
             &mut self.quad_trees,
             edits_history
@@ -3588,7 +3714,11 @@ impl EntitiesManager
 
     /// Despawns the drawn [`ThingInstance`]s with [`Id`]s contained in `drawn_things`.
     #[inline]
-    pub fn despawn_drawn_things(&mut self, drawn_things: &mut Ids, edits_history: &mut EditsHistory)
+    pub(in crate::map::editor::state) fn despawn_drawn_things(
+        &mut self,
+        edits_history: &mut EditsHistory,
+        drawn_things: &mut Ids
+    )
     {
         for id in &*drawn_things
         {
@@ -3602,7 +3732,7 @@ impl EntitiesManager
     /// Returns a [`ThingsIter`] returning the [`ThingInstance`]s near `cursor_pos`. If
     /// `camera_scale` contains a value it returns the ones inside the cursor highlight.
     #[inline]
-    pub fn things_at_pos(
+    pub(in crate::map::editor::state) fn things_at_pos(
         &self,
         cursor_pos: Vec2,
         camera_scale: impl Into<Option<f32>>
@@ -3614,7 +3744,7 @@ impl EntitiesManager
     /// Returns a [`SelectedThingsIter`] returning the selected [`ThingInstance`]s at the cursor
     /// pos, or near it if `camera_scale` contains a value.
     #[inline]
-    pub fn selected_things_at_pos(
+    pub(in crate::map::editor::state) fn selected_things_at_pos(
         &self,
         cursor_pos: Vec2,
         camera_scale: impl Into<Option<f32>>
@@ -3628,22 +3758,29 @@ impl EntitiesManager
 
     /// Returns a [`ThingsIter`] to the visible [`ThingInstance`]s.
     #[inline]
-    pub fn visible_things(&self, window: &Window, camera: &Transform, grid: Grid)
-        -> ThingsIter<'_>
+    pub(in crate::map::editor::state) fn visible_things(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        grid: Grid
+    ) -> ThingsIter<'_>
     {
         ThingsIter::new(self, self.quad_trees.visible_things(camera, window, grid))
     }
 
     /// Remove the [`ThingInstance`] with [`Id`] `identifier` from the map.
     #[inline]
-    pub fn remove_thing(&mut self, identifier: Id) -> ThingInstance
+    pub(in crate::map::editor::state) fn remove_thing(&mut self, identifier: Id) -> ThingInstance
     {
         self.innards.remove_thing(&mut self.quad_trees, identifier)
     }
 
     /// Concludes the texture reloading process.
     #[inline]
-    pub fn finish_things_reload(&mut self, things_catalog: &ThingsCatalog)
+    pub(in crate::map::editor::state) fn finish_things_reload(
+        &mut self,
+        things_catalog: &ThingsCatalog
+    )
     {
         self.auxiliary.replace_values(self.innards.things.keys());
         let error = things_catalog.error();
@@ -3666,12 +3803,15 @@ impl EntitiesManager
     /// Whether the brush with [`Id`] `identifier` is moving.
     #[inline]
     #[must_use]
-    pub fn is_moving(&self, identifier: Id) -> bool { self.innards.moving.contains(&identifier) }
+    pub(in crate::map::editor::state) fn is_moving(&self, identifier: Id) -> bool
+    {
+        self.innards.moving.contains(&identifier)
+    }
 
     /// Whether the brush with [`Id`] `identifier` is moving and selected.
     #[inline]
     #[must_use]
-    pub fn is_selected_moving(&self, identifier: Id) -> bool
+    pub(in crate::map::editor::state) fn is_selected_moving(&self, identifier: Id) -> bool
     {
         self.innards.selected_moving.contains(&identifier)
     }
@@ -3679,14 +3819,14 @@ impl EntitiesManager
     /// Whether there are any entities that don't have a [`Path`] but could have one.
     #[inline]
     #[must_use]
-    pub fn any_selected_possible_moving(&self) -> bool
+    pub(in crate::map::editor::state) fn any_selected_possible_moving(&self) -> bool
     {
         !self.innards.selected_possible_moving.is_empty()
     }
 
     /// Returns an iterator to the [`Id`]s of the selected moving brushes.
     #[inline]
-    pub fn selected_moving_ids(&self) -> impl Iterator<Item = &Id>
+    pub(in crate::map::editor::state) fn selected_moving_ids(&self) -> impl Iterator<Item = &Id>
     {
         self.innards.selected_moving.iter()
     }
@@ -3694,18 +3834,22 @@ impl EntitiesManager
     /// Returns the amount of selected moving brushes.
     #[inline]
     #[must_use]
-    pub fn selected_moving_amount(&self) -> usize { self.innards.selected_moving.len() }
+    pub(in crate::map::editor::state) fn selected_moving_amount(&self) -> usize
+    {
+        self.innards.selected_moving.len()
+    }
 
     /// Returns an iterator to the moving selected brushes.
     #[inline]
-    pub fn selected_moving(&self) -> impl Iterator<Item = &dyn Moving>
+    pub(in crate::map::editor::state) fn selected_moving(&self)
+        -> impl Iterator<Item = &dyn Moving>
     {
         self.innards.selected_moving.iter().map(|id| self.moving(*id))
     }
 
     /// Returns an iterator to the moving selected brushes wrapped in [`BrushMut`]s.
     #[inline]
-    pub fn selected_movings_mut<'a>(
+    pub(in crate::map::editor::state) fn selected_movings_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         grid: Grid
@@ -3723,7 +3867,7 @@ impl EntitiesManager
 
     /// Returns all the [`MovementSimulator`] of the entities with a [`Path`].
     #[inline]
-    pub fn movement_simulators(&self) -> HvVec<MovementSimulator>
+    pub(in crate::map::editor::state) fn movement_simulators(&self) -> HvVec<MovementSimulator>
     {
         hv_vec![collect; self.innards.moving.iter()
             .map(|id| self.moving(*id).movement_simulator())
@@ -3733,7 +3877,9 @@ impl EntitiesManager
     /// Returns a vector containing the [`MovingSimulator`]s of the moving brushes for the map
     /// preview.
     #[inline]
-    pub fn selected_movement_simulators(&self) -> HvVec<MovementSimulator>
+    pub(in crate::map::editor::state) fn selected_movement_simulators(
+        &self
+    ) -> HvVec<MovementSimulator>
     {
         hv_vec![collect; self
             .selected_moving_ids()
@@ -3744,11 +3890,14 @@ impl EntitiesManager
     /// Returns a reference to the entity with id `identifier` as a trait object which implements
     /// the [`Moving`] trait.
     #[inline]
-    pub fn moving(&self, identifier: Id) -> &dyn Moving { self.innards.moving(identifier) }
+    pub(in crate::map::editor::state) fn moving(&self, identifier: Id) -> &dyn Moving
+    {
+        self.innards.moving(identifier)
+    }
 
     /// Returns a [`MovingMut`] wrapping the entity with id `identifier`.
     #[inline]
-    pub fn moving_mut<'a>(
+    pub(in crate::map::editor::state) fn moving_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         grid: Grid,
@@ -3762,7 +3911,7 @@ impl EntitiesManager
     /// Returns a [`SelectedMovingsIter`] returning an iterator to the selected entities with
     /// [`Path`]s.
     #[inline]
-    pub fn selected_movings_at_pos(
+    pub(in crate::map::editor::state) fn selected_movings_at_pos(
         &self,
         cursor_pos: Vec2,
         camera_scale: f32
@@ -3773,8 +3922,12 @@ impl EntitiesManager
 
     /// Returns a [`MovingsIter`] returning an iterator to the entities with visible [`Path`]s.
     #[inline]
-    pub fn visible_paths(&self, window: &Window, camera: &Transform, grid: Grid)
-        -> MovingsIter<'_>
+    pub(in crate::map::editor::state) fn visible_paths(
+        &self,
+        window: &Window,
+        camera: &Transform,
+        grid: Grid
+    ) -> MovingsIter<'_>
     {
         MovingsIter::new(self, self.quad_trees.visible_paths(camera, window, grid))
     }
@@ -3784,28 +3937,34 @@ impl EntitiesManager
 
     /// Returns the [`Animators`] for the map preview.
     #[inline]
-    pub fn texture_animators(&self, bundle: &StateUpdateBundle) -> Animators
+    pub(in crate::map::editor::state) fn texture_animators(
+        &self,
+        bundle: &StateUpdateBundle
+    ) -> Animators
     {
         Animators::new(bundle, self)
     }
 
     /// Draws the UI error highlight.
     #[inline]
-    pub fn draw_error_highlight(&mut self, bundle: &mut DrawBundle)
+    pub(in crate::map::editor::state) fn draw_error_highlight(
+        &mut self,
+        drawer: &mut EditDrawer,
+        delta_time: f32
+    )
     {
-        let error = return_if_none!(self.innards.error_highlight.draw(bundle));
+        let error = return_if_none!(self.innards.error_highlight.draw(delta_time));
 
         if self.innards.is_thing(error)
         {
-            bundle.drawer.polygon_with_solid_color(
+            drawer.polygon_with_solid_color(
                 self.thing(error).hull().rectangle().into_iter(),
                 Color::ErrorHighlight
             );
             return;
         }
 
-        self.brush(error)
-            .draw_with_solid_color(&mut bundle.drawer, Color::ErrorHighlight);
+        self.brush(error).draw_with_solid_color(drawer, Color::ErrorHighlight);
     }
 }
 

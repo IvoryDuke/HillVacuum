@@ -11,9 +11,8 @@ use std::{
 
 use bevy::{
     asset::{AssetServer, Assets},
-    input::{keyboard::KeyCode, mouse::MouseButton, ButtonInput},
-    render::texture::Image,
-    state::state::NextState
+    input::{keyboard::KeyCode, ButtonInput},
+    render::texture::Image
 };
 use bevy_egui::{egui, EguiUserTextures};
 use glam::Vec2;
@@ -29,7 +28,7 @@ use super::{
     },
     edits_history::EditsHistory,
     grid::Grid,
-    input_press::InputStateHardCoded,
+    inputs_presses::InputsPresses,
     manager::EntitiesManager,
     ui::Interaction
 };
@@ -49,7 +48,6 @@ use crate::{
             state::{
                 clipboard::prop::Prop,
                 core::{tool::ToolInterface, Core},
-                input_press::InputState,
                 read_default_properties,
                 test_writer,
                 ui::{Command, Ui}
@@ -100,85 +98,6 @@ const PROPS_EXTENSION: &str = "prps";
 //=======================================================================//
 // MACROS
 //
-//=======================================================================//
-
-/// A macro to create functions that return whether a key was pressed.
-macro_rules! pressed {
-    ($($key:ident),+) => ( paste::paste! {$(
-        /// Whether the key was pressed.
-        #[inline]
-        pub const fn [< $key _pressed >](&self) -> bool
-        {
-            self.inputs.[<$key _pressed>]()
-        }
-	)+});
-}
-
-//=======================================================================//
-
-/// A macro to generate the code of [`InputsPresses`].
-macro_rules! input_presses {
-    (
-        $mouse_buttons:ident,
-        $key_inputs:ident,
-        $binds_inputs:ident,
-        $(($name:ident, $input_type:ty, $key:expr, $source:ident $(, $binds:ident)?)),+
-    ) => (
-        /// A struct containing the states of all input presses required by the editor.
-		pub(in crate::map::editor::state) struct InputsPresses
-		{
-			$(pub $name: $input_type,)+
-		}
-
-        impl Default for InputsPresses
-        {
-            #[inline]
-			fn default() -> Self
-			{
-				Self {
-					$($name: <$input_type>::new($key),)+
-				}
-			}
-        }
-
-		impl InputsPresses
-		{
-            /// Updates the state of the input presses.
-			#[inline]
-			fn update(
-                &mut self,
-                bundle: &mut StateUpdateBundle
-            )
-			{
-				$(self.$name.update(bundle.$source $(, &mut bundle.config.$binds)?);)+
-			}
-
-            /// Forcefully resets the input presses to not pressed.
-            #[inline]
-            pub fn clear(&mut self)
-            {
-                self.space.clear();
-                self.back.clear();
-                self.tab.clear();
-                self.enter.clear();
-                self.plus.clear();
-                self.minus.clear();
-                self.left_mouse.clear();
-                self.right_mouse.clear();
-                self.esc.clear();
-                self.f4.clear();
-                self.copy.clear();
-                self.paste.clear();
-                self.cut.clear();
-                self.left.clear();
-                self.right.clear();
-                self.up.clear();
-                self.down.clear();
-            }
-		}
-	);
-}
-
 //=======================================================================//
 
 /// A macro to choose what entity should be updated based on the value of [`TargetSwitch`] and
@@ -440,106 +359,6 @@ impl ThingPivot
 //
 //=======================================================================//
 
-input_presses!(
-    mouse_buttons,
-    key_inputs,
-    binds,
-    (l_ctrl, InputStateHardCoded<KeyCode>, KeyCode::ControlLeft, key_inputs),
-    (r_ctrl, InputStateHardCoded<KeyCode>, KeyCode::ControlRight, key_inputs),
-    (l_shift, InputStateHardCoded<KeyCode>, KeyCode::ShiftLeft, key_inputs),
-    (r_shift, InputStateHardCoded<KeyCode>, KeyCode::ShiftRight, key_inputs),
-    (l_alt, InputStateHardCoded<KeyCode>, KeyCode::AltLeft, key_inputs),
-    (r_alt, InputStateHardCoded<KeyCode>, KeyCode::AltRight, key_inputs),
-    (space, InputStateHardCoded<KeyCode>, KeyCode::Space, key_inputs),
-    (back, InputStateHardCoded<KeyCode>, KeyCode::Backspace, key_inputs),
-    (tab, InputStateHardCoded<KeyCode>, KeyCode::Tab, key_inputs),
-    (enter, InputStateHardCoded<KeyCode>, KeyCode::Enter, key_inputs),
-    (plus, InputStateHardCoded<KeyCode>, KeyCode::NumpadAdd, key_inputs),
-    (minus, InputStateHardCoded<KeyCode>, KeyCode::Minus, key_inputs),
-    (left_mouse, InputStateHardCoded<MouseButton>, MouseButton::Left, mouse_buttons),
-    (right_mouse, InputStateHardCoded<MouseButton>, MouseButton::Right, mouse_buttons),
-    (esc, InputStateHardCoded<KeyCode>, KeyCode::Escape, key_inputs),
-    (f4, InputStateHardCoded<KeyCode>, KeyCode::F4, key_inputs),
-    (copy, InputStateHardCoded<KeyCode>, HardcodedActions::Copy.key(), key_inputs),
-    (paste, InputStateHardCoded<KeyCode>, HardcodedActions::Paste.key(), key_inputs),
-    (cut, InputStateHardCoded<KeyCode>, HardcodedActions::Cut.key(), key_inputs),
-    (left, InputState, Bind::Left, key_inputs, binds),
-    (right, InputState, Bind::Right, key_inputs, binds),
-    (up, InputState, Bind::Up, key_inputs, binds),
-    (down, InputState, Bind::Down, key_inputs, binds)
-);
-
-impl InputsPresses
-{
-    /// Whether shift is pressed.
-    #[inline]
-    #[must_use]
-    pub const fn shift_pressed(&self) -> bool { self.l_shift.pressed() || self.r_shift.pressed() }
-
-    /// Whether alt is pressed.
-    #[inline]
-    #[must_use]
-    pub const fn alt_pressed(&self) -> bool { self.l_alt.pressed() || self.r_alt.pressed() }
-
-    /// Whether ctrl is pressed.
-    #[inline]
-    #[must_use]
-    pub const fn ctrl_pressed(&self) -> bool { self.l_ctrl.pressed() || self.r_ctrl.pressed() }
-
-    /// Whether the copy key combo was just pressed.
-    #[inline]
-    #[must_use]
-    pub const fn copy_just_pressed(&self) -> bool
-    {
-        self.ctrl_pressed() && self.copy.just_pressed()
-    }
-
-    /// Whether the paste key combo was just pressed.
-    #[inline]
-    #[must_use]
-    pub const fn paste_just_pressed(&self) -> bool
-    {
-        self.ctrl_pressed() && self.paste.just_pressed()
-    }
-
-    /// Whether the cut key combo was just pressed.
-    #[inline]
-    #[must_use]
-    pub const fn cut_just_pressed(&self) -> bool { self.ctrl_pressed() && self.cut.just_pressed() }
-
-    /// Returns a vector representing the direction of the pressed arrow keys, if any.
-    #[inline]
-    #[must_use]
-    pub fn directional_keys_vector(&self, grid_size: i16) -> Option<Vec2>
-    {
-        let mut dir = Vec2::ZERO;
-
-        if self.right.just_pressed()
-        {
-            dir.x += 1f32;
-        }
-
-        if self.left.just_pressed()
-        {
-            dir.x -= 1f32;
-        }
-
-        if self.up.just_pressed()
-        {
-            dir.y += 1f32;
-        }
-
-        if self.down.just_pressed()
-        {
-            dir.y -= 1f32;
-        }
-
-        (dir != Vec2::ZERO).then(|| dir * f32::from(grid_size))
-    }
-}
-
-//=======================================================================//
-
 /// A collection of settings used by various tools that need to remained store throughout the
 /// application's execution.
 #[derive(Clone, Copy)]
@@ -662,16 +481,6 @@ pub(in crate::map::editor) struct State
 {
     /// The core of the editor.
     core:               Core,
-    /// The manager of all entities.
-    manager:            EntitiesManager,
-    /// The clipboard used for copy paste and prop spawning.
-    clipboard:          Clipboard,
-    /// The history of the edits made to the map.
-    edits_history:      EditsHistory,
-    /// The state of all necessary input presses.
-    inputs:             InputsPresses,
-    /// The grid of the map.
-    grid:               Grid,
     /// The retained settings of the tools.
     tools_settings:     ToolsSettings,
     /// The UI of the editor.
@@ -695,11 +504,6 @@ impl Placeholder for State
     {
         Self {
             core:               Core::default(),
-            manager:            EntitiesManager::new(),
-            clipboard:          Clipboard::new(),
-            edits_history:      EditsHistory::default(),
-            inputs:             InputsPresses::default(),
-            grid:               Grid::default(),
             tools_settings:     ToolsSettings::default(),
             ui:                 Ui::placeholder(),
             show_tooltips:      true,
@@ -713,15 +517,6 @@ impl Placeholder for State
 
 impl State
 {
-    //==============================================================
-    // Keys
-
-    pressed!(ctrl, shift);
-
-    /// Whether space is pressed.
-    #[inline]
-    pub const fn space_pressed(&self) -> bool { self.inputs.space.pressed() }
-
     //==============================================================
     // New
 
@@ -737,7 +532,7 @@ impl State
         things_catalog: &ThingsCatalog,
         default_properties: &mut AllDefaultProperties,
         file: Option<PathBuf>
-    ) -> (Self, Option<PathBuf>)
+    ) -> (Self, EntitiesManager, Clipboard, EditsHistory, Grid, Option<PathBuf>)
     {
         /// The [`State`] to default to in case of errors in the file load or if there is no file to
         /// load.
@@ -751,11 +546,6 @@ impl State
         {
             State {
                 core:               Core::default(),
-                manager:            EntitiesManager::new(),
-                clipboard:          Clipboard::new(),
-                edits_history:      EditsHistory::default(),
-                inputs:             InputsPresses::default(),
-                grid:               Grid::default(),
                 ui:                 Ui::new(
                     asset_server,
                     user_textures,
@@ -780,6 +570,10 @@ impl State
                     default_properties.brushes,
                     default_properties.things
                 ),
+                EntitiesManager::new(),
+                Clipboard::new(),
+                EditsHistory::default(),
+                Grid::default(),
                 None
             )
         );
@@ -794,37 +588,33 @@ impl State
             default_properties
         )
         {
-            Ok((manager, clipboard, grid, path)) =>
+            Ok((mut manager, clipboard, grid, path)) =>
             {
-                let mut state = Self {
-                    core: Core::default(),
-                    manager,
-                    clipboard,
-                    edits_history: EditsHistory::default(),
-                    inputs: InputsPresses::default(),
-                    grid,
-                    ui: Ui::new(
+                let state = Self {
+                    core:               Core::default(),
+                    ui:                 Ui::new(
                         asset_server,
                         user_textures,
                         default_properties.map_brushes,
                         default_properties.map_things
                     ),
-                    tools_settings: ToolsSettings::default(),
-                    show_tooltips: true,
-                    cursor_snap: true,
-                    show_cursor: true,
-                    show_collision: true,
+                    tools_settings:     ToolsSettings::default(),
+                    show_tooltips:      true,
+                    cursor_snap:        true,
+                    show_cursor:        true,
+                    show_collision:     true,
                     reloading_textures: false
                 };
 
-                state.manager.finish_things_reload(things_catalog);
-                state.manager.finish_textures_reload(drawing_resources, grid);
+                manager.finish_things_reload(things_catalog);
+                manager.finish_textures_reload(drawing_resources, grid);
 
-                (state, path.into())
+                (state, manager, clipboard, EditsHistory::default(), grid, path.into())
             },
             Err(err) =>
             {
                 error_message(err);
+
                 (
                     default(
                         asset_server,
@@ -832,6 +622,10 @@ impl State
                         default_properties.brushes,
                         default_properties.things
                     ),
+                    EntitiesManager::new(),
+                    Clipboard::new(),
+                    EditsHistory::default(),
+                    Grid::default(),
                     None
                 )
             }
@@ -840,24 +634,6 @@ impl State
 
     //==============================================================
     // Info
-
-    /// Returns a vector representing the direction of the pressed arrow keys, if any.
-    #[inline]
-    #[must_use]
-    pub fn directional_keys_vector(&self) -> Option<Vec2>
-    {
-        self.inputs
-            .directional_keys_vector(self.grid.size())
-            .map(|vec| self.grid.transform_point(vec))
-    }
-
-    /// Returns the grid size as a fractional number.
-    #[inline]
-    #[must_use]
-    pub fn grid_size_f32(&self) -> f32 { f32::from(self.grid.size()) }
-
-    #[inline]
-    pub const fn grid(&self) -> Grid { self.grid }
 
     /// Whether the cursor should be snapped to the grid.
     #[inline]
@@ -911,7 +687,7 @@ impl State
                 return false;
             }
 
-            if let Err(err) = self.save(bundle, self.inputs.shift_pressed().then_some("Save as"))
+            if let Err(err) = self.save(bundle, bundle.inputs.shift_pressed().then_some("Save as"))
             {
                 error_message(err);
             }
@@ -944,7 +720,7 @@ impl State
         if HardcodedActions::SelectAll.pressed(bundle.key_inputs) &&
             self.core.select_all_available()
         {
-            self.select_all(bundle.drawing_resources);
+            self.select_all(bundle);
             return true;
         }
 
@@ -975,21 +751,21 @@ impl State
             return false;
         }
 
-        if self.inputs.copy_just_pressed()
+        if bundle.inputs.copy_just_pressed()
         {
-            self.copy(bundle);
+            self.core.copy(bundle);
         }
-        else if self.inputs.paste_just_pressed()
+        else if bundle.inputs.paste_just_pressed()
         {
-            self.paste(bundle);
+            self.core.paste(bundle);
         }
-        else if self.inputs.cut_just_pressed()
+        else if bundle.inputs.cut_just_pressed()
         {
-            self.cut(bundle);
+            self.core.cut(bundle);
         }
         else if HardcodedActions::Duplicate.pressed(bundle.key_inputs)
         {
-            self.duplicate(bundle.drawing_resources);
+            self.duplicate(bundle);
         }
         else
         {
@@ -1021,7 +797,7 @@ impl State
         buttons: rfd::MessageButtons
     ) -> Result<bool, &'static str>
     {
-        if self.no_edits(bundle.drawing_resources)
+        if self.no_edits(bundle)
         {
             return Ok(true);
         }
@@ -1057,11 +833,11 @@ impl State
         }
 
         self.core = Core::default();
-        self.manager = EntitiesManager::new();
-        self.clipboard = Clipboard::new();
-        self.edits_history = EditsHistory::default();
-        self.inputs = InputsPresses::default();
-        self.grid = Grid::default();
+        *bundle.manager = EntitiesManager::new();
+        *bundle.clipboard = Clipboard::new();
+        *bundle.edits_history = EditsHistory::default();
+        *bundle.inputs = InputsPresses::default();
+        *bundle.grid = Grid::default();
         bundle.config.open_file.clear(bundle.window);
 
         Ok(())
@@ -1078,8 +854,14 @@ impl State
     {
         assert!(self.core.undo_redo_available(), "Undo is not available.");
 
-        self.core
-            .undo(bundle, &mut self.manager, &mut self.edits_history, &mut self.ui);
+        self.core.undo(
+            bundle.drawing_resources,
+            bundle.things_catalog,
+            bundle.manager,
+            bundle.edits_history,
+            *bundle.grid,
+            &mut self.ui
+        );
     }
 
     /// Executes the redo procedure.
@@ -1090,8 +872,14 @@ impl State
     {
         assert!(self.core.undo_redo_available(), "Redo is not available.");
 
-        self.core
-            .redo(bundle, &mut self.manager, &mut self.edits_history, &mut self.ui);
+        self.core.redo(
+            bundle.drawing_resources,
+            bundle.things_catalog,
+            bundle.manager,
+            bundle.edits_history,
+            *bundle.grid,
+            &mut self.ui
+        );
     }
 
     //==============================================================
@@ -1100,12 +888,12 @@ impl State
     /// Whether there are no unsaved changes.
     #[inline]
     #[must_use]
-    fn no_edits(&self, drawing_resources: &DrawingResources) -> bool
+    fn no_edits(&self, bundle: &StateUpdateBundle) -> bool
     {
-        self.edits_history.no_unsaved_edits() &&
-            !self.clipboard.props_changed() &&
-            !drawing_resources.default_animations_changed() &&
-            !self.manager.refactored_properties()
+        bundle.edits_history.no_unsaved_edits() &&
+            !bundle.clipboard.props_changed() &&
+            !bundle.drawing_resources.default_animations_changed() &&
+            !bundle.manager.refactored_properties()
     }
 
     /// Saves the map being edited. If the file has not being created yet user is asked to specify
@@ -1200,10 +988,10 @@ impl State
                 {
                     test_writer!(
                         &MapHeader {
-                            brushes:    self.manager.brushes_amount(),
-                            things:     self.manager.things_amount(),
+                            brushes:    bundle.manager.brushes_amount(),
+                            things:     bundle.manager.things_amount(),
                             animations: bundle.drawing_resources.animations_amount(),
-                            props:      self.clipboard.props_amount()
+                            props:      bundle.clipboard.props_amount()
                         },
                         &mut writer,
                         "Error saving file header"
@@ -1211,7 +999,11 @@ impl State
                 },
                 FileStructure::Grid =>
                 {
-                    test_writer!(&self.grid.settings(), &mut writer, "Error saving grid settings.");
+                    test_writer!(
+                        &bundle.grid.settings(),
+                        &mut writer,
+                        "Error saving grid settings."
+                    );
                 },
                 FileStructure::Animations =>
                 {
@@ -1232,7 +1024,7 @@ impl State
                 },
                 FileStructure::Brushes =>
                 {
-                    for brush in self.manager.brushes().iter()
+                    for brush in bundle.manager.brushes().iter()
                     {
                         test_writer!(
                             &BrushViewer::new(brush.clone()),
@@ -1243,7 +1035,7 @@ impl State
                 },
                 FileStructure::Things =>
                 {
-                    for thing in self.manager.things()
+                    for thing in bundle.manager.things()
                     {
                         test_writer!(
                             &ThingViewer::new(thing.clone()),
@@ -1252,7 +1044,7 @@ impl State
                         );
                     }
                 },
-                FileStructure::Props => self.clipboard.export_props(&mut writer)?
+                FileStructure::Props => bundle.clipboard.export_props(&mut writer)?
             }
         }
 
@@ -1293,9 +1085,9 @@ impl State
             bundle.config.open_file.update(path.clone(), bundle.window);
         }
 
-        self.edits_history.reset_last_save_edit();
-        self.clipboard.reset_props_changed();
-        self.manager.reset_refactored_properties();
+        bundle.edits_history.reset_last_save_edit();
+        bundle.clipboard.reset_props_changed();
+        bundle.manager.reset_refactored_properties();
         bundle.drawing_resources.reset_default_animation_changed();
 
         Ok(())
@@ -1866,9 +1658,9 @@ impl State
         {
             Ok((manager, clipboard, grid, path)) =>
             {
-                self.manager = manager;
-                self.clipboard = clipboard;
-                self.grid = grid;
+                *bundle.manager = manager;
+                *bundle.clipboard = clipboard;
+                *bundle.grid = grid;
                 bundle.config.open_file.update(path, bundle.window);
             },
             Err(err) =>
@@ -1879,8 +1671,8 @@ impl State
         };
 
         self.core = Core::default();
-        self.inputs = InputsPresses::default();
-        self.edits_history = EditsHistory::default();
+        *bundle.inputs = InputsPresses::default();
+        *bundle.edits_history = EditsHistory::default();
     }
 
     //==============================================================
@@ -1922,15 +1714,9 @@ impl State
 
     /// Initiated the select all procedure.
     #[inline]
-    fn select_all(&mut self, drawing_resources: &DrawingResources)
+    fn select_all(&mut self, bundle: &mut StateUpdateBundle)
     {
-        self.core.select_all(
-            drawing_resources,
-            &mut self.manager,
-            &mut self.edits_history,
-            self.grid,
-            &self.tools_settings
-        );
+        self.core.select_all(bundle, &self.tools_settings);
     }
 
     //==============================================================
@@ -1941,53 +1727,11 @@ impl State
     #[must_use]
     fn copy_paste_available(&self) -> bool { self.core.copy_paste_available() }
 
-    /// Initiates the copy procedure.
-    #[inline]
-    fn copy(&mut self, bundle: &StateUpdateBundle)
-    {
-        self.core
-            .copy(bundle, &mut self.manager, &self.inputs, &mut self.clipboard);
-    }
-
-    /// Initiates the cut procedure.
-    #[inline]
-    fn cut(&mut self, bundle: &StateUpdateBundle)
-    {
-        self.core.cut(
-            bundle,
-            &mut self.manager,
-            &mut self.clipboard,
-            &mut self.edits_history,
-            &self.inputs
-        );
-    }
-
-    /// Initiates the paste procedure.
-    #[inline]
-    fn paste(&mut self, bundle: &StateUpdateBundle)
-    {
-        self.core.paste(
-            bundle,
-            &mut self.manager,
-            &mut self.clipboard,
-            &mut self.edits_history,
-            &self.inputs
-        );
-    }
-
     /// Initiates the duplicate procedure.
     #[inline]
-    fn duplicate(&mut self, drawing_resources: &DrawingResources)
+    fn duplicate(&mut self, bundle: &mut StateUpdateBundle)
     {
-        let delta = Vec2::new(self.grid_size_f32(), 0f32);
-
-        self.core.duplicate(
-            drawing_resources,
-            &mut self.manager,
-            &mut self.clipboard,
-            &mut self.edits_history,
-            delta
-        );
+        self.core.duplicate(bundle, Vec2::new(bundle.grid.size_f32(), 0f32));
     }
 
     //==============================================================
@@ -2004,34 +1748,31 @@ impl State
         }
 
         // Reactive update to previous frame's changes.
-        self.manager.update_tool_and_overall_values(
+        bundle.manager.update_tool_and_overall_values(
             bundle.drawing_resources,
             &mut self.core,
             &mut self.ui,
-            self.grid,
+            *bundle.grid,
             &mut self.tools_settings
         );
 
         // Update inputs.
-        self.inputs.update(bundle);
+        bundle
+            .inputs
+            .update(bundle.key_inputs, bundle.mouse_buttons, bundle.config);
 
         // Create UI.
         let tool_change_conditions = ChangeConditions::new(
-            &self.inputs,
-            &self.clipboard,
+            bundle.inputs,
+            bundle.clipboard,
             &self.core,
             bundle.things_catalog,
-            &self.manager
+            &bundle.manager
         );
 
         let ui_interaction = self.ui.frame_start_update(
             bundle,
             &mut self.core,
-            &mut self.manager,
-            &mut self.inputs,
-            &mut self.clipboard,
-            &mut self.edits_history,
-            &mut self.grid,
             &mut self.tools_settings,
             &tool_change_conditions
         );
@@ -2043,7 +1784,7 @@ impl State
 
         if ui_interaction.hovered
         {
-            self.inputs.left_mouse.clear();
+            bundle.inputs.left_mouse.clear();
         }
 
         if self.map_preview()
@@ -2179,12 +1920,12 @@ impl State
             }}};
         }
 
-        self.clipboard.update(
+        bundle.clipboard.update(
             bundle.images,
             bundle.prop_cameras,
             bundle.user_textures,
             bundle.drawing_resources,
-            self.grid
+            *bundle.grid
         );
 
         match ui_interaction.command
@@ -2230,49 +1971,49 @@ impl State
             Command::ImportProps =>
             {
                 import!(PROPS, "props", |file, len| {
-                    self.clipboard.import_props(
+                    bundle.clipboard.import_props(
                         bundle.images,
                         bundle.prop_cameras,
                         bundle.user_textures,
                         bundle.drawing_resources,
                         bundle.things_catalog,
-                        self.grid,
+                        *bundle.grid,
                         len,
                         file
                     )
                 });
             },
-            Command::ExportProps => export!(PROPS, "props", props, self.clipboard),
-            Command::SelectAll => self.select_all(bundle.drawing_resources),
-            Command::Copy => self.copy(bundle),
-            Command::Paste => self.paste(bundle),
-            Command::Cut => self.cut(bundle),
-            Command::Duplicate => self.duplicate(bundle.drawing_resources),
+            Command::ExportProps => export!(PROPS, "props", props, bundle.clipboard),
+            Command::SelectAll => self.select_all(bundle),
+            Command::Copy => self.core.copy(bundle),
+            Command::Paste => self.core.paste(bundle),
+            Command::Cut => self.core.cut(bundle),
+            Command::Duplicate => self.duplicate(bundle),
             Command::Undo => self.undo(bundle),
             Command::Redo => self.redo(bundle),
-            Command::ToggleGrid => self.toggle_grid(),
-            Command::IncreaseGridSize => self.increase_grid_size(),
-            Command::DecreaseGridSize => self.decrease_grid_size(),
-            Command::ShiftGrid => self.shift_grid(),
+            Command::ToggleGrid => self.toggle_grid(bundle.grid),
+            Command::IncreaseGridSize => self.increase_grid_size(bundle),
+            Command::DecreaseGridSize => self.decrease_grid_size(bundle),
+            Command::ShiftGrid => self.shift_grid(bundle),
             Command::ToggleTooltips => self.toggle_tooltips(),
             Command::ToggleCursorSnap => self.toggle_cursor_snap(),
             Command::ToggleMapPreview => self.toggle_map_preview(bundle),
             Command::ToggleCollision => self.toggle_collision(),
-            Command::ReloadTextures => self.start_texture_reload(bundle.next_tex_load),
+            Command::ReloadTextures => self.start_texture_reload(bundle),
             Command::ReloadThings => self.reload_things(bundle),
             Command::QuickZoom =>
             {
-                if let Some(hull) = self.manager.selected_brushes_hull()
+                if let Some(hull) = bundle.manager.selected_brushes_hull()
                 {
                     bundle.camera.scale_viewport_to_hull(
                         bundle.window,
-                        self.grid,
+                        *bundle.grid,
                         &hull,
-                        self.grid_size_f32()
+                        bundle.grid.size_f32()
                     );
                 }
             },
-            Command::QuickSnap => self.quick_snap(bundle.drawing_resources),
+            Command::QuickSnap => self.quick_snap(bundle),
             Command::Quit =>
             {
                 self.quit(bundle, rfd::MessageButtons::YesNoCancel);
@@ -2284,19 +2025,19 @@ impl State
         {
             if Bind::ToggleGrid.just_pressed(bundle.key_inputs, &bundle.config.binds)
             {
-                self.toggle_grid();
+                self.toggle_grid(bundle.grid);
             }
             else if Bind::IncreaseGridSize.just_pressed(bundle.key_inputs, &bundle.config.binds)
             {
-                self.increase_grid_size();
+                self.increase_grid_size(bundle);
             }
             else if Bind::DecreaseGridSize.just_pressed(bundle.key_inputs, &bundle.config.binds)
             {
-                self.decrease_grid_size();
+                self.decrease_grid_size(bundle);
             }
             else if Bind::ShiftGrid.just_pressed(bundle.key_inputs, &bundle.config.binds)
             {
-                self.shift_grid();
+                self.shift_grid(bundle);
             }
             else if Bind::ToggleCursorSnap.just_pressed(bundle.key_inputs, &bundle.config.binds)
             {
@@ -2317,9 +2058,9 @@ impl State
             else if Bind::Snap.alt_just_pressed(bundle.key_inputs, &bundle.config.binds) &&
                 Tool::Snap.change_conditions_met(tool_change_conditions)
             {
-                self.quick_snap(bundle.drawing_resources);
+                self.quick_snap(bundle);
             }
-            else if self.inputs.esc.just_pressed()
+            else if bundle.inputs.esc.just_pressed()
             {
                 self.core.disable_subtool();
             }
@@ -2327,8 +2068,8 @@ impl State
             {
                 self.tools_settings.cycle_texture_editing(
                     &self.core,
-                    &mut self.manager,
-                    &self.inputs
+                    bundle.manager,
+                    &bundle.inputs
                 );
             }
             else
@@ -2351,16 +2092,11 @@ impl State
             }
         }
 
-        self.core.frame_start_update(
-            bundle.drawing_resources,
-            &mut self.manager,
-            &mut self.edits_history,
-            &self.clipboard
-        );
-        self.tools_settings.update(&self.core, &mut self.manager);
+        self.core.frame_start_update(bundle);
+        self.tools_settings.update(&self.core, bundle.manager);
         let starts_with_star = bundle.window.title.starts_with('*');
 
-        if self.no_edits(bundle.drawing_resources)
+        if self.no_edits(bundle)
         {
             if starts_with_star
             {
@@ -2387,7 +2123,7 @@ impl State
         match ui_interaction.command
         {
             Command::ToggleMapPreview => self.toggle_map_preview(bundle),
-            Command::ReloadTextures => self.start_texture_reload(bundle.next_tex_load),
+            Command::ReloadTextures => self.start_texture_reload(bundle),
             Command::Quit =>
             {
                 self.quit(bundle, rfd::MessageButtons::YesNoCancel);
@@ -2396,10 +2132,10 @@ impl State
             _ => ()
         };
 
-        if self.inputs.esc.just_pressed()
+        if bundle.inputs.esc.just_pressed()
         {
             self.toggle_map_preview(bundle);
-            self.inputs.esc.clear();
+            bundle.inputs.esc.clear();
         }
 
         ui_interaction.hovered
@@ -2414,15 +2150,7 @@ impl State
             return;
         }
 
-        self.core.update(
-            bundle,
-            &mut self.manager,
-            &mut self.clipboard,
-            &mut self.edits_history,
-            &self.inputs,
-            self.grid,
-            &mut self.tools_settings
-        );
+        self.core.update(bundle, &mut self.tools_settings);
     }
 
     /// Changes the active tool.
@@ -2430,7 +2158,7 @@ impl State
     fn change_tool(
         &mut self,
         tool: Tool,
-        bundle: &StateUpdateBundle,
+        bundle: &mut StateUpdateBundle,
         tool_change_conditions: &ChangeConditions
     )
     {
@@ -2439,33 +2167,34 @@ impl State
             return;
         }
 
-        self.core.change_tool(
-            tool,
-            bundle,
-            &mut self.manager,
-            &mut self.edits_history,
-            &self.inputs,
-            self.grid,
-            &self.tools_settings,
-            tool_change_conditions
-        );
+        self.core
+            .change_tool(tool, bundle, &self.tools_settings, tool_change_conditions);
     }
 
     /// Toggles the grid visibiity.
     #[inline]
-    fn toggle_grid(&mut self) { self.grid.visible.toggle(); }
+    fn toggle_grid(&mut self, grid: &mut Grid) { grid.visible.toggle(); }
 
     /// Increased the grid size.
     #[inline]
-    fn increase_grid_size(&mut self) { self.grid.increase_size(&mut self.manager); }
+    fn increase_grid_size(&mut self, bundle: &mut StateUpdateBundle)
+    {
+        bundle.grid.increase_size(bundle.manager);
+    }
 
     /// Decreases the grid size.
     #[inline]
-    fn decrease_grid_size(&mut self) { self.grid.decrease_size(&mut self.manager); }
+    fn decrease_grid_size(&mut self, bundle: &mut StateUpdateBundle)
+    {
+        bundle.grid.decrease_size(bundle.manager);
+    }
 
     /// Shifts the grid by half of its size, both vertically and horizontally.
     #[inline]
-    fn shift_grid(&mut self) { self.grid.toggle_shift(&mut self.manager); }
+    fn shift_grid(&mut self, bundle: &mut StateUpdateBundle)
+    {
+        bundle.grid.toggle_shift(bundle.manager);
+    }
 
     /// Toggles the cursor grid snap.
     #[inline]
@@ -2479,7 +2208,7 @@ impl State
     #[inline]
     fn toggle_map_preview(&mut self, bundle: &StateUpdateBundle)
     {
-        self.core.toggle_map_preview(bundle, &self.manager);
+        self.core.toggle_map_preview(bundle, &bundle.manager);
     }
 
     /// Toggles the collision overlay.
@@ -2503,9 +2232,16 @@ impl State
         }
 
         bundle.things_catalog.reload_things();
-        self.edits_history.purge_thing_edits();
-        self.clipboard.reload_things(bundle, self.grid);
-        self.manager.finish_things_reload(bundle.things_catalog);
+        bundle.edits_history.purge_thing_edits();
+        bundle.clipboard.reload_things(
+            bundle.images,
+            bundle.user_textures,
+            bundle.prop_cameras,
+            bundle.drawing_resources,
+            bundle.things_catalog,
+            *bundle.grid
+        );
+        bundle.manager.finish_things_reload(bundle.things_catalog);
     }
 
     /// Starts the application shutdown procedure.
@@ -2527,14 +2263,16 @@ impl State
     #[must_use]
     pub fn quick_zoom_hull(
         &self,
-        drawing_resources: &DrawingResources,
         key_inputs: &ButtonInput<KeyCode>,
+        drawing_resources: &DrawingResources,
+        manager: &mut EntitiesManager,
+        grid: Grid,
         binds: &BindsKeyCodes
     ) -> Option<Hull>
     {
         if Bind::Zoom.alt_just_pressed(key_inputs, binds)
         {
-            return self.manager.selected_entities_hull(drawing_resources, self.grid);
+            return manager.selected_entities_hull(drawing_resources, grid);
         }
 
         None
@@ -2542,15 +2280,9 @@ impl State
 
     /// Snaps the editable entities to the grid.
     #[inline]
-    fn quick_snap(&mut self, drawing_resources: &DrawingResources)
+    fn quick_snap(&mut self, bundle: &mut StateUpdateBundle)
     {
-        self.core.quick_snap(
-            drawing_resources,
-            &mut self.manager,
-            &mut self.edits_history,
-            &self.tools_settings,
-            self.grid.shifted
-        );
+        self.core.quick_snap(bundle, &self.tools_settings);
     }
 
     //==============================================================
@@ -2558,7 +2290,7 @@ impl State
 
     /// Starts the texture reload procedure.
     #[inline]
-    fn start_texture_reload(&mut self, next_tex_load: &mut NextState<TextureLoadingProgress>)
+    fn start_texture_reload(&mut self, bundle: &mut StateUpdateBundle)
     {
         if self.reloading_textures
         {
@@ -2579,8 +2311,8 @@ impl State
         }
 
         self.reloading_textures = true;
-        self.inputs.clear();
-        next_tex_load.set(TextureLoadingProgress::Initiated);
+        bundle.inputs.clear();
+        bundle.next_tex_load.set(TextureLoadingProgress::Initiated);
     }
 
     /// Concludes the texture reload.
@@ -2590,21 +2322,19 @@ impl State
         prop_cameras: &mut PropCamerasMut,
         images: &mut Assets<Image>,
         user_textures: &mut EguiUserTextures,
-        drawing_resources: &DrawingResources
+        drawing_resources: &DrawingResources,
+        manager: &mut EntitiesManager,
+        clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        grid: Grid
     )
     {
         assert!(self.reloading_textures.take_value(), "No ongoing texture reload.");
 
-        self.edits_history.purge_texture_edits();
-        self.clipboard.reload_textures(
-            images,
-            user_textures,
-            prop_cameras,
-            drawing_resources,
-            self.grid
-        );
-        self.manager.finish_textures_reload(drawing_resources, self.grid);
-        self.ui.update_overall_texture(drawing_resources, &self.manager);
+        edits_history.purge_texture_edits();
+        clipboard.reload_textures(images, user_textures, prop_cameras, drawing_resources, grid);
+        manager.finish_textures_reload(drawing_resources, grid);
+        self.ui.update_overall_texture(drawing_resources, manager);
     }
 
     //==============================================================
@@ -2614,11 +2344,10 @@ impl State
     #[inline]
     pub fn draw(&mut self, bundle: &mut DrawBundle)
     {
-        self.clipboard.draw_props_to_photograph(bundle, self.grid);
+        bundle.clipboard.draw_props_to_photograph(bundle);
         bundle.drawer.grid_lines(bundle.window, bundle.camera);
-        self.core
-            .draw_active_tool(bundle, &self.manager, self.grid, &self.tools_settings);
-        self.manager.draw_error_highlight(bundle);
+        self.core.draw_active_tool(bundle, &self.tools_settings);
+        bundle.manager.draw_error_highlight(bundle.drawer, bundle.delta_time);
 
         if self.show_cursor
         {
@@ -2634,7 +2363,7 @@ impl State
     #[inline]
     pub fn draw_map_preview(&mut self, bundle: &mut DrawBundleMapPreview)
     {
-        self.core.draw_map_preview(bundle, &self.manager);
+        self.core.draw_map_preview(bundle);
         self.ui.frame_end_update(bundle.egui_context);
     }
 }

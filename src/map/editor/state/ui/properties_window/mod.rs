@@ -9,7 +9,7 @@ use bevy_egui::egui;
 use hill_vacuum_shared::{continue_if_none, TEXTURE_HEIGHT_RANGE};
 
 use self::overall_properties::UiOverallProperties;
-use super::{window::Window, WindowCloser, WindowCloserInfo};
+use super::{window::Window, UiBundle, WindowCloser, WindowCloserInfo};
 use crate::{
     config::controls::bind::Bind,
     map::{
@@ -17,16 +17,12 @@ use crate::{
         drawer::drawing_resources::DrawingResources,
         editor::{
             state::{
-                clipboard::Clipboard,
-                editor_state::InputsPresses,
                 edits_history::EditsHistory,
                 grid::Grid,
                 manager::EntitiesManager,
                 ui::{checkbox::CheckBox, overall_value_field::OverallValueField}
             },
-            AllDefaultProperties,
-            Placeholder,
-            StateUpdateBundle
+            Placeholder
         },
         properties::{DefaultProperties, SetProperty, Value},
         thing::ThingInstance
@@ -88,18 +84,7 @@ impl Innards
 {
     /// Shows the properties editor.
     #[inline]
-    fn show(
-        &mut self,
-        ui: &mut egui::Ui,
-        brushes_default_properties: &DefaultProperties,
-        things_default_properties: &DefaultProperties,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid
-    )
+    fn show(&mut self, ui: &mut egui::Ui, bundle: &mut UiBundle)
     {
         /// The height of the rows of the grid.
         const ROW_HEIGHT: f32 = 22f32;
@@ -108,11 +93,12 @@ impl Innards
         ui.horizontal(|ui| {
             ui.label("Entities");
 
-            let any_brushes = manager.any_selected_brushes();
-            let any_things = manager.any_selected_things();
+            let any_brushes = bundle.manager.any_selected_brushes();
+            let any_things = bundle.manager.any_selected_things();
             let brushes =
-                ui.add_enabled(manager.any_selected_brushes(), egui::Button::new("Brushes"));
-            let things = ui.add_enabled(manager.any_selected_things(), egui::Button::new("Things"));
+                ui.add_enabled(bundle.manager.any_selected_brushes(), egui::Button::new("Brushes"));
+            let things =
+                ui.add_enabled(bundle.manager.any_selected_things(), egui::Button::new("Things"));
 
             if brushes.clicked()
             {
@@ -149,34 +135,13 @@ impl Innards
             .min_col_width(ui.available_width() / COLUMNS as f32)
             .min_row_height(ROW_HEIGHT)
             .show(ui, |ui| {
-                self.grid(
-                    ui,
-                    brushes_default_properties,
-                    things_default_properties,
-                    drawing_resources,
-                    manager,
-                    clipboard,
-                    edits_history,
-                    inputs,
-                    grid
-                );
+                self.grid(ui, bundle);
             });
     }
 
     /// The grid of the properties.
     #[inline]
-    fn grid(
-        &mut self,
-        ui: &mut egui::Ui,
-        brushes_default_properties: &DefaultProperties,
-        things_default_properties: &DefaultProperties,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid
-    )
+    fn grid(&mut self, ui: &mut egui::Ui, bundle: &mut UiBundle)
     {
         /// Sets a property.
         macro_rules! set_property {
@@ -242,6 +207,18 @@ impl Innards
             }
         }
 
+        let UiBundle {
+            drawing_resources,
+            brushes_default_properties,
+            things_default_properties,
+            manager,
+            edits_history,
+            clipboard,
+            inputs,
+            grid,
+            ..
+        } = bundle;
+
         ui.label("Name");
         ui.label("Type");
         ui.end_row();
@@ -256,7 +233,7 @@ impl Innards
 
                 if let Some(value) = CheckBox::show(ui, &self.overall_brushes_collision, |v| *v)
                 {
-                    for mut brush in manager.selected_brushes_mut(drawing_resources, grid)
+                    for mut brush in manager.selected_brushes_mut(drawing_resources, *grid)
                     {
                         edits_history
                             .collision(brush.id(), continue_if_none!(brush.set_collision(value)));
@@ -273,7 +250,7 @@ impl Innards
                     brushes_default_properties,
                     clipboard,
                     inputs,
-                    grid,
+                    *grid,
                     &mut BrushesPropertySetter {
                         manager,
                         edits_history
@@ -339,7 +316,7 @@ impl Innards
                     things_default_properties,
                     clipboard,
                     inputs,
-                    grid,
+                    *grid,
                     &mut ThingsPropertySetter {
                         manager,
                         edits_history
@@ -530,39 +507,18 @@ impl PropertiesWindow
     /// Shows the properties window.
     #[inline]
     #[must_use]
-    pub fn show(
-        &mut self,
-        bundle: &mut StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid
-    ) -> bool
+    pub fn show(&mut self, egui_context: &egui::Context, bundle: &mut UiBundle) -> bool
     {
-        let StateUpdateBundle {
-            egui_context,
-            key_inputs,
-            config,
-            default_properties:
-                AllDefaultProperties {
-                    map_brushes,
-                    map_things,
-                    ..
-                },
-            ..
-        } = bundle;
-
         if !self.window.check_open(
-            !inputs.ctrl_pressed() &&
-                Bind::PropertiesEditor.just_pressed(key_inputs, &config.binds)
+            !bundle.inputs.ctrl_pressed() &&
+                Bind::PropertiesEditor.just_pressed(bundle.key_inputs, &bundle.config.binds)
         )
         {
             return false;
         }
 
-        let any_sel_brushes = manager.any_selected_brushes();
-        let any_sel_things = manager.any_selected_things();
+        let any_sel_brushes = bundle.manager.any_selected_brushes();
+        let any_sel_things = bundle.manager.any_selected_things();
 
         match self.innards.target
         {
@@ -580,17 +536,7 @@ impl PropertiesWindow
                     .resizable(true)
                     .default_height(280f32),
                 |ui| {
-                    self.innards.show(
-                        ui,
-                        map_brushes,
-                        map_things,
-                        bundle.drawing_resources,
-                        manager,
-                        clipboard,
-                        edits_history,
-                        inputs,
-                        grid
-                    );
+                    self.innards.show(ui, bundle);
                 }
             )
             .unwrap_or(false)

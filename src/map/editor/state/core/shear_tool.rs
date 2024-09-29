@@ -19,15 +19,11 @@ use crate::{
             convex_polygon::{ConvexPolygon, ShearInfo},
             ShearResult
         },
-        drawer::drawing_resources::DrawingResources,
+        drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
-            state::{
-                editor_state::InputsPresses,
-                edits_history::EditsHistory,
-                grid::Grid,
-                manager::EntitiesManager
-            },
+            state::{edits_history::EditsHistory, grid::Grid, manager::EntitiesManager},
             DrawBundle,
+            StateUpdateBundle,
             ToolUpdateBundle
         }
     },
@@ -82,11 +78,11 @@ impl ShearTool
 {
     /// Return an [`ActiveTool`] in its shear tool variant.
     #[inline]
-    pub fn tool(manager: &EntitiesManager, grid: Grid) -> ActiveTool
+    pub fn tool(bundle: &StateUpdateBundle) -> ActiveTool
     {
         ActiveTool::Shear(ShearTool {
             status:        Status::Keyboard,
-            outline:       Self::outline(manager, grid),
+            outline:       Self::outline(bundle.manager, *bundle.grid),
             selected_side: Side::Top
         })
     }
@@ -96,16 +92,17 @@ impl ShearTool
 
     /// Updates the tool.
     #[inline]
-    pub fn update(
-        &mut self,
-        bundle: &mut ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid
-    )
+    pub fn update(&mut self, bundle: &mut ToolUpdateBundle)
     {
-        let ToolUpdateBundle { camera, cursor, .. } = bundle;
+        let ToolUpdateBundle {
+            camera,
+            cursor,
+            inputs,
+            manager,
+            edits_history,
+            grid,
+            ..
+        } = bundle;
 
         match &mut self.status
         {
@@ -130,7 +127,7 @@ impl ShearTool
                     _ = return_if_none!(Self::shear_brushes(
                         bundle.drawing_resources,
                         manager,
-                        grid,
+                        *grid,
                         self.selected_side,
                         &mut self.outline,
                         delta,
@@ -146,12 +143,12 @@ impl ShearTool
             },
             Status::Drag(drag, info, backup_polygons) =>
             {
-                drag.conditional_update(cursor, grid, |delta| {
+                drag.conditional_update(cursor, *grid, |delta| {
                     let i = return_if_none!(
                         Self::shear_brushes(
                             bundle.drawing_resources,
                             manager,
-                            grid,
+                            *grid,
                             self.selected_side,
                             &mut self.outline,
                             delta,
@@ -331,9 +328,9 @@ impl ShearTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
+    pub fn draw(&self, bundle: &mut DrawBundle)
     {
-        draw_selected_and_non_selected_brushes!(bundle, manager);
+        draw_selected_and_non_selected_brushes!(bundle);
 
         bundle.drawer.hull_with_highlighted_side(
             &self.outline,

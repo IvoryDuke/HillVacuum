@@ -12,7 +12,7 @@ use hill_vacuum_shared::{match_or_panic, return_if_none};
 use super::{
     draw_selected_and_non_selected_brushes,
     fill_backup_polygons,
-    tool::{ChangeConditions, DisableSubtool, EnabledTool, OngoingMultiframeChange, SubTool},
+    tool::{DisableSubtool, EnabledTool, OngoingMultiframeChange, SubTool},
     ActiveTool
 };
 use crate::{
@@ -23,19 +23,16 @@ use crate::{
             TextureRotationPayload,
             TextureRotationResult
         },
-        drawer::drawing_resources::DrawingResources,
+        drawer::color::Color,
         editor::{
             cursor::Cursor,
             state::{
                 core::tool::subtools_buttons,
-                editor_state::{edit_target, InputsPresses, ToolsSettings},
-                edits_history::EditsHistory,
-                grid::Grid,
+                editor_state::{edit_target, ToolsSettings},
                 manager::EntitiesManager,
-                ui::ToolsButtons
+                ui::{ToolsButtons, UiBundle}
             },
             DrawBundle,
-            StateUpdateBundle,
             ToolUpdateBundle
         }
     },
@@ -301,80 +298,53 @@ impl RotateTool
 
     /// Updates the tool.
     #[inline]
-    pub fn update(
-        &mut self,
-        bundle: &mut ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid,
-        settings: &mut ToolsSettings,
-        grid_size: i16
-    )
+    pub fn update(&mut self, bundle: &mut ToolUpdateBundle, settings: &mut ToolsSettings)
     {
-        let ToolUpdateBundle {
-            cursor,
-            drawing_resources,
-            ..
-        } = bundle;
-
-        if inputs.plus.just_pressed()
+        if bundle.inputs.plus.just_pressed()
         {
             settings.rotate_angle.increase();
         }
-        else if inputs.minus.just_pressed()
+        else if bundle.inputs.minus.just_pressed()
         {
             settings.rotate_angle.decrease();
         }
 
-        let cursor_pos = self.cursor_pos(cursor);
+        let cursor_pos = self.cursor_pos(bundle.cursor);
 
         match &mut self.status
         {
             Status::Inactive(()) =>
             {
-                if inputs.alt_pressed()
+                if bundle.inputs.alt_pressed()
                 {
-                    if let Some(dir) = inputs.directional_keys_vector(grid_size)
+                    if let Some(dir) = bundle.inputs.directional_keys_vector(bundle.grid.size())
                     {
                         self.pivot += dir;
                     }
-                    else if inputs.left_mouse.pressed()
+                    else if bundle.inputs.left_mouse.pressed()
                     {
                         self.status = Status::MovePivot;
                     }
                 }
-                else if inputs.left_mouse.just_pressed()
+                else if bundle.inputs.left_mouse.just_pressed()
                 {
                     self.status = Status::Drag(cursor_pos, hv_vec![], 0f32);
                 }
-                else if !inputs.ctrl_pressed()
+                else if !bundle.inputs.ctrl_pressed()
                 {
-                    if inputs.right.just_pressed()
+                    if bundle.inputs.right.just_pressed()
                     {
-                        self.rotate_brushes_cw(
-                            drawing_resources,
-                            manager,
-                            edits_history,
-                            grid,
-                            settings
-                        );
+                        self.rotate_brushes_cw(bundle, settings);
                     }
-                    else if inputs.left.just_pressed()
+                    else if bundle.inputs.left.just_pressed()
                     {
-                        self.rotate_brushes_ccw(
-                            drawing_resources,
-                            manager,
-                            edits_history,
-                            grid,
-                            settings
-                        );
+                        self.rotate_brushes_ccw(bundle, settings);
                     }
                 }
             },
             Status::MovePivot =>
             {
-                if inputs.left_mouse.pressed()
+                if bundle.inputs.left_mouse.pressed()
                 {
                     self.pivot = cursor_pos;
                     return;
@@ -384,11 +354,11 @@ impl RotateTool
             },
             Status::MovePivotUi =>
             {
-                if let Some(dir) = inputs.directional_keys_vector(grid_size)
+                if let Some(dir) = bundle.inputs.directional_keys_vector(bundle.grid.size())
                 {
                     self.pivot += dir;
                 }
-                else if inputs.left_mouse.pressed()
+                else if bundle.inputs.left_mouse.pressed()
                 {
                     self.status = Status::MovePivot;
                 }
@@ -396,9 +366,7 @@ impl RotateTool
             Status::Drag(last_pos, backup_polygons, angle) =>
             {
                 Self::rotate_brushes_with_mouse(
-                    drawing_resources,
-                    manager,
-                    grid,
+                    bundle,
                     settings,
                     last_pos,
                     self.pivot,
@@ -407,7 +375,7 @@ impl RotateTool
                     angle
                 );
 
-                if inputs.left_mouse.pressed()
+                if bundle.inputs.left_mouse.pressed()
                 {
                     return;
                 }
@@ -416,15 +384,17 @@ impl RotateTool
 
                 if angle != 0f32
                 {
-                    edits_history.polygon_edit_cluster(backup_polygons.take_value().into_iter());
+                    bundle
+                        .edits_history
+                        .polygon_edit_cluster(backup_polygons.take_value().into_iter());
 
                     if settings.entity_editing()
                     {
-                        edits_history.override_edit_tag("Brushes Rotation");
+                        bundle.edits_history.override_edit_tag("Brushes Rotation");
                     }
                     else
                     {
-                        edits_history.override_edit_tag("Textures Rotation");
+                        bundle.edits_history.override_edit_tag("Textures Rotation");
                     }
                 }
 
@@ -437,40 +407,28 @@ impl RotateTool
     #[inline]
     fn rotate_brushes_with_keyboard(
         &self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        grid: Grid,
+        bundle: &mut ToolUpdateBundle,
         settings: &ToolsSettings,
         direction: f32
     )
     {
         #[inline]
-        fn rotate_textures(
-            drawing_resources: &DrawingResources,
-            manager: &mut EntitiesManager,
-            edits_history: &mut EditsHistory,
-            grid: Grid,
-            pivot: Vec2,
-            angle: f32
-        )
+        fn rotate_textures(bundle: &mut ToolUpdateBundle, pivot: Vec2, angle: f32)
         {
-            let payloads = return_if_none!(RotateTool::check_textures_rotation(
-                drawing_resources,
-                manager,
-                grid,
-                pivot,
-                angle
-            ));
+            let payloads =
+                return_if_none!(RotateTool::check_textures_rotation(bundle, pivot, angle));
 
-            edits_history.texture_rotation_cluster(payloads.into_iter().map(|p| {
-                (
-                    p.id(),
-                    manager
-                        .brush_mut(drawing_resources, grid, p.id())
-                        .apply_texture_rotation(&p)
-                )
-            }));
+            bundle
+                .edits_history
+                .texture_rotation_cluster(payloads.into_iter().map(|p| {
+                    (
+                        p.id(),
+                        bundle
+                            .manager
+                            .brush_mut(bundle.drawing_resources, bundle.grid, p.id())
+                            .apply_texture_rotation(&p)
+                    )
+                }));
         }
 
         let angle = match settings.rotate_angle
@@ -486,81 +444,56 @@ impl RotateTool
             settings.target_switch(),
             |rotate_texture| {
                 if Self::rotate_brushes(
-                    drawing_resources,
-                    manager,
-                    grid,
+                    bundle,
                     self.pivot,
                     angle,
                     rotate_texture,
                     &mut backup_polygons
                 )
                 {
-                    edits_history.polygon_edit_cluster(backup_polygons.take_value().into_iter());
-                    edits_history.override_edit_tag("Brushes rotation");
+                    bundle
+                        .edits_history
+                        .polygon_edit_cluster(backup_polygons.take_value().into_iter());
+                    bundle.edits_history.override_edit_tag("Brushes rotation");
                 }
             },
-            rotate_textures(drawing_resources, manager, edits_history, grid, self.pivot, angle)
+            rotate_textures(bundle, self.pivot, angle)
         );
     }
 
     /// Rotates the selected brushes clockwise.
     #[inline]
-    fn rotate_brushes_cw(
-        &self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        grid: Grid,
-        settings: &ToolsSettings
-    )
+    fn rotate_brushes_cw(&self, bundle: &mut ToolUpdateBundle, settings: &ToolsSettings)
     {
-        self.rotate_brushes_with_keyboard(
-            drawing_resources,
-            manager,
-            edits_history,
-            grid,
-            settings,
-            -1f32
-        );
+        self.rotate_brushes_with_keyboard(bundle, settings, -1f32);
     }
 
     /// Rotates the selected brushes counter-clockwise.
     #[inline]
-    fn rotate_brushes_ccw(
-        &self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        grid: Grid,
-        settings: &ToolsSettings
-    )
+    fn rotate_brushes_ccw(&self, bundle: &mut ToolUpdateBundle, settings: &ToolsSettings)
     {
-        self.rotate_brushes_with_keyboard(
-            drawing_resources,
-            manager,
-            edits_history,
-            grid,
-            settings,
-            1f32
-        );
+        self.rotate_brushes_with_keyboard(bundle, settings, 1f32);
     }
 
     #[inline]
     fn check_textures_rotation(
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        grid: Grid,
+        bundle: &mut ToolUpdateBundle,
         pivot: Vec2,
         angle: f32
     ) -> Option<HvVec<TextureRotationPayload>>
     {
         let mut payloads = hv_vec![];
 
-        let valid = manager.test_operation_validity(|manager| {
+        let valid = bundle.manager.test_operation_validity(|manager| {
             manager
-                .selected_textured_brushes_mut(drawing_resources, grid)
+                .selected_textured_brushes_mut(bundle.drawing_resources, bundle.grid)
                 .find_map(|mut brush| {
-                    match brush.check_texture_rotation(drawing_resources, grid, pivot, angle)
+                    match brush.check_texture_rotation(
+                        bundle.drawing_resources,
+                        bundle.grid,
+                        pivot,
+                        angle
+                    )
                     {
                         TextureRotationResult::Invalid => brush.id().into(),
                         TextureRotationResult::Valid(p) =>
@@ -578,9 +511,7 @@ impl RotateTool
     /// Rotates the selected brushes through the cursor drag.
     #[inline]
     fn rotate_brushes_with_mouse(
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        grid: Grid,
+        bundle: &mut ToolUpdateBundle,
         settings: &ToolsSettings,
         pos: &mut Vec2,
         pivot: Vec2,
@@ -592,25 +523,22 @@ impl RotateTool
         #[inline]
         #[must_use]
         fn rotate_textures(
-            drawing_resources: &DrawingResources,
-            manager: &mut EntitiesManager,
-            grid: Grid,
+            bundle: &mut ToolUpdateBundle,
             pivot: Vec2,
             angle: f32,
             backup_polygons: &mut HvVec<(Id, ConvexPolygon)>
         ) -> bool
         {
-            let payloads = return_if_none!(
-                RotateTool::check_textures_rotation(drawing_resources, manager, grid, pivot, angle),
-                false
-            );
+            let payloads =
+                return_if_none!(RotateTool::check_textures_rotation(bundle, pivot, angle), false);
 
-            fill_backup_polygons(manager, backup_polygons);
+            fill_backup_polygons(bundle.manager, backup_polygons);
 
             for p in payloads
             {
-                _ = manager
-                    .brush_mut(drawing_resources, grid, p.id())
+                _ = bundle
+                    .manager
+                    .brush_mut(bundle.drawing_resources, bundle.grid, p.id())
                     .apply_texture_rotation(&p);
             }
 
@@ -651,17 +579,9 @@ impl RotateTool
         if edit_target!(
             settings.target_switch(),
             |rotate_texture| {
-                Self::rotate_brushes(
-                    drawing_resources,
-                    manager,
-                    grid,
-                    pivot,
-                    deg_angle,
-                    rotate_texture,
-                    backup_polygons
-                )
+                Self::rotate_brushes(bundle, pivot, deg_angle, rotate_texture, backup_polygons)
             },
-            rotate_textures(drawing_resources, manager, grid, pivot, deg_angle, backup_polygons)
+            rotate_textures(bundle, pivot, deg_angle, backup_polygons)
         )
         {
             // Update last position value.
@@ -672,9 +592,7 @@ impl RotateTool
     /// Rotates the selected brushes. Returns whether it was possible.
     #[inline]
     fn rotate_brushes(
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        grid: Grid,
+        bundle: &mut ToolUpdateBundle,
         pivot: Vec2,
         angle: f32,
         rotate_texture: bool,
@@ -683,13 +601,13 @@ impl RotateTool
     {
         let mut payloads = hv_vec![];
 
-        let valid = manager.test_operation_validity(|manager| {
+        let valid = bundle.manager.test_operation_validity(|manager| {
             manager
-                .selected_brushes_mut(drawing_resources, grid)
+                .selected_brushes_mut(bundle.drawing_resources, bundle.grid)
                 .find_map(|mut brush| {
                     match brush.check_rotation(
-                        drawing_resources,
-                        grid,
+                        bundle.drawing_resources,
+                        bundle.grid,
                         pivot,
                         angle,
                         rotate_texture
@@ -710,12 +628,13 @@ impl RotateTool
             return false;
         }
 
-        fill_backup_polygons(manager, backup_polygons);
+        fill_backup_polygons(bundle.manager, backup_polygons);
 
         for payload in payloads
         {
-            manager
-                .brush_mut(drawing_resources, grid, payload.id())
+            bundle
+                .manager
+                .brush_mut(bundle.drawing_resources, bundle.grid, payload.id())
                 .set_rotation_coordinates(payload);
         }
 
@@ -727,9 +646,9 @@ impl RotateTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
+    pub fn draw(&self, bundle: &mut DrawBundle)
     {
-        draw_selected_and_non_selected_brushes!(bundle, manager);
+        draw_selected_and_non_selected_brushes!(bundle);
 
         let DrawBundle { drawer, cursor, .. } = bundle;
 
@@ -785,9 +704,8 @@ impl RotateTool
     pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
-        bundle: &StateUpdateBundle,
-        buttons: &mut ToolsButtons,
-        tool_change_conditions: &ChangeConditions
+        bundle: &mut UiBundle,
+        buttons: &mut ToolsButtons
     )
     {
         subtools_buttons!(
@@ -795,7 +713,6 @@ impl RotateTool
             ui,
             bundle,
             buttons,
-            tool_change_conditions,
             (RotatePivot, Status::MovePivotUi, Status::MovePivotUi)
         );
     }

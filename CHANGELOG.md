@@ -16,6 +16,7 @@
 - fixed an issue where properties could all be converted to a String;
 - fixes brush sprites being incorrectly rendered;
 - fixed entity tool crash when attempting to move textures but none were selected;
+- fixed one of the brushes created from a subtraction having no texture;
 - fixed incorrect sprite hull drawing when using isometric grid.
 
 ## 0.7.2

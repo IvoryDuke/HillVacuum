@@ -23,16 +23,12 @@ use super::{
 };
 use crate::{
     map::{
-        drawer::{color::Color, drawing_resources::DrawingResources},
+        drawer::color::Color,
         editor::{
             cursor::Cursor,
-            state::{
-                editor_state::{InputsPresses, ToolsSettings},
-                edits_history::EditsHistory,
-                grid::Grid,
-                manager::EntitiesManager
-            },
+            state::{editor_state::ToolsSettings, manager::EntitiesManager},
             DrawBundle,
+            StateUpdateBundle,
             ToolUpdateBundle
         },
         AssertedInsertRemove
@@ -199,71 +195,38 @@ impl DrawTool
 
     /// Despawns the drawn brushes.
     #[inline]
-    pub fn despawn_drawn_brushes(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        grid: Grid
-    )
+    pub fn despawn_drawn_brushes(&mut self, bundle: &mut StateUpdateBundle)
     {
-        manager.despawn_drawn_brushes(
-            drawing_resources,
-            edits_history,
-            grid,
+        bundle.manager.despawn_drawn_brushes(
+            bundle.drawing_resources,
+            bundle.edits_history,
+            *bundle.grid,
             &mut self.drawn_brushes
         );
     }
 
     /// Updates the tool.
     #[inline]
-    pub fn update(
-        &mut self,
-        bundle: &mut ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid,
-        settings: &mut ToolsSettings
-    )
+    pub fn update(&mut self, bundle: &mut ToolUpdateBundle, settings: &mut ToolsSettings)
     {
-        if inputs.back.just_pressed()
+        if bundle.inputs.back.just_pressed()
         {
-            manager.despawn_drawn_brushes(
+            bundle.manager.despawn_drawn_brushes(
                 bundle.drawing_resources,
-                edits_history,
-                grid,
+                bundle.edits_history,
+                bundle.grid,
                 &mut self.drawn_brushes
             );
+
             return;
         }
 
         match &mut self.shape
         {
-            Shape::Square(cb) =>
-            {
-                cb.update(bundle, manager, edits_history, inputs, grid, &mut self.drawn_brushes);
-            },
-            Shape::Triangle(cb) =>
-            {
-                cb.update(bundle, manager, edits_history, inputs, grid, &mut self.drawn_brushes);
-            },
-            Shape::Circle(cb) =>
-            {
-                cb.update(
-                    bundle,
-                    manager,
-                    edits_history,
-                    inputs,
-                    grid,
-                    settings,
-                    &mut self.drawn_brushes
-                );
-            },
-            Shape::FreeDraw(cb) =>
-            {
-                cb.update(bundle, manager, edits_history, inputs, grid, &mut self.drawn_brushes);
-            }
+            Shape::Square(cb) => cb.update(bundle, &mut self.drawn_brushes),
+            Shape::Triangle(cb) => cb.update(bundle, &mut self.drawn_brushes),
+            Shape::Circle(cb) => cb.update(bundle, settings, &mut self.drawn_brushes),
+            Shape::FreeDraw(cb) => cb.update(bundle, &mut self.drawn_brushes)
         };
     }
 
@@ -302,65 +265,66 @@ impl DrawTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
+    pub fn draw(&self, bundle: &mut DrawBundle)
     {
-        let DrawBundle {
-            drawer,
-            window,
-            camera,
-            ..
-        } = bundle;
-
-        drawer.square_highlight(bundle.cursor.world_snapped(), Color::CursorPolygon);
+        bundle
+            .drawer
+            .square_highlight(bundle.cursor.world_snapped(), Color::CursorPolygon);
 
         let mut drawn_iterated = 0;
         let drawn_len = self.drawn_brushes.len();
-        let brushes = manager.visible_brushes(window, camera, drawer.grid());
-        let mut brushes = brushes.iter();
 
-        for brush in &mut brushes
         {
-            let id = brush.id();
+            let brushes =
+                bundle
+                    .manager
+                    .visible_brushes(bundle.window, bundle.camera, bundle.drawer.grid());
+            let mut brushes = brushes.iter();
 
-            if !manager.is_selected(id)
+            for brush in &mut brushes
             {
-                brush.draw_non_selected(camera, drawer);
-            }
-            else if self.drawn_brushes.contains(&id)
-            {
-                brush.draw_highlighted_selected(camera, drawer);
-                drawn_iterated += 1;
+                let id = brush.id();
 
-                if drawn_iterated == drawn_len
+                if !bundle.manager.is_selected(id)
                 {
-                    break;
+                    brush.draw_non_selected(bundle.camera, bundle.drawer);
+                }
+                else if self.drawn_brushes.contains(&id)
+                {
+                    brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
+                    drawn_iterated += 1;
+
+                    if drawn_iterated == drawn_len
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    brush.draw_selected(bundle.camera, bundle.drawer);
                 }
             }
-            else
-            {
-                brush.draw_selected(camera, drawer);
-            }
-        }
 
-        for brush in brushes
-        {
-            let id = brush.id();
+            for brush in brushes
+            {
+                let id = brush.id();
 
-            if manager.is_selected(id)
-            {
-                brush.draw_selected(camera, drawer);
-            }
-            else
-            {
-                brush.draw_non_selected(camera, drawer);
+                if bundle.manager.is_selected(id)
+                {
+                    brush.draw_selected(bundle.camera, bundle.drawer);
+                }
+                else
+                {
+                    brush.draw_non_selected(bundle.camera, bundle.drawer);
+                }
             }
         }
 
         match &self.shape
         {
-            Shape::Square(cb) => cb.draw(drawer),
-            Shape::Triangle(cb) => cb.draw(drawer),
-            Shape::Circle(cb) => cb.draw(drawer),
+            Shape::Square(cb) => cb.draw(bundle.drawer),
+            Shape::Triangle(cb) => cb.draw(bundle.drawer),
+            Shape::Circle(cb) => cb.draw(bundle.drawer),
             Shape::FreeDraw(cb) => cb.draw(bundle)
         };
     }

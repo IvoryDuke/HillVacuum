@@ -14,8 +14,8 @@ use crate::{
         editor::{
             state::{
                 clipboard::Clipboard,
-                editor_state::InputsPresses,
                 grid::Grid,
+                inputs_presses::InputsPresses,
                 ui::{checkbox::CheckBox, overall_value_field::OverallValueField}
             },
             Placeholder

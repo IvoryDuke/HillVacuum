@@ -8,7 +8,7 @@ use hill_vacuum_shared::return_if_none;
 
 use super::{
     bottom_area,
-    tool::{ActiveTool, ChangeConditions, DisableSubtool, EnabledTool, SubTool}
+    tool::{ActiveTool, DisableSubtool, EnabledTool, SubTool}
 };
 use crate::{
     map::{
@@ -16,14 +16,12 @@ use crate::{
         editor::{
             state::{
                 core::tool::subtools_buttons,
-                editor_state::{InputsPresses, ToolsSettings},
-                edits_history::EditsHistory,
+                editor_state::ToolsSettings,
                 format_texture_preview,
                 manager::EntitiesManager,
-                ui::ToolsButtons
+                ui::{ToolsButtons, UiBundle}
             },
             DrawBundle,
-            StateUpdateBundle,
             ToolUpdateBundle
         },
         thing::catalog::ChunkItem
@@ -115,35 +113,32 @@ impl ThingTool
 
     /// Updates the tool.
     #[inline]
-    pub fn update(
-        &mut self,
-        bundle: &ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        settings: &mut ToolsSettings
-    )
+    pub fn update(&mut self, bundle: &mut ToolUpdateBundle, settings: &mut ToolsSettings)
     {
         if !matches!(self.status, Status::Inactive(()))
         {
             return;
         }
 
-        if inputs.left_mouse.just_pressed()
+        if bundle.inputs.left_mouse.just_pressed()
         {
-            self.drawn_things.asserted_insert(manager.spawn_selected_thing(
-                bundle,
-                edits_history,
-                settings
+            self.drawn_things.asserted_insert(bundle.manager.spawn_selected_thing(
+                bundle.things_catalog,
+                bundle.things_default_properties,
+                bundle.edits_history,
+                settings,
+                bundle.cursor.world_snapped()
             ));
         }
-        else if inputs.back.just_pressed()
+        else if bundle.inputs.back.just_pressed()
         {
-            manager.despawn_drawn_things(&mut self.drawn_things, edits_history);
+            bundle
+                .manager
+                .despawn_drawn_things(bundle.edits_history, &mut self.drawn_things);
         }
-        else if inputs.tab.just_pressed()
+        else if bundle.inputs.tab.just_pressed()
         {
-            if inputs.alt_pressed()
+            if bundle.inputs.alt_pressed()
             {
                 settings.thing_pivot.prev();
             }
@@ -172,13 +167,14 @@ impl ThingTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
+    pub fn draw(&self, bundle: &mut DrawBundle)
     {
         let DrawBundle {
             drawer,
             window,
             camera,
             things_catalog,
+            manager,
             ..
         } = bundle;
 
@@ -263,21 +259,17 @@ impl ThingTool
     /// Bottom UI panel.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    pub fn bottom_panel(
-        &mut self,
-        bundle: &mut StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
-        edits_history: &mut EditsHistory
-    )
+    pub fn bottom_panel(&mut self, egui_context: &egui::Context, bundle: &mut UiBundle)
     {
         /// The size of the things' preview frame.
         const PREVIEW_SIZE: egui::Vec2 = egui::Vec2::splat(128f32);
 
-        let StateUpdateBundle {
+        let UiBundle {
             things_catalog,
-            egui_context,
             drawing_resources,
+            manager,
+            edits_history,
+            inputs,
             ..
         } = bundle;
 
@@ -342,9 +334,8 @@ impl ThingTool
     pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
-        bundle: &StateUpdateBundle,
-        buttons: &mut ToolsButtons,
-        tool_change_conditions: &ChangeConditions
+        bundle: &mut UiBundle,
+        buttons: &mut ToolsButtons
     )
     {
         subtools_buttons!(
@@ -352,7 +343,6 @@ impl ThingTool
             ui,
             bundle,
             buttons,
-            tool_change_conditions,
             (ThingChange, Status::ChangeUi, Status::ChangeUi)
         );
     }

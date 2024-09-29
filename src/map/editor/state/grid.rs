@@ -92,12 +92,12 @@ impl Grid
     /// Returns the length of the sides of the squares.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) const fn size(self) -> i16 { self.size }
+    pub(in crate::map::editor) const fn size(self) -> i16 { self.size }
 
     /// Returns the length of the sides of the squares as an `f32`.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) fn size_f32(self) -> f32 { f32::from(self.size) }
+    pub(in crate::map::editor) fn size_f32(self) -> f32 { f32::from(self.size) }
 
     #[inline]
     #[must_use]

@@ -136,6 +136,7 @@ impl Cursor
         window: &Window,
         camera: &Transform,
         state: &State,
+        grid: Grid,
         space_pressed: bool
     )
     {
@@ -152,8 +153,6 @@ impl Cursor
         {
             return;
         }
-
-        let grid = state.grid();
 
         self.previous_world = self.world;
         self.previous_world_snapped = self.world_grid_snapped;

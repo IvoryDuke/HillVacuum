@@ -5,13 +5,10 @@
 
 use bevy_egui::egui;
 
-use super::{window::Window, WindowCloser, WindowCloserInfo};
+use super::{window::Window, UiBundle, WindowCloser, WindowCloserInfo};
 use crate::{
     config::{controls::bind::Bind, Config},
-    map::editor::{
-        state::{core::Core, edits_history::EditsHistory},
-        StateUpdateBundle
-    },
+    map::editor::state::core::Core,
     utils::misc::Toggle
 };
 
@@ -50,15 +47,15 @@ impl EditsHistoryWindow
     #[inline]
     pub fn show(
         &mut self,
-        bundle: &mut StateUpdateBundle,
-        core: &Core,
-        edits_history: &EditsHistory
+        egui_context: &egui::Context,
+        bundle: &mut UiBundle,
+        core: &Core
     ) -> Option<usize>
     {
-        let StateUpdateBundle {
-            egui_context,
+        let UiBundle {
             key_inputs,
             config: Config { binds, .. },
+            edits_history,
             ..
         } = bundle;
 

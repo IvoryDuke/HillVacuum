@@ -41,11 +41,10 @@ use self::{
     }
 };
 use super::{
-    clipboard::Clipboard,
-    editor_state::{InputsPresses, ToolsSettings},
+    editor_state::ToolsSettings,
     edits_history::{edit_type::BrushType, EditsHistory},
     manager::{BrushMut, EntitiesManager, MovingMut, ThingMut},
-    ui::{ToolsButtons, Ui}
+    ui::{ToolsButtons, Ui, UiBundle}
 };
 use crate::{
     map::{
@@ -82,11 +81,10 @@ use crate::{
 
 /// Draws the selected and non selected brushes.
 macro_rules! draw_selected_and_non_selected_brushes {
-    ($bundle:ident, $manager:ident $(, $filters:expr)?) => {
+    ($bundle:ident $(, $filters:expr)?) => {
         crate::map::editor::state::core::draw_selected_and_non_selected!(
             brushes,
             $bundle,
-            $manager,
             |brush, camera, drawer, color, _| {
                 crate::map::brush::Brush::draw_with_color(brush, camera, drawer, color);
             }
@@ -101,11 +99,10 @@ use draw_selected_and_non_selected_brushes;
 
 /// Draws the selected and non selected [`ThingInstance`]s.
 macro_rules! draw_selected_and_non_selected_things {
-    ($bundle:ident, $manager:ident $(, $filters:expr)?) => {{
+    ($bundle:ident $(, $filters:expr)?) => {{
         crate::map::editor::state::core::draw_selected_and_non_selected!(
             things,
             $bundle,
-            $manager,
             |thing,
             _: &bevy::transform::components::Transform, drawer: &mut crate::map::drawer::drawers::EditDrawer, color, _| {
                 drawer.thing($bundle.things_catalog, thing, color);
@@ -121,11 +118,10 @@ use draw_selected_and_non_selected_things;
 
 /// Draws the selected and non selected [`ThingInstance`]s.
 macro_rules! draw_selected_and_non_selected_sprites {
-    ($bundle:ident, $manager:ident, $show_outline:expr $(, $filters:expr)?) => {{
+    ($bundle:ident, $show_outline:expr $(, $filters:expr)?) => {{
         crate::map::editor::state::core::draw_selected_and_non_selected!(
             sprites,
             $bundle,
-            $manager,
             |brush: &Brush, _: &bevy::transform::components::Transform, drawer: &mut crate::map::drawer::drawers::EditDrawer, color, show_outline: bool| {
                 brush.draw_sprite(drawer, color, show_outline);
             }
@@ -141,28 +137,29 @@ use draw_selected_and_non_selected_sprites;
 
 /// Draws the selected and non selected `entities`.
 macro_rules! draw_selected_and_non_selected {
-    ($entities:ident, $bundle:ident, $manager:ident, $draw:expr $(, $filters:expr)? $(; $outline:expr)?) => { paste::paste! {
+    ($entities:ident, $bundle:ident, $draw:expr $(, $filters:expr)? $(; $outline:expr)?) => { paste::paste! {{
         use crate::map::drawer::color::Color;
 
         let DrawBundle {
             window,
             drawer,
             camera,
+            manager,
             ..
         } = $bundle;
 
         let draw_outline = $($outline ||)? false;
         let mut selected_entities_iterated = 0;
-        let selected_entities_len = $manager.[< selected_ $entities _amount >]();
+        let selected_entities_len = manager.[< selected_ $entities _amount >]();
 
-        let entities = $manager.[< visible_ $entities >](window, camera, drawer.grid());
+        let entities = manager.[< visible_ $entities >](window, camera, drawer.grid());
         let mut entities = entities.iter()$(.filter_set_with_predicate($filters, |brush| brush.id()))?;
 
         for entity in &mut entities
         {
             let id = crate::utils::identifiers::EntityId::id(entity);
 
-            if $manager.is_selected(id)
+            if manager.is_selected(id)
             {
                 #[allow(clippy::redundant_closure_call)]
                 $draw(entity, camera, drawer, Color::SelectedEntity, draw_outline);
@@ -185,7 +182,7 @@ macro_rules! draw_selected_and_non_selected {
             #[allow(clippy::redundant_closure_call)]
             $draw(entity, camera, drawer, Color::NonSelectedEntity, draw_outline);
         }
-    }};
+    }}};
 }
 
 use draw_selected_and_non_selected;
@@ -450,13 +447,19 @@ impl<'a> UndoRedoInterface<'a>
     pub fn spawn_brush(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifier: Id,
         data: BrushData,
         b_type: BrushType
     )
     {
-        self.manager
-            .spawn_brush_from_parts(drawing_resources, identifier, data, b_type.selected());
+        self.manager.spawn_brush_from_parts(
+            drawing_resources,
+            grid,
+            identifier,
+            data,
+            b_type.selected()
+        );
 
         if b_type.drawn()
         {
@@ -470,11 +473,14 @@ impl<'a> UndoRedoInterface<'a>
     pub fn despawn_brush(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifier: Id,
         b_type: BrushType
     ) -> BrushData
     {
-        let data = self.manager.despawn_brush_into_parts(drawing_resources, identifier);
+        let data = self
+            .manager
+            .despawn_brush_into_parts(drawing_resources, grid, identifier);
 
         match self.active_tool
         {
@@ -504,10 +510,11 @@ impl<'a> UndoRedoInterface<'a>
     pub fn brush_mut<'b>(
         &'b mut self,
         drawing_resources: &'b DrawingResources,
+        grid: Grid,
         identifier: Id
     ) -> BrushMut<'b>
     {
-        self.manager.brush_mut(drawing_resources, identifier)
+        self.manager.brush_mut(drawing_resources, grid, identifier)
     }
 
     /// Returns a [`MovingMut`] wrapping the entity with id `identifier`.
@@ -515,24 +522,36 @@ impl<'a> UndoRedoInterface<'a>
     pub fn moving_mut<'b>(
         &'b mut self,
         drawing_resources: &'b DrawingResources,
+        grid: Grid,
         identifier: Id
     ) -> MovingMut<'b>
     {
-        self.manager.moving_mut(drawing_resources, identifier)
+        self.manager.moving_mut(drawing_resources, grid, identifier)
     }
 
     /// Gives the brush with [`Id`] `identifier` a [`Path`].
     #[inline]
-    pub fn set_path(&mut self, drawing_resources: &DrawingResources, identifier: Id, path: Path)
+    pub fn set_path(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        grid: Grid,
+        identifier: Id,
+        path: Path
+    )
     {
-        self.manager.set_path(drawing_resources, identifier, path);
+        self.manager.set_path(drawing_resources, grid, identifier, path);
     }
 
     /// Removes the [`Path`] from the entity with [`Id`] `identifier`.
     #[inline]
-    pub fn remove_path(&mut self, drawing_resources: &DrawingResources, identifier: Id) -> Path
+    pub fn remove_path(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        grid: Grid,
+        identifier: Id
+    ) -> Path
     {
-        let path = self.manager.remove_path(drawing_resources, identifier);
+        let path = self.manager.remove_path(drawing_resources, grid, identifier);
 
         if self.manager.is_selected(identifier)
         {
@@ -579,11 +598,12 @@ impl<'a> UndoRedoInterface<'a>
     pub fn set_texture(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifier: Id,
         texture: &str
     ) -> TextureSetResult
     {
-        self.manager.set_texture(drawing_resources, identifier, texture)
+        self.manager.set_texture(drawing_resources, grid, identifier, texture)
     }
 
     /// Set the [`TextureSettings`] of the brush with [`Id`] `identifier`.
@@ -591,12 +611,13 @@ impl<'a> UndoRedoInterface<'a>
     pub fn set_texture_settings(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifier: Id,
         texture: TextureSettings
     )
     {
         self.manager
-            .set_texture_settings(drawing_resources, identifier, texture);
+            .set_texture_settings(drawing_resources, grid, identifier, texture);
     }
 
     /// Removes the texture from the brush with [`Id`] identifier, and returns its
@@ -605,10 +626,11 @@ impl<'a> UndoRedoInterface<'a>
     pub fn remove_texture(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifier: Id
     ) -> TextureSettings
     {
-        self.manager.remove_texture(drawing_resources, identifier)
+        self.manager.remove_texture(drawing_resources, grid, identifier)
     }
 
     /// Sets whether the texture of the selected brush with [`Id`] `identifier` should be
@@ -617,12 +639,13 @@ impl<'a> UndoRedoInterface<'a>
     pub fn undo_redo_texture_sprite(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifier: Id,
         value: &mut TextureSpriteSet
     )
     {
         self.manager
-            .undo_redo_texture_sprite(drawing_resources, identifier, value);
+            .undo_redo_texture_sprite(drawing_resources, grid, identifier, value);
     }
 
     /// Deletes the free draw point at position `p` or `index` depending on the active tool.
@@ -718,6 +741,7 @@ impl<'a> UndoRedoInterface<'a>
     pub fn set_property(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifier: Id,
         k: &str,
         value: &Value
@@ -732,7 +756,7 @@ impl<'a> UndoRedoInterface<'a>
         {
             self.manager.schedule_overall_brushes_property_update(k);
             self.manager
-                .brush_mut(drawing_resources, identifier)
+                .brush_mut(drawing_resources, grid, identifier)
                 .set_property(k, value)
                 .unwrap()
         }
@@ -805,17 +829,9 @@ impl Core
 
     /// Selects all.
     #[inline]
-    pub fn select_all(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        grid: Grid,
-        settings: &ToolsSettings
-    )
+    pub fn select_all(&mut self, bundle: &mut StateUpdateBundle, settings: &ToolsSettings)
     {
-        self.active_tool
-            .select_all(drawing_resources, manager, edits_history, grid, settings);
+        self.active_tool.select_all(bundle, settings);
     }
 
     //==============================================================
@@ -830,16 +846,19 @@ impl Core
     #[inline]
     pub fn undo(
         &mut self,
-        bundle: &mut StateUpdateBundle,
+        drawing_resources: &mut DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         ui: &mut Ui
     )
     {
         assert!(self.undo_redo_available(), "Undo redo is not available.");
         edits_history.undo(
-            &mut UndoRedoInterface::new(self, bundle.things_catalog, manager),
-            bundle.drawing_resources,
+            &mut UndoRedoInterface::new(self, things_catalog, manager),
+            drawing_resources,
+            grid,
             ui
         );
     }
@@ -848,16 +867,19 @@ impl Core
     #[inline]
     pub fn redo(
         &mut self,
-        bundle: &mut StateUpdateBundle,
+        drawing_resources: &mut DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         ui: &mut Ui
     )
     {
         assert!(self.undo_redo_available(), "Undo redo is not available.");
         edits_history.redo(
-            &mut UndoRedoInterface::new(self, bundle.things_catalog, manager),
-            bundle.drawing_resources,
+            &mut UndoRedoInterface::new(self, things_catalog, manager),
+            drawing_resources,
+            grid,
             ui
         );
     }
@@ -872,59 +894,20 @@ impl Core
 
     /// Copies the selected entities.
     #[inline]
-    pub fn copy(
-        &mut self,
-        bundle: &StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
-        clipboard: &mut Clipboard
-    )
-    {
-        self.active_tool.copy(bundle, manager, inputs, clipboard);
-    }
+    pub fn copy(&mut self, bundle: &mut StateUpdateBundle) { self.active_tool.copy(bundle); }
 
     /// Cuts the selected entities
     #[inline]
-    pub fn cut(
-        &mut self,
-        bundle: &StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses
-    )
-    {
-        self.active_tool
-            .cut(bundle, manager, inputs, clipboard, edits_history);
-    }
+    pub fn cut(&mut self, bundle: &mut StateUpdateBundle) { self.active_tool.cut(bundle); }
 
     /// Pastes the copied entities.
     #[inline]
-    pub fn paste(
-        &mut self,
-        bundle: &StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses
-    )
-    {
-        self.active_tool
-            .paste(bundle, manager, inputs, clipboard, edits_history);
-    }
+    pub fn paste(&mut self, bundle: &mut StateUpdateBundle) { self.active_tool.paste(bundle); }
 
     #[inline]
-    pub fn duplicate(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        delta: Vec2
-    )
+    pub fn duplicate(&mut self, bundle: &mut StateUpdateBundle, delta: Vec2)
     {
-        self.active_tool
-            .duplicate(drawing_resources, manager, clipboard, edits_history, delta);
+        self.active_tool.duplicate(bundle, delta);
     }
 
     //==============================================================
@@ -975,22 +958,11 @@ impl Core
 
     /// Updates the tool.
     #[inline]
-    pub fn update(
-        &mut self,
-        bundle: &mut ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid,
-        settings: &mut ToolsSettings
-    )
+    pub fn update(&mut self, bundle: &mut ToolUpdateBundle, settings: &mut ToolsSettings)
     {
-        self.active_tool
-            .update(bundle, manager, inputs, edits_history, clipboard, grid, settings);
-
+        self.active_tool.update(bundle, settings);
         // Close the edit history.
-        edits_history.push_frame_edit();
+        bundle.edits_history.push_frame_edit();
     }
 
     /// Changes the active tool.
@@ -998,38 +970,20 @@ impl Core
     pub fn change_tool(
         &mut self,
         tool: Tool,
-        bundle: &StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid,
+        bundle: &mut StateUpdateBundle,
         settings: &ToolsSettings,
         tool_change_conditions: &ChangeConditions
     )
     {
-        self.active_tool.change(
-            tool,
-            bundle,
-            manager,
-            edits_history,
-            inputs,
-            grid,
-            settings,
-            tool_change_conditions
-        );
+        self.active_tool
+            .change(tool, bundle, settings, tool_change_conditions);
     }
 
     /// Executes the update of the frame start.
     #[inline]
-    pub fn frame_start_update(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        clipboard: &Clipboard
-    )
+    pub fn frame_start_update(&mut self, bundle: &mut StateUpdateBundle)
     {
-        self.active_tool.fallback(manager, clipboard);
+        self.active_tool.fallback(bundle);
 
         let editing_target = self.active_tool.editing_target(self.prev_editing_target);
 
@@ -1039,14 +993,18 @@ impl Core
             {
                 EditingTarget::Sides | EditingTarget::Vertexes =>
                 {
-                    for mut brush in manager.selected_brushes_mut(drawing_resources)
+                    for mut brush in bundle
+                        .manager
+                        .selected_brushes_mut(bundle.drawing_resources, *bundle.grid)
                     {
                         brush.deselect_vertexes_no_indexes();
                     }
                 },
                 EditingTarget::Path =>
                 {
-                    for mut brush in manager.selected_movings_mut(drawing_resources)
+                    for mut brush in bundle
+                        .manager
+                        .selected_movings_mut(bundle.drawing_resources, *bundle.grid)
                     {
                         brush.deselect_path_nodes_no_indexes();
                     }
@@ -1054,7 +1012,9 @@ impl Core
                 _ => ()
             };
 
-            edits_history.purge_tools_edits(self.prev_editing_target, editing_target);
+            bundle
+                .edits_history
+                .purge_tools_edits(self.prev_editing_target, editing_target);
         }
 
         self.prev_editing_target = editing_target;
@@ -1062,20 +1022,13 @@ impl Core
 
     /// Executes a snap to a [`Grid`] with size 2.
     #[inline]
-    pub fn quick_snap(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        settings: &ToolsSettings,
-        grid_shifted: bool
-    )
+    pub fn quick_snap(&mut self, bundle: &mut StateUpdateBundle, settings: &ToolsSettings)
     {
         self.active_tool.snap_tool(
-            drawing_resources,
-            manager,
-            edits_history,
-            Grid::quick_snap(grid_shifted),
+            bundle.drawing_resources,
+            bundle.manager,
+            bundle.edits_history,
+            Grid::quick_snap(bundle.grid.shifted),
             settings
         );
     }
@@ -1085,61 +1038,30 @@ impl Core
 
     /// Draws the active tool.
     #[inline]
-    pub fn draw_active_tool(
-        &self,
-        bundle: &mut DrawBundle,
-        manager: &EntitiesManager,
-        grid: Grid,
-        settings: &ToolsSettings
-    )
+    pub fn draw_active_tool(&self, bundle: &mut DrawBundle, settings: &ToolsSettings)
     {
-        self.active_tool.draw(bundle, manager, grid, settings);
+        self.active_tool.draw(bundle, settings);
     }
 
     /// Draws the map preview.
     #[inline]
-    pub fn draw_map_preview(&self, bundle: &mut DrawBundleMapPreview, manager: &EntitiesManager)
+    pub fn draw_map_preview(&self, bundle: &mut DrawBundleMapPreview)
     {
-        self.active_tool.draw_map_preview(bundle, manager);
+        self.active_tool.draw_map_preview(bundle);
     }
 
     /// Draws the bottom panel.
     #[inline]
-    pub fn bottom_panel(
-        &mut self,
-        bundle: &mut StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses
-    )
+    pub fn bottom_panel(&mut self, egui_context: &egui::Context, bundle: &mut UiBundle)
     {
-        self.active_tool
-            .bottom_panel(bundle, manager, inputs, edits_history, clipboard);
+        self.active_tool.bottom_panel(egui_context, bundle);
     }
 
     /// Draws the UI of the tool.
     #[inline]
-    pub fn tool_ui(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        ui: &mut egui::Ui,
-        settings: &mut ToolsSettings
-    )
+    pub fn tool_ui(&mut self, ui: &mut egui::Ui, bundle: &mut UiBundle)
     {
-        self.active_tool.ui(
-            drawing_resources,
-            manager,
-            inputs,
-            edits_history,
-            clipboard,
-            ui,
-            settings
-        );
+        self.active_tool.ui(ui, bundle);
     }
 
     /// Draws the subtools.
@@ -1147,23 +1069,11 @@ impl Core
     pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
-        bundle: &StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        grid: Grid,
-        buttons: &mut ToolsButtons,
-        tool_change_conditions: &ChangeConditions
+        bundle: &mut UiBundle,
+        buttons: &mut ToolsButtons
     )
     {
-        self.active_tool.draw_subtools(
-            ui,
-            bundle,
-            manager,
-            edits_history,
-            grid,
-            buttons,
-            tool_change_conditions
-        );
+        self.active_tool.draw_subtools(ui, bundle, buttons);
     }
 }
 
@@ -1177,12 +1087,13 @@ impl Core
 fn deselect_vertexes(
     drawing_resources: &DrawingResources,
     manager: &mut EntitiesManager,
-    edits_history: &mut EditsHistory
+    edits_history: &mut EditsHistory,
+    grid: Grid
 )
 {
     edits_history.vertexes_selection_cluster(
         manager
-            .selected_brushes_mut(drawing_resources)
+            .selected_brushes_mut(drawing_resources, grid)
             .filter_map(|mut brush| brush.deselect_vertexes().map(|idxs| (brush.id(), idxs)))
     );
 }
@@ -1191,12 +1102,13 @@ fn deselect_vertexes(
 
 /// Draws the non selected brushes.
 #[inline]
-fn draw_non_selected_brushes(bundle: &mut DrawBundle, manager: &EntitiesManager)
+fn draw_non_selected_brushes(bundle: &mut DrawBundle)
 {
     let DrawBundle {
         window,
         drawer,
         camera,
+        manager,
         ..
     } = bundle;
 

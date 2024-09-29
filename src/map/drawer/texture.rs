@@ -1859,15 +1859,6 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        fn transform_texture_sprite_vxs(grid: Grid, vxs: &mut Option<[Vec2; 4]>, brush_center: Vec2)
-        {
-            if let Some(vxs) = vxs
-            {
-                vxs.translate(grid.transform_point(brush_center));
-            }
-        }
-
-        #[inline]
         fn texture_sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,

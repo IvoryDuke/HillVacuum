@@ -7,7 +7,7 @@ use super::edit_type::EditType;
 use crate::{
     map::{
         drawer::drawing_resources::DrawingResources,
-        editor::state::{core::UndoRedoInterface, ui::Ui},
+        editor::state::{core::UndoRedoInterface, grid::Grid, ui::Ui},
         hv_vec,
         properties::Value
     },
@@ -326,12 +326,13 @@ impl Edit
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
+        grid: Grid,
         ui: &mut Ui
     )
     {
         for (ids, ed_type) in self.edits.iter_mut().rev()
         {
-            ed_type.undo(interface, drawing_resources, ui, ids, self.property.as_ref());
+            ed_type.undo(interface, drawing_resources, grid, ui, ids, self.property.as_ref());
         }
     }
 
@@ -341,12 +342,13 @@ impl Edit
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
+        grid: Grid,
         ui: &mut Ui
     )
     {
         for (ids, ed_type) in &mut self.edits
         {
-            ed_type.redo(interface, drawing_resources, ui, ids, self.property.as_ref());
+            ed_type.redo(interface, drawing_resources, grid, ui, ids, self.property.as_ref());
         }
     }
 }

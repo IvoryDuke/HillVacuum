@@ -11,11 +11,10 @@ use crate::{
         drawer::drawing_resources::DrawingResources,
         editor::{
             cursor::Cursor,
-            hv_vec,
-            state::{editor_state::InputsPresses, manager::EntitiesManager}
+            state::{inputs_presses::InputsPresses, manager::EntitiesManager}
         }
     },
-    utils::{identifiers::EntityId, misc::next},
+    utils::{collections::hv_vec, identifiers::EntityId, misc::next},
     HvVec
 };
 

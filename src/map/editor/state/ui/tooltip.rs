@@ -6,7 +6,8 @@
 use bevy_egui::egui;
 use hill_vacuum_shared::return_if_none;
 
-use crate::map::editor::{state::core::tool::ToolInterface, StateUpdateBundle};
+use super::UiBundle;
+use crate::map::editor::state::core::tool::ToolInterface;
 
 //=======================================================================//
 // STRUCTS
@@ -52,12 +53,7 @@ impl Tooltip
 
     /// Shows the tooltip.
     #[inline]
-    pub fn show(
-        &mut self,
-        bundle: &StateUpdateBundle,
-        tool: impl ToolInterface,
-        response: &egui::Response
-    )
+    pub fn show(&mut self, bundle: &UiBundle, tool: impl ToolInterface, response: &egui::Response)
     {
         if response.clicked()
         {

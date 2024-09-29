@@ -1720,31 +1720,6 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub fn remove_texture(&mut self) -> TextureSettings { self.data.polygon.remove_texture() }
 
-        #[allow(clippy::unused_self)]
-        #[inline]
-        #[must_use]
-        pub const fn check_texture_scroll_x(&self, _: &DrawingResources, _: f32) -> bool { true }
-
-        #[allow(clippy::unused_self)]
-        #[inline]
-        #[must_use]
-        pub const fn check_texture_scroll_y(&self, _: &DrawingResources, _: f32) -> bool { true }
-
-        #[allow(clippy::unused_self)]
-        #[inline]
-        #[must_use]
-        pub const fn check_texture_parallax_x(&self, _: &DrawingResources, _: f32) -> bool { true }
-
-        #[allow(clippy::unused_self)]
-        #[inline]
-        #[must_use]
-        pub const fn check_texture_parallax_y(&self, _: &DrawingResources, _: f32) -> bool { true }
-
-        #[allow(clippy::unused_self)]
-        #[inline]
-        #[must_use]
-        pub const fn check_texture_height(&self, _: &DrawingResources, _: i8) -> bool { true }
-
         #[inline]
         #[must_use]
         pub fn check_texture_offset_x(

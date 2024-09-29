@@ -17,7 +17,6 @@ use super::{
     rect::{Rect, RectHighlightedEntity, RectTrait},
     tool::{
         ActiveTool,
-        ChangeConditions,
         DisableSubtool,
         DragSelection,
         EnabledTool,
@@ -31,13 +30,10 @@ use crate::{
         editor::{
             cursor::Cursor,
             state::{
-                clipboard::Clipboard,
                 core::{rect, tool::subtools_buttons},
-                editor_state::InputsPresses,
-                edits_history::EditsHistory,
-                grid::Grid,
+                inputs_presses::InputsPresses,
                 manager::EntitiesManager,
-                ui::ToolsButtons
+                ui::{ToolsButtons, UiBundle}
             },
             DrawBundle,
             StateUpdateBundle,
@@ -331,20 +327,15 @@ impl PathTool
 
     /// Returns an [`ActiveTool`] in its path tool variant in its [`Path`] attachment state.
     #[inline]
-    pub fn path_connection(
-        bundle: &ToolUpdateBundle,
-        manager: &EntitiesManager,
-        inputs: &InputsPresses,
-        path: Path
-    ) -> ActiveTool
+    pub fn path_connection(bundle: &ToolUpdateBundle, path: Path) -> ActiveTool
     {
         let mut tool = PathTool::new(Rect::default());
         let item_beneath_cursor = tool.selector.item_beneath_cursor(
             bundle.drawing_resources,
-            manager,
+            bundle.manager,
             bundle.cursor,
             bundle.camera.scale(),
-            inputs
+            bundle.inputs
         );
         tool.status = Status::PathConnection(path.into(), item_beneath_cursor);
 
@@ -396,20 +387,15 @@ impl PathTool
     /// Returns the [`Id`] of the selected moving entity beneath the cursor, if any.
     #[inline]
     #[must_use]
-    pub fn selected_moving_beneath_cursor(
-        &mut self,
-        bundle: &StateUpdateBundle,
-        manager: &EntitiesManager,
-        inputs: &InputsPresses
-    ) -> Option<Id>
+    pub fn selected_moving_beneath_cursor(&mut self, bundle: &StateUpdateBundle) -> Option<Id>
     {
         self.selector
             .item_beneath_cursor(
                 bundle.drawing_resources,
-                manager,
+                bundle.manager,
                 bundle.cursor,
                 bundle.camera.scale(),
-                inputs
+                bundle.inputs
             )
             .and_then(|item| {
                 match item
@@ -423,20 +409,15 @@ impl PathTool
     /// Returns the [`Id`] of the entity that can have a [`Path`] beneath the cursor, if any.
     #[inline]
     #[must_use]
-    pub fn possible_moving_beneath_cursor(
-        &mut self,
-        bundle: &StateUpdateBundle,
-        manager: &EntitiesManager,
-        inputs: &InputsPresses
-    ) -> Option<Id>
+    pub fn possible_moving_beneath_cursor(&mut self, bundle: &StateUpdateBundle) -> Option<Id>
     {
         self.selector
             .item_beneath_cursor(
                 bundle.drawing_resources,
-                manager,
+                bundle.manager,
                 bundle.cursor,
                 bundle.camera.scale(),
-                inputs
+                bundle.inputs
             )
             .and_then(|item| {
                 match item
@@ -459,21 +440,14 @@ impl PathTool
 
     /// Updates the tool.
     #[inline]
-    pub fn update(
-        &mut self,
-        bundle: &mut ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid
-    )
+    pub fn update(&mut self, bundle: &mut ToolUpdateBundle)
     {
         let item_beneath_cursor = self.selector.item_beneath_cursor(
             bundle.drawing_resources,
-            manager,
+            bundle.manager,
             bundle.cursor,
             bundle.camera.scale(),
-            inputs
+            bundle.inputs
         );
         let cursor_pos = Self::cursor_pos(&self.status, bundle.cursor);
 
@@ -485,15 +459,15 @@ impl PathTool
                     ds,
                     bundle.cursor.world(),
                     bundle.camera.scale(),
-                    inputs.left_mouse.pressed(),
+                    bundle.inputs.left_mouse.pressed(),
                     {
                         ds.set_highlighted_entity(item_beneath_cursor);
 
-                        if !inputs.left_mouse.just_pressed()
+                        if !bundle.inputs.left_mouse.just_pressed()
                         {
                             false
                         }
-                        else if inputs.alt_pressed()
+                        else if bundle.inputs.alt_pressed()
                         {
                             // See if we should enable node insertion.
                             match return_if_none!(item_beneath_cursor)
@@ -517,15 +491,9 @@ impl PathTool
                         else if let Some(ItemBeneathCursor::PathNode(id, idx)) =
                             item_beneath_cursor
                         {
-                            if inputs.shift_pressed()
+                            if bundle.inputs.shift_pressed()
                             {
-                                if Self::toggle_node(
-                                    bundle.drawing_resources,
-                                    manager,
-                                    edits_history,
-                                    id,
-                                    idx
-                                )
+                                if Self::toggle_node(bundle, id, idx)
                                 {
                                     self.status =
                                         Status::PreDrag(cursor_pos.unwrap(), item_beneath_cursor);
@@ -534,13 +502,7 @@ impl PathTool
                             }
                             else
                             {
-                                Self::select_node(
-                                    bundle.drawing_resources,
-                                    manager,
-                                    edits_history,
-                                    id,
-                                    idx
-                                );
+                                Self::select_node(bundle, id, idx);
                                 self.status =
                                     Status::PreDrag(cursor_pos.unwrap(), item_beneath_cursor);
                                 return;
@@ -555,69 +517,66 @@ impl PathTool
                     },
                     {
                         // Deselect selected nodes.
-                        if edits_history.path_nodes_selection_cluster(
-                            manager.selected_movings_mut(bundle.drawing_resources).filter_map(
-                                |mut entity| {
+                        if bundle.edits_history.path_nodes_selection_cluster(
+                            bundle
+                                .manager
+                                .selected_movings_mut(bundle.drawing_resources, bundle.grid)
+                                .filter_map(|mut entity| {
                                     entity.deselect_path_nodes().map(|idxs| (entity.id(), idxs))
-                                }
-                            )
+                                })
                         )
                         {
-                            manager.schedule_overall_node_update();
+                            bundle.manager.schedule_overall_node_update();
                         }
                     },
                     hull,
                     {
                         // Select nodes.
-                        Self::select_nodes_from_drag_selection(
-                            bundle.drawing_resources,
-                            manager,
-                            edits_history,
-                            &hull,
-                            inputs.shift_pressed()
-                        );
+                        Self::select_nodes_from_drag_selection(bundle, &hull);
                     }
                 );
 
-                if inputs.enter.just_pressed() && manager.selected_moving_amount() != 0
+                if bundle.inputs.enter.just_pressed() &&
+                    bundle.manager.selected_moving_amount() != 0
                 {
                     // Initiate paths simulation.
-                    self.enable_simulation(manager);
+                    self.enable_simulation(bundle.manager);
                     return;
                 }
 
-                if inputs.back.just_pressed()
+                if bundle.inputs.back.just_pressed()
                 {
-                    if Self::delete(bundle.drawing_resources, manager, inputs, edits_history)
+                    if Self::delete(bundle)
                     {
                         ds.set_highlighted_entity(self.selector.item_beneath_cursor(
                             bundle.drawing_resources,
-                            manager,
+                            bundle.manager,
                             bundle.cursor,
                             bundle.camera.scale(),
-                            inputs
+                            bundle.inputs
                         ));
                     }
 
                     return;
                 }
 
-                if inputs.ctrl_pressed()
+                if bundle.inputs.ctrl_pressed()
                 {
                     return;
                 }
 
                 // Moving vertex with directional keys.
-                let dir = return_if_none!(inputs.directional_keys_vector(grid.size()));
+                let dir =
+                    return_if_none!(bundle.inputs.directional_keys_vector(bundle.grid.size()));
                 let mut nodes_move = hv_vec![];
-                Self::move_nodes(bundle.drawing_resources, manager, dir, &mut nodes_move);
-                edits_history.path_nodes_move(nodes_move);
+                Self::move_nodes(bundle, dir, &mut nodes_move);
+                bundle.edits_history.path_nodes_move(nodes_move);
             },
             Status::PreDrag(pos, hgl_e) =>
             {
                 *hgl_e = item_beneath_cursor;
 
-                if !inputs.left_mouse.pressed()
+                if !bundle.inputs.left_mouse.pressed()
                 {
                     self.status = Status::Inactive((*hgl_e).into());
                     return;
@@ -629,29 +588,29 @@ impl PathTool
                 }
 
                 self.status = Status::Drag(
-                    return_if_none!(CursorDelta::try_new(bundle.cursor, grid, *pos)),
+                    return_if_none!(CursorDelta::try_new(bundle.cursor, bundle.grid, *pos)),
                     hv_vec![]
                 );
-                edits_history.start_multiframe_edit();
+                bundle.edits_history.start_multiframe_edit();
             },
             Status::Drag(drag, cumulative_drag) =>
             {
-                if !inputs.left_mouse.pressed()
+                if !bundle.inputs.left_mouse.pressed()
                 {
-                    edits_history.path_nodes_move(cumulative_drag.take_value());
-                    edits_history.end_multiframe_edit();
+                    bundle.edits_history.path_nodes_move(cumulative_drag.take_value());
+                    bundle.edits_history.end_multiframe_edit();
                     self.status = Status::default();
                 }
                 else if bundle.cursor.moved()
                 {
-                    drag.conditional_update(bundle.cursor, grid, |delta| {
-                        Self::move_nodes(bundle.drawing_resources, manager, delta, cumulative_drag)
+                    drag.conditional_update(bundle.cursor, bundle.grid, |delta| {
+                        Self::move_nodes(bundle, delta, cumulative_drag)
                     });
                 }
             },
             status @ Status::SingleEditing(..) =>
             {
-                if !Self::single_editing(bundle, manager, status, inputs, edits_history)
+                if !Self::single_editing(bundle, status)
                 {
                     return;
                 }
@@ -660,17 +619,17 @@ impl PathTool
                     self.selector
                         .item_beneath_cursor(
                             bundle.drawing_resources,
-                            manager,
+                            bundle.manager,
                             bundle.cursor,
                             bundle.camera.scale(),
-                            inputs
+                            bundle.inputs
                         )
                         .into()
                 );
             },
             Status::Simulation(simulators, paused) =>
             {
-                if inputs.enter.just_pressed()
+                if bundle.inputs.enter.just_pressed()
                 {
                     paused.toggle();
                 }
@@ -679,7 +638,7 @@ impl PathTool
                 {
                     for sim in simulators
                     {
-                        sim.update(manager.moving(sim.id()), bundle.delta_time);
+                        sim.update(bundle.manager.moving(sim.id()), bundle.delta_time);
                     }
                 }
             },
@@ -695,7 +654,7 @@ impl PathTool
                     }
                 };
 
-                if inputs.left_mouse.just_pressed()
+                if bundle.inputs.left_mouse.just_pressed()
                 {
                     self.status = Status::SingleEditing(
                         hgl_e.unwrap(),
@@ -707,7 +666,7 @@ impl PathTool
             {
                 *hgl_e = item_beneath_cursor;
 
-                if !inputs.left_mouse.just_pressed()
+                if !bundle.inputs.left_mouse.just_pressed()
                 {
                     return;
                 }
@@ -736,7 +695,7 @@ impl PathTool
                 let item_beneath_cursor = item_beneath_cursor.unwrap();
                 *hgl_e = item_beneath_cursor.into();
 
-                if !inputs.left_mouse.just_pressed()
+                if !bundle.inputs.left_mouse.just_pressed()
                 {
                     return;
                 }
@@ -745,20 +704,22 @@ impl PathTool
                 {
                     ItemBeneathCursor::SelectedMoving(id) =>
                     {
-                        manager.replace_selected_path(
+                        bundle.manager.replace_selected_path(
                             bundle.drawing_resources,
+                            bundle.edits_history,
+                            bundle.grid,
                             id,
-                            edits_history,
                             std::mem::take(path).unwrap()
                         );
                     },
                     ItemBeneathCursor::PossibleMoving(id) =>
                     {
-                        manager.create_path(
+                        bundle.manager.create_path(
                             bundle.drawing_resources,
+                            bundle.edits_history,
+                            bundle.grid,
                             id,
-                            std::mem::take(path).unwrap(),
-                            edits_history
+                            std::mem::take(path).unwrap()
                         );
                     },
                     ItemBeneathCursor::PathNode(..) => unreachable!()
@@ -803,57 +764,41 @@ impl PathTool
     /// Toggles the [`Node`] of the entity with [`Id`] `identifier` at `index`.
     #[inline]
     #[must_use]
-    fn toggle_node(
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        identifier: Id,
-        index: u8
-    ) -> bool
+    fn toggle_node(bundle: &mut ToolUpdateBundle, identifier: Id, index: u8) -> bool
     {
-        let selected = manager
-            .moving_mut(drawing_resources, identifier)
+        let selected = bundle
+            .manager
+            .moving_mut(bundle.drawing_resources, bundle.grid, identifier)
             .toggle_path_node_at_index(usize::from(index));
-        manager.schedule_overall_node_update();
-        edits_history.path_nodes_selection(identifier, hv_vec![index]);
+        bundle.manager.schedule_overall_node_update();
+        bundle.edits_history.path_nodes_selection(identifier, hv_vec![index]);
         selected
     }
 
     /// Selects the [`Node`] of the entity with [`Id`] `identifier` at `index`.
     #[inline]
-    fn select_node(
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        identifier: Id,
-        index: u8
-    )
+    fn select_node(bundle: &mut ToolUpdateBundle, identifier: Id, index: u8)
     {
-        match manager
-            .moving_mut(drawing_resources, identifier)
+        match bundle
+            .manager
+            .moving_mut(bundle.drawing_resources, bundle.grid, identifier)
             .exclusively_select_path_node_at_index(usize::from(index))
         {
             NodeSelectionResult::Selected => return,
             NodeSelectionResult::NotSelected(idxs) =>
             {
-                edits_history.path_nodes_selection(identifier, idxs);
+                bundle.edits_history.path_nodes_selection(identifier, idxs);
             }
         };
 
-        manager.schedule_overall_node_update();
+        bundle.manager.schedule_overall_node_update();
     }
 
     /// Selects the [`Node`]s within `range`.
     #[inline]
-    fn select_nodes_from_drag_selection(
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        range: &Hull,
-        shift_pressed: bool
-    )
+    fn select_nodes_from_drag_selection(bundle: &mut ToolUpdateBundle, range: &Hull)
     {
-        let func = if shift_pressed
+        let func = if bundle.inputs.shift_pressed()
         {
             EditPath::select_path_nodes_in_range
         }
@@ -862,28 +807,28 @@ impl PathTool
             EditPath::exclusively_select_path_nodes_in_range
         };
 
-        if edits_history.path_nodes_selection_cluster(
-            manager
-                .selected_movings_mut(drawing_resources)
+        if bundle.edits_history.path_nodes_selection_cluster(
+            bundle
+                .manager
+                .selected_movings_mut(bundle.drawing_resources, bundle.grid)
                 .filter_map(|mut entity| func(&mut *entity, range).map(|vxs| (entity.id(), vxs)))
         )
         {
-            manager.schedule_overall_node_update();
+            bundle.manager.schedule_overall_node_update();
         }
     }
 
     /// Moves the selected [`Node`]s. Returns whether it was possible.
     #[inline]
     fn move_nodes(
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
+        bundle: &mut ToolUpdateBundle,
         delta: Vec2,
         cumulative_move: &mut HvVec<(Id, HvVec<NodesMove>)>
     ) -> bool
     {
         let mut move_payloads = hv_vec![];
 
-        for moving in manager.selected_moving()
+        for moving in bundle.manager.selected_moving()
         {
             match moving.check_selected_path_nodes_move(delta)
             {
@@ -898,7 +843,7 @@ impl PathTool
         for payload in move_payloads
         {
             let id = payload.id();
-            let mut moving = manager.moving_mut(drawing_resources, id);
+            let mut moving = bundle.manager.moving_mut(bundle.drawing_resources, bundle.grid, id);
             let nodes_move = moving.apply_selected_path_nodes_move(payload);
 
             let mov = cumulative_move
@@ -925,13 +870,7 @@ impl PathTool
     /// Updates the editing of a single entity. Returns whether the editing was concluded.
     #[inline]
     #[must_use]
-    fn single_editing(
-        bundle: &ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        status: &mut Status,
-        inputs: &InputsPresses,
-        edits_history: &mut EditsHistory
-    ) -> bool
+    fn single_editing(bundle: &mut ToolUpdateBundle, status: &mut Status) -> bool
     {
         let cursor_pos = Self::cursor_pos(status, bundle.cursor).unwrap();
         let (id, editing) =
@@ -941,44 +880,46 @@ impl PathTool
         {
             PathEditing::FreeDraw(path) =>
             {
-                if inputs.enter.just_pressed()
+                if bundle.inputs.enter.just_pressed()
                 {
-                    manager.create_path(
+                    bundle.manager.create_path(
                         bundle.drawing_resources,
+                        bundle.edits_history,
+                        bundle.grid,
                         id,
-                        return_if_none!(path.path(), false),
-                        edits_history
+                        return_if_none!(path.path(), false)
                     );
                     return true;
                 }
 
-                if inputs.right_mouse.just_pressed()
+                if bundle.inputs.right_mouse.just_pressed()
                 {
                     path.remove(
-                        edits_history,
+                        bundle.edits_history,
                         cursor_pos,
-                        manager.moving(id).center(),
+                        bundle.manager.moving(id).center(),
                         bundle.camera.scale()
                     );
                 }
-                else if inputs.left_mouse.just_pressed()
+                else if bundle.inputs.left_mouse.just_pressed()
                 {
-                    path.push(edits_history, cursor_pos, manager.moving(id).center());
+                    path.push(bundle.edits_history, cursor_pos, bundle.manager.moving(id).center());
                 }
             },
             PathEditing::InsertNode { index, pos } =>
             {
                 *pos = cursor_pos;
-                let mut moving = manager.moving_mut(bundle.drawing_resources, id);
+                let mut moving =
+                    bundle.manager.moving_mut(bundle.drawing_resources, bundle.grid, id);
 
-                if inputs.left_mouse.pressed()
+                if bundle.inputs.left_mouse.pressed()
                 {
                     return false;
                 }
 
                 if moving.try_insert_path_node_at_index(*pos, *index as usize)
                 {
-                    edits_history.path_node_insertion(id, *pos, *index);
+                    bundle.edits_history.path_node_insertion(id, *pos, *index);
                 }
 
                 return true;
@@ -991,17 +932,21 @@ impl PathTool
     /// Deletes the selected [`Node`]s or [`Path`]s depending on whether alt is pressed.
     #[inline]
     #[must_use]
-    fn delete(
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
-        edits_history: &mut EditsHistory
-    ) -> bool
+    fn delete(bundle: &mut ToolUpdateBundle) -> bool
     {
+        let ToolUpdateBundle {
+            drawing_resources,
+            manager,
+            edits_history,
+            inputs,
+            grid,
+            ..
+        } = bundle;
+
         // Delete paths.
         if inputs.alt_pressed()
         {
-            manager.remove_selected_paths(drawing_resources, edits_history);
+            manager.remove_selected_paths(drawing_resources, edits_history, *grid);
             return true;
         }
 
@@ -1027,7 +972,7 @@ impl PathTool
             (
                 p.id(),
                 manager
-                    .moving_mut(drawing_resources, p.id())
+                    .moving_mut(drawing_resources, *grid, p.id())
                     .remove_selected_path_nodes(p)
             )
         }));
@@ -1083,7 +1028,7 @@ impl PathTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
+    pub fn draw(&self, bundle: &mut DrawBundle)
     {
         let DrawBundle {
             window,
@@ -1091,6 +1036,7 @@ impl PathTool
             camera,
             cursor,
             things_catalog,
+            manager,
             ..
         } = bundle;
 
@@ -1376,25 +1322,10 @@ impl PathTool
 
     /// Draws the UI.
     #[inline]
-    pub fn ui(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        ui: &mut egui::Ui
-    )
+    pub fn ui(&mut self, ui: &mut egui::Ui, bundle: &mut UiBundle)
     {
-        self.nodes_editor.show(
-            drawing_resources,
-            manager,
-            edits_history,
-            clipboard,
-            inputs,
-            ui,
-            matches!(self.status, Status::Simulation(..))
-        );
+        self.nodes_editor
+            .show(ui, bundle, matches!(self.status, Status::Simulation(..)));
     }
 
     /// Draws the subtools.
@@ -1402,11 +1333,8 @@ impl PathTool
     pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
-        bundle: &StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        buttons: &mut ToolsButtons,
-        tool_change_conditions: &ChangeConditions
+        bundle: &mut UiBundle,
+        buttons: &mut ToolsButtons
     )
     {
         subtools_buttons!(
@@ -1414,7 +1342,6 @@ impl PathTool
             ui,
             bundle,
             buttons,
-            tool_change_conditions,
             (
                 PathFreeDraw,
                 Status::FreeDrawUi(None),
@@ -1429,7 +1356,7 @@ impl PathTool
             )
         );
 
-        if !buttons.draw(ui, bundle, SubTool::PathSimulation, tool_change_conditions, &self.status)
+        if !buttons.draw(ui, bundle, SubTool::PathSimulation, &self.status)
         {
             return;
         }
@@ -1438,12 +1365,8 @@ impl PathTool
         {
             Status::Inactive(..) | Status::FreeDrawUi(_) | Status::InsertNodeUi(_) =>
             {
-                self.nodes_editor.force_simulation(
-                    bundle.drawing_resources,
-                    manager,
-                    edits_history
-                );
-                self.enable_simulation(manager);
+                self.nodes_editor.force_simulation(bundle);
+                self.enable_simulation(bundle.manager);
             },
             Status::Simulation(..) => self.status = Status::default(),
             _ => ()

@@ -39,17 +39,19 @@ use crate::{
             state::{
                 clipboard::Clipboard,
                 core::{deselect_vertexes, draw_selected_and_non_selected_sprites},
-                editor_state::{InputsPresses, ToolsSettings},
+                editor_state::ToolsSettings,
                 edits_history::EditsHistory,
                 grid::Grid,
+                inputs_presses::InputsPresses,
                 manager::EntitiesManager,
-                ui::ToolsButtons
+                ui::{ToolsButtons, UiBundle}
             },
             DrawBundle,
             DrawBundleMapPreview,
             StateUpdateBundle,
             ToolUpdateBundle
         },
+        properties::DefaultProperties,
         thing::catalog::ThingsCatalog
     },
     utils::{
@@ -74,11 +76,10 @@ macro_rules! subtools_buttons {
         $ui:ident,
         $bundle:ident,
         $buttons:ident,
-        $change_conditions:expr,
         $(($subtool:ident, $value:expr, $disable:pat $(, $enable:pat)?)),+
     ) => {$({
         let clicked =
-            $buttons.draw($ui, $bundle, SubTool::$subtool, $change_conditions, &$status);
+            $buttons.draw($ui, $bundle, SubTool::$subtool, &$status);
         subtools_buttons!($status, (clicked, $value, $disable $(, $enable)?));
     })+};
 
@@ -519,39 +520,30 @@ impl ActiveTool
 
     /// Copies the selected entities.
     #[inline]
-    pub fn copy(
-        &mut self,
-        bundle: &StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        inputs: &InputsPresses,
-        clipboard: &mut Clipboard
-    )
+    pub fn copy(&mut self, bundle: &mut StateUpdateBundle)
     {
         assert!(self.copy_paste_available(), "Copy is not available.");
 
         if let Self::Path(t) = self
         {
-            clipboard.copy_platform_path(
-                manager,
-                return_if_none!(t.selected_moving_beneath_cursor(bundle, manager, inputs))
+            bundle.clipboard.copy_platform_path(
+                bundle.manager,
+                return_if_none!(t.selected_moving_beneath_cursor(bundle))
             );
 
             return;
         }
 
-        clipboard.copy(bundle.drawing_resources, manager.selected_entities());
+        bundle.clipboard.copy(
+            bundle.drawing_resources,
+            *bundle.grid,
+            bundle.manager.selected_entities()
+        );
     }
 
     /// Cuts the selected entities.
     #[inline]
-    pub fn cut(
-        &mut self,
-        bundle: &StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses
-    )
+    pub fn cut(&mut self, bundle: &mut StateUpdateBundle)
     {
         assert!(self.copy_paste_available(), "Cut is not available.");
 
@@ -559,11 +551,12 @@ impl ActiveTool
         {
             Self::Path(t) =>
             {
-                clipboard.cut_platform_path(
+                bundle.clipboard.cut_platform_path(
                     bundle.drawing_resources,
-                    manager,
-                    edits_history,
-                    return_if_none!(t.selected_moving_beneath_cursor(bundle, manager, inputs))
+                    bundle.manager,
+                    bundle.edits_history,
+                    *bundle.grid,
+                    return_if_none!(t.selected_moving_beneath_cursor(bundle))
                 );
 
                 return;
@@ -572,72 +565,87 @@ impl ActiveTool
             _ => ()
         };
 
-        clipboard.copy(bundle.drawing_resources, manager.selected_entities());
-        manager.despawn_selected_entities(bundle.drawing_resources, edits_history);
-        manager.schedule_outline_update();
+        bundle.clipboard.copy(
+            bundle.drawing_resources,
+            *bundle.grid,
+            bundle.manager.selected_entities()
+        );
+        bundle.manager.despawn_selected_entities(
+            bundle.drawing_resources,
+            bundle.edits_history,
+            *bundle.grid
+        );
+        bundle.manager.schedule_outline_update();
     }
 
     /// Pastes the copied entities.
     #[inline]
-    pub fn paste(
-        &mut self,
-        bundle: &StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid
-    )
+    pub fn paste(&mut self, bundle: &mut StateUpdateBundle)
     {
         assert!(self.copy_paste_available(), "Paste is not available.");
 
         if let Self::Path(t) = self
         {
-            clipboard.paste_platform_path(
+            bundle.clipboard.paste_platform_path(
                 bundle.drawing_resources,
-                manager,
-                edits_history,
-                grid,
-                return_if_none!(t.possible_moving_beneath_cursor(bundle, manager, inputs))
+                bundle.manager,
+                bundle.edits_history,
+                *bundle.grid,
+                return_if_none!(t.possible_moving_beneath_cursor(bundle))
             );
 
             return;
         }
 
-        if !clipboard.has_copy_data()
+        if !bundle.clipboard.has_copy_data()
         {
             return;
         }
 
         if let Self::Vertex(_) | Self::Side(_) = self
         {
-            deselect_vertexes(bundle.drawing_resources, manager, edits_history);
+            deselect_vertexes(
+                bundle.drawing_resources,
+                bundle.manager,
+                bundle.edits_history,
+                *bundle.grid
+            );
         }
 
-        manager.deselect_selected_entities(edits_history);
-        clipboard.paste(bundle, manager, edits_history);
-        manager.schedule_outline_update();
+        bundle.manager.deselect_selected_entities(bundle.edits_history);
+        bundle.clipboard.paste(
+            bundle.drawing_resources,
+            bundle.manager,
+            bundle.edits_history,
+            *bundle.grid,
+            bundle.cursor.world_snapped()
+        );
+        bundle.manager.schedule_outline_update();
     }
 
     #[inline]
-    pub fn duplicate(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        delta: Vec2
-    )
+    pub fn duplicate(&mut self, bundle: &mut StateUpdateBundle, delta: Vec2)
     {
         assert!(self.copy_paste_available(), "Duplicate is not available.");
 
         if let Self::Vertex(_) | Self::Side(_) = self
         {
-            deselect_vertexes(drawing_resources, manager, edits_history);
+            deselect_vertexes(
+                bundle.drawing_resources,
+                bundle.manager,
+                bundle.edits_history,
+                *bundle.grid
+            );
         }
 
-        clipboard.duplicate(drawing_resources, manager, edits_history, delta);
-        manager.schedule_outline_update();
+        bundle.clipboard.duplicate(
+            bundle.drawing_resources,
+            bundle.manager,
+            bundle.edits_history,
+            *bundle.grid,
+            delta
+        );
+        bundle.manager.schedule_outline_update();
     }
 
     /// Updates the outline of certain tools.
@@ -705,25 +713,22 @@ impl ActiveTool
 
     /// Selects all the entities.
     #[inline]
-    pub fn select_all(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        grid: Grid,
-        settings: &ToolsSettings
-    )
+    pub fn select_all(&mut self, bundle: &mut StateUpdateBundle, settings: &ToolsSettings)
     {
         assert!(self.select_all_available(), "Select all is not available.");
 
         match self
         {
-            Self::Subtract(t) => t.select_non_selected_brushes(manager, edits_history),
+            Self::Subtract(t) =>
+            {
+                t.select_non_selected_brushes(bundle.manager, bundle.edits_history)
+            },
             Self::Vertex(_) | Self::Side(_) =>
             {
-                edits_history.vertexes_selection_cluster(
-                    manager
-                        .selected_brushes_mut(drawing_resources)
+                bundle.edits_history.vertexes_selection_cluster(
+                    bundle
+                        .manager
+                        .selected_brushes_mut(bundle.drawing_resources, *bundle.grid)
                         .filter_map(|mut brush| {
                             brush.select_all_vertexes().map(|idxs| (brush.id(), idxs))
                         })
@@ -731,21 +736,22 @@ impl ActiveTool
             },
             Self::Path(_) =>
             {
-                if edits_history.path_nodes_selection_cluster(
-                    manager
-                        .selected_movings_mut(drawing_resources)
+                if bundle.edits_history.path_nodes_selection_cluster(
+                    bundle
+                        .manager
+                        .selected_movings_mut(bundle.drawing_resources, *bundle.grid)
                         .filter_map(|mut brush| {
                             brush.select_all_path_nodes().map(|idxs| (brush.id(), idxs))
                         })
                 )
                 {
-                    manager.schedule_overall_node_update();
+                    bundle.manager.schedule_overall_node_update();
                 }
             },
-            _ => manager.select_all_entities(edits_history)
+            _ => bundle.manager.select_all_entities(bundle.edits_history)
         };
 
-        self.update_outline(drawing_resources, manager, grid, settings);
+        self.update_outline(bundle.drawing_resources, bundle.manager, *bundle.grid, settings);
     }
 
     //==============================================================
@@ -772,64 +778,40 @@ impl ActiveTool
 
     /// Updates the tool.
     #[inline]
-    pub fn update(
-        &mut self,
-        bundle: &mut ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid,
-        settings: &mut ToolsSettings
-    )
+    pub fn update(&mut self, bundle: &mut ToolUpdateBundle, settings: &mut ToolsSettings)
     {
         match self
         {
-            Self::Draw(t) => t.update(bundle, manager, inputs, edits_history, settings),
-            Self::Entity(t) =>
-            {
-                t.update(bundle, manager, inputs, edits_history, clipboard, grid, settings);
-            },
+            Self::Draw(t) => t.update(bundle, settings),
+            Self::Entity(t) => t.update(bundle, settings),
             Self::Vertex(t) =>
             {
-                let path = return_if_none!(t.update(bundle, manager, inputs, edits_history, grid));
-                *self = PathTool::path_connection(bundle, manager, inputs, path);
+                let path = return_if_none!(t.update(bundle));
+                *self = PathTool::path_connection(bundle, path);
             },
-            Self::Side(t) => t.update(bundle, manager, inputs, edits_history, grid),
-            Self::Clip(t) => t.update(bundle, manager, inputs, edits_history),
-            Self::Shatter(t) => t.update(bundle, manager, inputs, edits_history),
+            Self::Side(t) => t.update(bundle),
+            Self::Clip(t) => t.update(bundle),
+            Self::Shatter(t) => t.update(bundle),
             Self::Subtract(t) =>
             {
-                if t.update(bundle, manager, inputs, edits_history)
+                if t.update(bundle)
                 {
                     *self = EntityTool::tool(Rect::default());
-                    self.update(bundle, manager, inputs, edits_history, clipboard, grid, settings);
+                    self.update(bundle, settings);
                 }
             },
-            Self::Scale(t) => t.update(bundle, manager, inputs, edits_history, grid, settings),
-            Self::Shear(t) => t.update(bundle, manager, inputs, edits_history, grid),
-            Self::Rotate(t) =>
-            {
-                t.update(bundle, manager, inputs, edits_history, settings, grid.size());
-            },
-            Self::Flip(t) =>
-            {
-                t.update(bundle, manager, inputs, edits_history, grid, settings);
-            },
+            Self::Scale(t) => t.update(bundle, settings),
+            Self::Shear(t) => t.update(bundle),
+            Self::Rotate(t) => t.update(bundle, settings),
+            Self::Flip(t) => t.update(bundle, settings),
             Self::Zoom(t) =>
             {
-                *self = std::mem::take(return_if_none!(t.update(bundle, inputs, grid)));
+                *self = std::mem::take(return_if_none!(t.update(bundle)));
             },
-            Self::Path(t) => t.update(bundle, manager, inputs, edits_history, grid),
-            Self::Paint(t) =>
-            {
-                t.update(bundle, manager, inputs, edits_history, clipboard, grid);
-            },
-            Self::Thing(t) =>
-            {
-                t.update(bundle, manager, inputs, edits_history, settings);
-            },
-            Self::MapPreview(t) => t.update(bundle, manager)
+            Self::Path(t) => t.update(bundle),
+            Self::Paint(t) => t.update(bundle),
+            Self::Thing(t) => t.update(bundle, settings),
+            Self::MapPreview(t) => t.update(bundle)
         };
     }
 
@@ -838,11 +820,7 @@ impl ActiveTool
     pub fn change(
         &mut self,
         tool: Tool,
-        bundle: &StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid,
+        bundle: &mut StateUpdateBundle,
         settings: &ToolsSettings,
         tool_change_conditions: &ChangeConditions
     )
@@ -853,7 +831,7 @@ impl ActiveTool
             "Requested tool change to unavailable tool {tool:?}"
         );
         assert!(
-            !edits_history.multiframe_edit(),
+            !bundle.edits_history.multiframe_edit(),
             "Requested tool change during multiframe edit."
         );
 
@@ -874,7 +852,13 @@ impl ActiveTool
             Tool::Side => SideTool::tool(self.drag_selection()),
             Tool::Snap =>
             {
-                self.snap_tool(bundle.drawing_resources, manager, edits_history, grid, settings);
+                self.snap_tool(
+                    bundle.drawing_resources,
+                    bundle.manager,
+                    bundle.edits_history,
+                    *bundle.grid,
+                    settings
+                );
                 return;
             },
             Tool::Zoom => ZoomTool::tool(self.drag_selection(), self),
@@ -883,21 +867,21 @@ impl ActiveTool
             Tool::Shatter => ShatterTool::tool(),
             Tool::Hollow =>
             {
-                Self::hollow_tool(bundle.drawing_resources, manager, edits_history, grid);
+                Self::hollow_tool(bundle);
                 return;
             },
-            Tool::Scale => ScaleTool::tool(bundle.drawing_resources, manager, grid, settings),
-            Tool::Shear => ShearTool::tool(manager, grid),
-            Tool::Rotate => RotateTool::tool(manager, settings),
-            Tool::Flip => FlipTool::tool(manager, grid),
+            Tool::Scale => ScaleTool::tool(bundle, settings),
+            Tool::Shear => ShearTool::tool(bundle),
+            Tool::Rotate => RotateTool::tool(bundle.manager, settings),
+            Tool::Flip => FlipTool::tool(bundle),
             Tool::Intersection =>
             {
-                self.intersection_tool(bundle, manager, edits_history, grid, settings);
+                self.intersection_tool(bundle, settings);
                 return;
             },
             Tool::Merge =>
             {
-                self.merge_tool(bundle, manager, edits_history, inputs);
+                self.merge_tool(bundle);
                 return;
             },
             Tool::Path => PathTool::tool(self.drag_selection()),
@@ -929,7 +913,7 @@ impl ActiveTool
         ) -> bool
         {
             manager
-                .selected_brushes_mut(drawing_resources)
+                .selected_brushes_mut(drawing_resources, grid)
                 .fold(false, |acc, mut brush| {
                     edits_history
                         .vertexes_snap(brush.id(), return_if_none!(brush.snap_vertexes(grid), acc));
@@ -966,42 +950,45 @@ impl ActiveTool
             Snap::Brushes => snap_brushes(drawing_resources, manager, edits_history, grid),
             Snap::Vertexes =>
             {
-                manager
-                    .selected_brushes_mut(drawing_resources)
-                    .fold(false, |acc, mut brush| {
+                manager.selected_brushes_mut(drawing_resources, grid).fold(
+                    false,
+                    |acc, mut brush| {
                         edits_history.vertexes_snap(
                             brush.id(),
                             return_if_none!(brush.snap_selected_vertexes(grid), acc)
                         );
 
                         true
-                    })
+                    }
+                )
             },
             Snap::Sides =>
             {
-                manager
-                    .selected_brushes_mut(drawing_resources)
-                    .fold(false, |acc, mut brush| {
+                manager.selected_brushes_mut(drawing_resources, grid).fold(
+                    false,
+                    |acc, mut brush| {
                         edits_history.vertexes_snap(
                             brush.id(),
                             return_if_none!(brush.snap_selected_sides(grid), acc)
                         );
 
                         true
-                    })
+                    }
+                )
             },
             Snap::PathNodes =>
             {
-                manager
-                    .selected_movings_mut(drawing_resources)
-                    .fold(false, |acc, mut moving| {
+                manager.selected_movings_mut(drawing_resources, grid).fold(
+                    false,
+                    |acc, mut moving| {
                         edits_history.path_nodes_snap(
                             moving.id(),
                             return_if_none!(moving.snap_selected_path_nodes(grid), acc)
                         );
 
                         true
-                    })
+                    }
+                )
             },
         };
 
@@ -1016,17 +1003,12 @@ impl ActiveTool
     /// brush they replaced. If it's not possible to create rooms for all the brushes the
     /// process will be aborted.
     #[inline]
-    fn hollow_tool(
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        grid: Grid
-    )
+    fn hollow_tool(bundle: &mut StateUpdateBundle)
     {
         let mut wall_brushes = hv_vec![];
-        let valid = manager.test_operation_validity(|manager| {
+        let valid = bundle.manager.test_operation_validity(|manager| {
             manager.selected_brushes().find_map(|brush| {
-                match brush.hollow(grid.size_f32())
+                match brush.hollow(bundle.grid.size_f32())
                 {
                     Some(result) =>
                     {
@@ -1045,38 +1027,32 @@ impl ActiveTool
 
         for result in wall_brushes
         {
-            _ = manager.replace_brush_with_partition(
-                drawing_resources,
-                edits_history,
+            _ = bundle.manager.replace_brush_with_partition(
+                bundle.drawing_resources,
+                bundle.edits_history,
+                *bundle.grid,
                 result.walls.into_iter(),
                 result.id,
                 |brush| brush.set_polygon(result.main)
             );
         }
 
-        edits_history.override_edit_tag("Brushes hollow");
+        bundle.edits_history.override_edit_tag("Brushes hollow");
     }
 
     /// Generates the brush that represents the intersection between all the selected ones, if
     /// any. All selected brushes are despawned.
     #[inline]
-    fn intersection_tool(
-        &mut self,
-        bundle: &StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        grid: Grid,
-        settings: &ToolsSettings
-    )
+    fn intersection_tool(&mut self, bundle: &mut StateUpdateBundle, settings: &ToolsSettings)
     {
         let (mut intersection_polygon, filters) = {
             // Get the first intersection.
-            let mut iter = manager.selected_brushes_ids();
+            let mut iter = bundle.manager.selected_brushes_ids();
             let id_1 = *iter.next_value();
             let id_2 = *iter.next_value();
             drop(iter);
 
-            let intersection = manager.brush(id_1).intersection(manager.brush(id_2));
+            let intersection = bundle.manager.brush(id_1).intersection(bundle.manager.brush(id_2));
 
             if let Some(cp) = intersection
             {
@@ -1084,7 +1060,11 @@ impl ActiveTool
             }
             else
             {
-                manager.despawn_selected_brushes(bundle.drawing_resources, edits_history);
+                bundle.manager.despawn_selected_brushes(
+                    bundle.drawing_resources,
+                    bundle.edits_history,
+                    *bundle.grid
+                );
                 return;
             }
         };
@@ -1092,9 +1072,9 @@ impl ActiveTool
         // Intersect the polygon with all the other brushes.
         let mut success = true;
 
-        for id in manager.selected_brushes_ids().copied().filter_set(filters)
+        for id in bundle.manager.selected_brushes_ids().copied().filter_set(filters)
         {
-            if !manager.brush(id).intersect(&mut intersection_polygon)
+            if !bundle.manager.brush(id).intersect(&mut intersection_polygon)
             {
                 success = false;
                 break;
@@ -1102,34 +1082,36 @@ impl ActiveTool
         }
 
         // Spawn the intersection brush.
-        self.draw_tool_despawn(
-            bundle.drawing_resources,
-            manager,
-            edits_history,
-            |manager, edits_history| {
-                manager.despawn_selected_brushes(bundle.drawing_resources, edits_history);
+        self.draw_tool_despawn(bundle, |bundle| {
+            bundle.manager.despawn_selected_brushes(
+                bundle.drawing_resources,
+                bundle.edits_history,
+                *bundle.grid
+            );
 
-                if success
-                {
-                    manager.spawn_brushes(
-                        bundle.drawing_resources,
-                        Some(intersection_polygon).into_iter(),
-                        edits_history,
-                        bundle.default_properties.brushes.instance()
-                    );
-                }
+            if success
+            {
+                bundle.manager.spawn_brushes(
+                    bundle.drawing_resources,
+                    bundle.edits_history,
+                    *bundle.grid,
+                    Some(intersection_polygon).into_iter(),
+                    bundle.default_properties.brushes.instance()
+                );
             }
-        );
+        });
 
-        self.update_outline(bundle.drawing_resources, manager, grid, settings);
+        self.update_outline(bundle.drawing_resources, bundle.manager, *bundle.grid, settings);
     }
 
     /// Merges all selected vertexes.
     #[inline]
     pub fn merge_vertexes(
-        bundle: &StateUpdateBundle,
+        brush_default_properties: &DefaultProperties,
+        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
+        grid: Grid,
         sides: bool
     )
     {
@@ -1158,35 +1140,44 @@ impl ActiveTool
         let vertexes = return_if_none!(convex_hull(vertexes));
         manager.deselect_selected_entities(edits_history);
         manager.spawn_brush(
-            bundle.drawing_resources,
-            ConvexPolygon::from(hv_vec![collect; vertexes]),
+            drawing_resources,
             edits_history,
-            bundle.default_properties.brushes.instance()
+            grid,
+            ConvexPolygon::from(hv_vec![collect; vertexes]),
+            brush_default_properties.instance()
         );
     }
 
     /// Executes a vertexes merge based on the active tool.
     #[inline]
-    fn merge_tool(
-        &mut self,
-        bundle: &StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses
-    )
+    fn merge_tool(&mut self, bundle: &mut StateUpdateBundle)
     {
-        if inputs.alt_pressed()
+        if bundle.inputs.alt_pressed()
         {
             match self
             {
                 Self::Vertex(_) =>
                 {
-                    Self::merge_vertexes(bundle, manager, edits_history, false);
+                    Self::merge_vertexes(
+                        bundle.default_properties.brushes,
+                        bundle.drawing_resources,
+                        bundle.manager,
+                        bundle.edits_history,
+                        *bundle.grid,
+                        false
+                    );
                     return;
                 },
                 Self::Side(_) =>
                 {
-                    Self::merge_vertexes(bundle, manager, edits_history, true);
+                    Self::merge_vertexes(
+                        bundle.default_properties.brushes,
+                        bundle.drawing_resources,
+                        bundle.manager,
+                        bundle.edits_history,
+                        *bundle.grid,
+                        true
+                    );
                     return;
                 },
                 _ => ()
@@ -1195,13 +1186,13 @@ impl ActiveTool
 
         // Place all vertexes of the selected brushes in one vector.
         let mut vertexes = HvHashSet::new();
-        let mut brushes = manager.selected_brushes();
+        let mut brushes = bundle.manager.selected_brushes();
 
         let mut texture = {
             let first = brushes.next_value();
             let second = brushes.next_value();
 
-            for brush in manager.selected_brushes()
+            for brush in bundle.manager.selected_brushes()
             {
                 vertexes.extend(brush.vertexes().map(HashVec2));
             }
@@ -1233,51 +1224,41 @@ impl ActiveTool
             vertexes.extend(brush.vertexes().map(HashVec2));
         }
 
-        self.draw_tool_despawn(
-            bundle.drawing_resources,
-            manager,
-            edits_history,
-            |manager, edits_history| {
-                let mut poly =
-                    ConvexPolygon::from(hv_vec![collect; convex_hull(vertexes).unwrap()]);
+        self.draw_tool_despawn(bundle, |bundle| {
+            let mut poly = ConvexPolygon::from(hv_vec![collect; convex_hull(vertexes).unwrap()]);
 
-                if let Some(texture) = texture
-                {
-                    poly.set_texture_settings(texture);
-                }
-
-                manager.replace_selected_brushes(
-                    bundle.drawing_resources,
-                    Some(poly).into_iter(),
-                    edits_history,
-                    bundle.default_properties.brushes.instance()
-                );
+            if let Some(texture) = texture
+            {
+                poly.set_texture_settings(texture);
             }
-        );
+
+            bundle.manager.replace_selected_brushes(
+                bundle.drawing_resources,
+                bundle.edits_history,
+                *bundle.grid,
+                Some(poly).into_iter(),
+                bundle.default_properties.brushes.instance()
+            );
+        });
     }
 
     /// Executes the despawn of the drawn brushes if the draw tool is active.
     #[inline]
-    fn draw_tool_despawn<F>(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        f: F
-    ) where
-        F: FnOnce(&mut EntitiesManager, &mut EditsHistory)
+    fn draw_tool_despawn<F>(&mut self, bundle: &mut StateUpdateBundle, f: F)
+    where
+        F: FnOnce(&mut StateUpdateBundle)
     {
         if let Self::Draw(t) = self
         {
-            t.despawn_drawn_brushes(drawing_resources, manager, edits_history);
+            t.despawn_drawn_brushes(bundle);
         }
 
-        f(manager, edits_history);
+        f(bundle);
     }
 
     /// Forcefully disables a tool and replaces it with another if certain circumstances are met.
     #[inline]
-    pub fn fallback(&mut self, manager: &EntitiesManager, clipboard: &Clipboard)
+    pub fn fallback(&mut self, bundle: &StateUpdateBundle)
     {
         let tool = match self
         {
@@ -1290,7 +1271,7 @@ impl ActiveTool
             Self::Draw(..) | Self::MapPreview(_) | Self::Thing(_) => return,
             Self::Entity(_) =>
             {
-                if manager.entities_amount() == 0
+                if bundle.manager.entities_amount() == 0
                 {
                     *tool = Self::default();
                 }
@@ -1313,14 +1294,14 @@ impl ActiveTool
             },
             Self::Paint(_) =>
             {
-                if manager.any_selected_entities() || clipboard.props_amount() != 0
+                if bundle.manager.any_selected_entities() || bundle.clipboard.props_amount() != 0
                 {
                     return;
                 }
             },
             Self::Path(_) =>
             {
-                if manager.any_selected_entities()
+                if bundle.manager.any_selected_entities()
                 {
                     return;
                 }
@@ -1329,13 +1310,13 @@ impl ActiveTool
             _ => ()
         };
 
-        if manager.brushes_amount() == 0
+        if bundle.manager.brushes_amount() == 0
         {
             *tool = Self::default();
             return;
         }
 
-        let selected_brushes_amount = manager.selected_brushes_amount();
+        let selected_brushes_amount = bundle.manager.selected_brushes_amount();
 
         match tool
         {
@@ -1363,37 +1344,27 @@ impl ActiveTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(
-        &self,
-        bundle: &mut DrawBundle,
-        manager: &EntitiesManager,
-        grid: Grid,
-        settings: &ToolsSettings
-    )
+    pub fn draw(&self, bundle: &mut DrawBundle, settings: &ToolsSettings)
     {
         /// Draws the tool.
         #[inline]
-        fn draw_tool(
-            tool: &ActiveTool,
-            bundle: &mut DrawBundle,
-            manager: &EntitiesManager,
-            grid: Grid,
-            settings: &ToolsSettings
-        )
+        fn draw_tool(tool: &ActiveTool, bundle: &mut DrawBundle, settings: &ToolsSettings)
         {
             #[inline]
-            fn paths(bundle: &mut DrawBundle, manager: &EntitiesManager)
+            fn paths(bundle: &mut DrawBundle)
             {
-                let brushes = manager.brushes();
+                let brushes = bundle.manager.brushes();
 
-                for brush in manager
+                for brush in bundle
+                    .manager
                     .visible_anchors(bundle.window, bundle.camera, bundle.drawer.grid())
                     .iter()
                 {
                     brush.draw_anchors(brushes, &mut bundle.drawer);
                 }
 
-                for brush in manager
+                for brush in bundle
+                    .manager
                     .visible_paths(bundle.window, bundle.camera, bundle.drawer.grid())
                     .iter()
                 {
@@ -1407,11 +1378,12 @@ impl ActiveTool
                 ActiveTool::Entity(_) | ActiveTool::Thing(_) | ActiveTool::Path(_) => (),
                 ActiveTool::Paint(_) =>
                 {
-                    draw_selected_and_non_selected_things!(bundle, manager);
+                    draw_selected_and_non_selected_things!(bundle);
                 },
                 _ =>
                 {
-                    for thing in manager
+                    for thing in bundle
+                        .manager
                         .visible_things(bundle.window, bundle.camera, bundle.drawer.grid())
                         .iter()
                     {
@@ -1428,39 +1400,39 @@ impl ActiveTool
             // Brushes
             match tool
             {
-                ActiveTool::Draw(t) => t.draw(bundle, manager),
+                ActiveTool::Draw(t) => t.draw(bundle),
                 ActiveTool::Entity(t) =>
                 {
-                    t.draw(bundle, manager, settings);
-                    paths(bundle, manager);
+                    t.draw(bundle, settings);
+                    paths(bundle);
                     return;
                 },
-                ActiveTool::Vertex(t) => t.draw(bundle, manager),
-                ActiveTool::Side(t) => t.draw(bundle, manager),
-                ActiveTool::Clip(t) => t.draw(bundle, manager),
-                ActiveTool::Shatter(t) => t.draw(bundle, manager),
-                ActiveTool::Subtract(t) => t.draw(bundle, manager),
-                ActiveTool::Scale(t) => t.draw(bundle, manager),
-                ActiveTool::Shear(t) => t.draw(bundle, manager),
-                ActiveTool::Rotate(t) => t.draw(bundle, manager),
-                ActiveTool::Flip(t) => t.draw(bundle, manager),
+                ActiveTool::Vertex(t) => t.draw(bundle),
+                ActiveTool::Side(t) => t.draw(bundle),
+                ActiveTool::Clip(t) => t.draw(bundle),
+                ActiveTool::Shatter(t) => t.draw(bundle),
+                ActiveTool::Subtract(t) => t.draw(bundle),
+                ActiveTool::Scale(t) => t.draw(bundle),
+                ActiveTool::Shear(t) => t.draw(bundle),
+                ActiveTool::Rotate(t) => t.draw(bundle),
+                ActiveTool::Flip(t) => t.draw(bundle),
                 ActiveTool::Path(t) =>
                 {
-                    t.draw(bundle, manager);
+                    t.draw(bundle);
 
                     if t.simulation_active()
                     {
                         return;
                     }
                 },
-                ActiveTool::Paint(t) => t.draw(bundle, manager, grid),
-                ActiveTool::Thing(t) => t.draw(bundle, manager),
+                ActiveTool::Paint(t) => t.draw(bundle),
+                ActiveTool::Thing(t) => t.draw(bundle),
                 _ => unreachable!()
             };
 
             // Paths and sprites.
-            paths(bundle, manager);
-            draw_selected_and_non_selected_sprites!(bundle, manager, false);
+            paths(bundle);
+            draw_selected_and_non_selected_sprites!(bundle, false);
         }
 
         match self
@@ -1468,36 +1440,29 @@ impl ActiveTool
             Self::Zoom(t) =>
             {
                 t.draw(bundle);
-                draw_tool(&t.previous_active_tool, bundle, manager, grid, settings);
+                draw_tool(&t.previous_active_tool, bundle, settings);
             },
-            _ => draw_tool(self, bundle, manager, grid, settings)
+            _ => draw_tool(self, bundle, settings)
         };
     }
 
     /// Draws the map preview.
     #[inline]
-    pub fn draw_map_preview(&self, bundle: &mut DrawBundleMapPreview, manager: &EntitiesManager)
+    pub fn draw_map_preview(&self, bundle: &mut DrawBundleMapPreview)
     {
-        match_or_panic!(self, Self::MapPreview(t), t).draw(bundle, manager);
+        match_or_panic!(self, Self::MapPreview(t), t).draw(bundle);
     }
 
     /// Draws the UI bottom panel.
     #[inline]
-    pub fn bottom_panel(
-        &mut self,
-        bundle: &mut StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses
-    )
+    pub fn bottom_panel(&mut self, egui_context: &egui::Context, bundle: &mut UiBundle)
     {
         match self
         {
-            Self::Paint(t) => t.ui(bundle, clipboard),
+            Self::Paint(t) => t.ui(egui_context, bundle),
             Self::Thing(t) =>
             {
-                t.bottom_panel(bundle, manager, inputs, edits_history);
+                t.bottom_panel(egui_context, bundle);
             },
             _ => ()
         };
@@ -1505,56 +1470,29 @@ impl ActiveTool
 
     /// Draws the tool UI.
     #[inline]
-    pub fn ui(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        ui: &mut egui::Ui,
-        settings: &mut ToolsSettings
-    )
+    pub fn ui(&mut self, ui: &mut egui::Ui, bundle: &mut UiBundle)
     {
         /// Same as above.
         #[inline]
-        fn draw_ui(
-            tool: &mut ActiveTool,
-            drawing_resources: &DrawingResources,
-            manager: &mut EntitiesManager,
-            clipboard: &mut Clipboard,
-            edits_history: &mut EditsHistory,
-            inputs: &InputsPresses,
-            ui: &mut egui::Ui,
-            settings: &mut ToolsSettings
-        )
+        fn draw_ui(tool: &mut ActiveTool, ui: &mut egui::Ui, bundle: &mut UiBundle)
         {
             match tool
             {
-                ActiveTool::Thing(_) => ThingTool::left_panel(ui, settings),
-                ActiveTool::Entity(t) => t.ui(ui, settings),
-                ActiveTool::Rotate(t) => t.ui(ui, settings),
-                ActiveTool::Draw(t) => t.ui(ui, settings),
+                ActiveTool::Thing(_) => ThingTool::left_panel(ui, bundle.settings),
+                ActiveTool::Entity(t) => t.ui(ui, bundle.settings),
+                ActiveTool::Rotate(t) => t.ui(ui, bundle.settings),
+                ActiveTool::Draw(t) => t.ui(ui, bundle.settings),
                 ActiveTool::Clip(t) => t.ui(ui),
-                ActiveTool::Scale(t) => t.ui(ui, settings),
+                ActiveTool::Scale(t) => t.ui(ui, bundle.settings),
                 ActiveTool::Shear(t) => t.ui(ui),
-                ActiveTool::Flip(_) => FlipTool::ui(ui, settings),
+                ActiveTool::Flip(_) => FlipTool::ui(ui, bundle.settings),
                 ActiveTool::Path(t) =>
                 {
-                    t.ui(drawing_resources, manager, edits_history, clipboard, inputs, ui);
+                    t.ui(ui, bundle);
                 },
                 ActiveTool::Zoom(tool) =>
                 {
-                    draw_ui(
-                        tool.previous_active_tool.as_mut(),
-                        drawing_resources,
-                        manager,
-                        inputs,
-                        edits_history,
-                        clipboard,
-                        ui,
-                        settings
-                    );
+                    draw_ui(tool.previous_active_tool.as_mut(), ui, bundle);
                 },
                 _ => ()
             };
@@ -1562,7 +1500,7 @@ impl ActiveTool
 
         ui.separator();
         ui.style_mut().spacing.slider_width = 60f32;
-        draw_ui(self, drawing_resources, manager, inputs, edits_history, clipboard, ui, settings);
+        draw_ui(self, ui, bundle);
     }
 
     /// Draws the subtool.
@@ -1570,57 +1508,23 @@ impl ActiveTool
     pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
-        bundle: &StateUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        grid: Grid,
-        buttons: &mut ToolsButtons,
-        tool_change_conditions: &ChangeConditions
+        bundle: &mut UiBundle,
+        buttons: &mut ToolsButtons
     )
     {
         match self
         {
-            Self::Entity(t) => t.draw_subtools(ui, bundle, buttons, tool_change_conditions),
-            Self::Thing(t) => t.draw_subtools(ui, bundle, buttons, tool_change_conditions),
+            Self::Entity(t) => t.draw_subtools(ui, bundle, buttons),
+            Self::Thing(t) => t.draw_subtools(ui, bundle, buttons),
             Self::Vertex(t) =>
             {
-                t.draw_subtools(
-                    ui,
-                    bundle,
-                    manager,
-                    edits_history,
-                    buttons,
-                    tool_change_conditions
-                );
+                t.draw_subtools(ui, bundle, buttons);
             },
-            Self::Side(t) =>
-            {
-                t.draw_subtools(
-                    ui,
-                    bundle,
-                    manager,
-                    edits_history,
-                    buttons,
-                    tool_change_conditions
-                );
-            },
-            Self::Clip(t) => t.draw_subtools(ui, bundle, buttons, tool_change_conditions),
-            Self::Rotate(t) => t.draw_subtools(ui, bundle, buttons, tool_change_conditions),
-            Self::Path(t) =>
-            {
-                t.draw_subtools(
-                    ui,
-                    bundle,
-                    manager,
-                    edits_history,
-                    buttons,
-                    tool_change_conditions
-                );
-            },
-            Self::Paint(t) =>
-            {
-                t.draw_subtools(ui, bundle, manager, grid, buttons, tool_change_conditions);
-            },
+            Self::Side(t) => t.draw_subtools(ui, bundle, buttons),
+            Self::Clip(t) => t.draw_subtools(ui, bundle, buttons),
+            Self::Rotate(t) => t.draw_subtools(ui, bundle, buttons),
+            Self::Path(t) => t.draw_subtools(ui, bundle, buttons),
+            Self::Paint(t) => t.draw_subtools(ui, bundle, buttons),
             _ => ()
         };
     }

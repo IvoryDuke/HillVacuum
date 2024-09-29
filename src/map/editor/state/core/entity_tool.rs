@@ -13,34 +13,23 @@ use super::{
     draw_selected_and_non_selected_things,
     item_selector::{ItemSelector, ItemsBeneathCursor},
     rect::{Rect, RectHighlightedEntity, RectTrait},
-    tool::{
-        ChangeConditions,
-        DisableSubtool,
-        DragSelection,
-        EnabledTool,
-        OngoingMultiframeChange,
-        SubTool
-    },
+    tool::{DisableSubtool, DragSelection, EnabledTool, OngoingMultiframeChange, SubTool},
     ActiveTool,
     CursorDelta
 };
 use crate::{
     map::{
         brush::Brush,
-        drawer::drawing_resources::DrawingResources,
+        drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             cursor::Cursor,
             state::{
-                clipboard::Clipboard,
                 core::{rect, tool::subtools_buttons},
-                editor_state::{edit_target, InputsPresses, TargetSwitch, ToolsSettings},
-                edits_history::EditsHistory,
-                grid::Grid,
+                editor_state::{edit_target, TargetSwitch, ToolsSettings},
                 manager::EntitiesManager,
-                ui::ToolsButtons
+                ui::{ToolsButtons, UiBundle}
             },
             DrawBundle,
-            StateUpdateBundle,
             ToolUpdateBundle
         }
     },
@@ -184,16 +173,18 @@ impl Selector
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
         {
-            for brush in manager.sprites_at_pos(cursor_pos).iter().filter(|brush| {
-                brush
-                    .sprite_hull(drawing_resources)
-                    .unwrap()
-                    .contains_point(cursor_pos)
-            })
-            {
-                let id = brush.id();
-                items.push(ItemBeneathCursor::Sprite(id), manager.is_selected(id));
-            }
+            todo!();
+
+            // for brush in manager.sprites_at_pos(cursor_pos).iter().filter(|brush| {
+            //     brush
+            //         .sprite_hull(drawing_resources)
+            //         .unwrap()
+            //         .contains_point(cursor_pos)
+            // })
+            // {
+            //     let id = brush.id();
+            //     items.push(ItemBeneathCursor::Sprite(id), manager.is_selected(id));
+            // }
         }
 
         /// brush and [`ThingInstance`] selection update.
@@ -281,36 +272,30 @@ impl Selector
     /// Returns the entity beneath the cursor.
     #[inline]
     #[must_use]
-    fn entity_beneath_cursor(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &EntitiesManager,
-        cursor: &Cursor,
-        inputs: &InputsPresses
-    ) -> Option<ItemBeneathCursor>
+    fn entity_beneath_cursor(&mut self, bundle: &mut ToolUpdateBundle)
+        -> Option<ItemBeneathCursor>
     {
         self.brushes_and_things.item_beneath_cursor(
-            drawing_resources,
-            manager,
-            cursor,
+            bundle.drawing_resources,
+            bundle.manager,
+            bundle.cursor,
             0f32,
-            inputs
+            bundle.inputs
         )
     }
 
     /// Returns the brush beneath the cursor.
     #[inline]
     #[must_use]
-    fn brush_beneath_cursor(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &EntitiesManager,
-        cursor: &Cursor,
-        inputs: &InputsPresses
-    ) -> Option<ItemBeneathCursor>
+    fn brush_beneath_cursor(&mut self, bundle: &mut ToolUpdateBundle) -> Option<ItemBeneathCursor>
     {
-        self.brushes
-            .item_beneath_cursor(drawing_resources, manager, cursor, 0f32, inputs)
+        self.brushes.item_beneath_cursor(
+            bundle.drawing_resources,
+            bundle.manager,
+            bundle.cursor,
+            0f32,
+            bundle.inputs
+        )
     }
 
     /// Returns the textured brush or sprite beneath the cursor.
@@ -318,29 +303,30 @@ impl Selector
     #[must_use]
     fn textured_brush_beneath_cursor(
         &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &EntitiesManager,
-        cursor: &Cursor,
-        inputs: &InputsPresses
+        bundle: &mut ToolUpdateBundle
     ) -> Option<ItemBeneathCursor>
     {
-        self.textured_brushes
-            .item_beneath_cursor(drawing_resources, manager, cursor, 0f32, inputs)
+        self.textured_brushes.item_beneath_cursor(
+            bundle.drawing_resources,
+            bundle.manager,
+            bundle.cursor,
+            0f32,
+            bundle.inputs
+        )
     }
 
     /// Returns the entity or the sprite beneath the cursor.
     #[inline]
     #[must_use]
-    fn both_beneath_cursor(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &EntitiesManager,
-        cursor: &Cursor,
-        inputs: &InputsPresses
-    ) -> Option<ItemBeneathCursor>
+    fn both_beneath_cursor(&mut self, bundle: &mut ToolUpdateBundle) -> Option<ItemBeneathCursor>
     {
-        self.everything
-            .item_beneath_cursor(drawing_resources, manager, cursor, 0f32, inputs)
+        self.everything.item_beneath_cursor(
+            bundle.drawing_resources,
+            bundle.manager,
+            bundle.cursor,
+            0f32,
+            bundle.inputs
+        )
     }
 
     /// Returns the item beneath the cursor, if any.
@@ -349,30 +335,14 @@ impl Selector
     fn item_beneath_cursor(
         &mut self,
         bundle: &mut ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        settings: &ToolsSettings,
-        inputs: &InputsPresses
+        settings: &ToolsSettings
     ) -> Option<ItemBeneathCursor>
     {
         match settings.target_switch()
         {
-            TargetSwitch::Entity =>
-            {
-                self.entity_beneath_cursor(bundle.drawing_resources, manager, bundle.cursor, inputs)
-            },
-            TargetSwitch::Both =>
-            {
-                self.both_beneath_cursor(bundle.drawing_resources, manager, bundle.cursor, inputs)
-            },
-            TargetSwitch::Texture =>
-            {
-                self.textured_brush_beneath_cursor(
-                    bundle.drawing_resources,
-                    manager,
-                    bundle.cursor,
-                    inputs
-                )
-            },
+            TargetSwitch::Entity => self.entity_beneath_cursor(bundle),
+            TargetSwitch::Both => self.both_beneath_cursor(bundle),
+            TargetSwitch::Texture => self.textured_brush_beneath_cursor(bundle)
         }
     }
 }
@@ -445,49 +415,39 @@ impl EntityTool
 
     /// Updates the tool.
     #[inline]
-    pub fn update(
-        &mut self,
-        bundle: &mut ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid,
-        settings: &ToolsSettings
-    )
+    pub fn update(&mut self, bundle: &mut ToolUpdateBundle, settings: &ToolsSettings)
     {
         match &mut self.0
         {
             Status::Inactive(ds) =>
             {
-                let shift_pressed = inputs.shift_pressed();
-                let item_beneath_cursor =
-                    self.1.item_beneath_cursor(bundle, manager, settings, inputs);
+                let shift_pressed = bundle.inputs.shift_pressed();
+                let item_beneath_cursor = self.1.item_beneath_cursor(bundle, settings);
                 let cursor_pos = Self::cursor_pos(bundle.cursor);
 
                 rect::update!(
                     ds,
                     cursor_pos,
                     bundle.camera.scale(),
-                    inputs.left_mouse.pressed(),
+                    bundle.inputs.left_mouse.pressed(),
                     {
                         if settings.entity_editing()
                         {
                             if let Some(ItemBeneathCursor::Polygon(id)) = item_beneath_cursor
                             {
-                                let brush = manager.brush(id);
+                                let brush = bundle.manager.brush(id);
 
-                                if inputs.right_mouse.just_pressed() &&
-                                    manager.is_selected(id) &&
+                                if bundle.inputs.right_mouse.just_pressed() &&
+                                    bundle.manager.is_selected(id) &&
                                     brush.attachable()
                                 {
                                     if let Some(owner) = brush.attached()
                                     {
                                         // Remove attachment.
-                                        manager.detach(owner, id);
-                                        edits_history.detach(owner, id);
+                                        bundle.manager.detach(owner, id);
+                                        bundle.edits_history.detach(owner, id);
                                     }
-                                    else if manager.selected_brushes_amount() > 1
+                                    else if bundle.manager.selected_brushes_amount() > 1
                                     {
                                         self.0 = Status::Attach(id, None);
                                     }
@@ -503,29 +463,19 @@ impl EntityTool
                         {
                             let id = item.id();
 
-                            if inputs.left_mouse.just_pressed()
+                            if bundle.inputs.left_mouse.just_pressed()
                             {
                                 if shift_pressed
                                 {
-                                    Self::toggle_entity_selection(
-                                        manager,
-                                        inputs,
-                                        edits_history,
-                                        id
-                                    );
+                                    Self::toggle_entity_selection(bundle, id);
                                 }
                                 else
                                 {
-                                    if !manager.is_selected(id) ||
-                                        (inputs.ctrl_pressed() &&
+                                    if !bundle.manager.is_selected(id) ||
+                                        (bundle.inputs.ctrl_pressed() &&
                                             matches!(item, ItemBeneathCursor::Polygon(_)))
                                     {
-                                        Self::exclusively_select_entity(
-                                            manager,
-                                            inputs,
-                                            edits_history,
-                                            id
-                                        );
+                                        Self::exclusively_select_entity(bundle, id);
                                     }
 
                                     self.0 = Status::PreDrag(cursor_pos, item, false);
@@ -537,59 +487,61 @@ impl EntityTool
                         }
                         else
                         {
-                            inputs.left_mouse.just_pressed()
+                            bundle.inputs.left_mouse.just_pressed()
                         }
                     },
                     {
                         if item_beneath_cursor.is_none()
                         {
-                            manager.deselect_selected_entities(edits_history);
+                            bundle.manager.deselect_selected_entities(bundle.edits_history);
                         }
                     },
                     hull,
                     {
-                        Self::select_entities_from_drag_selection(
-                            manager,
-                            &hull,
-                            inputs,
-                            edits_history,
-                            settings
-                        );
+                        Self::select_entities_from_drag_selection(bundle, settings, &hull);
                     }
                 );
 
-                if inputs.back.just_pressed()
+                if bundle.inputs.back.just_pressed()
                 {
                     if settings.entity_editing()
                     {
-                        manager.despawn_selected_entities(bundle.drawing_resources, edits_history);
+                        bundle.manager.despawn_selected_entities(
+                            bundle.drawing_resources,
+                            bundle.edits_history,
+                            bundle.grid
+                        );
                     }
                     else
                     {
-                        manager.remove_selected_textures(bundle.drawing_resources, edits_history);
+                        bundle.manager.remove_selected_textures(
+                            bundle.drawing_resources,
+                            bundle.edits_history,
+                            bundle.grid
+                        );
                     }
 
-                    ds.set_highlighted_entity(
-                        self.1.item_beneath_cursor(bundle, manager, settings, inputs)
-                    );
+                    ds.set_highlighted_entity(self.1.item_beneath_cursor(bundle, settings));
                     return;
                 }
 
-                if inputs.ctrl_pressed()
+                if bundle.inputs.ctrl_pressed()
                 {
                     return;
                 }
 
-                let delta = return_if_none!(inputs.directional_keys_vector(grid.size()));
+                let delta =
+                    return_if_none!(bundle.inputs.directional_keys_vector(bundle.grid.size()));
 
-                if inputs.alt_pressed()
+                if bundle.inputs.alt_pressed()
                 {
                     if settings.entity_editing()
                     {
-                        _ = manager.duplicate_selected_entities(
+                        _ = bundle.manager.duplicate_selected_entities(
                             bundle.drawing_resources,
-                            edits_history,
-                            clipboard,
+                            bundle.clipboard,
+                            bundle.edits_history,
+                            bundle.grid,
                             delta
                         );
                     }
@@ -600,28 +552,27 @@ impl EntityTool
                 edit_target!(
                     settings.target_switch(),
                     |move_texture| {
-                        if Self::move_selected_entities(
-                            bundle.drawing_resources,
-                            manager,
-                            delta,
-                            move_texture
-                        )
+                        if Self::move_selected_entities(bundle, delta, move_texture)
                         {
-                            edits_history.entity_move_cluster(manager, delta, move_texture);
+                            bundle.edits_history.entity_move_cluster(
+                                bundle.manager,
+                                delta,
+                                move_texture
+                            );
                         }
                     },
                     {
-                        if Self::move_selected_textures(bundle.drawing_resources, manager, delta) &&
-                            manager.selected_textured_amount() != 0
+                        if Self::move_selected_textures(bundle, delta) &&
+                            bundle.manager.selected_textured_amount() != 0
                         {
-                            edits_history.texture_move_cluster(manager, delta);
+                            bundle.edits_history.texture_move_cluster(bundle.manager, delta);
                         }
                     }
                 );
             },
             Status::PreDrag(pos, hgl_e, forced_spawn) =>
             {
-                if !inputs.left_mouse.pressed()
+                if !bundle.inputs.left_mouse.pressed()
                 {
                     self.0 = Status::Inactive(Some(*hgl_e).into());
                     return;
@@ -632,19 +583,20 @@ impl EntityTool
                     return;
                 }
 
-                let drag = return_if_none!(CursorDelta::try_new(bundle.cursor, grid, *pos));
+                let drag = return_if_none!(CursorDelta::try_new(bundle.cursor, bundle.grid, *pos));
 
                 // Drag the brushes.
-                if *forced_spawn || inputs.alt_pressed()
+                if *forced_spawn || bundle.inputs.alt_pressed()
                 {
-                    if manager.duplicate_selected_entities(
+                    if bundle.manager.duplicate_selected_entities(
                         bundle.drawing_resources,
-                        edits_history,
-                        clipboard,
+                        bundle.clipboard,
+                        bundle.edits_history,
+                        bundle.grid,
                         drag.delta()
                     )
                     {
-                        edits_history.start_multiframe_edit();
+                        bundle.edits_history.start_multiframe_edit();
                         self.0 = Status::Drag(drag, true);
                     }
                     else
@@ -661,76 +613,62 @@ impl EntityTool
             {
                 if bundle.cursor.moved()
                 {
-                    drag.conditional_update(bundle.cursor, grid, |delta| {
+                    drag.conditional_update(bundle.cursor, bundle.grid, |delta| {
                         if *drag_spawn
                         {
-                            return Self::move_selected_entities(
-                                bundle.drawing_resources,
-                                manager,
-                                delta,
-                                true
-                            );
+                            return Self::move_selected_entities(bundle, delta, true);
                         }
 
                         edit_target!(
                             settings.target_switch(),
                             |move_texture| {
-                                Self::move_selected_entities(
-                                    bundle.drawing_resources,
-                                    manager,
-                                    delta,
-                                    move_texture
-                                )
+                                Self::move_selected_entities(bundle, delta, move_texture)
                             },
-                            Self::move_selected_textures(bundle.drawing_resources, manager, delta)
+                            Self::move_selected_textures(bundle, delta)
                         )
                     });
                 }
 
-                if !inputs.left_mouse.pressed()
+                if !bundle.inputs.left_mouse.pressed()
                 {
-                    self.finalize_entities_drag(manager, edits_history, settings);
+                    self.finalize_entities_drag(bundle, settings);
                 }
             },
             Status::Attach(id, hgl_e) =>
             {
                 *hgl_e = None;
 
-                let brush_beneath_cursor = self.1.brush_beneath_cursor(
-                    bundle.drawing_resources,
-                    manager,
-                    bundle.cursor,
-                    inputs
-                );
+                let brush_beneath_cursor = self.1.brush_beneath_cursor(bundle);
                 let brush_id = return_if_none!(brush_beneath_cursor).id();
 
                 if brush_id == *id ||
-                    !manager.is_selected(brush_id) ||
-                    manager.brush(brush_id).attached().is_some()
+                    !bundle.manager.is_selected(brush_id) ||
+                    bundle.manager.brush(brush_id).attached().is_some()
                 {
                     return;
                 }
 
                 *hgl_e = brush_id.into();
 
-                if !inputs.right_mouse.just_pressed()
+                if !bundle.inputs.right_mouse.just_pressed()
                 {
                     return;
                 }
 
-                manager.attach(brush_id, *id);
-                edits_history.attach(brush_id, *id);
+                bundle.manager.attach(brush_id, *id);
+                bundle.edits_history.attach(brush_id, *id);
 
                 self.0 = Status::Inactive(brush_beneath_cursor.into());
             },
             Status::DragSpawnUi(hgl_e) =>
             {
-                if let Some(delta) = inputs.directional_keys_vector(grid.size())
+                if let Some(delta) = bundle.inputs.directional_keys_vector(bundle.grid.size())
                 {
-                    _ = manager.duplicate_selected_entities(
+                    _ = bundle.manager.duplicate_selected_entities(
                         bundle.drawing_resources,
-                        edits_history,
-                        clipboard,
+                        bundle.clipboard,
+                        bundle.edits_history,
+                        bundle.grid,
                         delta
                     );
                     self.0 = Status::default();
@@ -739,16 +677,16 @@ impl EntityTool
 
                 *hgl_e = None;
                 let item_beneath_cursor =
-                    return_if_none!(self.1.item_beneath_cursor(bundle, manager, settings, inputs));
+                    return_if_none!(self.1.item_beneath_cursor(bundle, settings));
 
-                if !manager.is_selected(item_beneath_cursor.id())
+                if !bundle.manager.is_selected(item_beneath_cursor.id())
                 {
                     return;
                 }
 
                 *hgl_e = item_beneath_cursor.into();
 
-                if inputs.left_mouse.just_pressed()
+                if bundle.inputs.left_mouse.just_pressed()
                 {
                     self.0 =
                         Status::PreDrag(Self::cursor_pos(bundle.cursor), item_beneath_cursor, true);
@@ -759,12 +697,7 @@ impl EntityTool
 
     /// Finalizes the entities drag.
     #[inline]
-    fn finalize_entities_drag(
-        &mut self,
-        manager: &EntitiesManager,
-        edits_history: &mut EditsHistory,
-        settings: &ToolsSettings
-    )
+    fn finalize_entities_drag(&mut self, bundle: &mut ToolUpdateBundle, settings: &ToolsSettings)
     {
         let (drag_delta, drag_spawn) =
             match_or_panic!(&self.0, Status::Drag(drag, drag_spawn), (drag.delta(), *drag_spawn));
@@ -773,24 +706,30 @@ impl EntityTool
         {
             if drag_spawn
             {
-                edits_history.entity_move_cluster(manager, drag_delta, true);
+                bundle
+                    .edits_history
+                    .entity_move_cluster(bundle.manager, drag_delta, true);
             }
             else
             {
                 edit_target!(
                     settings.target_switch(),
                     |move_texture| {
-                        edits_history.entity_move_cluster(manager, drag_delta, move_texture);
+                        bundle.edits_history.entity_move_cluster(
+                            bundle.manager,
+                            drag_delta,
+                            move_texture
+                        );
                     },
-                    edits_history.texture_move_cluster(manager, drag_delta)
+                    bundle.edits_history.texture_move_cluster(bundle.manager, drag_delta)
                 );
             }
         }
 
-        if edits_history.multiframe_edit()
+        if bundle.edits_history.multiframe_edit()
         {
-            edits_history.end_multiframe_edit();
-            edits_history.override_edit_tag("Entities Drag Spawn");
+            bundle.edits_history.end_multiframe_edit();
+            bundle.edits_history.override_edit_tag("Entities Drag Spawn");
         }
 
         self.0 = Status::default();
@@ -798,56 +737,56 @@ impl EntityTool
 
     /// Toggles the selection of the entity with [`Id`] `identifier`.
     #[inline]
-    fn toggle_entity_selection(
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        identifier: Id
-    )
+    fn toggle_entity_selection(bundle: &mut ToolUpdateBundle, identifier: Id)
     {
-        if manager.is_selected(identifier)
+        if bundle.manager.is_selected(identifier)
         {
-            manager.deselect_entity(identifier, inputs, edits_history);
+            bundle
+                .manager
+                .deselect_entity(identifier, bundle.inputs, bundle.edits_history);
             return;
         }
 
-        manager.select_entity(identifier, inputs, edits_history);
+        bundle
+            .manager
+            .select_entity(identifier, bundle.inputs, bundle.edits_history);
     }
 
     /// Exclusively selects the entity with [`Id`] `identifier`.
     #[inline]
-    fn exclusively_select_entity(
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        identifier: Id
-    )
+    fn exclusively_select_entity(bundle: &mut ToolUpdateBundle, identifier: Id)
     {
-        manager.deselect_selected_entities(edits_history);
-        manager.select_entity(identifier, inputs, edits_history);
+        bundle.manager.deselect_selected_entities(bundle.edits_history);
+        bundle
+            .manager
+            .select_entity(identifier, bundle.inputs, bundle.edits_history);
     }
 
     /// Selects the entities inside the drag selection.
     #[inline]
     fn select_entities_from_drag_selection(
-        manager: &mut EntitiesManager,
-        drag_selection: &Hull,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        settings: &ToolsSettings
+        bundle: &mut ToolUpdateBundle,
+        settings: &ToolsSettings,
+        drag_selection: &Hull
     )
     {
         // Inclusive selection.
-        if inputs.shift_pressed()
+        if bundle.inputs.shift_pressed()
         {
-            manager.select_entities_in_range(drag_selection, inputs, edits_history, settings);
+            bundle.manager.select_entities_in_range(
+                drag_selection,
+                bundle.edits_history,
+                bundle.inputs,
+                settings
+            );
+
             return;
         }
 
-        manager.exclusively_select_entities_in_range(
+        bundle.manager.exclusively_select_entities_in_range(
             drag_selection,
-            inputs,
-            edits_history,
+            bundle.edits_history,
+            bundle.inputs,
             settings
         );
     }
@@ -855,17 +794,16 @@ impl EntityTool
     /// Moves the selected entities.
     #[inline]
     fn move_selected_entities(
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
+        bundle: &mut ToolUpdateBundle,
         delta: Vec2,
         move_texture: bool
     ) -> bool
     {
-        let valid = manager.test_operation_validity(|manager| {
+        let valid = bundle.manager.test_operation_validity(|manager| {
             manager
                 .selected_brushes()
                 .find_map(|brush| {
-                    (!brush.check_move(drawing_resources, delta, move_texture))
+                    (!brush.check_move(bundle.drawing_resources, bundle.grid, delta, move_texture))
                         .then_some(brush.id())
                 })
                 .or(manager
@@ -878,12 +816,14 @@ impl EntityTool
             return false;
         }
 
-        for mut brush in manager.selected_brushes_mut(drawing_resources)
+        for mut brush in bundle
+            .manager
+            .selected_brushes_mut(bundle.drawing_resources, bundle.grid)
         {
             brush.move_by_delta(delta, move_texture);
         }
 
-        for mut thing in manager.selected_things_mut()
+        for mut thing in bundle.manager.selected_things_mut()
         {
             thing.move_by_delta(delta);
         }
@@ -893,15 +833,12 @@ impl EntityTool
 
     /// Moves the selected textures.
     #[inline]
-    fn move_selected_textures(
-        drawing_resources: &DrawingResources,
-        manager: &mut EntitiesManager,
-        delta: Vec2
-    ) -> bool
+    fn move_selected_textures(bundle: &mut ToolUpdateBundle, delta: Vec2) -> bool
     {
-        let valid = manager.test_operation_validity(|manager| {
+        let valid = bundle.manager.test_operation_validity(|manager| {
             return_if_none!(manager.selected_brushes_with_sprites(), None).find_map(|brush| {
-                (!brush.check_texture_move(drawing_resources, delta)).then_some(brush.id())
+                (!brush.check_texture_move(bundle.drawing_resources, bundle.grid, delta))
+                    .then_some(brush.id())
             })
         });
 
@@ -910,7 +847,9 @@ impl EntityTool
             return false;
         }
 
-        for mut brush in manager.selected_brushes_mut(drawing_resources)
+        for mut brush in bundle
+            .manager
+            .selected_brushes_mut(bundle.drawing_resources, bundle.grid)
         {
             brush.move_texture(delta);
         }
@@ -930,16 +869,16 @@ impl EntityTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager, settings: &ToolsSettings)
+    pub fn draw(&self, bundle: &mut DrawBundle, settings: &ToolsSettings)
     {
         let texture_editing = settings.texture_editing();
 
         /// Draws the selected and non selected entities, except `filters`.
         macro_rules! draw_selected_and_non_selected {
-            ($bundle:ident, $manager:ident $(, $filters:expr)?) => {
-                draw_selected_and_non_selected_brushes!(bundle, manager $(, $filters)?);
-                draw_selected_and_non_selected_things!(bundle, manager $(, $filters)?);
-                draw_selected_and_non_selected_sprites!(bundle, manager, texture_editing $(, $filters)?);
+            ($bundle:ident $(, $filters:expr)?) => {
+                draw_selected_and_non_selected_brushes!(bundle $(, $filters)?);
+                draw_selected_and_non_selected_things!(bundle $(, $filters)?);
+                draw_selected_and_non_selected_sprites!(bundle, texture_editing $(, $filters)?);
             };
         }
 
@@ -964,9 +903,9 @@ impl EntityTool
             {
                 let end = if let Some(hgl_e) = *hgl_e
                 {
-                    draw_selected_and_non_selected!(bundle, manager, [*id, hgl_e]);
+                    draw_selected_and_non_selected!(bundle, [*id, hgl_e]);
 
-                    let brush = manager.brush(hgl_e);
+                    let brush = bundle.manager.brush(hgl_e);
                     brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
 
                     if brush.has_sprite()
@@ -982,11 +921,11 @@ impl EntityTool
                 }
                 else
                 {
-                    draw_selected_and_non_selected!(bundle, manager, *id);
+                    draw_selected_and_non_selected!(bundle, *id);
                     Self::cursor_pos(bundle.cursor)
                 };
 
-                let brush = manager.brush(*id);
+                let brush = bundle.manager.brush(*id);
                 brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
 
                 if brush.has_sprite()
@@ -1014,21 +953,21 @@ impl EntityTool
             Some(hgl_e) => hgl_e,
             None =>
             {
-                draw_selected_and_non_selected!(bundle, manager);
+                draw_selected_and_non_selected!(bundle);
                 return;
             }
         };
         let id = hgl_e.id();
 
-        draw_selected_and_non_selected!(bundle, manager, id);
+        draw_selected_and_non_selected!(bundle, id);
 
         if hgl_e.is_brush()
         {
-            let brush = manager.brush(id);
+            let brush = bundle.manager.brush(id);
 
             if brush.has_sprite()
             {
-                let color = if manager.is_selected(id)
+                let color = if bundle.manager.is_selected(id)
                 {
                     Color::HighlightedSelectedEntity
                 }
@@ -1045,9 +984,9 @@ impl EntityTool
         {
             ItemBeneathCursor::Polygon(_) =>
             {
-                let brush = manager.brush(id);
+                let brush = bundle.manager.brush(id);
 
-                if manager.is_selected(id)
+                if bundle.manager.is_selected(id)
                 {
                     brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
                     brush.hull().into()
@@ -1060,12 +999,15 @@ impl EntityTool
             },
             ItemBeneathCursor::Sprite(_) =>
             {
-                let brush = manager.brush(id);
+                let brush = bundle.manager.brush(id);
 
-                if manager.is_selected(id)
+                if bundle.manager.is_selected(id)
                 {
                     brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
-                    brush.sprite_hull(bundle.drawer.resources()).unwrap().into()
+                    brush
+                        .sprite_hull(bundle.drawer.resources(), bundle.drawer.grid())
+                        .unwrap()
+                        .into()
                 }
                 else
                 {
@@ -1075,9 +1017,9 @@ impl EntityTool
             },
             ItemBeneathCursor::Thing(_) =>
             {
-                let thing = manager.thing(id);
+                let thing = bundle.manager.thing(id);
 
-                if manager.is_selected(id)
+                if bundle.manager.is_selected(id)
                 {
                     thing.draw_highlighted_selected(
                         bundle.window,
@@ -1121,9 +1063,8 @@ impl EntityTool
     pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
-        bundle: &StateUpdateBundle,
-        buttons: &mut ToolsButtons,
-        tool_change_conditions: &ChangeConditions
+        bundle: &mut UiBundle,
+        buttons: &mut ToolsButtons
     )
     {
         subtools_buttons!(
@@ -1131,7 +1072,6 @@ impl EntityTool
             ui,
             bundle,
             buttons,
-            tool_change_conditions,
             (EntityDragSpawn, Status::DragSpawnUi(None), Status::DragSpawnUi(_))
         );
     }

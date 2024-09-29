@@ -61,26 +61,26 @@ impl MapPreviewTool
 
     /// Updates the tool.
     #[inline]
-    pub fn update(&mut self, bundle: &ToolUpdateBundle, manager: &EntitiesManager)
+    pub fn update(&mut self, bundle: &ToolUpdateBundle)
     {
         for sim in &mut self.movement
         {
-            sim.update(manager.moving(sim.id()), bundle.delta_time);
+            sim.update(bundle.manager.moving(sim.id()), bundle.delta_time);
         }
 
-        self.animators
-            .update(bundle.drawing_resources, manager, bundle.delta_time);
+        self.animators.update(bundle);
     }
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundleMapPreview, manager: &EntitiesManager)
+    pub fn draw(&self, bundle: &mut DrawBundleMapPreview)
     {
         let DrawBundleMapPreview {
             window,
             drawer,
             camera,
             things_catalog,
+            manager,
             ..
         } = bundle;
         let brushes = manager.brushes();

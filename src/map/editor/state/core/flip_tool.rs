@@ -10,15 +10,15 @@ use super::{draw_selected_and_non_selected_brushes, tool::ActiveTool};
 use crate::{
     map::{
         brush::Brush,
-        drawer::drawing_resources::DrawingResources,
+        drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             state::{
-                editor_state::{edit_target, InputsPresses, ToolsSettings},
-                edits_history::EditsHistory,
+                editor_state::{edit_target, ToolsSettings},
                 grid::Grid,
                 manager::EntitiesManager
             },
             DrawBundle,
+            StateUpdateBundle,
             ToolUpdateBundle
         }
     },
@@ -41,32 +41,24 @@ impl FlipTool
 {
     /// Returns an [`ActiveTool`] in its flip tool variant.
     #[inline]
-    pub fn tool(manager: &EntitiesManager, grid: Grid) -> ActiveTool
+    pub fn tool(bundle: &StateUpdateBundle) -> ActiveTool
     {
-        ActiveTool::Flip(Self(Self::outline(manager, grid)))
+        ActiveTool::Flip(Self(Self::outline(bundle.manager, *bundle.grid)))
     }
 
     /// Updates the tool.
     #[inline]
-    pub fn update(
-        &mut self,
-        bundle: &ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid,
-        settings: &ToolsSettings
-    )
+    pub fn update(&mut self, bundle: &mut ToolUpdateBundle, settings: &ToolsSettings)
     {
-        let dir = return_if_none!(inputs.directional_keys_vector(grid.size()));
+        let dir = return_if_none!(bundle.inputs.directional_keys_vector(bundle.grid.size()));
 
         edit_target!(
             settings.target_switch(),
             |flip_texture| {
                 #[allow(clippy::missing_docs_in_private_items)]
                 type FlipSteps = (
-                    fn(&mut Brush, &DrawingResources, f32, bool) -> bool,
-                    fn(&mut Brush, &DrawingResources, f32, bool),
+                    fn(&mut Brush, &DrawingResources, Grid, f32, bool) -> bool,
+                    fn(&mut Brush, f32, bool),
                     Flip
                 );
 
@@ -87,13 +79,14 @@ impl FlipTool
                     (Brush::check_flip_right, Brush::flip_right, Flip::Right(self.0.right()))
                 };
 
-                let valid = manager.test_operation_validity(|manager| {
+                let valid = bundle.manager.test_operation_validity(|manager| {
                     manager
-                        .selected_brushes_mut(bundle.drawing_resources)
+                        .selected_brushes_mut(bundle.drawing_resources, bundle.grid)
                         .find_map(|mut brush| {
                             (!check(
                                 &mut brush,
                                 bundle.drawing_resources,
+                                bundle.grid,
                                 flip.mirror(),
                                 flip_texture
                             ))
@@ -106,18 +99,26 @@ impl FlipTool
                     return;
                 }
 
-                for mut brush in manager.selected_brushes_mut(bundle.drawing_resources)
+                for mut brush in bundle
+                    .manager
+                    .selected_brushes_mut(bundle.drawing_resources, bundle.grid)
                 {
-                    func(&mut brush, bundle.drawing_resources, flip.mirror(), flip_texture);
+                    func(&mut brush, flip.mirror(), flip_texture);
                 }
 
-                edits_history.flip(manager.selected_brushes_ids().copied(), flip, flip_texture);
-                self.update_outline(manager, grid);
+                bundle.edits_history.flip(
+                    bundle.manager.selected_brushes_ids().copied(),
+                    flip,
+                    flip_texture
+                );
+                self.update_outline(bundle.manager, bundle.grid);
             },
             {
                 let y = if dir.x == 0f32
                 {
-                    for mut brush in manager.selected_brushes_mut(bundle.drawing_resources)
+                    for mut brush in bundle
+                        .manager
+                        .selected_brushes_mut(bundle.drawing_resources, bundle.grid)
                     {
                         brush.flip_scale_y();
                     }
@@ -126,7 +127,9 @@ impl FlipTool
                 }
                 else
                 {
-                    for mut brush in manager.selected_brushes_mut(bundle.drawing_resources)
+                    for mut brush in bundle
+                        .manager
+                        .selected_brushes_mut(bundle.drawing_resources, bundle.grid)
                     {
                         brush.flip_texture_scale_x();
                     }
@@ -134,7 +137,9 @@ impl FlipTool
                     false
                 };
 
-                edits_history.texture_flip(manager.selected_brushes_ids().copied(), y);
+                bundle
+                    .edits_history
+                    .texture_flip(bundle.manager.selected_brushes_ids().copied(), y);
             }
         );
     }
@@ -156,9 +161,9 @@ impl FlipTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
+    pub fn draw(&self, bundle: &mut DrawBundle)
     {
-        draw_selected_and_non_selected_brushes!(bundle, manager);
+        draw_selected_and_non_selected_brushes!(bundle);
         bundle.drawer.hull(&self.0, Color::ToolCursor);
     }
 

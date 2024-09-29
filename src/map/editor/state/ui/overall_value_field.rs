@@ -15,7 +15,7 @@ use super::{
     Interacting
 };
 use crate::{
-    map::editor::state::{clipboard::Clipboard, editor_state::InputsPresses},
+    map::editor::state::{clipboard::Clipboard, inputs_presses::InputsPresses},
     utils::{misc::ReplaceValues, overall_value::UiOverallValue}
 };
 
@@ -24,7 +24,7 @@ use crate::{
 //
 //=======================================================================//
 
-pub(in crate::map::editor::state::ui) trait MinusPlusUiOverallValue:
+pub(in crate::map::editor::state) trait MinusPlusUiOverallValue:
     ToString
     + FromStr
     + std::ops::Add<Output = Self>

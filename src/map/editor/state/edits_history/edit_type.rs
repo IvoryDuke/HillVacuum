@@ -25,7 +25,7 @@ use crate::{
                 TextureSpriteSet
             }
         },
-        editor::state::{core::UndoRedoInterface, ui::Ui},
+        editor::state::{core::UndoRedoInterface, grid::Grid, ui::Ui},
         path::{MovementValueEdit, NodesMove, Path, StandbyValueEdit},
         properties::Value,
         thing::{ThingId, ThingInstanceData}
@@ -485,6 +485,7 @@ impl EditType
     fn brushes_common(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         interface: &mut UndoRedoInterface,
         identifiers: &HvVec<Id>
     ) -> bool
@@ -498,7 +499,7 @@ impl EditType
                 for id in identifiers
                 {
                     interface
-                        .brush_mut(drawing_resources, *id)
+                        .brush_mut(drawing_resources, grid, *id)
                         .move_polygon(*d, *move_texture);
                 }
             },
@@ -508,7 +509,7 @@ impl EditType
 
                 for id in identifiers
                 {
-                    interface.brush_mut(drawing_resources, *id).move_texture(*delta);
+                    interface.brush_mut(drawing_resources, grid, *id).move_texture(*delta);
                 }
             },
             Self::TextureFlip(y) =>
@@ -517,14 +518,16 @@ impl EditType
                 {
                     for id in identifiers
                     {
-                        interface.brush_mut(drawing_resources, *id).flip_scale_y();
+                        interface.brush_mut(drawing_resources, grid, *id).flip_scale_y();
                     }
                 }
                 else
                 {
                     for id in identifiers
                     {
-                        interface.brush_mut(drawing_resources, *id).flip_texture_scale_x();
+                        interface
+                            .brush_mut(drawing_resources, grid, *id)
+                            .flip_texture_scale_x();
                     }
                 }
             },
@@ -535,7 +538,7 @@ impl EditType
                 let prev = std::mem::replace(
                     name,
                     interface
-                        .brush_mut(drawing_resources, *iter.next_value())
+                        .brush_mut(drawing_resources, grid, *iter.next_value())
                         .set_list_animation_texture(*index, name)
                         .unwrap()
                         .clone()
@@ -544,7 +547,7 @@ impl EditType
                 for id in identifiers
                 {
                     _ = interface
-                        .brush_mut(drawing_resources, *id)
+                        .brush_mut(drawing_resources, grid, *id)
                         .set_list_animation_texture(*index, &prev);
                 }
             },
@@ -552,14 +555,14 @@ impl EditType
             {
                 let mut iter = identifiers.iter();
                 let value = interface
-                    .brush_mut(drawing_resources, *iter.next_value())
+                    .brush_mut(drawing_resources, grid, *iter.next_value())
                     .set_texture_list_animation_time(*index, *time)
                     .unwrap();
 
                 for id in iter
                 {
                     _ = interface
-                        .brush_mut(drawing_resources, *id)
+                        .brush_mut(drawing_resources, grid, *id)
                         .set_texture_list_animation_time(*index, *time);
                 }
 
@@ -578,7 +581,7 @@ impl EditType
 
                 for id in identifiers
                 {
-                    func(&mut interface.brush_mut(drawing_resources, *id), *index);
+                    func(&mut interface.brush_mut(drawing_resources, grid, *id), *index);
                 }
             },
             Self::ListAnimationFrameMoveDown(index, atlas) =>
@@ -594,7 +597,7 @@ impl EditType
 
                 for id in identifiers
                 {
-                    func(&mut interface.brush_mut(drawing_resources, *id), *index);
+                    func(&mut interface.brush_mut(drawing_resources, grid, *id), *index);
                 }
             },
             Self::TextureReset(value) =>
@@ -602,7 +605,7 @@ impl EditType
                 for id in identifiers
                 {
                     interface
-                        .brush_mut(drawing_resources, *id)
+                        .brush_mut(drawing_resources, grid, *id)
                         .undo_redo_texture_reset(value);
                 }
             },
@@ -619,17 +622,18 @@ impl EditType
     fn brush_common(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         interface: &mut UndoRedoInterface,
         identifier: Id
     ) -> bool
     {
         if let Self::SpriteToggle(value) = self
         {
-            interface.undo_redo_texture_sprite(drawing_resources, identifier, value);
+            interface.undo_redo_texture_sprite(drawing_resources, grid, identifier, value);
             return true;
         }
 
-        let mut brush = interface.brush_mut(drawing_resources, identifier);
+        let mut brush = interface.brush_mut(drawing_resources, grid, identifier);
 
         /// Generates the match arms.
         macro_rules! arms {
@@ -758,6 +762,7 @@ impl EditType
     fn moving_common(
         &mut self,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         interface: &mut UndoRedoInterface,
         identifier: Id
     ) -> bool
@@ -772,7 +777,7 @@ impl EditType
                 }
 
                 interface
-                    .moving_mut(drawing_resources, identifier)
+                    .moving_mut(drawing_resources, grid, identifier)
                     .move_path_nodes_at_indexes(snap);
             },
             _ => return false
@@ -875,13 +880,20 @@ impl EditType
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &DrawingResources,
+        grid: Grid,
         identifiers: &HvVec<Id>,
         key: Option<&String>
     ) -> bool
     {
         if let Self::PropertyChange(value) = self
         {
-            *value = interface.set_property(drawing_resources, identifiers[0], key.unwrap(), value);
+            *value = interface.set_property(
+                drawing_resources,
+                grid,
+                identifiers[0],
+                key.unwrap(),
+                value
+            );
             return true;
         }
 
@@ -897,6 +909,7 @@ impl EditType
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
+        grid: Grid,
         ui: &mut Ui,
         identifiers: &HvVec<Id>,
         property: Option<&String>
@@ -912,7 +925,7 @@ impl EditType
         /// Returns the [`MovingMut`] of the entity with the [`Id`] returned by `single`.
         macro_rules! moving_mut {
             () => {
-                interface.moving_mut(drawing_resources, single!())
+                interface.moving_mut(drawing_resources, grid, single!())
             };
         }
 
@@ -943,12 +956,12 @@ impl EditType
             return;
         }
 
-        if self.property(interface, drawing_resources, identifiers, property)
+        if self.property(interface, drawing_resources, grid, identifiers, property)
         {
             return;
         }
 
-        if self.brushes_common(drawing_resources, interface, identifiers) ||
+        if self.brushes_common(drawing_resources, grid, interface, identifiers) ||
             self.things_common(interface, identifiers)
         {
             return;
@@ -958,16 +971,17 @@ impl EditType
             self,
             Self::DrawnBrush(data) =>
             {
-                *data = interface.despawn_brush(drawing_resources, single!(), BrushType::Drawn).into();
+                *data = interface.despawn_brush(drawing_resources, grid,  single!(), BrushType::Drawn).into();
             },
             Self::BrushSpawn(data, selected) =>
             {
-                *data = interface.despawn_brush(drawing_resources, single!(), BrushType::from_selection(*selected)).into();
+                *data = interface.despawn_brush(drawing_resources, grid, single!(), BrushType::from_selection(*selected)).into();
             },
             Self::DrawnBrushDespawn(data) =>
             {
                 interface.spawn_brush(
                     drawing_resources,
+                    grid,
                     single!(),
                     std::mem::take(data).unwrap(),
                     BrushType::Drawn
@@ -977,6 +991,7 @@ impl EditType
             {
                 interface.spawn_brush(
                     drawing_resources,
+                    grid,
                     single!(),
                     std::mem::take(data).unwrap(),
                     BrushType::from_selection(*selected)
@@ -985,7 +1000,7 @@ impl EditType
             Self::PathDeletion(path) =>
             {
                 interface.schedule_overall_node_update();
-                interface.set_path(drawing_resources, single!(), std::mem::take(path).unwrap());
+                interface.set_path(drawing_resources, grid, single!(), std::mem::take(path).unwrap());
             },
             Self::EntitySelection =>
             {
@@ -1030,13 +1045,13 @@ impl EditType
                 for id in identifiers
                 {
                     func(
-                        &mut interface.brush_mut(drawing_resources, *id),
+                        &mut interface.brush_mut(drawing_resources, grid, *id),
                         flip.mirror(),
                         *flip_texture
                     );
                 }
             },
-            Self::PathCreation(path) => *path = interface.remove_path(drawing_resources, single!()).into(),
+            Self::PathCreation(path) => *path = interface.remove_path(drawing_resources, grid, single!()).into(),
             Self::BrushAttachment(attachment) => interface.detach(single!(), *attachment),
             Self::BrushDetachment(attachment) => interface.attach(single!(), *attachment),
             Self::PathNodesSelection(idxs) =>
@@ -1103,7 +1118,7 @@ impl EditType
                 {
                     Some(tex) =>
                     {
-                        match interface.set_texture(drawing_resources, single!(), tex)
+                        match interface.set_texture(drawing_resources, grid, single!(), tex)
                         {
                             TextureSetResult::Unchanged => panic!("Texture change undo failed."),
                             TextureSetResult::Changed(prev) => *tex = prev,
@@ -1113,19 +1128,19 @@ impl EditType
                     None =>
                     {
                         *texture =
-                            interface.remove_texture(drawing_resources, single!()).name().to_owned().into();
+                            interface.remove_texture(drawing_resources, grid, single!()).name().to_owned().into();
                     }
                 };
             },
             Self::TextureRemoval(texture) =>
             {
-                interface.set_texture_settings(drawing_resources, single!(), std::mem::take(texture).unwrap());
+                interface.set_texture_settings(drawing_resources, grid, single!(), std::mem::take(texture).unwrap());
             },
             Self::ListAnimationFrameRemoval(index, name, time) =>
             {
                 for id in identifiers
                 {
-                    interface.brush_mut(drawing_resources, *id).insert_list_animation_frame(
+                    interface.brush_mut(drawing_resources, grid, *id).insert_list_animation_frame(
                         *index,
                         name,
                         *time
@@ -1136,7 +1151,7 @@ impl EditType
             {
                 for id in identifiers
                 {
-                    interface.brush_mut(drawing_resources, *id).pop_list_animation_frame();
+                    interface.brush_mut(drawing_resources, grid, *id).pop_list_animation_frame();
                 }
             }
         );
@@ -1144,13 +1159,13 @@ impl EditType
         let id = single!();
 
         if self.thing_common(interface, id) ||
-            self.brush_common(drawing_resources, interface, id) ||
-            self.moving_common(drawing_resources, interface, id)
+            self.brush_common(drawing_resources, grid, interface, id) ||
+            self.moving_common(drawing_resources, grid, interface, id)
         {
             return;
         }
 
-        let mut brush = interface.brush_mut(drawing_resources, id);
+        let mut brush = interface.brush_mut(drawing_resources, grid, id);
 
         match self
         {
@@ -1192,6 +1207,7 @@ impl EditType
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
+        grid: Grid,
         ui: &mut Ui,
         identifiers: &HvVec<Id>,
         property: Option<&String>
@@ -1207,7 +1223,7 @@ impl EditType
         /// Returns the [`MovingMut`] of the entity with the [`Id`] returned by `single`.
         macro_rules! moving_mut {
             () => {
-                interface.moving_mut(drawing_resources, single!())
+                interface.moving_mut(drawing_resources, grid, single!())
             };
         }
 
@@ -1238,12 +1254,12 @@ impl EditType
             return;
         }
 
-        if self.property(interface, drawing_resources, identifiers, property)
+        if self.property(interface, drawing_resources, grid, identifiers, property)
         {
             return;
         }
 
-        if self.brushes_common(drawing_resources, interface, identifiers) ||
+        if self.brushes_common(drawing_resources, grid, interface, identifiers) ||
             self.things_common(interface, identifiers)
         {
             return;
@@ -1255,6 +1271,7 @@ impl EditType
             {
                 interface.spawn_brush(
                     drawing_resources,
+                    grid,
                     single!(),
                     std::mem::take(data).unwrap(),
                     BrushType::Drawn
@@ -1264,6 +1281,7 @@ impl EditType
             {
                 interface.spawn_brush(
                     drawing_resources,
+                    grid,
                     single!(),
                     std::mem::take(data).unwrap(),
                     BrushType::from_selection(*selected)
@@ -1271,11 +1289,11 @@ impl EditType
             },
             Self::DrawnBrushDespawn(data) =>
             {
-                *data = interface.despawn_brush(drawing_resources, single!(), BrushType::Drawn).into();
+                *data = interface.despawn_brush(drawing_resources, grid, single!(), BrushType::Drawn).into();
             },
             Self::BrushDespawn(data, selected) =>
             {
-                *data = interface.despawn_brush(drawing_resources, single!(), BrushType::from_selection(*selected)).into();
+                *data = interface.despawn_brush(drawing_resources, grid, single!(), BrushType::from_selection(*selected)).into();
             },
             Self::EntitySelection =>
             {
@@ -1320,17 +1338,17 @@ impl EditType
                 for id in identifiers
                 {
                     func(
-                        &mut interface.brush_mut(drawing_resources, *id),
+                        &mut interface.brush_mut(drawing_resources, grid, *id),
                         flip.mirror(),
                         *flip_texture
                     );
                 }
             },
-            Self::PathCreation(path) => interface.set_path(drawing_resources, single!(), std::mem::take(path).unwrap()),
+            Self::PathCreation(path) => interface.set_path(drawing_resources, grid, single!(), std::mem::take(path).unwrap()),
             Self::PathDeletion(path) =>
             {
                 interface.schedule_overall_node_update();
-                *path = interface.remove_path(drawing_resources, single!()).into();
+                *path = interface.remove_path(drawing_resources, grid, single!()).into();
             },
             Self::BrushAttachment(attachment) => interface.attach(single!(), *attachment),
             Self::BrushDetachment(attachment) => interface.detach(single!(), *attachment),
@@ -1396,6 +1414,7 @@ impl EditType
             {
                 *texture = match interface.set_texture(
                     drawing_resources,
+                    grid,
                     single!(),
                     texture.as_ref().unwrap()
                 )
@@ -1405,19 +1424,19 @@ impl EditType
                     TextureSetResult::Set => None
                 };
             },
-            Self::TextureRemoval(texture) => *texture = interface.remove_texture(drawing_resources, single!()).into(),
+            Self::TextureRemoval(texture) => *texture = interface.remove_texture(drawing_resources, grid, single!()).into(),
             Self::ListAnimationFrameRemoval(index, ..) =>
             {
                 for id in identifiers
                 {
-                    interface.brush_mut(drawing_resources, *id).remove_list_animation_frame(*index);
+                    interface.brush_mut(drawing_resources, grid, *id).remove_list_animation_frame(*index);
                 }
             },
             Self::ListAnimationNewFrame(name) =>
             {
                 for id in identifiers
                 {
-                    interface.brush_mut(drawing_resources, *id).push_list_animation_frame(name);
+                    interface.brush_mut(drawing_resources, grid, *id).push_list_animation_frame(name);
                 }
             }
         );
@@ -1425,13 +1444,13 @@ impl EditType
         let id = single!();
 
         if self.thing_common(interface, id) ||
-            self.brush_common(drawing_resources, interface, id) ||
-            self.moving_common(drawing_resources, interface, id)
+            self.brush_common(drawing_resources, grid, interface, id) ||
+            self.moving_common(drawing_resources, grid, interface, id)
         {
             return;
         }
 
-        let mut brush = interface.brush_mut(drawing_resources, id);
+        let mut brush = interface.brush_mut(drawing_resources, grid, id);
 
         match self
         {

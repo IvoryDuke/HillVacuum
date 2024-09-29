@@ -30,7 +30,7 @@ use crate::{
                     edit_list_texture,
                     set_atlas_per_frame_time
                 },
-                Bundle,
+                UiBundle,
                 SETTING_HEIGHT
             }
         }
@@ -52,12 +52,12 @@ impl InstancesEditor
     #[inline]
     fn list(
         ui: &mut egui::Ui,
-        bundle: &mut Bundle,
+        bundle: &mut UiBundle,
         animation: &mut UiOverallListAnimation,
         field_width: f32
     )
     {
-        let Bundle {
+        let UiBundle {
             drawing_resources,
             manager,
             edits_history,
@@ -172,12 +172,12 @@ impl InstancesEditor
     #[inline]
     fn atlas(
         ui: &mut egui::Ui,
-        bundle: &mut Bundle,
+        bundle: &mut UiBundle,
         atlas: &mut UiOverallAtlasAnimation,
         field_width: f32
     )
     {
-        let Bundle {
+        let UiBundle {
             drawing_resources,
             manager,
             edits_history,
@@ -340,7 +340,7 @@ impl InstancesEditor
     #[inline]
     pub fn show(
         ui: &mut egui::Ui,
-        bundle: &mut Bundle,
+        bundle: &mut UiBundle,
         overall_animation: &mut UiOverallAnimation,
         field_width: f32
     )

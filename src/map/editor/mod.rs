@@ -28,6 +28,13 @@ use bevy::{
 };
 use bevy_egui::{egui, EguiUserTextures};
 use glam::Vec2;
+use state::{
+    clipboard::Clipboard,
+    edits_history::EditsHistory,
+    grid::Grid,
+    inputs_presses::InputsPresses,
+    manager::EntitiesManager
+};
 
 use self::state::{
     clipboard::{PropCameras, PropCamerasMut},
@@ -48,7 +55,6 @@ use crate::{
     config::{controls::BindsKeyCodes, Config},
     map::{
         editor::{cursor::Cursor, state::editor_state::State},
-        hv_vec,
         MAP_HALF_SIZE
     },
     utils::{
@@ -111,6 +117,11 @@ struct StateUpdateBundle<'world, 'state, 'a, 'b, 'c>
     things_catalog:     &'b mut ThingsCatalog,
     drawing_resources:  &'b mut DrawingResources,
     default_properties: &'b mut AllDefaultProperties<'b>,
+    manager:            &'b mut EntitiesManager,
+    clipboard:          &'b mut Clipboard,
+    edits_history:      &'b mut EditsHistory,
+    inputs:             &'b mut InputsPresses,
+    grid:               &'b mut Grid,
     next_editor_state:  &'a mut NextState<EditorState>,
     next_tex_load:      &'a mut NextState<TextureLoadingProgress>
 }
@@ -122,18 +133,23 @@ struct StateUpdateBundle<'world, 'state, 'a, 'b, 'c>
 #[must_use]
 struct ToolUpdateBundle<'world, 'state, 'a, 'b, 'c>
 {
-    window:                     &'a Window,
-    images:                     &'a mut Assets<Image>,
-    delta_time:                 f32,
-    camera:                     &'a mut Transform,
-    prop_cameras:               &'a mut PropCamerasMut<'world, 'state, 'c>,
-    paint_tool_camera:          (&'a mut bevy::render::camera::Camera, &'a mut Transform),
-    user_textures:              &'a mut EguiUserTextures,
-    things_catalog:             &'b ThingsCatalog,
-    drawing_resources:          &'b DrawingResources,
-    cursor:                     &'b Cursor,
+    window: &'a Window,
+    images: &'a mut Assets<Image>,
+    delta_time: f32,
+    camera: &'a mut Transform,
+    prop_cameras: &'a mut PropCamerasMut<'world, 'state, 'c>,
+    paint_tool_camera: (&'a mut bevy::render::camera::Camera, &'a mut Transform),
+    user_textures: &'a mut EguiUserTextures,
+    things_catalog: &'b ThingsCatalog,
+    drawing_resources: &'b DrawingResources,
+    cursor: &'b Cursor,
     brushes_default_properties: &'b DefaultProperties,
-    things_default_properties:  &'b DefaultProperties
+    things_default_properties: &'b DefaultProperties,
+    manager: &'b mut EntitiesManager,
+    clipboard: &'b mut Clipboard,
+    edits_history: &'b mut EditsHistory,
+    inputs: &'b mut InputsPresses,
+    grid: Grid
 }
 
 //=======================================================================//
@@ -145,12 +161,14 @@ struct DrawBundle<'world, 'state, 'w, 's, 'a, 'b, 'c>
 {
     window:            &'a Window,
     delta_time:        f32,
-    drawer:            EditDrawer<'w, 's, 'a>,
+    drawer:            &'b mut EditDrawer<'w, 's, 'a>,
     camera:            &'a Transform,
     prop_cameras:      &'a PropCameras<'world, 'state, 'c>,
     paint_tool_camera: &'a Transform,
     things_catalog:    &'b ThingsCatalog,
-    cursor:            &'b Cursor
+    cursor:            &'b Cursor,
+    manager:           &'b mut EntitiesManager,
+    clipboard:         &'b Clipboard
 }
 
 //=======================================================================//
@@ -158,13 +176,14 @@ struct DrawBundle<'world, 'state, 'w, 's, 'a, 'b, 'c>
 /// A bundle of variables required to draw the visible portion of the map in map preview mode.
 #[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
-struct DrawBundleMapPreview<'w, 's, 'a, 'b>
+struct DrawBundleMapPreview<'w, 's, 'a, 'b, 'c>
 {
     window:         &'a Window,
     egui_context:   &'a egui::Context,
     drawer:         MapPreviewDrawer<'w, 's, 'a>,
     things_catalog: &'b ThingsCatalog,
-    camera:         &'a Transform
+    camera:         &'a Transform,
+    manager:        &'c EntitiesManager
 }
 
 //=======================================================================//
@@ -188,7 +207,17 @@ pub(in crate::map) struct Editor
     /// The defined default brush properties to be used for the currently opened map.
     map_brushes_default_properties: DefaultProperties,
     /// The defined default [`ThingInstance`] properties to be used for the currently opened map.
-    map_things_default_properties: DefaultProperties
+    map_things_default_properties: DefaultProperties,
+    /// The manager of all entities.
+    manager: EntitiesManager,
+    /// The clipboard used for copy paste and prop spawning.
+    clipboard: Clipboard,
+    /// The history of the edits made to the map.
+    edits_history: EditsHistory,
+    /// The state of all necessary input presses.
+    inputs: InputsPresses,
+    /// The grid of the map.
+    grid: Grid
 }
 
 impl Placeholder for Editor
@@ -205,7 +234,12 @@ impl Placeholder for Editor
                 brushes_default_properties: DefaultProperties::default(),
                 things_default_properties: DefaultProperties::default(),
                 map_brushes_default_properties: DefaultProperties::default(),
-                map_things_default_properties: DefaultProperties::default()
+                map_things_default_properties: DefaultProperties::default(),
+                manager: EntitiesManager::new(),
+                clipboard: Clipboard::new(),
+                edits_history: EditsHistory::default(),
+                inputs: InputsPresses::default(),
+                grid: Grid::default()
             }
         }
     }
@@ -264,7 +298,7 @@ impl Editor
             map_things:  &mut map_things_default_properties
         };
 
-        let (state, path) = State::new(
+        let (state, manager, clipboard, edits_history, grid, path) = State::new(
             asset_server,
             images,
             prop_cameras,
@@ -289,7 +323,12 @@ impl Editor
             brushes_default_properties,
             things_default_properties,
             map_brushes_default_properties,
-            map_things_default_properties
+            map_things_default_properties,
+            manager,
+            clipboard,
+            edits_history,
+            inputs: InputsPresses::default(),
+            grid
         }
     }
 
@@ -354,6 +393,11 @@ impl Editor
                 map_brushes: &mut self.map_brushes_default_properties,
                 map_things:  &mut self.map_things_default_properties
             },
+            manager: &mut self.manager,
+            clipboard: &mut self.clipboard,
+            edits_history: &mut self.edits_history,
+            inputs: &mut self.inputs,
+            grid: &mut self.grid,
             next_editor_state,
             next_tex_load
         });
@@ -383,7 +427,6 @@ impl Editor
         user_textures: &mut EguiUserTextures
     )
     {
-        // Manipulate entities.
         self.state.update_active_tool(&mut ToolUpdateBundle {
             window,
             images,
@@ -396,7 +439,12 @@ impl Editor
             things_catalog: &self.things_catalog,
             drawing_resources: &self.drawing_resources,
             brushes_default_properties: &self.map_brushes_default_properties,
-            things_default_properties: &self.map_things_default_properties
+            things_default_properties: &self.map_things_default_properties,
+            manager: &mut self.manager,
+            clipboard: &mut self.clipboard,
+            edits_history: &mut self.edits_history,
+            inputs: &mut self.inputs,
+            grid: self.grid
         });
     }
 
@@ -426,8 +474,14 @@ impl Editor
                 self.drag_view(camera, egui_context);
             }
 
-            self.cursor
-                .update(cursor_pos, window, camera, &self.state, self.state.space_pressed());
+            self.cursor.update(
+                cursor_pos,
+                window,
+                camera,
+                &self.state,
+                self.grid,
+                self.inputs.space_pressed()
+            );
         }
 
         Self::cap_map_size(window, camera);
@@ -444,14 +498,14 @@ impl Editor
         binds: &BindsKeyCodes
     ) -> bool
     {
-        if self.state.space_pressed()
+        if self.inputs.space_pressed()
         {
             return false;
         }
 
-        if self.state.ctrl_pressed()
+        if self.inputs.ctrl_pressed()
         {
-            if let Some(delta) = self.state.directional_keys_vector()
+            if let Some(delta) = self.inputs.directional_keys_vector(self.grid.size())
             {
                 camera.translate(delta);
                 return true;
@@ -472,15 +526,16 @@ impl Editor
             return false;
         }
 
-        if let Some(hull) = self.state.quick_zoom_hull(&self.drawing_resources, key_inputs, binds)
+        if let Some(hull) = self.state.quick_zoom_hull(
+            key_inputs,
+            &self.drawing_resources,
+            &mut self.manager,
+            self.grid,
+            binds
+        )
         {
             // Zoom on the selected entities.
-            camera.scale_viewport_to_hull(
-                window,
-                self.state.grid(),
-                &hull,
-                self.state.grid_size_f32()
-            );
+            camera.scale_viewport_to_hull(window, self.grid, &hull, self.grid.size_f32());
             return true;
         }
 
@@ -497,7 +552,7 @@ impl Editor
         mouse_wheel: &mut EventReader<MouseWheel>
     ) -> bool
     {
-        if self.state.space_pressed()
+        if self.inputs.space_pressed()
         {
             return false;
         }
@@ -526,11 +581,11 @@ impl Editor
             return false;
         }
 
-        if self.state.ctrl_pressed()
+        if self.inputs.ctrl_pressed()
         {
             camera.zoom_on_ui_pos(
                 window,
-                self.state.grid(),
+                self.grid,
                 self.cursor.world_snapped(),
                 self.cursor.ui_snapped(),
                 mouse_wheel_scroll
@@ -538,10 +593,10 @@ impl Editor
         }
         else
         {
-            let mouse_wheel_scroll = mouse_wheel_scroll * self.state.grid_size_f32();
+            let mouse_wheel_scroll = mouse_wheel_scroll * self.grid.size_f32();
 
             camera.translate(
-                if self.state.shift_pressed()
+                if self.inputs.shift_pressed()
                 {
                     Vec2::new(mouse_wheel_scroll, 0f32)
                 }
@@ -560,7 +615,7 @@ impl Editor
     fn drag_view(&mut self, camera: &mut Transform, egui_context: &egui::Context)
     {
         // Drag the view around.
-        if !self.state.space_pressed()
+        if !self.inputs.space_pressed()
         {
             egui_context.set_cursor_icon(egui::CursorIcon::Default);
             return;
@@ -660,6 +715,11 @@ impl Editor
                     map_brushes: &mut self.map_brushes_default_properties,
                     map_things:  &mut self.map_things_default_properties
                 },
+                manager: &mut self.manager,
+                clipboard: &mut self.clipboard,
+                edits_history: &mut self.edits_history,
+                inputs: &mut self.inputs,
+                grid: &mut self.grid,
                 next_editor_state,
                 next_tex_load
             },
@@ -700,11 +760,12 @@ impl Editor
                     meshes,
                     meshes_query,
                     &mut self.drawing_resources,
-                    self.state.grid(),
+                    self.grid,
                     elapsed_time
                 ),
                 camera,
-                things_catalog: &self.things_catalog
+                things_catalog: &self.things_catalog,
+                manager: &self.manager
             });
 
             return;
@@ -713,7 +774,7 @@ impl Editor
         self.state.draw(&mut DrawBundle {
             window,
             delta_time: time.delta_seconds(),
-            drawer: EditDrawer::new(
+            drawer: &mut EditDrawer::new(
                 commands,
                 prop_cameras,
                 meshes,
@@ -722,7 +783,7 @@ impl Editor
                 &mut self.drawing_resources,
                 color_resources,
                 self.state.tools_settings(),
-                self.state.grid(),
+                self.grid,
                 elapsed_time,
                 camera.scale(),
                 paint_tool_camera.scale(),
@@ -733,7 +794,9 @@ impl Editor
             prop_cameras,
             paint_tool_camera,
             things_catalog: &self.things_catalog,
-            cursor: &self.cursor
+            cursor: &self.cursor,
+            manager: &mut self.manager,
+            clipboard: &self.clipboard
         });
     }
 
@@ -756,7 +819,11 @@ impl Editor
             prop_cameras,
             images,
             user_textures,
-            &self.drawing_resources
+            &self.drawing_resources,
+            &mut self.manager,
+            &mut self.clipboard,
+            &mut self.edits_history,
+            self.grid
         );
     }
 

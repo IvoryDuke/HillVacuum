@@ -19,9 +19,9 @@ use crate::{
             cursor::Cursor,
             state::{
                 core::rect,
-                editor_state::InputsPresses,
                 edits_history::EditsHistory,
                 grid::Grid,
+                inputs_presses::InputsPresses,
                 manager::EntitiesManager
             },
             DrawBundle,
@@ -154,20 +154,18 @@ impl SubtractTool
     /// Updates the tool.
     #[inline]
     #[must_use]
-    pub fn update(
-        &mut self,
-        bundle: &mut ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid
-    ) -> bool
+    pub fn update(&mut self, bundle: &mut ToolUpdateBundle) -> bool
     {
         let ToolUpdateBundle {
             cursor,
             drawing_resources,
+            manager,
+            edits_history,
+            inputs,
+            grid,
             ..
         } = bundle;
+
         let subtractee_beneath_cursor =
             self.selector
                 .brush_beneath_cursor(drawing_resources, manager, cursor, inputs);
@@ -185,7 +183,7 @@ impl SubtractTool
                         bundle.drawing_resources,
                         manager,
                         edits_history,
-                        grid,
+                        *grid,
                         &mut self.subtractees
                     );
                     return true;
@@ -335,12 +333,13 @@ impl SubtractTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager)
+    pub fn draw(&self, bundle: &mut DrawBundle)
     {
         let DrawBundle {
             drawer,
             camera,
             window,
+            manager,
             ..
         } = bundle;
 

@@ -12,18 +12,11 @@ use super::{
     bottom_area,
     cursor_delta::CursorDelta,
     draw_selected_and_non_selected_brushes,
-    tool::{
-        ActiveTool,
-        ChangeConditions,
-        DisableSubtool,
-        EnabledTool,
-        OngoingMultiframeChange,
-        SubTool
-    }
+    tool::{ActiveTool, DisableSubtool, EnabledTool, OngoingMultiframeChange, SubTool}
 };
 use crate::{
     map::{
-        drawer::drawing_resources::DrawingResources,
+        drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             cursor::Cursor,
             state::{
@@ -34,14 +27,12 @@ use crate::{
                     PROP_SCREENSHOT_SIZE
                 },
                 core::tool::subtools_buttons,
-                editor_state::InputsPresses,
                 edits_history::EditsHistory,
                 grid::Grid,
                 manager::EntitiesManager,
-                ui::{centered_window, ToolsButtons}
+                ui::{centered_window, ToolsButtons, UiBundle}
             },
             DrawBundle,
-            StateUpdateBundle,
             ToolUpdateBundle
         }
     },
@@ -199,15 +190,7 @@ impl PaintTool
     /// Updates the tool.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    pub fn update(
-        &mut self,
-        bundle: &mut ToolUpdateBundle,
-        manager: &mut EntitiesManager,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        inputs: &InputsPresses,
-        grid: Grid
-    )
+    pub fn update(&mut self, bundle: &mut ToolUpdateBundle)
     {
         let ToolUpdateBundle {
             images,
@@ -216,6 +199,11 @@ impl PaintTool
             paint_tool_camera,
             cursor,
             drawing_resources,
+            inputs,
+            clipboard,
+            manager,
+            edits_history,
+            grid,
             ..
         } = bundle;
 
@@ -233,7 +221,7 @@ impl PaintTool
                 if inputs.enter.just_pressed() && manager.any_selected_entities()
                 {
                     self.status =
-                        Status::SetPivot(Self::outline(drawing_resources, manager, grid).unwrap());
+                        Status::SetPivot(Self::outline(drawing_resources, manager, *grid).unwrap());
                 }
 
                 if !inputs.left_mouse.just_pressed()
@@ -248,7 +236,7 @@ impl PaintTool
                         manager,
                         clipboard,
                         edits_history,
-                        grid,
+                        *grid,
                         cursor_pos
                     );
                     return;
@@ -258,7 +246,7 @@ impl PaintTool
                     drawing_resources,
                     manager,
                     edits_history,
-                    grid,
+                    *grid,
                     cursor_pos
                 );
                 self.status = Status::Paint(PaintingProp::Slotted, CursorDelta::new(cursor_pos));
@@ -272,7 +260,7 @@ impl PaintTool
 
                 let mut prop = Prop::new(
                     drawing_resources,
-                    grid,
+                    *grid,
                     manager.selected_entities(),
                     cursor_pos,
                     None
@@ -282,7 +270,7 @@ impl PaintTool
                     paint_tool_camera,
                     user_textures,
                     drawing_resources,
-                    grid,
+                    *grid,
                     &mut prop
                 );
 
@@ -330,7 +318,7 @@ impl PaintTool
                     manager,
                     clipboard,
                     edits_history,
-                    grid,
+                    *grid,
                     cursor_pos
                 );
             },
@@ -338,13 +326,13 @@ impl PaintTool
             {
                 if cursor.moved()
                 {
-                    drag.update(cursor, grid, |_| {
+                    drag.update(cursor, *grid, |_| {
                         prop.spawn_func()(
                             clipboard,
                             drawing_resources,
                             manager,
                             edits_history,
-                            grid,
+                            *grid,
                             cursor_pos
                         );
                     });
@@ -388,7 +376,7 @@ impl PaintTool
     /// Draws the UI.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    pub fn ui(&mut self, bundle: &mut StateUpdateBundle, clipboard: &mut Clipboard)
+    pub fn ui(&mut self, egui_context: &egui::Context, bundle: &mut UiBundle)
     {
         /// The size of the frame of the [`Prop`]s previews.
         const PREVIEW_SIZE: egui::Vec2 = egui::Vec2::new(
@@ -396,10 +384,8 @@ impl PaintTool
             PROP_SCREENSHOT_SIZE.y as f32 * 0.4f32
         );
 
-        let StateUpdateBundle {
-            window,
-            egui_context,
-            ..
+        let UiBundle {
+            window, clipboard, ..
         } = bundle;
 
         if let Status::PropCreationUi(prop) = &self.status
@@ -487,9 +473,9 @@ impl PaintTool
 
     /// Draws the tool.
     #[inline]
-    pub fn draw(&self, bundle: &mut DrawBundle, manager: &EntitiesManager, grid: Grid)
+    pub fn draw(&self, bundle: &mut DrawBundle)
     {
-        draw_selected_and_non_selected_brushes!(bundle, manager);
+        draw_selected_and_non_selected_brushes!(bundle);
         bundle
             .drawer
             .square_highlight(Self::cursor_pos(bundle.cursor), Color::ToolCursor);
@@ -497,7 +483,7 @@ impl PaintTool
         match &self.status
         {
             Status::SetPivot(hull) => bundle.drawer.hull(hull, Color::Hull),
-            Status::PropCreationScreenshot(_, prop) => prop.draw(bundle, grid, None),
+            Status::PropCreationScreenshot(_, prop) => prop.draw(bundle, None),
             _ => ()
         };
     }
@@ -507,11 +493,8 @@ impl PaintTool
     pub fn draw_subtools(
         &mut self,
         ui: &mut egui::Ui,
-        bundle: &StateUpdateBundle,
-        manager: &EntitiesManager,
-        grid: Grid,
-        buttons: &mut ToolsButtons,
-        tool_change_conditions: &ChangeConditions
+        bundle: &mut UiBundle,
+        buttons: &mut ToolsButtons
     )
     {
         subtools_buttons!(
@@ -519,10 +502,11 @@ impl PaintTool
             ui,
             bundle,
             buttons,
-            tool_change_conditions,
             (
                 PaintCreation,
-                Status::SetPivot(Self::outline(bundle.drawing_resources, manager, grid).unwrap()),
+                Status::SetPivot(
+                    Self::outline(bundle.drawing_resources, bundle.manager, bundle.grid).unwrap()
+                ),
                 Status::SetPivot(_) |
                     Status::PropCreationScreenshot(..) |
                     Status::PropCreationUi(..),

@@ -17,7 +17,15 @@ mod window;
 use std::ops::Range;
 
 use arrayvec::ArrayVec;
-use bevy::{asset::AssetServer, transform::components::Transform};
+use bevy::{
+    asset::{AssetServer, Assets},
+    input::ButtonInput,
+    prelude::KeyCode,
+    render::texture::Image,
+    sprite::ColorMaterial,
+    transform::components::Transform,
+    window::Window
+};
 use bevy_egui::{egui, EguiUserTextures};
 use edits_history_window::EditsHistoryWindow;
 use glam::Vec2;
@@ -36,9 +44,10 @@ use super::{
         tool::{ChangeConditions, EnabledTool, SubTool, Tool, ToolInterface},
         Core
     },
-    editor_state::{InputsPresses, ToolsSettings},
+    editor_state::ToolsSettings,
     edits_history::EditsHistory,
     grid::Grid,
+    inputs_presses::InputsPresses,
     manager::EntitiesManager
 };
 use crate::{
@@ -46,8 +55,9 @@ use crate::{
     embedded_assets::embedded_asset_path,
     map::{
         drawer::drawing_resources::DrawingResources,
-        editor::{cursor::Cursor, Placeholder, StateUpdateBundle},
-        properties::DefaultProperties
+        editor::{cursor::Cursor, Placeholder, PropCamerasMut, StateUpdateBundle},
+        properties::DefaultProperties,
+        thing::catalog::ThingsCatalog
     },
     utils::misc::{Camera, FromToStr, Toggle},
     HardcodedActions
@@ -405,6 +415,34 @@ impl WindowCloser
 //
 //=======================================================================//
 
+#[allow(clippy::missing_docs_in_private_items)]
+pub(in crate::map::editor::state) struct UiBundle<'world, 'state, 'a, 'c>
+{
+    pub window: &'a mut Window,
+    pub images: &'a mut Assets<Image>,
+    pub materials: &'a mut Assets<ColorMaterial>,
+    pub camera: &'a mut Transform,
+    pub prop_cameras: &'a mut PropCamerasMut<'world, 'state, 'c>,
+    pub elapsed_time: f32,
+    pub delta_time: f32,
+    pub key_inputs: &'a mut ButtonInput<KeyCode>,
+    pub user_textures: &'a mut EguiUserTextures,
+    pub config: &'a mut Config,
+    pub drawing_resources: &'a mut DrawingResources,
+    pub things_catalog: &'a mut ThingsCatalog,
+    pub brushes_default_properties: &'a DefaultProperties,
+    pub things_default_properties: &'a DefaultProperties,
+    pub manager: &'a mut EntitiesManager,
+    pub edits_history: &'a mut EditsHistory,
+    pub clipboard: &'a mut Clipboard,
+    pub inputs: &'a mut InputsPresses,
+    pub grid: Grid,
+    pub settings: &'a mut ToolsSettings,
+    pub tool_change_conditions: &'a ChangeConditions
+}
+
+//=======================================================================//
+
 /// The buttons used to change the currently used tool.
 pub(in crate::map::editor::state) struct ToolsButtons
 {
@@ -450,20 +488,13 @@ impl ToolsButtons
     /// Draws the tool's UI element.
     #[inline]
     #[must_use]
-    pub fn draw<T, E>(
-        &mut self,
-        ui: &mut egui::Ui,
-        bundle: &StateUpdateBundle,
-        tool: T,
-        change_conditions: &ChangeConditions,
-        enabled: &E
-    ) -> bool
+    pub fn draw<T, E>(&mut self, ui: &mut egui::Ui, bundle: &UiBundle, tool: T, enabled: &E) -> bool
     where
         T: ToolInterface,
         E: EnabledTool<Item = T>
     {
         let response = ui.add_enabled(
-            tool.change_conditions_met(change_conditions),
+            tool.change_conditions_met(bundle.tool_change_conditions),
             egui::ImageButton::new(egui::Image::new((
                 self.icons[Self::index(tool)],
                 ICON_DRAW_SIZE
@@ -584,46 +615,85 @@ impl Ui
         &mut self,
         bundle: &mut StateUpdateBundle,
         core: &mut Core,
-        manager: &mut EntitiesManager,
-        inputs: &mut InputsPresses,
-        clipboard: &mut Clipboard,
-        edits_history: &mut EditsHistory,
-        grid: &mut Grid,
         settings: &mut ToolsSettings,
         tool_change_conditions: &ChangeConditions
     ) -> Interaction
     {
         #[inline]
-        fn clear_inputs(bundle: &mut StateUpdateBundle, inputs: &mut InputsPresses)
+        fn clear_inputs(bundle: &mut UiBundle)
         {
-            inputs.clear();
+            bundle.inputs.clear();
             bundle.key_inputs.clear();
         }
 
         #[inline]
         #[must_use]
-        fn show_and_clear_inputs<F>(
-            bundle: &mut StateUpdateBundle,
-            inputs: &mut InputsPresses,
-            f: F
-        ) -> bool
+        fn show_and_clear_inputs<F>(bundle: &mut UiBundle, f: F) -> bool
         where
-            F: FnOnce(&mut StateUpdateBundle, &mut InputsPresses) -> bool
+            F: FnOnce(&mut UiBundle) -> bool
         {
-            if f(bundle, inputs)
+            if f(bundle)
             {
-                clear_inputs(bundle, inputs);
+                clear_inputs(bundle);
                 return true;
             }
 
             false
         }
 
+        let StateUpdateBundle {
+            window,
+            images,
+            materials,
+            camera,
+            prop_cameras,
+            elapsed_time,
+            delta_time,
+            key_inputs,
+            egui_context,
+            user_textures,
+            config,
+            things_catalog,
+            drawing_resources,
+            default_properties,
+            cursor,
+            manager,
+            clipboard,
+            edits_history,
+            inputs,
+            grid,
+            ..
+        } = bundle;
+
+        let bundle = &mut UiBundle {
+            window,
+            images,
+            materials,
+            camera,
+            prop_cameras,
+            user_textures,
+            key_inputs,
+            config,
+            elapsed_time: *elapsed_time,
+            delta_time: *delta_time,
+            drawing_resources,
+            things_catalog,
+            brushes_default_properties: default_properties.brushes,
+            things_default_properties: default_properties.things,
+            manager,
+            edits_history,
+            clipboard,
+            inputs,
+            grid: **grid,
+            settings,
+            tool_change_conditions
+        };
+
         // Top bar.
-        let mut command = self.menu_bar(bundle, manager, core);
+        let mut command = self.menu_bar(egui_context, bundle, core);
 
         // Manual menu.
-        self.manual.show(bundle, &self.tools_buttons);
+        self.manual.show(egui_context, bundle.key_inputs, &self.tools_buttons);
 
         // Floating windows.
         self.window_focused = if core.map_preview()
@@ -632,37 +702,33 @@ impl Ui
         }
         else
         {
-            show_and_clear_inputs(bundle, inputs, |bundle, inputs| {
-                self.texture_editor.show(
-                    bundle,
-                    manager,
-                    clipboard,
-                    edits_history,
-                    inputs,
-                    *grid,
-                    settings
-                )
-            })
+            show_and_clear_inputs(bundle, |bundle| self.texture_editor.show(egui_context, bundle))
         };
 
-        self.window_focused |= show_and_clear_inputs(bundle, inputs, |bundle, inputs| {
-            self.settings_window.show(bundle, clipboard, inputs, grid)
-        }) | show_and_clear_inputs(bundle, inputs, |bundle, inputs| {
-            self.properties_window
-                .show(bundle, manager, clipboard, edits_history, inputs, *grid)
+        self.window_focused |= show_and_clear_inputs(bundle, |bundle| {
+            self.settings_window.show(egui_context, bundle)
+        }) | show_and_clear_inputs(bundle, |bundle| {
+            self.properties_window.show(egui_context, bundle)
         });
 
-        if let Some(clicked) = self.edits_history_window.show(bundle, core, edits_history)
+        if let Some(clicked) = self.edits_history_window.show(egui_context, bundle, core)
         {
-            let index = edits_history.index();
+            let index = bundle.edits_history.index();
 
-            match edits_history.index().cmp(&clicked)
+            match bundle.edits_history.index().cmp(&clicked)
             {
                 std::cmp::Ordering::Less =>
                 {
                     for _ in 0..clicked - index
                     {
-                        core.redo(bundle, manager, edits_history, self);
+                        core.redo(
+                            bundle.drawing_resources,
+                            bundle.things_catalog,
+                            bundle.manager,
+                            bundle.edits_history,
+                            bundle.grid,
+                            self
+                        );
                     }
                 },
                 std::cmp::Ordering::Equal => (),
@@ -670,32 +736,29 @@ impl Ui
                 {
                     for _ in 0..index - clicked
                     {
-                        core.undo(bundle, manager, edits_history, self);
+                        core.undo(
+                            bundle.drawing_resources,
+                            bundle.things_catalog,
+                            bundle.manager,
+                            bundle.edits_history,
+                            bundle.grid,
+                            self
+                        );
                     }
                 }
             }
         }
 
         // Panels.
-        let us_context = unsafe { std::ptr::from_ref(bundle.egui_context).as_ref().unwrap() };
-
         self.right_panel_layer_id = egui::SidePanel::right("subtools")
             .resizable(false)
             .exact_width(RIGHT_SIDE_PANEL_WIDTH)
-            .show(us_context, |ui| {
+            .show(egui_context, |ui| {
                 ui.vertical(|ui| {
                     ui.add_space(ICONS_PADDING.y);
                     ui.spacing_mut().item_spacing = ICONS_PADDING;
 
-                    core.draw_subtools(
-                        ui,
-                        bundle,
-                        manager,
-                        edits_history,
-                        *grid,
-                        &mut self.tools_buttons,
-                        tool_change_conditions
-                    );
+                    core.draw_subtools(ui, bundle, &mut self.tools_buttons);
                 });
             })
             .response
@@ -705,57 +768,49 @@ impl Ui
         self.left_panel_layer_id = egui::SidePanel::left("tools")
             .resizable(false)
             .exact_width(LEFT_SIDE_PANEL_WIDTH)
-            .show(us_context, |ui| {
+            .show(egui_context, |ui| {
                 // Tool icons.
-                if let Some(tool) = self.tool_icons(core, ui, bundle, tool_change_conditions)
+                if let Some(tool) = self.tool_icons(core, ui, bundle)
                 {
                     command = Command::ChangeTool(tool);
                 }
 
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     // Cursor info.
-                    Self::cursor_info(bundle.cursor, ui);
+                    Self::cursor_info(cursor, ui);
 
                     // Grid info.
-                    Self::grid_info(*grid, ui);
+                    Self::grid_info(ui, bundle.grid);
 
                     // Camera info.
-                    Self::camera_info(bundle.camera, *grid, ui);
+                    Self::camera_info(ui, bundle);
 
                     // Extra tool info.
-                    core.tool_ui(
-                        bundle.drawing_resources,
-                        manager,
-                        clipboard,
-                        edits_history,
-                        inputs,
-                        ui,
-                        settings
-                    );
+                    core.tool_ui(ui, bundle);
                 });
             })
             .response
             .layer_id;
 
         // Bottom panel
-        core.bottom_panel(bundle, manager, clipboard, edits_history, inputs);
+        core.bottom_panel(egui_context, bundle);
 
         // Close windows.
-        bundle.egui_context.memory(|mem| {
-            WindowCloser::check_window_close(mem.layer_ids(), inputs, self);
+        egui_context.memory(|mem| {
+            WindowCloser::check_window_close(mem.layer_ids(), bundle.inputs, self);
         });
 
         // If typing, clear stored inputs.
-        if bundle.egui_context.is_focused()
+        if egui_context.is_focused()
         {
-            clear_inputs(bundle, inputs);
+            clear_inputs(bundle);
         }
 
         // Output.
         Interaction {
             hovered: !egui::CentralPanel::default()
                 .frame(egui::Frame::none())
-                .show(bundle.egui_context, |_| {})
+                .show(egui_context, |_| {})
                 .response
                 .contains_pointer(),
             command
@@ -835,8 +890,8 @@ impl Ui
     #[must_use]
     fn menu_bar(
         &mut self,
-        bundle: &mut StateUpdateBundle,
-        manager: &EntitiesManager,
+        egui_context: &egui::Context,
+        bundle: &mut UiBundle,
         core: &mut Core
     ) -> Command
     {
@@ -844,14 +899,14 @@ impl Ui
 
         egui::TopBottomPanel::top("top_panel")
             .exact_height(MENU_BAR_HEIGHT)
-            .show(bundle.egui_context, |ui| {
+            .show(egui_context, |ui| {
                 egui::menu::bar(ui, |ui| {
                     let spacing = ui.spacing_mut();
                     spacing.button_padding = [6f32; 2].into();
                     spacing.item_spacing = [2f32; 2].into();
                     ui.visuals_mut().menu_rounding = 0f32.into();
 
-                    let StateUpdateBundle { window, camera, config: Config { binds, exporter, .. }, .. } = bundle;
+                    let UiBundle { window, camera, config: Config { binds, exporter, .. }, manager, .. } = bundle;
 
                     let select_all = core.select_all_available();
                     let copy_paste = core.copy_paste_available();
@@ -1063,13 +1118,8 @@ impl Ui
     /// Draws the tools icons. Returns the clicked tool, if any.
     #[inline]
     #[must_use]
-    fn tool_icons(
-        &mut self,
-        core: &Core,
-        ui: &mut egui::Ui,
-        bundle: &mut StateUpdateBundle,
-        tool_change_conditions: &ChangeConditions
-    ) -> Option<Tool>
+    fn tool_icons(&mut self, core: &Core, ui: &mut egui::Ui, bundle: &mut UiBundle)
+        -> Option<Tool>
     {
         /// The icons in each row.
         const ICONS_PER_ROW: usize = 3;
@@ -1079,8 +1129,7 @@ impl Ui
             ui: &mut Ui,
             core: &Core,
             egui_ui: &mut egui::Ui,
-            bundle: &mut StateUpdateBundle,
-            tool_change_conditions: &ChangeConditions,
+            bundle: &mut UiBundle,
             tool_to_enable: &mut Option<Tool>,
             range: Range<usize>,
             row_padding: f32
@@ -1093,9 +1142,7 @@ impl Ui
             {
                 let tool = Into::<Tool>::into(i);
 
-                if ui
-                    .tools_buttons
-                    .draw(egui_ui, bundle, tool, tool_change_conditions, core)
+                if ui.tools_buttons.draw(egui_ui, bundle, tool, core)
                 {
                     *tool_to_enable = tool.into();
                 }
@@ -1120,7 +1167,6 @@ impl Ui
                     core,
                     ui,
                     bundle,
-                    tool_change_conditions,
                     &mut tool_to_enable,
                     i..i + 3,
                     row_padding
@@ -1134,7 +1180,6 @@ impl Ui
                 core,
                 ui,
                 bundle,
-                tool_change_conditions,
                 &mut tool_to_enable,
                 (Tool::SIZE / ICONS_PER_ROW) * ICONS_PER_ROW..Tool::SIZE,
                 row_padding
@@ -1162,7 +1207,7 @@ impl Ui
 
     /// The info concerning the grid.
     #[inline]
-    fn grid_info(grid: Grid, ui: &mut egui::Ui)
+    fn grid_info(ui: &mut egui::Ui, grid: Grid)
     {
         ui.separator();
 
@@ -1177,18 +1222,18 @@ impl Ui
 
     /// The info concerning the camera.
     #[inline]
-    fn camera_info(camera: &Transform, grid: Grid, ui: &mut egui::Ui)
+    fn camera_info(ui: &mut egui::Ui, bundle: &mut UiBundle)
     {
         ui.separator();
 
-        let ui_vector = ui_camera_displacement() * camera.scale();
-        let pos = grid.point_projection(camera.pos() + ui_vector);
+        let ui_vector = ui_camera_displacement() * bundle.camera.scale();
+        let pos = bundle.grid.point_projection(bundle.camera.pos() + ui_vector);
 
         ui.label(egui::RichText::new(format!(
             "CAMERA\nX: {:.2}\nY: {:.2}\nScale: {:.2}",
             pos.x,
             pos.y,
-            camera.scale()
+            bundle.camera.scale()
         )));
     }
 }
