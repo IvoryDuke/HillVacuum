@@ -3751,7 +3751,7 @@ pub(in crate::map) mod ui_mod
 
             // Group the 'subtract_vertexes' elements into vertexes sets which added
             // constitute the subtract polygon. These polygon may be either convex
-            // or concave. It one of the sets has 3 sides immediately add it to
+            // or concave. If one of the sets has 3 sides immediately add it to
             // 'polygons'.
             let mut polygons = hv_vec![];
 
@@ -3809,7 +3809,7 @@ pub(in crate::map) mod ui_mod
                             // If it has four vertexes it might be convex.
                             if len == 4 && is_polygon_convex(&vxs)
                             {
-                                polygons.push(vxs.into());
+                                polygons.push(Self::from((vxs, self.texture_settings())).into());
                             }
                             else
                             {
