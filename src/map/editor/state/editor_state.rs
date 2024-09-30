@@ -522,7 +522,6 @@ impl State
 
     /// Creates a new [`State`].
     #[inline]
-    #[must_use]
     pub fn new(
         asset_server: &AssetServer,
         images: &mut Assets<Image>,
@@ -687,7 +686,7 @@ impl State
                 return false;
             }
 
-            if let Err(err) = self.save(bundle, bundle.inputs.shift_pressed().then_some("Save as"))
+            if let Err(err) = Self::save(bundle, bundle.inputs.shift_pressed().then_some("Save as"))
             {
                 error_message(err);
             }
@@ -713,7 +712,7 @@ impl State
                 return false;
             }
 
-            self.export(bundle);
+            Self::export(bundle);
             return true;
         }
 
@@ -792,12 +791,11 @@ impl State
     /// `Err` -> error during save procedure.
     #[inline]
     fn unsaved_changes(
-        &mut self,
         bundle: &mut StateUpdateBundle,
         buttons: rfd::MessageButtons
     ) -> Result<bool, &'static str>
     {
-        if self.no_edits(bundle)
+        if Self::no_edits(bundle)
         {
             return Ok(true);
         }
@@ -810,7 +808,7 @@ impl State
         {
             rfd::MessageDialogResult::Yes =>
             {
-                match self.save(bundle, None)
+                match Self::save(bundle, None)
                 {
                     Err(err) => Err(err),
                     Ok(()) => Ok(true)
@@ -827,7 +825,7 @@ impl State
     #[inline]
     fn new_file(&mut self, bundle: &mut StateUpdateBundle) -> Result<(), &'static str>
     {
-        if !self.unsaved_changes(bundle, rfd::MessageButtons::YesNoCancel)?
+        if !Self::unsaved_changes(bundle, rfd::MessageButtons::YesNoCancel)?
         {
             return Ok(());
         }
@@ -888,7 +886,7 @@ impl State
     /// Whether there are no unsaved changes.
     #[inline]
     #[must_use]
-    fn no_edits(&self, bundle: &StateUpdateBundle) -> bool
+    fn no_edits(bundle: &StateUpdateBundle) -> bool
     {
         bundle.edits_history.no_unsaved_edits() &&
             !bundle.clipboard.props_changed() &&
@@ -902,7 +900,6 @@ impl State
     /// in the previously opened file.
     #[inline]
     fn save(
-        &mut self,
         bundle: &mut StateUpdateBundle,
         save_as: Option<&'static str>
     ) -> Result<(), &'static str>
@@ -1629,7 +1626,7 @@ impl State
     #[inline]
     fn open(&mut self, bundle: &mut StateUpdateBundle)
     {
-        match self.unsaved_changes(bundle, rfd::MessageButtons::YesNoCancel)
+        match Self::unsaved_changes(bundle, rfd::MessageButtons::YesNoCancel)
         {
             Ok(false) => return,
             Err(err) =>
@@ -1681,9 +1678,9 @@ impl State
     /// Initiates the map export procedure if an exporter executable is specified.
     /// If there are unsaved changes in the currently open map the save procedure is initiated.
     #[inline]
-    fn export(&mut self, bundle: &mut StateUpdateBundle)
+    fn export(bundle: &mut StateUpdateBundle)
     {
-        let file = match self.unsaved_changes(bundle, rfd::MessageButtons::YesNoCancel)
+        let file = match Self::unsaved_changes(bundle, rfd::MessageButtons::YesNoCancel)
         {
             Ok(false) => return,
             Err(err) =>
@@ -1744,7 +1741,7 @@ impl State
     {
         if HardcodedActions::Quit.pressed(bundle.key_inputs)
         {
-            self.quit(bundle, rfd::MessageButtons::YesNoCancel);
+            Self::quit(bundle, rfd::MessageButtons::YesNoCancel);
         }
 
         // Reactive update to previous frame's changes.
@@ -1767,7 +1764,7 @@ impl State
             bundle.clipboard,
             &self.core,
             bundle.things_catalog,
-            &bundle.manager
+            bundle.manager
         );
 
         let ui_interaction = self.ui.frame_start_update(
@@ -1944,20 +1941,20 @@ impl State
             },
             Command::Save =>
             {
-                if let Err(err) = self.save(bundle, None)
+                if let Err(err) = Self::save(bundle, None)
                 {
                     error_message(err);
                 }
             },
             Command::SaveAs =>
             {
-                if let Err(err) = self.save(bundle, "Save as".into())
+                if let Err(err) = Self::save(bundle, "Save as".into())
                 {
                     error_message(err);
                 }
             },
             Command::Open => self.open(bundle),
-            Command::Export => self.export(bundle),
+            Command::Export => Self::export(bundle),
             Command::ImportAnimations =>
             {
                 import!(ANIMATIONS, "animations", |file, len| {
@@ -1991,16 +1988,16 @@ impl State
             Command::Duplicate => self.duplicate(bundle),
             Command::Undo => self.undo(bundle),
             Command::Redo => self.redo(bundle),
-            Command::ToggleGrid => self.toggle_grid(bundle.grid),
-            Command::IncreaseGridSize => self.increase_grid_size(bundle),
-            Command::DecreaseGridSize => self.decrease_grid_size(bundle),
-            Command::ShiftGrid => self.shift_grid(bundle),
+            Command::ToggleGrid => Self::toggle_grid(bundle.grid),
+            Command::IncreaseGridSize => Self::increase_grid_size(bundle),
+            Command::DecreaseGridSize => Self::decrease_grid_size(bundle),
+            Command::ShiftGrid => Self::shift_grid(bundle),
             Command::ToggleTooltips => self.toggle_tooltips(),
             Command::ToggleCursorSnap => self.toggle_cursor_snap(),
             Command::ToggleMapPreview => self.toggle_map_preview(bundle),
             Command::ToggleCollision => self.toggle_collision(),
             Command::ReloadTextures => self.start_texture_reload(bundle),
-            Command::ReloadThings => self.reload_things(bundle),
+            Command::ReloadThings => Self::reload_things(bundle),
             Command::QuickZoom =>
             {
                 if let Some(hull) = bundle.manager.selected_brushes_hull()
@@ -2016,7 +2013,7 @@ impl State
             Command::QuickSnap => self.quick_snap(bundle),
             Command::Quit =>
             {
-                self.quit(bundle, rfd::MessageButtons::YesNoCancel);
+                Self::quit(bundle, rfd::MessageButtons::YesNoCancel);
                 return true;
             }
         };
@@ -2025,19 +2022,19 @@ impl State
         {
             if Bind::ToggleGrid.just_pressed(bundle.key_inputs, &bundle.config.binds)
             {
-                self.toggle_grid(bundle.grid);
+                Self::toggle_grid(bundle.grid);
             }
             else if Bind::IncreaseGridSize.just_pressed(bundle.key_inputs, &bundle.config.binds)
             {
-                self.increase_grid_size(bundle);
+                Self::increase_grid_size(bundle);
             }
             else if Bind::DecreaseGridSize.just_pressed(bundle.key_inputs, &bundle.config.binds)
             {
-                self.decrease_grid_size(bundle);
+                Self::decrease_grid_size(bundle);
             }
             else if Bind::ShiftGrid.just_pressed(bundle.key_inputs, &bundle.config.binds)
             {
-                self.shift_grid(bundle);
+                Self::shift_grid(bundle);
             }
             else if Bind::ToggleCursorSnap.just_pressed(bundle.key_inputs, &bundle.config.binds)
             {
@@ -2069,7 +2066,7 @@ impl State
                 self.tools_settings.cycle_texture_editing(
                     &self.core,
                     bundle.manager,
-                    &bundle.inputs
+                    bundle.inputs
                 );
             }
             else
@@ -2096,7 +2093,7 @@ impl State
         self.tools_settings.update(&self.core, bundle.manager);
         let starts_with_star = bundle.window.title.starts_with('*');
 
-        if self.no_edits(bundle)
+        if Self::no_edits(bundle)
         {
             if starts_with_star
             {
@@ -2126,7 +2123,7 @@ impl State
             Command::ReloadTextures => self.start_texture_reload(bundle),
             Command::Quit =>
             {
-                self.quit(bundle, rfd::MessageButtons::YesNoCancel);
+                Self::quit(bundle, rfd::MessageButtons::YesNoCancel);
                 return true;
             },
             _ => ()
@@ -2173,25 +2170,25 @@ impl State
 
     /// Toggles the grid visibiity.
     #[inline]
-    fn toggle_grid(&mut self, grid: &mut Grid) { grid.visible.toggle(); }
+    fn toggle_grid(grid: &mut Grid) { grid.visible.toggle(); }
 
     /// Increased the grid size.
     #[inline]
-    fn increase_grid_size(&mut self, bundle: &mut StateUpdateBundle)
+    fn increase_grid_size(bundle: &mut StateUpdateBundle)
     {
         bundle.grid.increase_size(bundle.manager);
     }
 
     /// Decreases the grid size.
     #[inline]
-    fn decrease_grid_size(&mut self, bundle: &mut StateUpdateBundle)
+    fn decrease_grid_size(bundle: &mut StateUpdateBundle)
     {
         bundle.grid.decrease_size(bundle.manager);
     }
 
     /// Shifts the grid by half of its size, both vertically and horizontally.
     #[inline]
-    fn shift_grid(&mut self, bundle: &mut StateUpdateBundle)
+    fn shift_grid(bundle: &mut StateUpdateBundle)
     {
         bundle.grid.toggle_shift(bundle.manager);
     }
@@ -2208,7 +2205,7 @@ impl State
     #[inline]
     fn toggle_map_preview(&mut self, bundle: &StateUpdateBundle)
     {
-        self.core.toggle_map_preview(bundle, &bundle.manager);
+        self.core.toggle_map_preview(bundle);
     }
 
     /// Toggles the collision overlay.
@@ -2217,7 +2214,7 @@ impl State
 
     /// Reloads the things.
     #[inline]
-    fn reload_things(&mut self, bundle: &mut StateUpdateBundle)
+    fn reload_things(bundle: &mut StateUpdateBundle)
     {
         if let rfd::MessageDialogResult::No = rfd::MessageDialog::new()
             .set_buttons(rfd::MessageButtons::YesNo)
@@ -2246,9 +2243,9 @@ impl State
 
     /// Starts the application shutdown procedure.
     #[inline]
-    pub fn quit(&mut self, bundle: &mut StateUpdateBundle, buttons: rfd::MessageButtons) -> bool
+    pub fn quit(bundle: &mut StateUpdateBundle, buttons: rfd::MessageButtons) -> bool
     {
-        if let Ok(false) = self.unsaved_changes(bundle, buttons)
+        if let Ok(false) = Self::unsaved_changes(bundle, buttons)
         {
             return false;
         }
@@ -2262,7 +2259,6 @@ impl State
     #[inline]
     #[must_use]
     pub fn quick_zoom_hull(
-        &self,
         key_inputs: &ButtonInput<KeyCode>,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,

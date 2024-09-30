@@ -416,7 +416,7 @@ impl ClipTool
                 bundle.manager.brush(hgl_s.id).draw_extended_side(
                     bundle.window,
                     bundle.camera,
-                    &mut bundle.drawer,
+                    bundle.drawer,
                     hgl_s.index,
                     Color::ToolCursor
                 );

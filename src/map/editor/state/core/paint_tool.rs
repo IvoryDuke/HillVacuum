@@ -505,7 +505,7 @@ impl PaintTool
             (
                 PaintCreation,
                 Status::SetPivot(
-                    Self::outline(bundle.drawing_resources, bundle.manager, bundle.grid).unwrap()
+                    Self::outline(bundle.drawing_resources, bundle.manager, *bundle.grid).unwrap()
                 ),
                 Status::SetPivot(_) |
                     Status::PropCreationScreenshot(..) |

@@ -26,6 +26,7 @@ use crate::{
             state::{
                 core::{rect, tool::subtools_buttons},
                 editor_state::{edit_target, TargetSwitch, ToolsSettings},
+                grid::Grid,
                 manager::EntitiesManager,
                 ui::{ToolsButtons, UiBundle}
             },
@@ -170,21 +171,22 @@ impl Selector
             drawing_resources: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
+            grid: Grid,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
         {
-            todo!();
+            let cursor_pos = cursor.world_no_grid();
 
-            // for brush in manager.sprites_at_pos(cursor_pos).iter().filter(|brush| {
-            //     brush
-            //         .sprite_hull(drawing_resources)
-            //         .unwrap()
-            //         .contains_point(cursor_pos)
-            // })
-            // {
-            //     let id = brush.id();
-            //     items.push(ItemBeneathCursor::Sprite(id), manager.is_selected(id));
-            // }
+            for brush in manager.sprites_at_pos(cursor_pos).iter().filter(|brush| {
+                brush
+                    .sprite_hull(drawing_resources, grid)
+                    .unwrap()
+                    .contains_point(cursor_pos)
+            })
+            {
+                let id = brush.id();
+                items.push(ItemBeneathCursor::Sprite(id), manager.is_selected(id));
+            }
         }
 
         /// brush and [`ThingInstance`] selection update.
@@ -193,6 +195,7 @@ impl Selector
             _: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
+            _: Grid,
             _: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
@@ -217,6 +220,7 @@ impl Selector
             _: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
+            _: Grid,
             _: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
@@ -230,11 +234,12 @@ impl Selector
             drawing_resources: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
+            grid: Grid,
             _: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
         {
-            scan_sprites(drawing_resources, manager, cursor, items);
+            scan_sprites(drawing_resources, manager, cursor, grid, items);
 
             let cursor_pos = cursor.world();
 
@@ -253,12 +258,13 @@ impl Selector
             drawing_resources: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
+            grid: Grid,
             camera_scale: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
         {
-            scan_sprites(drawing_resources, manager, cursor, items);
-            entity_selector(drawing_resources, manager, cursor, camera_scale, items);
+            scan_sprites(drawing_resources, manager, cursor, grid, items);
+            entity_selector(drawing_resources, manager, cursor, grid, camera_scale, items);
         }
 
         Self {
@@ -279,6 +285,7 @@ impl Selector
             bundle.drawing_resources,
             bundle.manager,
             bundle.cursor,
+            bundle.grid,
             0f32,
             bundle.inputs
         )
@@ -293,6 +300,7 @@ impl Selector
             bundle.drawing_resources,
             bundle.manager,
             bundle.cursor,
+            bundle.grid,
             0f32,
             bundle.inputs
         )
@@ -310,6 +318,7 @@ impl Selector
             bundle.drawing_resources,
             bundle.manager,
             bundle.cursor,
+            bundle.grid,
             0f32,
             bundle.inputs
         )
@@ -324,6 +333,7 @@ impl Selector
             bundle.drawing_resources,
             bundle.manager,
             bundle.cursor,
+            bundle.grid,
             0f32,
             bundle.inputs
         )
@@ -906,12 +916,12 @@ impl EntityTool
                     draw_selected_and_non_selected!(bundle, [*id, hgl_e]);
 
                     let brush = bundle.manager.brush(hgl_e);
-                    brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
+                    brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
 
                     if brush.has_sprite()
                     {
                         brush.draw_sprite(
-                            &mut bundle.drawer,
+                            bundle.drawer,
                             Color::HighlightedSelectedEntity,
                             texture_editing
                         );
@@ -926,12 +936,12 @@ impl EntityTool
                 };
 
                 let brush = bundle.manager.brush(*id);
-                brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
+                brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
 
                 if brush.has_sprite()
                 {
                     brush.draw_sprite(
-                        &mut bundle.drawer,
+                        bundle.drawer,
                         Color::HighlightedSelectedEntity,
                         texture_editing
                     );
@@ -976,7 +986,7 @@ impl EntityTool
                     Color::HighlightedNonSelectedEntity
                 };
 
-                brush.draw_sprite(&mut bundle.drawer, color, texture_editing);
+                brush.draw_sprite(bundle.drawer, color, texture_editing);
             }
         }
 
@@ -988,12 +998,12 @@ impl EntityTool
 
                 if bundle.manager.is_selected(id)
                 {
-                    brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
+                    brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
                     brush.hull().into()
                 }
                 else
                 {
-                    brush.draw_highlighted_non_selected(bundle.camera, &mut bundle.drawer);
+                    brush.draw_highlighted_non_selected(bundle.camera, bundle.drawer);
                     None
                 }
             },
@@ -1003,7 +1013,7 @@ impl EntityTool
 
                 if bundle.manager.is_selected(id)
                 {
-                    brush.draw_highlighted_selected(bundle.camera, &mut bundle.drawer);
+                    brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
                     brush
                         .sprite_hull(bundle.drawer.resources(), bundle.drawer.grid())
                         .unwrap()
@@ -1011,7 +1021,7 @@ impl EntityTool
                 }
                 else
                 {
-                    brush.draw_highlighted_non_selected(bundle.camera, &mut bundle.drawer);
+                    brush.draw_highlighted_non_selected(bundle.camera, bundle.drawer);
                     None
                 }
             },
@@ -1024,7 +1034,7 @@ impl EntityTool
                     thing.draw_highlighted_selected(
                         bundle.window,
                         bundle.camera,
-                        &mut bundle.drawer,
+                        bundle.drawer,
                         bundle.things_catalog
                     );
                     thing.hull().into()
@@ -1034,7 +1044,7 @@ impl EntityTool
                     thing.draw_highlighted_non_selected(
                         bundle.window,
                         bundle.camera,
-                        &mut bundle.drawer,
+                        bundle.drawer,
                         bundle.things_catalog
                     );
                     None

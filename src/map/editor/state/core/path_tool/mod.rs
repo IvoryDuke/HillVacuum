@@ -31,6 +31,7 @@ use crate::{
             cursor::Cursor,
             state::{
                 core::{rect, tool::subtools_buttons},
+                grid::Grid,
                 inputs_presses::InputsPresses,
                 manager::EntitiesManager,
                 ui::{ToolsButtons, UiBundle}
@@ -175,6 +176,7 @@ impl Selector
             _: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
+            _: Grid,
             camera_scale: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
@@ -237,12 +239,13 @@ impl Selector
         drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         cursor: &Cursor,
+        grid: Grid,
         camera_scale: f32,
         inputs: &InputsPresses
     ) -> Option<ItemBeneathCursor>
     {
         self.0
-            .item_beneath_cursor(drawing_resources, manager, cursor, camera_scale, inputs)
+            .item_beneath_cursor(drawing_resources, manager, cursor, grid, camera_scale, inputs)
     }
 }
 
@@ -334,6 +337,7 @@ impl PathTool
             bundle.drawing_resources,
             bundle.manager,
             bundle.cursor,
+            bundle.grid,
             bundle.camera.scale(),
             bundle.inputs
         );
@@ -394,6 +398,7 @@ impl PathTool
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.cursor,
+                *bundle.grid,
                 bundle.camera.scale(),
                 bundle.inputs
             )
@@ -416,6 +421,7 @@ impl PathTool
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.cursor,
+                *bundle.grid,
                 bundle.camera.scale(),
                 bundle.inputs
             )
@@ -446,6 +452,7 @@ impl PathTool
             bundle.drawing_resources,
             bundle.manager,
             bundle.cursor,
+            bundle.grid,
             bundle.camera.scale(),
             bundle.inputs
         );
@@ -552,6 +559,7 @@ impl PathTool
                             bundle.drawing_resources,
                             bundle.manager,
                             bundle.cursor,
+                            bundle.grid,
                             bundle.camera.scale(),
                             bundle.inputs
                         ));
@@ -621,6 +629,7 @@ impl PathTool
                             bundle.drawing_resources,
                             bundle.manager,
                             bundle.cursor,
+                            bundle.grid,
                             bundle.camera.scale(),
                             bundle.inputs
                         )

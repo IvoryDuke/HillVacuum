@@ -3809,7 +3809,7 @@ pub(in crate::map) mod ui_mod
                             // If it has four vertexes it might be convex.
                             if len == 4 && is_polygon_convex(&vxs)
                             {
-                                polygons.push(Self::from((vxs, self.texture_settings())).into());
+                                polygons.push(Self::from((vxs, self.texture_settings())));
                             }
                             else
                             {

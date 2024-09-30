@@ -15,7 +15,7 @@ use crate::{
             cursor::Cursor,
             state::{
                 core::{draw_selected_and_non_selected_brushes, ActiveTool},
-                inputs_presses::InputsPresses,
+                grid::Grid,
                 manager::EntitiesManager
             },
             DrawBundle,
@@ -51,6 +51,7 @@ impl Selector
             _: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
+            _: Grid,
             _: f32,
             items: &mut ItemsBeneathCursor<Id>
         )
@@ -72,16 +73,16 @@ impl Selector
     /// Returns the selected brush beneath the cursor.
     #[inline]
     #[must_use]
-    fn brush_beneath_cursor(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &EntitiesManager,
-        cursor: &Cursor,
-        inputs: &InputsPresses
-    ) -> Option<Id>
+    fn brush_beneath_cursor(&mut self, bundle: &ToolUpdateBundle) -> Option<Id>
     {
-        self.0
-            .item_beneath_cursor(drawing_resources, manager, cursor, 0f32, inputs)
+        self.0.item_beneath_cursor(
+            bundle.drawing_resources,
+            bundle.manager,
+            bundle.cursor,
+            bundle.grid,
+            0f32,
+            bundle.inputs
+        )
     }
 }
 
@@ -109,12 +110,7 @@ impl ShatterTool
     #[inline]
     pub fn update(&mut self, bundle: &mut ToolUpdateBundle)
     {
-        self.0 = self.1.brush_beneath_cursor(
-            bundle.drawing_resources,
-            bundle.manager,
-            bundle.cursor,
-            bundle.inputs
-        );
+        self.0 = self.1.brush_beneath_cursor(bundle);
 
         if bundle.inputs.left_mouse.just_pressed()
         {

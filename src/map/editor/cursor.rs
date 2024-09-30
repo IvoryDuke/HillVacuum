@@ -28,6 +28,7 @@ pub(in crate::map::editor) struct Cursor
     world:                  Vec2,
     /// The position of the cursor on the map snapped to the grid.
     world_grid_snapped:     Vec2,
+    world_no_grid:          Vec2,
     /// The amount the cursor was moved from the previous frame with respect to the application
     /// window.
     delta_ui:               Vec2,
@@ -56,6 +57,7 @@ impl Default for Cursor
             ui_grid_snapped:        START_POS,
             world:                  START_POS,
             world_grid_snapped:     START_POS,
+            world_no_grid:          START_POS,
             delta_ui:               Vec2::ZERO,
             grid_square:            Grid::default().square(START_POS),
             snap:                   true,
@@ -76,6 +78,10 @@ impl Cursor
     #[inline]
     #[must_use]
     pub const fn world(&self) -> Vec2 { self.world }
+
+    #[inline]
+    #[must_use]
+    pub const fn world_no_grid(&self) -> Vec2 { self.world_no_grid }
 
     /// Returns the grid snapped position of the cursor on the map if snap is enabled, otherwise
     /// returns the regular map position.
@@ -157,6 +163,12 @@ impl Cursor
         self.previous_world = self.world;
         self.previous_world_snapped = self.world_grid_snapped;
         self.world = camera.to_world_coordinates(window, grid, ui);
+
+        let mut absolute_grid = grid;
+        absolute_grid.set_angle(0);
+        absolute_grid.set_skew(0);
+        self.world_no_grid = camera.to_world_coordinates(window, absolute_grid, ui);
+
         clamp_world_coordinate!(x, y);
 
         self.grid_square = grid.square(self.world);

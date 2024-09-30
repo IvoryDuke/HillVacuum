@@ -721,7 +721,7 @@ impl ActiveTool
         {
             Self::Subtract(t) =>
             {
-                t.select_non_selected_brushes(bundle.manager, bundle.edits_history)
+                t.select_non_selected_brushes(bundle.manager, bundle.edits_history);
             },
             Self::Vertex(_) | Self::Side(_) =>
             {
@@ -767,12 +767,12 @@ impl ActiveTool
 
     /// Toggles the map preview.
     #[inline]
-    pub fn toggle_map_preview(&mut self, bundle: &StateUpdateBundle, manager: &EntitiesManager)
+    pub fn toggle_map_preview(&mut self, bundle: &StateUpdateBundle)
     {
         *self = match self
         {
             Self::MapPreview(t) => std::mem::take(t.prev_tool()),
-            _ => MapPreviewTool::tool(bundle, self, manager)
+            _ => MapPreviewTool::tool(bundle, self)
         };
     }
 
@@ -1360,7 +1360,7 @@ impl ActiveTool
                     .visible_anchors(bundle.window, bundle.camera, bundle.drawer.grid())
                     .iter()
                 {
-                    brush.draw_anchors(brushes, &mut bundle.drawer);
+                    brush.draw_anchors(brushes, bundle.drawer);
                 }
 
                 for brush in bundle
@@ -1368,7 +1368,7 @@ impl ActiveTool
                     .visible_paths(bundle.window, bundle.camera, bundle.drawer.grid())
                     .iter()
                 {
-                    brush.draw_semitransparent_path(&mut bundle.drawer);
+                    brush.draw_semitransparent_path(bundle.drawer);
                 }
             }
 
@@ -1390,7 +1390,7 @@ impl ActiveTool
                         thing.draw_opaque(
                             bundle.window,
                             bundle.camera,
-                            &mut bundle.drawer,
+                            bundle.drawer,
                             bundle.things_catalog
                         );
                     }

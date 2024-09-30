@@ -44,14 +44,13 @@ impl MapPreviewTool
     #[inline]
     pub fn tool(
         bundle: &StateUpdateBundle,
-        active_tool: &mut ActiveTool,
-        manager: &EntitiesManager
+        active_tool: &mut ActiveTool
     ) -> ActiveTool
     {
         ActiveTool::MapPreview(MapPreviewTool {
             prev_tool: hv_box!(std::mem::take(active_tool)),
-            movement:  manager.movement_simulators(),
-            animators: manager.texture_animators(bundle)
+            movement:  bundle.manager.movement_simulators(),
+            animators: bundle.manager.texture_animators(bundle)
         })
     }
 

@@ -207,13 +207,10 @@ impl Grid
     }
 
     #[inline]
-    pub(in crate::map::editor::state) fn set_skew(&mut self, value: i8)
-    {
-        self.settings.set_skew(value);
-    }
+    pub(in crate::map::editor) fn set_skew(&mut self, value: i8) { self.settings.set_skew(value); }
 
     #[inline]
-    pub(in crate::map::editor::state) fn set_angle(&mut self, value: i16)
+    pub(in crate::map::editor) fn set_angle(&mut self, value: i16)
     {
         self.settings.set_angle(value);
     }

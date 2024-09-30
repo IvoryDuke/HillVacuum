@@ -436,7 +436,7 @@ pub(in crate::map::editor::state) struct UiBundle<'world, 'state, 'a, 'c>
     pub edits_history: &'a mut EditsHistory,
     pub clipboard: &'a mut Clipboard,
     pub inputs: &'a mut InputsPresses,
-    pub grid: Grid,
+    pub grid: &'a mut Grid,
     pub settings: &'a mut ToolsSettings,
     pub tool_change_conditions: &'a ChangeConditions
 }
@@ -684,7 +684,7 @@ impl Ui
             edits_history,
             clipboard,
             inputs,
-            grid: **grid,
+            grid,
             settings,
             tool_change_conditions
         };
@@ -726,7 +726,7 @@ impl Ui
                             bundle.things_catalog,
                             bundle.manager,
                             bundle.edits_history,
-                            bundle.grid,
+                            *bundle.grid,
                             self
                         );
                     }
@@ -741,7 +741,7 @@ impl Ui
                             bundle.things_catalog,
                             bundle.manager,
                             bundle.edits_history,
-                            bundle.grid,
+                            *bundle.grid,
                             self
                         );
                     }
@@ -780,7 +780,7 @@ impl Ui
                     Self::cursor_info(cursor, ui);
 
                     // Grid info.
-                    Self::grid_info(ui, bundle.grid);
+                    Self::grid_info(ui, *bundle.grid);
 
                     // Camera info.
                     Self::camera_info(ui, bundle);

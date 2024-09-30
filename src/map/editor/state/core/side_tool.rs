@@ -1197,7 +1197,7 @@ impl SideTool
                 brush.draw_with_vertex_highlights(
                     bundle.window,
                     bundle.camera,
-                    &mut bundle.drawer,
+                    bundle.drawer,
                     &VertexHighlightMode::Side
                 );
             }
@@ -1242,7 +1242,7 @@ impl SideTool
                             brush.draw_with_vertex_highlights(
                                 bundle.window,
                                 bundle.camera,
-                                &mut bundle.drawer,
+                                bundle.drawer,
                                 &VertexHighlightMode::Side
                             );
                         }
@@ -1251,7 +1251,7 @@ impl SideTool
                         {
                             for p in polys
                             {
-                                p.draw(bundle.camera, &mut bundle.drawer, Color::SelectedEntity);
+                                p.draw(bundle.camera, bundle.drawer, Color::SelectedEntity);
                             }
                         }
                     },
@@ -1261,7 +1261,7 @@ impl SideTool
 
                         for (_, _, cp) in polygons
                         {
-                            cp.draw(bundle.camera, &mut bundle.drawer, Color::SelectedEntity);
+                            cp.draw(bundle.camera, bundle.drawer, Color::SelectedEntity);
                         }
                     }
                 }
@@ -1288,7 +1288,7 @@ impl SideTool
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.edits_history,
-                bundle.grid,
+                *bundle.grid,
                 true
             );
 

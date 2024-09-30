@@ -21,7 +21,6 @@ use crate::{
                 core::rect,
                 edits_history::EditsHistory,
                 grid::Grid,
-                inputs_presses::InputsPresses,
                 manager::EntitiesManager
             },
             DrawBundle,
@@ -58,6 +57,7 @@ impl Selector
             _: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
+            _: Grid,
             _: f32,
             items: &mut ItemsBeneathCursor<Id>
         )
@@ -82,16 +82,16 @@ impl Selector
     /// Returns the selectable brush beneath the cursor.
     #[inline]
     #[must_use]
-    fn brush_beneath_cursor(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &EntitiesManager,
-        cursor: &Cursor,
-        inputs: &InputsPresses
-    ) -> Option<Id>
+    fn brush_beneath_cursor(&mut self, bundle: &ToolUpdateBundle) -> Option<Id>
     {
-        self.0
-            .item_beneath_cursor(drawing_resources, manager, cursor, 0f32, inputs)
+        self.0.item_beneath_cursor(
+            bundle.drawing_resources,
+            bundle.manager,
+            bundle.cursor,
+            bundle.grid,
+            0f32,
+            bundle.inputs
+        )
     }
 }
 
@@ -156,19 +156,16 @@ impl SubtractTool
     #[must_use]
     pub fn update(&mut self, bundle: &mut ToolUpdateBundle) -> bool
     {
+        let subtractee_beneath_cursor = self.selector.brush_beneath_cursor(bundle);
+
         let ToolUpdateBundle {
             cursor,
-            drawing_resources,
             manager,
             edits_history,
             inputs,
             grid,
             ..
         } = bundle;
-
-        let subtractee_beneath_cursor =
-            self.selector
-                .brush_beneath_cursor(drawing_resources, manager, cursor, inputs);
 
         rect::update!(
             self.drag_selection,

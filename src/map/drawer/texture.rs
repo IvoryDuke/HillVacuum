@@ -1853,7 +1853,7 @@ pub(in crate::map) mod ui_mod
             self.texture_sprite_vxs_at_origin_no_offset(drawing_resources, grid, texture)
                 .map(|mut rect| {
                     let offset = self.draw_offset();
-                    rect.translate(grid.transform_point(offset) - offset);
+                    rect.translate(grid.transform_point(offset));
                     rect
                 })
         }

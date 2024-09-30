@@ -919,9 +919,9 @@ impl Core
 
     /// Toggles the map preview.
     #[inline]
-    pub fn toggle_map_preview(&mut self, bundle: &StateUpdateBundle, manager: &EntitiesManager)
+    pub fn toggle_map_preview(&mut self, bundle: &StateUpdateBundle)
     {
-        self.active_tool.toggle_map_preview(bundle, manager);
+        self.active_tool.toggle_map_preview(bundle);
     }
 
     /// Updates the outline of certain tools.

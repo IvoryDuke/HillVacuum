@@ -1057,7 +1057,7 @@ impl VertexTool
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.edits_history,
-                bundle.grid,
+                *bundle.grid,
                 false
             );
             return;
@@ -1069,7 +1069,7 @@ impl VertexTool
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.edits_history,
-                bundle.grid
+                *bundle.grid
             );
             return;
         }

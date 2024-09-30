@@ -838,7 +838,7 @@ impl AnimationEditor
                     |value| {
                         if !Self::check_sprites_within_bounds(
                             drawing_resources,
-                            *grid,
+                            **grid,
                             texture.name(),
                             manager
                         )
@@ -1065,7 +1065,7 @@ impl AnimationEditor
                                 drawing_resources,
                                 manager,
                                 edits_history,
-                                *grid,
+                                **grid,
                                 selected_texture,
                                 ui_animation,
                                 Animation::None
@@ -1079,7 +1079,7 @@ impl AnimationEditor
                                 drawing_resources,
                                 manager,
                                 edits_history,
-                                *grid,
+                                **grid,
                                 selected_texture,
                                 ui_animation,
                                 new_animation
@@ -1091,7 +1091,7 @@ impl AnimationEditor
                                 drawing_resources,
                                 manager,
                                 edits_history,
-                                *grid,
+                                **grid,
                                 selected_texture,
                                 ui_animation,
                                 Animation::atlas_animation()

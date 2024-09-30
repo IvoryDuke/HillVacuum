@@ -148,7 +148,7 @@ impl SettingsWindow
                 prop_cameras,
                 user_textures,
                 drawing_resources,
-                *grid
+                **grid
             );
         }
 

@@ -11,7 +11,7 @@ use crate::{
         drawer::drawing_resources::DrawingResources,
         editor::{
             cursor::Cursor,
-            state::{inputs_presses::InputsPresses, manager::EntitiesManager}
+            state::{grid::Grid, inputs_presses::InputsPresses, manager::EntitiesManager}
         }
     },
     utils::{collections::hv_vec, identifiers::EntityId, misc::next},
@@ -41,7 +41,7 @@ enum Position
 
 #[allow(clippy::missing_docs_in_private_items)]
 type SelectorFunc<T> =
-    fn(&DrawingResources, &EntitiesManager, &Cursor, f32, &mut ItemsBeneathCursor<T>);
+    fn(&DrawingResources, &EntitiesManager, &Cursor, Grid, f32, &mut ItemsBeneathCursor<T>);
 
 //=======================================================================//
 
@@ -203,12 +203,13 @@ where
         drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         cursor: &Cursor,
+        grid: Grid,
         camera_scale: f32,
         inputs: &InputsPresses
     ) -> Option<T>
     {
         self.items.clear();
-        (self.selector)(drawing_resources, manager, cursor, camera_scale, &mut self.items);
+        (self.selector)(drawing_resources, manager, cursor, grid, camera_scale, &mut self.items);
 
         if self.items.is_empty()
         {

@@ -77,7 +77,7 @@ macro_rules! movement_values {
                         bundle.drawing_resources,
                         bundle.manager,
                         bundle.edits_history,
-                        bundle.grid,
+                        *bundle.grid,
                         new_value,
                         &mut overall
                     ).into()
@@ -234,7 +234,7 @@ impl NodesEditor
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.edits_history,
-                bundle.grid,
+                *bundle.grid,
                 value,
                 &mut OverallMovement::new()
             )

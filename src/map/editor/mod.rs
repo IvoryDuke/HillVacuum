@@ -526,7 +526,7 @@ impl Editor
             return false;
         }
 
-        if let Some(hull) = self.state.quick_zoom_hull(
+        if let Some(hull) = State::quick_zoom_hull(
             key_inputs,
             &self.drawing_resources,
             &mut self.manager,
@@ -692,7 +692,7 @@ impl Editor
         next_tex_load: &mut NextState<TextureLoadingProgress>
     ) -> bool
     {
-        self.state.quit(
+        State::quit(
             &mut StateUpdateBundle {
                 window,
                 images,

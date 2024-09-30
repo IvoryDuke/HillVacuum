@@ -197,14 +197,14 @@ impl ClipboardData
             {
                 data.draw_prop(
                     draw_camera!(bundle, camera_id),
-                    &mut bundle.drawer,
+                    bundle.drawer,
                     Color::NonSelectedEntity,
                     delta
                 );
             },
             ClipboardData::Thing(data, _) =>
             {
-                data.draw_prop(&mut bundle.drawer, bundle.things_catalog, delta);
+                data.draw_prop(bundle.drawer, bundle.things_catalog, delta);
             }
         };
     }
