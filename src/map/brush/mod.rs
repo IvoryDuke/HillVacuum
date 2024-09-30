@@ -913,6 +913,10 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
+        pub fn sprite_pivot(&self) -> Option<Vec2> { self.polygon.sprite_pivot() }
+
+        #[inline]
+        #[must_use]
         pub fn path_hull(&self) -> Option<Hull>
         {
             calc_path_hull(
@@ -920,6 +924,25 @@ pub(in crate::map) mod ui_mod
                 self.polygon.center()
             )
             .into()
+        }
+
+        #[inline]
+        #[must_use]
+        pub fn global_hull(&self) -> Hull
+        {
+            let mut hull = self.polygon_hull();
+
+            if let Some(pivot) = self.sprite_pivot()
+            {
+                hull = Hull::from_points(hull.rectangle().into_iter().chain(Some(pivot))).unwrap();
+            }
+
+            if let Some(p_hull) = self.path_hull()
+            {
+                hull = hull.merged(&p_hull);
+            }
+
+            hull
         }
 
         #[inline]
@@ -1415,7 +1438,7 @@ pub(in crate::map) mod ui_mod
             Hull::from_points(self.attachments_iter().unwrap().map(|id| brushes.get(*id).center()))
                 .map(|hull| {
                     let center = self.center();
-                    hull.merged(&Hull::new(center.y, center.y, center.x, center.x))
+                    hull.merged(&Hull::new(center.y, center.y, center.x, center.x).unwrap())
                         .bumped(2f32)
                 })
         }
@@ -1430,6 +1453,10 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
+        pub fn sprite_pivot(&self) -> Option<Vec2> { self.data.sprite_pivot() }
+
+        #[inline]
+        #[must_use]
         pub fn sprite_and_anchor_hull(
             &self,
             drawing_resources: &DrawingResources,
@@ -1437,38 +1464,21 @@ pub(in crate::map) mod ui_mod
         ) -> Option<Hull>
         {
             self.sprite_hull(drawing_resources, grid).map(|hull| {
-                let anchor_hull = Hull::from_points(
+                Hull::from_points(
                     [
                         grid.transform_point(self.center()),
-                        Vec2::new(hull.right() + hull.half_width(), hull.bottom())
+                        Vec2::new(hull.left() + hull.half_width(), hull.bottom())
                     ]
                     .into_iter()
+                    .chain(hull.rectangle())
                 )
                 .unwrap()
-                .bumped(2f32);
-
-                hull.merged(&anchor_hull)
             })
         }
 
         #[inline]
         #[must_use]
-        pub fn global_hull(&self, drawing_resources: &DrawingResources, grid: Grid) -> Hull
-        {
-            let mut hull = self.hull();
-
-            if let Some(s_hull) = self.sprite_hull(drawing_resources, grid)
-            {
-                hull = hull.merged(&s_hull);
-            }
-
-            if let Some(p_hull) = self.path_hull()
-            {
-                hull = hull.merged(&p_hull);
-            }
-
-            hull
-        }
+        pub fn global_hull(&self) -> Hull { self.data.global_hull() }
 
         //==============================================================
         // General Editing

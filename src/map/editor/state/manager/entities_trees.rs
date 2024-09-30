@@ -18,7 +18,8 @@ use crate::{
             manager::quad_tree::{QuadTree, QuadTreeIds}
         },
         path::Moving,
-        thing::ThingInstance
+        thing::ThingInstance,
+        MAP_SIZE
     },
     utils::{
         hull::{EntityHull, Hull},
@@ -454,12 +455,8 @@ impl VisibleQuadTreeIds
         Self {
             ids:           QuadTreeIds::new(),
             dirty:         true,
-            last_viewport: Hull::new(
-                f32::INFINITY,
-                f32::INFINITY - 64f32,
-                f32::INFINITY - 64f32,
-                f32::INFINITY
-            )
+            last_viewport: Hull::new(MAP_SIZE, MAP_SIZE - 64f32, MAP_SIZE - 64f32, MAP_SIZE)
+                .unwrap()
         }
     }
 

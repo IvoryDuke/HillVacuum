@@ -510,7 +510,9 @@ impl DrawingResources
         radius: f32
     ) -> impl Iterator<Item = Vec2>
     {
-        let circle = Hull::new(radius, -radius, -radius, radius).circle(resolution);
+        let circle = Hull::new(radius, -radius, -radius, radius)
+            .unwrap()
+            .circle(resolution);
         circle.chain(Some(Vec2::new(0f32, radius)))
     }
 

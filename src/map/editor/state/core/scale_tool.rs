@@ -34,12 +34,13 @@ use crate::{
     },
     utils::{
         collections::hv_vec,
-        hull::{Corner, Flip, Hull, ScaleResult},
+        hull::{Corner, EntityHull, Flip, Hull, ScaleResult},
         identifiers::{EntityId, Id},
         math::AroundEqual,
         misc::{Camera, TakeValue}
     },
-    HvVec
+    HvVec,
+    TextureInterface
 };
 
 //=======================================================================//
@@ -460,22 +461,51 @@ impl ScaleTool
         settings: &ToolsSettings
     ) -> Option<Hull>
     {
+        #[inline]
+        #[must_use]
+        fn textures_hull(
+            drawing_resources: &DrawingResources,
+            manager: &EntitiesManager,
+            grid: Grid
+        ) -> Option<Hull>
+        {
+            if grid.isometric()
+            {
+                Hull::from_hulls_iter(manager.selected_textured_brushes().map(|brush| {
+                    let tex = brush.texture_settings().unwrap();
+
+                    if tex.sprite()
+                    {
+                        #[allow(clippy::cast_precision_loss)]
+                        let half_size =
+                            drawing_resources.texture(tex.name()).unwrap().size().x as f32;
+                        Hull::new(half_size, -half_size, -half_size, half_size).unwrap() +
+                            brush.sprite_pivot().unwrap()
+                    }
+                    else
+                    {
+                        brush.hull()
+                    }
+                }))
+            }
+            else
+            {
+                Hull::from_hulls_iter(manager.selected_textured_brushes().map(|brush| {
+                    brush.sprite_hull(drawing_resources, grid).unwrap_or(brush.hull())
+                }))
+            }
+        }
+
         match settings.target_switch()
         {
             TargetSwitch::Entity => manager.selected_brushes_hull(),
             TargetSwitch::Both =>
             {
-                manager
-                    .selected_brushes_hull()
-                    .unwrap()
-                    .merged(
-                        &manager
-                            .selected_textured_brushes_hull(drawing_resources, grid)
-                            .unwrap()
-                    )
-                    .into()
+                manager.selected_brushes_hull().map(|hull| {
+                    hull.merged(&textures_hull(drawing_resources, manager, grid).unwrap())
+                })
             },
-            TargetSwitch::Texture => manager.selected_textured_brushes_hull(drawing_resources, grid)
+            TargetSwitch::Texture => textures_hull(drawing_resources, manager, grid)
         }
         .map(|hull| grid.snap_hull(&hull))
     }

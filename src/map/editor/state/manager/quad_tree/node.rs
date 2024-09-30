@@ -103,6 +103,7 @@ impl Square
             self.top_left.x,
             self.top_left.x + self.size
         )
+        .unwrap()
     }
 
     /// Whether `self` contains `point` in its area.

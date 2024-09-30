@@ -39,6 +39,7 @@ impl Camera for Transform
             self.translation.x - half_width,
             self.translation.x + half_width
         )
+        .unwrap()
         .transformed(|vx| grid.point_projection(vx));
 
         Hull::new(
@@ -47,6 +48,7 @@ impl Camera for Transform
             viewport.left() + ui_left_space() * self.scale(),
             viewport.right() - ui_right_space() * self.scale()
         )
+        .unwrap()
         .bumped(VISIBILITY_PADDING * self.scale())
     }
 

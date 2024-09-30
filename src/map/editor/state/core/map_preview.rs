@@ -42,10 +42,7 @@ impl MapPreviewTool
 {
     /// Returns an [`ActiveTool`] in its map preview variant.
     #[inline]
-    pub fn tool(
-        bundle: &StateUpdateBundle,
-        active_tool: &mut ActiveTool
-    ) -> ActiveTool
+    pub fn tool(bundle: &StateUpdateBundle, active_tool: &mut ActiveTool) -> ActiveTool
     {
         ActiveTool::MapPreview(MapPreviewTool {
             prev_tool: hv_box!(std::mem::take(active_tool)),

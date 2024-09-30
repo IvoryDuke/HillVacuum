@@ -176,7 +176,7 @@ impl Grid
             }
         }
 
-        Hull::new(top, bottom, left, right)
+        Hull::new(top, bottom, left, right).unwrap()
     }
 
     //==============================================================
@@ -396,7 +396,7 @@ impl Grid
             *value = self.snap_value_from_center(*value, center);
         }
 
-        Hull::new(top, bottom, left, right)
+        Hull::new(top, bottom, left, right).unwrap()
     }
 
     //==============================================================

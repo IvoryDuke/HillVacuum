@@ -663,7 +663,7 @@ impl ActiveTool
             Self::Shear(t) => t.update_outline(manager, grid),
             Self::Scale(t) => t.update_outline(drawing_resources, manager, grid, settings),
             Self::Flip(t) => t.update_outline(manager, grid),
-            Self::Paint(t) => t.update_outline(drawing_resources, manager, grid),
+            Self::Paint(t) => t.update_outline(manager, grid),
             _ => ()
         };
     }

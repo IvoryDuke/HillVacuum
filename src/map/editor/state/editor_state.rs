@@ -2188,10 +2188,7 @@ impl State
 
     /// Shifts the grid by half of its size, both vertically and horizontally.
     #[inline]
-    fn shift_grid(bundle: &mut StateUpdateBundle)
-    {
-        bundle.grid.toggle_shift(bundle.manager);
-    }
+    fn shift_grid(bundle: &mut StateUpdateBundle) { bundle.grid.toggle_shift(bundle.manager); }
 
     /// Toggles the cursor grid snap.
     #[inline]
@@ -2260,15 +2257,13 @@ impl State
     #[must_use]
     pub fn quick_zoom_hull(
         key_inputs: &ButtonInput<KeyCode>,
-        drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
-        grid: Grid,
         binds: &BindsKeyCodes
     ) -> Option<Hull>
     {
         if Bind::Zoom.alt_just_pressed(key_inputs, binds)
         {
-            return manager.selected_entities_hull(drawing_resources, grid);
+            return manager.selected_entities_hull().unwrap().into();
         }
 
         None

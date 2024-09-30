@@ -9,6 +9,7 @@
 - scroll and parallax direction are now always perpendicular to the x and y axis regardless of the texture angle. Scroll values from older map files are automatically converted to the new system, unfortunately parallax is a breaking change;
 - added window message in case of a fatal error;
 - added a column in the properties editor displaying their types.
+- added `draw_offset` and `draw_offset_with_scroll_and_parallax` to `TextureInterface`.
 
 ### Fixes
 - Fixed overlapping actions in rotate tool;
@@ -17,7 +18,8 @@
 - fixes brush sprites being incorrectly rendered;
 - fixed entity tool crash when attempting to move textures but none were selected;
 - fixed one of the brushes created from a subtraction having no texture;
-- fixed incorrect sprite hull drawing when using isometric grid.
+- fixed incorrect sprite hull drawing when using isometric grid;
+- fixed broken sprite selection when using isometric grid.
 
 ## 0.7.2
 

@@ -342,12 +342,12 @@ impl Hull
     /// Panics if `bottom` is greater than `top` or `left` is greater than `right`.
     #[inline]
     #[must_use]
-    pub fn new(top: f32, bottom: f32, left: f32, right: f32) -> Self
+    pub fn new(top: f32, bottom: f32, left: f32, right: f32) -> Option<Self>
     {
-        assert!(
-            top >= bottom && right >= left,
-            "Invalid Hull values: top {top} bottom {bottom} left {left} right {right}"
-        );
+        if top <= bottom || left >= right
+        {
+            return None;
+        }
 
         Self {
             top,
@@ -355,19 +355,15 @@ impl Hull
             left,
             right
         }
+        .into()
     }
 
     /// Returns the [`Hull`] encompassing all the points contained in `points`.
     /// Returns None if `points` contained no elements.
     #[inline]
     #[must_use]
-    pub fn from_points(points: impl ExactSizeIterator<Item = Vec2>) -> Option<Self>
+    pub fn from_points(points: impl Iterator<Item = Vec2>) -> Option<Self>
     {
-        if points.len() == 0
-        {
-            return None;
-        }
-
         let (mut top, mut bottom, mut left, mut right) = (f32::MIN, f32::MAX, f32::MAX, f32::MIN);
 
         for vx in points
@@ -393,7 +389,7 @@ impl Hull
             }
         }
 
-        Some(Hull::new(top, bottom, left, right))
+        Hull::new(top, bottom, left, right)
     }
 
     /// Returns a new [`Hull`] from two points used as opposite vertexes of a rectangular shape.
@@ -401,12 +397,7 @@ impl Hull
     #[must_use]
     pub fn from_opposite_vertexes(a: Vec2, b: Vec2) -> Option<Self>
     {
-        if a.around_equal_narrow(&b)
-        {
-            return None;
-        }
-
-        Some(Self::new(a.y.max(b.y), a.y.min(b.y), a.x.min(b.x), a.x.max(b.x)))
+        Self::new(a.y.max(b.y), a.y.min(b.y), a.x.min(b.x), a.x.max(b.x))
     }
 
     /// Returns the [`Hull`] encompassing all the [`Hull`]s contained in `iter`.
@@ -432,7 +423,7 @@ impl Hull
             };
         }
 
-        result.map(|(top, bottom, left, right)| Hull::new(top, bottom, left, right))
+        result.map(|(top, bottom, left, right)| Hull::new(top, bottom, left, right).unwrap())
     }
 
     //==============================================================
@@ -589,6 +580,7 @@ impl Hull
             f32::min(self.left, other.left),
             f32::max(self.right, other.right)
         )
+        .unwrap()
     }
 
     /// Extends the horizontal and vertical dimensions by `2f32 * bump` while maintaining the
@@ -597,7 +589,7 @@ impl Hull
     #[must_use]
     pub fn bumped(&self, bump: f32) -> Self
     {
-        Hull::new(self.top + bump, self.bottom - bump, self.left - bump, self.right + bump)
+        Hull::new(self.top + bump, self.bottom - bump, self.left - bump, self.right + bump).unwrap()
     }
 
     #[inline]

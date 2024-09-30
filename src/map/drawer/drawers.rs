@@ -1012,6 +1012,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
                 let center = hull.center();
                 let circle_iter =
                     Hull::new(center.y + ray, center.y - ray, center.x - ray, center.x + ray)
+                        .unwrap()
                         .circle(CORNER_RESOLUTION * 4 - 4);
 
                 Self {
@@ -1103,7 +1104,8 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             center.y - half_side,
             center.x - half_side,
             center.x + half_side
-        );
+        )
+        .unwrap();
 
         let half_width = hull.half_width();
         let distance = half_width * 0.75;

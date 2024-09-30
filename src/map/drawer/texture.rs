@@ -915,7 +915,7 @@ pub(in crate::map) mod ui_mod
                 size:      UVec2::new(1, 1),
                 label:     String::new(),
                 size_str:  String::new(),
-                hull:      Hull::new(1f32, 0f32, 0f32, 1f32),
+                hull:      Hull::new(1f32, 0f32, 0f32, 1f32).unwrap(),
                 repeat:    Handle::default(),
                 clamp:     Handle::default(),
                 animation: Animation::default(),
@@ -947,7 +947,7 @@ pub(in crate::map) mod ui_mod
         {
             let half_width = (size.x / 2) as f32;
             let half_height = (size.y / 2) as f32;
-            Hull::new(half_height, -half_height, -half_width, half_width)
+            Hull::new(half_height, -half_height, -half_width, half_width).unwrap()
         }
 
         /// Returns a new [`Texture`].
@@ -1820,7 +1820,7 @@ pub(in crate::map) mod ui_mod
             let size = self.texture_draw_size(drawing_resources, texture).as_vec2() *
                 Vec2::new(self.scale_x.abs(), self.scale_y.abs()) /
                 2f32;
-            let mut rect = Hull::new(size.y, -size.y, -size.x, size.x).rectangle();
+            let mut rect = Hull::new(size.y, -size.y, -size.x, size.x).unwrap().rectangle();
             let angle = -self.angle.to_radians();
 
             if angle != 0f32
@@ -1879,7 +1879,7 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        fn sprite_pivot(&self, brush_center: Vec2) -> Option<Vec2>
+        pub fn sprite_pivot(&self, brush_center: Vec2) -> Option<Vec2>
         {
             self.sprite.enabled().then(|| brush_center + self.draw_offset())
         }

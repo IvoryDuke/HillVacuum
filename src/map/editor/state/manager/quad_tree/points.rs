@@ -87,6 +87,7 @@ impl Corner
             Self::BottomLeft(p, x, y) => Hull::new(p.y + *y, p.y, p.x, p.x + *x),
             Self::BottomRight(p, x, y) => Hull::new(p.y + *y, p.y, p.x + *x, p.x)
         }
+        .unwrap()
     }
 
     /// The [`Sides`] of the rectangle `self` belongs to.

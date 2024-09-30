@@ -25,7 +25,8 @@ use crate::{
             DrawBundle,
             ToolUpdateBundle
         },
-        MAP_HALF_SIZE
+        MAP_HALF_SIZE,
+        MAP_SIZE
     },
     utils::{
         collections::{hv_vec, Ids},
@@ -182,7 +183,7 @@ impl Default for DrawMode
     fn default() -> Self
     {
         Self::Spawn(
-            Hull::new(0f32, 0f32, 0f32, 0f32),
+            Hull::new(MAP_SIZE, MAP_SIZE - 64f32, MAP_SIZE - 64f32, MAP_SIZE).unwrap(),
             SpawnStatus::MouseNotPressed,
             // Not very cool, only needed at startup.
             hv_vec![Vec2::splat(MAP_HALF_SIZE); 4]

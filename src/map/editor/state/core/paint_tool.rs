@@ -220,8 +220,7 @@ impl PaintTool
 
                 if inputs.enter.just_pressed() && manager.any_selected_entities()
                 {
-                    self.status =
-                        Status::SetPivot(Self::outline(drawing_resources, manager, *grid).unwrap());
+                    self.status = Status::SetPivot(Self::outline(manager, *grid).unwrap());
                 }
 
                 if !inputs.left_mouse.just_pressed()
@@ -349,28 +348,17 @@ impl PaintTool
     /// Returns the selected entities' outline.
     #[inline]
     #[must_use]
-    fn outline(
-        drawing_resources: &DrawingResources,
-        manager: &EntitiesManager,
-        grid: Grid
-    ) -> Option<Hull>
+    fn outline(manager: &EntitiesManager, grid: Grid) -> Option<Hull>
     {
-        manager
-            .selected_entities_hull(drawing_resources, grid)
-            .map(|hull| grid.snap_hull(&hull))
+        manager.selected_entities_hull().map(|hull| grid.snap_hull(&hull))
     }
 
     /// Updates the selected entities' outline.
     #[inline]
-    pub fn update_outline(
-        &mut self,
-        drawing_resources: &DrawingResources,
-        manager: &EntitiesManager,
-        grid: Grid
-    )
+    pub fn update_outline(&mut self, manager: &EntitiesManager, grid: Grid)
     {
         *return_if_no_match!(&mut self.status, Status::SetPivot(hull), hull) =
-            return_if_none!(Self::outline(drawing_resources, manager, grid));
+            return_if_none!(Self::outline(manager, grid));
     }
 
     /// Draws the UI.
@@ -504,9 +492,7 @@ impl PaintTool
             buttons,
             (
                 PaintCreation,
-                Status::SetPivot(
-                    Self::outline(bundle.drawing_resources, bundle.manager, *bundle.grid).unwrap()
-                ),
+                Status::SetPivot(Self::outline(bundle.manager, *bundle.grid).unwrap()),
                 Status::SetPivot(_) |
                     Status::PropCreationScreenshot(..) |
                     Status::PropCreationUi(..),

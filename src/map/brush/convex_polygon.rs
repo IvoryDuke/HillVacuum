@@ -1211,6 +1211,13 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
+        pub fn sprite_pivot(&self) -> Option<Vec2>
+        {
+            self.texture_settings()?.sprite_pivot(self.center)
+        }
+
+        #[inline]
+        #[must_use]
         pub(in crate::map::brush) fn sprite_hull_out_of_bounds(
             &self,
             drawing_resources: &DrawingResources,

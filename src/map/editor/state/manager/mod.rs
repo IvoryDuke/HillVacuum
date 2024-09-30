@@ -2582,34 +2582,14 @@ impl EntitiesManager
         Hull::from_hulls_iter(self.selected_brushes_ids().map(|id| self.brush(*id).hull()))
     }
 
-    /// Returns the [`Hull`] describing the rectangle encompassing all selected textured
-    /// brushes, if any.
-    #[inline]
-    #[must_use]
-    pub(in crate::map::editor::state) fn selected_textured_brushes_hull(
-        &self,
-        drawing_resources: &DrawingResources,
-        grid: Grid
-    ) -> Option<Hull>
-    {
-        Hull::from_hulls_iter(
-            self.selected_textured_brushes()
-                .map(|brush| brush.sprite_hull(drawing_resources, grid).unwrap_or(brush.hull()))
-        )
-    }
-
     /// Returns the [`Hull`] describing the rectangle encompassing all selected entities, if any.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) fn selected_entities_hull(
-        &self,
-        drawing_resources: &DrawingResources,
-        grid: Grid
-    ) -> Option<Hull>
+    pub(in crate::map::editor::state) fn selected_entities_hull(&self) -> Option<Hull>
     {
         Hull::from_hulls_iter(
             self.selected_brushes()
-                .map(|brush| brush.global_hull(drawing_resources, grid))
+                .map(Brush::global_hull)
                 .chain(self.selected_things().map(EntityHull::hull))
         )
     }

@@ -595,7 +595,7 @@ pub(crate) mod ui_mod
     #[must_use]
     fn square(side_length: f32) -> Hull
     {
-        Hull::new(side_length, -side_length, -side_length, side_length)
+        Hull::new(side_length, -side_length, -side_length, side_length).unwrap()
     }
 
     /// Returns a [`Hull`] representing a vertex highlight with center at the origin.
