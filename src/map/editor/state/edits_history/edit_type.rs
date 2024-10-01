@@ -485,7 +485,7 @@ impl EditType
     fn brushes_common(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         interface: &mut UndoRedoInterface,
         identifiers: &HvVec<Id>
     ) -> bool
@@ -622,7 +622,7 @@ impl EditType
     fn brush_common(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         interface: &mut UndoRedoInterface,
         identifier: Id
     ) -> bool
@@ -762,7 +762,7 @@ impl EditType
     fn moving_common(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         interface: &mut UndoRedoInterface,
         identifier: Id
     ) -> bool
@@ -880,7 +880,7 @@ impl EditType
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifiers: &HvVec<Id>,
         key: Option<&String>
     ) -> bool
@@ -909,7 +909,7 @@ impl EditType
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         ui: &mut Ui,
         identifiers: &HvVec<Id>,
         property: Option<&String>
@@ -1207,7 +1207,7 @@ impl EditType
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         ui: &mut Ui,
         identifiers: &HvVec<Id>,
         property: Option<&String>

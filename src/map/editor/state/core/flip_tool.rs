@@ -43,7 +43,7 @@ impl FlipTool
     #[inline]
     pub fn tool(bundle: &StateUpdateBundle) -> ActiveTool
     {
-        ActiveTool::Flip(Self(Self::outline(bundle.manager, *bundle.grid)))
+        ActiveTool::Flip(Self(Self::outline(bundle.manager, bundle.grid)))
     }
 
     /// Updates the tool.
@@ -57,7 +57,7 @@ impl FlipTool
             |flip_texture| {
                 #[allow(clippy::missing_docs_in_private_items)]
                 type FlipSteps = (
-                    fn(&mut Brush, &DrawingResources, Grid, f32, bool) -> bool,
+                    fn(&mut Brush, &DrawingResources, &Grid, f32, bool) -> bool,
                     fn(&mut Brush, f32, bool),
                     Flip
                 );
@@ -147,14 +147,14 @@ impl FlipTool
     /// Updates the brushes outline.
     #[inline]
     #[must_use]
-    fn outline(manager: &EntitiesManager, grid: Grid) -> Hull
+    fn outline(manager: &EntitiesManager, grid: &Grid) -> Hull
     {
         grid.snap_hull(&manager.selected_brushes_hull().unwrap())
     }
 
     /// Updates the brushes outline.
     #[inline]
-    pub fn update_outline(&mut self, manager: &EntitiesManager, grid: Grid)
+    pub fn update_outline(&mut self, manager: &EntitiesManager, grid: &Grid)
     {
         self.0 = Self::outline(manager, grid);
     }

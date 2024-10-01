@@ -153,7 +153,7 @@ pub(in crate::map::editor::state::manager) struct SelectedBrushesMut<'a>
     resources:  &'a DrawingResources,
     /// The manager.
     manager:    &'a mut Innards,
-    grid:       Grid,
+    grid:       &'a Grid,
     /// The [`QuadTree`]s.
     quad_trees: &'a mut Trees
 }
@@ -186,7 +186,7 @@ impl<'a> SelectedBrushesMut<'a>
     pub fn new(
         resources: &'a DrawingResources,
         manager: &'a mut Innards,
-        grid: Grid,
+        grid: &'a Grid,
         quad_trees: &'a mut Trees,
         selected_brushes: &'a AuxiliaryIds
     ) -> Self
@@ -368,7 +368,7 @@ pub(in crate::map::editor::state::manager) struct SelectedMovingsMut<'a>
     resources:  &'a DrawingResources,
     /// The entities manager.
     manager:    &'a mut Innards,
-    grid:       Grid,
+    grid:       &'a Grid,
     /// The [`QuadTree`]s.
     quad_trees: &'a mut Trees
 }
@@ -400,7 +400,7 @@ impl<'a> SelectedMovingsMut<'a>
     pub fn new(
         resources: &'a DrawingResources,
         manager: &'a mut Innards,
-        grid: Grid,
+        grid: &'a Grid,
         quad_trees: &'a mut Trees,
         selected_brushes: &'a AuxiliaryIds
     ) -> Self

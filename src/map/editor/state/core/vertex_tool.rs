@@ -266,7 +266,7 @@ impl BrushesWithSelectedVertexes
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid
+        grid: &Grid
     )
     {
         if !self.split_available()
@@ -1057,7 +1057,7 @@ impl VertexTool
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.edits_history,
-                *bundle.grid,
+                bundle.grid,
                 false
             );
             return;
@@ -1069,7 +1069,7 @@ impl VertexTool
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.edits_history,
-                *bundle.grid
+                bundle.grid
             );
             return;
         }

@@ -53,7 +53,7 @@ impl CursorDelta
     #[must_use]
     pub(in crate::map::editor::state::core) fn try_new(
         cursor: &Cursor,
-        grid: Grid,
+        grid: &Grid,
         origin: Vec2
     ) -> Option<Self>
     {
@@ -74,7 +74,7 @@ impl CursorDelta
     pub(in crate::map::editor::state::core) fn conditional_update<F: FnOnce(Vec2) -> bool>(
         &mut self,
         cursor: &Cursor,
-        grid: Grid,
+        grid: &Grid,
         dragger: F
     )
     {
@@ -93,7 +93,7 @@ impl CursorDelta
     pub(in crate::map::editor::state::core) fn update<F: FnOnce(Vec2)>(
         &mut self,
         cursor: &Cursor,
-        grid: Grid,
+        grid: &Grid,
         dragger: F
     )
     {
@@ -110,7 +110,7 @@ impl CursorDelta
     fn overall_and_frame_drag_delta_from_origin(
         &self,
         cursor: &Cursor,
-        grid: Grid
+        grid: &Grid
     ) -> Option<(Vec2, Vec2)>
     {
         let snap = cursor.snap();

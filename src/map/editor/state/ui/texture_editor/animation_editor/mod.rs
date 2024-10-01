@@ -640,7 +640,7 @@ impl AnimationEditor
         drawing_resources: &mut DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         overall_texture: &UiOverallTextureSettings,
         new_texture: &str
     )
@@ -722,7 +722,7 @@ impl AnimationEditor
     #[must_use]
     fn check_sprites_within_bounds(
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         texture: &str,
         manager: &mut EntitiesManager
     ) -> bool
@@ -838,7 +838,7 @@ impl AnimationEditor
                     |value| {
                         if !Self::check_sprites_within_bounds(
                             drawing_resources,
-                            **grid,
+                            grid,
                             texture.name(),
                             manager
                         )
@@ -1035,7 +1035,7 @@ impl AnimationEditor
                             drawing_resources: &DrawingResources,
                             manager: &mut EntitiesManager,
                             edits_history: &mut EditsHistory,
-                            grid: Grid,
+                            grid: &Grid,
                             texture: &mut Texture,
                             ui_animation: &mut UiOverallAnimation,
                             new_animation: Animation
@@ -1065,7 +1065,7 @@ impl AnimationEditor
                                 drawing_resources,
                                 manager,
                                 edits_history,
-                                **grid,
+                                grid,
                                 selected_texture,
                                 ui_animation,
                                 Animation::None
@@ -1079,7 +1079,7 @@ impl AnimationEditor
                                 drawing_resources,
                                 manager,
                                 edits_history,
-                                **grid,
+                                grid,
                                 selected_texture,
                                 ui_animation,
                                 new_animation
@@ -1091,7 +1091,7 @@ impl AnimationEditor
                                 drawing_resources,
                                 manager,
                                 edits_history,
-                                **grid,
+                                grid,
                                 selected_texture,
                                 ui_animation,
                                 Animation::atlas_animation()

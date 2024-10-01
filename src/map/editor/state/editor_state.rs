@@ -606,7 +606,7 @@ impl State
                 };
 
                 manager.finish_things_reload(things_catalog);
-                manager.finish_textures_reload(drawing_resources, grid);
+                manager.finish_textures_reload(drawing_resources, &grid);
 
                 (state, manager, clipboard, EditsHistory::default(), grid, path.into())
             },
@@ -857,7 +857,7 @@ impl State
             bundle.things_catalog,
             bundle.manager,
             bundle.edits_history,
-            *bundle.grid,
+            bundle.grid,
             &mut self.ui
         );
     }
@@ -875,7 +875,7 @@ impl State
             bundle.things_catalog,
             bundle.manager,
             bundle.edits_history,
-            *bundle.grid,
+            bundle.grid,
             &mut self.ui
         );
     }
@@ -891,7 +891,8 @@ impl State
         bundle.edits_history.no_unsaved_edits() &&
             !bundle.clipboard.props_changed() &&
             !bundle.drawing_resources.default_animations_changed() &&
-            !bundle.manager.refactored_properties()
+            !bundle.manager.refactored_properties() &&
+            !bundle.grid.changed()
     }
 
     /// Saves the map being edited. If the file has not being created yet user is asked to specify
@@ -1086,6 +1087,7 @@ impl State
         bundle.clipboard.reset_props_changed();
         bundle.manager.reset_refactored_properties();
         bundle.drawing_resources.reset_default_animation_changed();
+        bundle.grid.reset_changed();
 
         Ok(())
     }
@@ -1600,7 +1602,7 @@ impl State
             &mut file,
             drawing_resources,
             things_catalog,
-            grid,
+            &grid,
             default_properties,
             &mut steps
         )?;
@@ -1612,7 +1614,7 @@ impl State
             user_textures,
             drawing_resources,
             things_catalog,
-            grid,
+            &grid,
             &header,
             &mut file
         )?;
@@ -1749,7 +1751,7 @@ impl State
             bundle.drawing_resources,
             &mut self.core,
             &mut self.ui,
-            *bundle.grid,
+            bundle.grid,
             &mut self.tools_settings
         );
 
@@ -1922,7 +1924,7 @@ impl State
             bundle.prop_cameras,
             bundle.user_textures,
             bundle.drawing_resources,
-            *bundle.grid
+            bundle.grid
         );
 
         match ui_interaction.command
@@ -1974,7 +1976,7 @@ impl State
                         bundle.user_textures,
                         bundle.drawing_resources,
                         bundle.things_catalog,
-                        *bundle.grid,
+                        bundle.grid,
                         len,
                         file
                     )
@@ -2004,7 +2006,7 @@ impl State
                 {
                     bundle.camera.scale_viewport_to_hull(
                         bundle.window,
-                        *bundle.grid,
+                        bundle.grid,
                         &hull,
                         bundle.grid.size_f32()
                     );
@@ -2233,7 +2235,7 @@ impl State
             bundle.prop_cameras,
             bundle.drawing_resources,
             bundle.things_catalog,
-            *bundle.grid
+            bundle.grid
         );
         bundle.manager.finish_things_reload(bundle.things_catalog);
     }
@@ -2317,7 +2319,7 @@ impl State
         manager: &mut EntitiesManager,
         clipboard: &mut Clipboard,
         edits_history: &mut EditsHistory,
-        grid: Grid
+        grid: &Grid
     )
     {
         assert!(self.reloading_textures.take_value(), "No ongoing texture reload.");

@@ -181,7 +181,7 @@ impl Innards
             fn set_property(
                 &mut self,
                 drawing_resources: &DrawingResources,
-                grid: Grid,
+                grid: &Grid,
                 key: &str,
                 value: &Value
             )
@@ -201,7 +201,7 @@ impl Innards
         impl<'a> SetProperty for ThingsPropertySetter<'a>
         {
             #[inline]
-            fn set_property(&mut self, _: &DrawingResources, _: Grid, key: &str, value: &Value)
+            fn set_property(&mut self, _: &DrawingResources, _: &Grid, key: &str, value: &Value)
             {
                 set_property!(self, key, value, selected_things_mut);
             }
@@ -233,7 +233,7 @@ impl Innards
 
                 if let Some(value) = CheckBox::show(ui, &self.overall_brushes_collision, |v| *v)
                 {
-                    for mut brush in manager.selected_brushes_mut(drawing_resources, **grid)
+                    for mut brush in manager.selected_brushes_mut(drawing_resources, grid)
                     {
                         edits_history
                             .collision(brush.id(), continue_if_none!(brush.set_collision(value)));
@@ -250,7 +250,7 @@ impl Innards
                     brushes_default_properties,
                     clipboard,
                     inputs,
-                    **grid,
+                    grid,
                     &mut BrushesPropertySetter {
                         manager,
                         edits_history
@@ -316,7 +316,7 @@ impl Innards
                     things_default_properties,
                     clipboard,
                     inputs,
-                    **grid,
+                    grid,
                     &mut ThingsPropertySetter {
                         manager,
                         edits_history

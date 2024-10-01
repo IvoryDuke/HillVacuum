@@ -102,7 +102,7 @@ enum PaintingProp
 
 #[allow(clippy::missing_docs_in_private_items)]
 type PropSpawnFunc =
-    fn(&mut Clipboard, &DrawingResources, &mut EntitiesManager, &mut EditsHistory, Grid, Vec2);
+    fn(&mut Clipboard, &DrawingResources, &mut EntitiesManager, &mut EditsHistory, &Grid, Vec2);
 
 impl PaintingProp
 {
@@ -179,7 +179,7 @@ impl PaintTool
         manager: &mut EntitiesManager,
         clipboard: &mut Clipboard,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         cursor_pos: Vec2
     )
     {
@@ -220,7 +220,7 @@ impl PaintTool
 
                 if inputs.enter.just_pressed() && manager.any_selected_entities()
                 {
-                    self.status = Status::SetPivot(Self::outline(manager, *grid).unwrap());
+                    self.status = Status::SetPivot(Self::outline(manager, grid).unwrap());
                 }
 
                 if !inputs.left_mouse.just_pressed()
@@ -235,7 +235,7 @@ impl PaintTool
                         manager,
                         clipboard,
                         edits_history,
-                        *grid,
+                        grid,
                         cursor_pos
                     );
                     return;
@@ -245,7 +245,7 @@ impl PaintTool
                     drawing_resources,
                     manager,
                     edits_history,
-                    *grid,
+                    grid,
                     cursor_pos
                 );
                 self.status = Status::Paint(PaintingProp::Slotted, CursorDelta::new(cursor_pos));
@@ -259,7 +259,7 @@ impl PaintTool
 
                 let mut prop = Prop::new(
                     drawing_resources,
-                    *grid,
+                    grid,
                     manager.selected_entities(),
                     cursor_pos,
                     None
@@ -269,7 +269,7 @@ impl PaintTool
                     paint_tool_camera,
                     user_textures,
                     drawing_resources,
-                    *grid,
+                    grid,
                     &mut prop
                 );
 
@@ -317,7 +317,7 @@ impl PaintTool
                     manager,
                     clipboard,
                     edits_history,
-                    *grid,
+                    grid,
                     cursor_pos
                 );
             },
@@ -325,13 +325,13 @@ impl PaintTool
             {
                 if cursor.moved()
                 {
-                    drag.update(cursor, *grid, |_| {
+                    drag.update(cursor, grid, |_| {
                         prop.spawn_func()(
                             clipboard,
                             drawing_resources,
                             manager,
                             edits_history,
-                            *grid,
+                            grid,
                             cursor_pos
                         );
                     });
@@ -348,14 +348,14 @@ impl PaintTool
     /// Returns the selected entities' outline.
     #[inline]
     #[must_use]
-    fn outline(manager: &EntitiesManager, grid: Grid) -> Option<Hull>
+    fn outline(manager: &EntitiesManager, grid: &Grid) -> Option<Hull>
     {
         manager.selected_entities_hull().map(|hull| grid.snap_hull(&hull))
     }
 
     /// Updates the selected entities' outline.
     #[inline]
-    pub fn update_outline(&mut self, manager: &EntitiesManager, grid: Grid)
+    pub fn update_outline(&mut self, manager: &EntitiesManager, grid: &Grid)
     {
         *return_if_no_match!(&mut self.status, Status::SetPivot(hull), hull) =
             return_if_none!(Self::outline(manager, grid));
@@ -492,7 +492,7 @@ impl PaintTool
             buttons,
             (
                 PaintCreation,
-                Status::SetPivot(Self::outline(bundle.manager, *bundle.grid).unwrap()),
+                Status::SetPivot(Self::outline(bundle.manager, bundle.grid).unwrap()),
                 Status::SetPivot(_) |
                     Status::PropCreationScreenshot(..) |
                     Status::PropCreationUi(..),

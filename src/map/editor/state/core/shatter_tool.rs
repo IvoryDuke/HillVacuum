@@ -51,7 +51,7 @@ impl Selector
             _: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
-            _: Grid,
+            _: &Grid,
             _: f32,
             items: &mut ItemsBeneathCursor<Id>
         )
@@ -139,7 +139,7 @@ impl ShatterTool
         _ = manager.replace_brush_with_partition(
             drawing_resources,
             edits_history,
-            *grid,
+            grid,
             shards.into_iter(),
             id,
             |brush| brush.set_polygon(main)

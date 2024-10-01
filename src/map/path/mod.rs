@@ -354,7 +354,7 @@ pub(in crate::map) mod ui_mod
             #[must_use]
             fn snap_selected_path_nodes(
                 &mut self,
-                grid: crate::map::editor::state::grid::Grid
+                grid: &crate::map::editor::state::grid::Grid
             ) -> Option<crate::utils::collections::HvVec<(crate::utils::collections::HvVec<u8>, Vec2)>>
             {
                 let center = self.center();
@@ -670,7 +670,7 @@ pub(in crate::map) mod ui_mod
         /// # Panics
         /// Panics if the entity has no [`Path`] or the resulting path was invalid.
         #[must_use]
-        fn snap_selected_path_nodes(&mut self, grid: Grid) -> Option<HvVec<(HvVec<u8>, Vec2)>>;
+        fn snap_selected_path_nodes(&mut self, grid: &Grid) -> Option<HvVec<(HvVec<u8>, Vec2)>>;
 
         /// Sets the standby time of the selected [`Path`]'s [`Node`]s to `value`, returns a
         /// [`StandbyValueEdit`] describing the outcome.
@@ -1842,7 +1842,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map) fn snap_selected_nodes(
             &mut self,
-            grid: Grid,
+            grid: &Grid,
             center: Vec2
         ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
         {

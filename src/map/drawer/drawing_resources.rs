@@ -1352,7 +1352,7 @@ impl<'a> MeshGenerator<'a>
 
     /// Adds the vertexes in `iter`.
     #[inline]
-    pub fn push_positions_skewed(&mut self, grid: Grid, iter: impl IntoIterator<Item = Vec2>)
+    pub fn push_positions_skewed(&mut self, grid: &Grid, iter: impl IntoIterator<Item = Vec2>)
     {
         self.0
             .extend(iter.into_iter().map(|vx| grid.transform_point(vx).as_f32x3()));

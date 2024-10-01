@@ -176,7 +176,7 @@ impl Selector
             _: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
-            _: Grid,
+            _: &Grid,
             camera_scale: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
@@ -239,7 +239,7 @@ impl Selector
         drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         cursor: &Cursor,
-        grid: Grid,
+        grid: &Grid,
         camera_scale: f32,
         inputs: &InputsPresses
     ) -> Option<ItemBeneathCursor>
@@ -398,7 +398,7 @@ impl PathTool
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.cursor,
-                *bundle.grid,
+                bundle.grid,
                 bundle.camera.scale(),
                 bundle.inputs
             )
@@ -421,7 +421,7 @@ impl PathTool
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.cursor,
-                *bundle.grid,
+                bundle.grid,
                 bundle.camera.scale(),
                 bundle.inputs
             )
@@ -955,7 +955,7 @@ impl PathTool
         // Delete paths.
         if inputs.alt_pressed()
         {
-            manager.remove_selected_paths(drawing_resources, edits_history, *grid);
+            manager.remove_selected_paths(drawing_resources, edits_history, grid);
             return true;
         }
 
@@ -981,7 +981,7 @@ impl PathTool
             (
                 p.id(),
                 manager
-                    .moving_mut(drawing_resources, *grid, p.id())
+                    .moving_mut(drawing_resources, grid, p.id())
                     .remove_selected_path_nodes(p)
             )
         }));

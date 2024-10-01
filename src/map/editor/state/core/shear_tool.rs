@@ -82,7 +82,7 @@ impl ShearTool
     {
         ActiveTool::Shear(ShearTool {
             status:        Status::Keyboard,
-            outline:       Self::outline(bundle.manager, *bundle.grid),
+            outline:       Self::outline(bundle.manager, bundle.grid),
             selected_side: Side::Top
         })
     }
@@ -127,7 +127,7 @@ impl ShearTool
                     _ = return_if_none!(Self::shear_brushes(
                         bundle.drawing_resources,
                         manager,
-                        *grid,
+                        grid,
                         self.selected_side,
                         &mut self.outline,
                         delta,
@@ -143,12 +143,12 @@ impl ShearTool
             },
             Status::Drag(drag, info, backup_polygons) =>
             {
-                drag.conditional_update(cursor, *grid, |delta| {
+                drag.conditional_update(cursor, grid, |delta| {
                     let i = return_if_none!(
                         Self::shear_brushes(
                             bundle.drawing_resources,
                             manager,
-                            *grid,
+                            grid,
                             self.selected_side,
                             &mut self.outline,
                             delta,
@@ -205,7 +205,7 @@ impl ShearTool
     fn shear_brushes(
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
-        grid: Grid,
+        grid: &Grid,
         selected_side: Side,
         outline: &mut Hull,
         delta: Vec2,
@@ -308,14 +308,14 @@ impl ShearTool
     /// Returns the [`Hull`] describing the tool outline.
     #[inline]
     #[must_use]
-    fn outline(manager: &EntitiesManager, grid: Grid) -> Hull
+    fn outline(manager: &EntitiesManager, grid: &Grid) -> Hull
     {
         grid.snap_hull(&manager.selected_brushes_hull().unwrap())
     }
 
     /// Updates the tool outline.
     #[inline]
-    pub fn update_outline(&mut self, manager: &EntitiesManager, grid: Grid)
+    pub fn update_outline(&mut self, manager: &EntitiesManager, grid: &Grid)
     {
         if !self.ongoing_multi_frame_change()
         {

@@ -326,7 +326,7 @@ impl Edit
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         ui: &mut Ui
     )
     {
@@ -342,7 +342,7 @@ impl Edit
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         ui: &mut Ui
     )
     {

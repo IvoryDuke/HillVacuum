@@ -726,7 +726,7 @@ impl Ui
                             bundle.things_catalog,
                             bundle.manager,
                             bundle.edits_history,
-                            *bundle.grid,
+                            bundle.grid,
                             self
                         );
                     }
@@ -741,7 +741,7 @@ impl Ui
                             bundle.things_catalog,
                             bundle.manager,
                             bundle.edits_history,
-                            *bundle.grid,
+                            bundle.grid,
                             self
                         );
                     }
@@ -780,7 +780,7 @@ impl Ui
                     Self::cursor_info(cursor, ui);
 
                     // Grid info.
-                    Self::grid_info(ui, *bundle.grid);
+                    Self::grid_info(ui, bundle.grid);
 
                     // Camera info.
                     Self::camera_info(ui, bundle);
@@ -1207,7 +1207,7 @@ impl Ui
 
     /// The info concerning the grid.
     #[inline]
-    fn grid_info(ui: &mut egui::Ui, grid: Grid)
+    fn grid_info(ui: &mut egui::Ui, grid: &Grid)
     {
         ui.separator();
 

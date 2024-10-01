@@ -196,7 +196,7 @@ impl ScaleTool
             outline:         Self::outline(
                 bundle.drawing_resources,
                 bundle.manager,
-                *bundle.grid,
+                bundle.grid,
                 settings
             )
             .unwrap(),
@@ -457,7 +457,7 @@ impl ScaleTool
     fn outline(
         drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
-        grid: Grid,
+        grid: &Grid,
         settings: &ToolsSettings
     ) -> Option<Hull>
     {
@@ -466,7 +466,7 @@ impl ScaleTool
         fn textures_hull(
             drawing_resources: &DrawingResources,
             manager: &EntitiesManager,
-            grid: Grid
+            grid: &Grid
         ) -> Option<Hull>
         {
             if grid.isometric()
@@ -516,7 +516,7 @@ impl ScaleTool
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
-        grid: Grid,
+        grid: &Grid,
         settings: &ToolsSettings
     )
     {

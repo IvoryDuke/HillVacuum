@@ -77,7 +77,7 @@ macro_rules! scale_offset_setters {
             drawing_resources: &DrawingResources,
             manager: &mut EntitiesManager,
             edits_history: &mut EditsHistory,
-            grid: Grid,
+            grid: &Grid,
             value: f32
         ) -> bool
         {
@@ -118,7 +118,7 @@ macro_rules! height_parallax_scroll_setters {
             drawing_resources: &DrawingResources,
             manager: &mut EntitiesManager,
             edits_history: &mut EditsHistory,
-            grid: Grid,
+            grid: &Grid,
             value: $t
         ) -> bool
         {
@@ -399,7 +399,7 @@ impl Innards
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         texture: &str
     ) -> bool
     {
@@ -451,7 +451,7 @@ impl Innards
     ) where
         T: MinusPlusUiOverallValue,
         C: Fn(T, T) -> T,
-        F: FnMut(&DrawingResources, &mut EntitiesManager, &mut EditsHistory, Grid, T) -> bool
+        F: FnMut(&DrawingResources, &mut EntitiesManager, &mut EditsHistory, &Grid, T) -> bool
     {
         let UiBundle {
             clipboard,
@@ -470,7 +470,7 @@ impl Innards
             value,
             step,
             clamp,
-            |value| f(drawing_resources, manager, edits_history, **grid, value).then_some(value)
+            |value| f(drawing_resources, manager, edits_history, grid, value).then_some(value)
         );
     }
 
@@ -549,7 +549,7 @@ impl Innards
                 {
                     edits_history.texture_reset_cluster(
                         manager
-                            .selected_textured_brushes_mut(drawing_resources, **grid)
+                            .selected_textured_brushes_mut(drawing_resources, grid)
                             .map(|mut brush| (brush.id(), brush.reset_texture()))
                     );
                 }
@@ -773,7 +773,7 @@ impl Innards
                 drawing_resources,
                 manager,
                 edits_history,
-                **grid,
+                grid,
                 &self.overall_texture,
                 return_if_none!(clicked_texture).as_str()
             );
@@ -794,7 +794,7 @@ impl Innards
                         drawing_resources,
                         manager,
                         edits_history,
-                        **grid,
+                        grid,
                         texture.name()
                     );
                 }
@@ -949,7 +949,7 @@ impl Innards
                                 drawing_resources,
                                 manager,
                                 edits_history,
-                                **grid,
+                                grid,
                                 texture.name()
                             )
                             .then_some(value);
@@ -971,7 +971,7 @@ impl Innards
                     bundle.manager.remove_selected_textures(
                         bundle.drawing_resources,
                         bundle.edits_history,
-                        *bundle.grid
+                        bundle.grid
                     );
                     bundle.manager.schedule_outline_update();
                 }
@@ -1013,7 +1013,7 @@ impl Innards
                     let value =
                         return_if_none!(CheckBox::show(ui, &self.overall_texture.sprite, |v| *v));
 
-                    manager.set_sprite(drawing_resources, edits_history, **grid, value);
+                    manager.set_sprite(drawing_resources, edits_history, grid, value);
                     manager.schedule_outline_update();
                 });
             });
@@ -1025,7 +1025,7 @@ impl Innards
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         value: f32
     ) -> bool
     {

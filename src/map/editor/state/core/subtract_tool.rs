@@ -57,7 +57,7 @@ impl Selector
             _: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
-            _: Grid,
+            _: &Grid,
             _: f32,
             items: &mut ItemsBeneathCursor<Id>
         )
@@ -180,7 +180,7 @@ impl SubtractTool
                         bundle.drawing_resources,
                         manager,
                         edits_history,
-                        *grid,
+                        grid,
                         &mut self.subtractees
                     );
                     return true;
@@ -260,7 +260,7 @@ impl SubtractTool
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         subtractees: &mut Ids
     )
     {

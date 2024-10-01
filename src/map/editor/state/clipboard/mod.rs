@@ -147,7 +147,7 @@ impl ClipboardData
     fn out_of_bounds_moved(
         &self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         delta: Vec2
     ) -> bool
     {
@@ -155,7 +155,7 @@ impl ClipboardData
     }
 
     #[inline]
-    fn hull(&self, drawing_resources: &DrawingResources, grid: Grid) -> Hull
+    fn hull(&self, drawing_resources: &DrawingResources, grid: &Grid) -> Hull
     {
         match self
         {
@@ -293,7 +293,7 @@ pub(in crate::map) struct Clipboard
         &mut PropCamerasMut,
         &mut EguiUserTextures,
         &DrawingResources,
-        Grid
+        &Grid
     )
 }
 
@@ -334,7 +334,7 @@ impl Clipboard
         user_textures: &mut EguiUserTextures,
         drawing_resources: &DrawingResources,
         catalog: &ThingsCatalog,
-        grid: Grid,
+        grid: &Grid,
         header: &MapHeader,
         file: &mut BufReader<File>
     ) -> Result<Self, &'static str>
@@ -379,7 +379,7 @@ impl Clipboard
         user_textures: &mut EguiUserTextures,
         drawing_resources: &DrawingResources,
         catalog: &ThingsCatalog,
-        grid: Grid,
+        grid: &Grid,
         props_amount: usize,
         file: &mut BufReader<File>
     ) -> Result<(), &'static str>
@@ -423,7 +423,7 @@ impl Clipboard
         user_textures: &mut EguiUserTextures,
         camera: Option<(Entity, Mut<Camera>, Mut<Transform>)>,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         index: usize
     )
     {
@@ -458,7 +458,7 @@ impl Clipboard
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
         drawing_resources: &DrawingResources,
-        grid: Grid
+        grid: &Grid
     )
     {
         let mut prop_cameras = prop_cameras.iter_mut().filter(|camera| !camera.1.is_active);
@@ -530,7 +530,7 @@ impl Clipboard
         _: &mut PropCamerasMut,
         _: &mut EguiUserTextures,
         _: &DrawingResources,
-        _: Grid
+        _: &Grid
     )
     {
         if self.props_import_wait_frames != 0
@@ -550,7 +550,7 @@ impl Clipboard
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
         drawing_resources: &DrawingResources,
-        grid: Grid
+        grid: &Grid
     )
     {
         let mut i = 0;
@@ -598,7 +598,7 @@ impl Clipboard
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
         drawing_resources: &DrawingResources,
-        grid: Grid
+        grid: &Grid
     )
     {
         (self.update_func)(self, images, prop_cameras, user_textures, drawing_resources, grid);
@@ -612,7 +612,7 @@ impl Clipboard
         prop_camera: &mut (&mut Camera, &mut Transform),
         user_textures: &mut EguiUserTextures,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         prop: &mut Prop
     )
     {
@@ -659,7 +659,7 @@ impl Clipboard
         prop_cameras: &mut PropCamerasMut,
         drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,
-        grid: Grid
+        grid: &Grid
     )
     {
         let mut prop_cameras = prop_cameras.iter_mut();
@@ -690,7 +690,7 @@ impl Clipboard
         user_textures: &mut EguiUserTextures,
         prop_cameras: &mut PropCamerasMut,
         drawing_resources: &DrawingResources,
-        grid: Grid
+        grid: &Grid
     )
     {
         let mut prop_cameras = prop_cameras.iter_mut();
@@ -742,7 +742,7 @@ impl Clipboard
     pub(in crate::map::editor::state) fn copy<'a, D>(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         iter: impl Iterator<Item = &'a D>
     ) where
         D: CopyToClipboard + ?Sized + 'a
@@ -757,7 +757,7 @@ impl Clipboard
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         cursor_pos: Vec2
     )
     {
@@ -771,7 +771,7 @@ impl Clipboard
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         delta: Vec2
     )
     {
@@ -900,7 +900,7 @@ impl Clipboard
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         cursor_pos: Vec2
     )
     {
@@ -915,7 +915,7 @@ impl Clipboard
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         cursor_pos: Vec2
     )
     {
@@ -1065,7 +1065,7 @@ impl Clipboard
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id
     )
     {
@@ -1098,7 +1098,7 @@ impl Clipboard
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id
     )
     {

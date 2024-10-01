@@ -623,7 +623,7 @@ impl Innards
         file: &mut BufReader<File>,
         drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,
-        grid: Grid,
+        grid: &Grid,
         default_properties: &mut AllDefaultProperties,
         steps: &mut I,
         quad_trees: &mut Trees
@@ -838,7 +838,7 @@ impl Innards
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         quad_trees: &mut Trees,
         data: ClipboardData,
         delta: Vec2
@@ -1029,7 +1029,7 @@ impl Innards
     pub(in crate::map::editor::state) fn remove_texture(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         quad_trees: &mut Trees,
         identifier: Id
     ) -> TextureSettings
@@ -1146,7 +1146,7 @@ impl Innards
     pub(in crate::map::editor::state) fn brush_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
-        grid: Grid,
+        grid: &'a Grid,
         quad_trees: &'a mut Trees,
         identifier: Id
     ) -> BrushMut<'a>
@@ -1230,7 +1230,7 @@ impl Innards
     fn insert_brush(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         quad_trees: &mut Trees,
         brush: Brush,
         selected: bool
@@ -1324,7 +1324,7 @@ impl Innards
     fn remove_brush(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         quad_trees: &mut Trees,
         identifier: Id
     ) -> (Brush, bool)
@@ -1424,7 +1424,7 @@ impl Innards
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         quad_trees: &mut Trees,
         polygon: impl Into<Cow<'a, ConvexPolygon>>,
         properties: Properties
@@ -1446,7 +1446,7 @@ impl Innards
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         quad_trees: &mut Trees,
         identifier: Id
     )
@@ -1461,7 +1461,7 @@ impl Innards
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         quad_trees: &mut Trees,
         identifier: Id
     )
@@ -1478,7 +1478,7 @@ impl Innards
     pub(in crate::map::editor::state) fn set_texture(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         quad_trees: &mut Trees,
         identifier: Id,
         texture: &str
@@ -1516,7 +1516,7 @@ impl Innards
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         quad_trees: &mut Trees,
         identifier: Id,
         path: Path
@@ -1533,7 +1533,7 @@ impl Innards
     pub(in crate::map::editor::state) fn set_path(
         &mut self,
         resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         quad_trees: &mut Trees,
         identifier: Id,
         path: Path
@@ -1554,7 +1554,7 @@ impl Innards
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         quad_trees: &mut Trees,
         identifier: Id
     )
@@ -1581,7 +1581,7 @@ impl Innards
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         quad_trees: &mut Trees,
         identifier: Id,
         path: Path
@@ -1820,7 +1820,7 @@ impl Innards
     pub(in crate::map::editor::state) fn moving_mut<'a>(
         &'a mut self,
         resources: &'a DrawingResources,
-        grid: Grid,
+        grid: &'a Grid,
         quad_trees: &'a mut Trees,
         identifier: Id
     ) -> MovingMut<'a>
@@ -1867,7 +1867,7 @@ impl EntitiesManager
         file: &mut BufReader<File>,
         drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,
-        grid: Grid,
+        grid: &Grid,
         default_properties: &mut AllDefaultProperties,
         steps: &mut I
     ) -> Result<Self, &'static str>
@@ -1944,7 +1944,7 @@ impl EntitiesManager
         drawing_resources: &DrawingResources,
         core: &mut Core,
         ui: &mut Ui,
-        grid: Grid,
+        grid: &Grid,
         settings: &mut ToolsSettings
     )
     {
@@ -2171,7 +2171,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid
+        grid: &Grid
     )
     {
         self.despawn_selected_brushes(drawing_resources, edits_history, grid);
@@ -2253,7 +2253,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn brush_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
-        grid: Grid,
+        grid: &'a Grid,
         identifier: Id
     ) -> BrushMut<'a>
     {
@@ -2284,7 +2284,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn selected_brushes_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
-        grid: Grid
+        grid: &'a Grid
     ) -> impl Iterator<Item = BrushMut<'a>>
     {
         self.auxiliary.replace_values(&self.innards.selected_brushes);
@@ -2315,7 +2315,7 @@ impl EntitiesManager
         &self,
         window: &Window,
         camera: &Transform,
-        grid: Grid
+        grid: &Grid
     ) -> BrushesIter<'_>
     {
         self.brushes_iter(self.quad_trees.visible_brushes(camera, window, grid))
@@ -2341,7 +2341,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn selected_brushes_mut_at_pos<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
-        grid: Grid,
+        grid: &'a Grid,
         cursor_pos: Vec2,
         camera_scale: impl Into<Option<f32>>
     ) -> impl Iterator<Item = BrushMut<'a>>
@@ -2645,7 +2645,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn selected_brushes_with_sprite_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
-        grid: Grid
+        grid: &'a Grid
     ) -> impl Iterator<Item = BrushMut<'a>>
     {
         self.auxiliary.clear();
@@ -2670,7 +2670,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn selected_brushes_with_sprites_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
-        grid: Grid,
+        grid: &'a Grid,
         texture: &str
     ) -> Option<impl Iterator<Item = BrushMut<'a>>>
     {
@@ -2692,7 +2692,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         polygon: impl Into<Cow<'d, ConvexPolygon>>,
         properties: Properties
     ) -> Id
@@ -2712,7 +2712,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn spawn_brush_from_parts(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         data: BrushData,
         selected: bool
@@ -2730,7 +2730,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         data: ClipboardData,
         delta: Vec2
     ) -> Id
@@ -2751,7 +2751,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         mut polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
         properties: Properties
     )
@@ -2777,7 +2777,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         others: impl ExactSizeIterator<Item = ConvexPolygon>,
         identifier: Id,
         f: F
@@ -2813,7 +2813,7 @@ impl EntitiesManager
             manager: &mut EntitiesManager,
             drawing_resources: &DrawingResources,
             edits_history: &mut EditsHistory,
-            grid: Grid,
+            grid: &Grid,
             mut polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
             properties: Properties
         ) -> HvHashSet<Id>
@@ -2913,7 +2913,7 @@ impl EntitiesManager
         drawing_resources: &DrawingResources,
         default_properties: &DefaultProperties,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         polygon: ConvexPolygon,
         drawn_brushes: &mut Ids
     )
@@ -2934,7 +2934,7 @@ impl EntitiesManager
     fn remove_brush(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id
     ) -> Brush
     {
@@ -2950,7 +2950,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         drawn_brushes: &mut Ids
     )
     {
@@ -2968,7 +2968,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id
     )
     {
@@ -2986,7 +2986,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn despawn_brush_into_parts(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id
     ) -> BrushData
     {
@@ -2999,7 +2999,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid
+        grid: &Grid
     )
     {
         self.brushes_despawn
@@ -3031,7 +3031,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
         properties: Properties
     )
@@ -3048,7 +3048,7 @@ impl EntitiesManager
         drawing_resources: &DrawingResources,
         clipboard: &mut Clipboard,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         delta: Vec2
     ) -> bool
     {
@@ -3073,7 +3073,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         path: Path
     )
@@ -3093,7 +3093,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn set_path(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         path: Path
     )
@@ -3107,7 +3107,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn remove_path(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id
     ) -> Path
     {
@@ -3131,7 +3131,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id
     )
     {
@@ -3151,7 +3151,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         path: Path
     )
@@ -3172,7 +3172,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid
+        grid: &Grid
     )
     {
         self.auxiliary.replace_values(&self.innards.selected_moving);
@@ -3195,7 +3195,7 @@ impl EntitiesManager
         &self,
         window: &Window,
         camera: &Transform,
-        grid: Grid
+        grid: &Grid
     ) -> BrushesIter<'_>
     {
         self.brushes_iter(self.quad_trees.visible_anchors(camera, window, grid))
@@ -3242,7 +3242,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn selected_textured_brushes_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
-        grid: Grid
+        grid: &'a Grid
     ) -> impl Iterator<Item = BrushMut<'a>>
     {
         self.auxiliary.replace_values(&self.innards.selected_textured);
@@ -3270,14 +3270,14 @@ impl EntitiesManager
         &self,
         window: &Window,
         camera: &Transform,
-        grid: Grid
+        grid: &Grid
     ) -> BrushesIter<'_>
     {
         self.brushes_iter(self.quad_trees.visible_sprites(camera, window, grid))
     }
 
     #[inline]
-    pub fn rebuild_sprite_quad_tree(&mut self, drawing_resources: &DrawingResources, grid: Grid)
+    pub fn rebuild_sprite_quad_tree(&mut self, drawing_resources: &DrawingResources, grid: &Grid)
     {
         self.quad_trees.rebuild_sprite_quad_tree(
             drawing_resources,
@@ -3310,7 +3310,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn set_texture(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         texture: &str
     ) -> TextureSetResult
@@ -3325,7 +3325,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn remove_texture(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id
     ) -> TextureSettings
     {
@@ -3338,7 +3338,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn set_texture_settings(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         texture: TextureSettings
     )
@@ -3365,7 +3365,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         texture: &str
     ) -> TextureResult
     {
@@ -3450,7 +3450,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid
+        grid: &Grid
     )
     {
         self.auxiliary.replace_values(&self.innards.selected_textured);
@@ -3472,7 +3472,7 @@ impl EntitiesManager
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         value: bool
     )
     {
@@ -3531,7 +3531,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn undo_redo_texture_sprite(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         value: &mut TextureSpriteSet
     )
@@ -3555,7 +3555,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn finish_textures_reload(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid
+        grid: &Grid
     )
     {
         self.auxiliary.replace_values(&self.innards.textured);
@@ -3755,7 +3755,7 @@ impl EntitiesManager
         &self,
         window: &Window,
         camera: &Transform,
-        grid: Grid
+        grid: &Grid
     ) -> ThingsIter<'_>
     {
         ThingsIter::new(self, self.quad_trees.visible_things(camera, window, grid))
@@ -3845,7 +3845,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn selected_movings_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
-        grid: Grid
+        grid: &'a Grid
     ) -> impl Iterator<Item = MovingMut<'a>>
     {
         self.auxiliary.replace_values(&self.innards.selected_moving);
@@ -3893,7 +3893,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn moving_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
-        grid: Grid,
+        grid: &'a Grid,
         identifier: Id
     ) -> MovingMut<'a>
     {
@@ -3919,7 +3919,7 @@ impl EntitiesManager
         &self,
         window: &Window,
         camera: &Transform,
-        grid: Grid
+        grid: &Grid
     ) -> MovingsIter<'_>
     {
         MovingsIter::new(self, self.quad_trees.visible_paths(camera, window, grid))
@@ -3990,7 +3990,7 @@ pub(in crate::map) struct BrushMut<'a>
     resources:         &'a DrawingResources,
     /// A mutable reference to the [`EntitiesManager`] core.
     manager:           &'a mut Innards,
-    grid:              Grid,
+    grid:              &'a Grid,
     /// A mutable reference to the [`QuadTree`]s.
     quad_trees:        &'a mut Trees,
     /// The [`Id`] of the brush.
@@ -4098,7 +4098,7 @@ impl<'a> BrushMut<'a>
     fn new(
         resources: &'a DrawingResources,
         manager: &'a mut Innards,
-        grid: Grid,
+        grid: &'a Grid,
         quad_trees: &'a mut Trees,
         identifier: Id
     ) -> Self
@@ -4270,7 +4270,7 @@ impl<'a> MovingMut<'a>
     pub(in crate::map::editor::state::manager) fn new(
         resources: &'a DrawingResources,
         manager: &'a mut Innards,
-        grid: Grid,
+        grid: &'a Grid,
         quad_trees: &'a mut Trees,
         identifier: Id
     ) -> Self

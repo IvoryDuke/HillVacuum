@@ -88,7 +88,7 @@ impl Prop
     #[inline]
     pub(in crate::map::editor::state) fn new<'a, D>(
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         iter: impl Iterator<Item = &'a D>,
         cursor_pos: Vec2,
         screenshot: Option<egui::TextureId>
@@ -147,7 +147,7 @@ impl Prop
     pub(in crate::map::editor::state::clipboard) fn hull(
         &self,
         drawing_resources: &DrawingResources,
-        grid: Grid
+        grid: &Grid
     ) -> Hull
     {
         Hull::from_hulls_iter(self.data.iter().map(|data| data.hull(drawing_resources, grid)))
@@ -186,7 +186,7 @@ impl Prop
     pub(in crate::map::editor::state::clipboard) fn fill<'a, D>(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         iter: impl Iterator<Item = &'a D>
     ) where
         D: CopyToClipboard + ?Sized + 'a
@@ -287,7 +287,7 @@ impl Prop
 
     /// Resets the center of `self`.
     #[inline]
-    fn reset_data_center(&mut self, drawing_resources: &DrawingResources, grid: Grid)
+    fn reset_data_center(&mut self, drawing_resources: &DrawingResources, grid: &Grid)
     {
         self.data_center =
             Hull::from_hulls_iter(self.data.iter().map(|data| data.hull(drawing_resources, grid)))
@@ -303,7 +303,7 @@ impl Prop
         &mut self,
         drawing_resources: &DrawingResources,
         catalog: &ThingsCatalog,
-        grid: Grid
+        grid: &Grid
     ) -> bool
     {
         let mut changed = false;
@@ -331,7 +331,7 @@ impl Prop
     pub(in crate::map::editor::state::clipboard) fn reload_textures(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid
+        grid: &Grid
     ) -> bool
     {
         let mut changed = false;
@@ -375,7 +375,7 @@ impl Prop
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         delta: Vec2
     )
     {
@@ -386,7 +386,7 @@ impl Prop
             drawing_resources: &DrawingResources,
             manager: &mut EntitiesManager,
             edits_history: &mut EditsHistory,
-            grid: Grid,
+            grid: &Grid,
             range: Rev<Range<usize>>,
             delta: Vec2
         )
@@ -476,7 +476,7 @@ impl Prop
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         cursor_pos: Vec2
     )
     {
@@ -503,7 +503,7 @@ impl Prop
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         cursor_pos: Vec2
     )
     {

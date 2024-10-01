@@ -74,10 +74,9 @@ impl BindEdit
 pub(in crate::map::editor::state::ui) struct SettingsWindow
 {
     /// The window data.
-    window:       Window,
+    window:    Window,
     /// Data concerning the bind being edited.
-    bind_edit:    BindEdit,
-    grid_changed: bool
+    bind_edit: BindEdit
 }
 
 impl Toggle for SettingsWindow
@@ -141,17 +140,19 @@ impl SettingsWindow
             ..
         } = bundle;
 
-        if self.grid_changed && (!inputs.left_mouse.pressed() || !self.window.is_open())
+        if grid.changed_requires_update() &&
+            (!inputs.left_mouse.pressed() || !self.window.is_open())
         {
-            self.grid_changed = false;
-            manager.rebuild_sprite_quad_tree(drawing_resources, **grid);
+            manager.rebuild_sprite_quad_tree(drawing_resources, grid);
             clipboard.queue_all_props_screenshots(
                 images,
                 prop_cameras,
                 user_textures,
                 drawing_resources,
-                **grid
+                grid
             );
+
+            grid.set_updated();
         }
 
         if !self.window.check_open(Bind::Settings.just_pressed(key_inputs, binds))
@@ -203,7 +204,6 @@ impl SettingsWindow
 
                         if ui.add(egui::Slider::new(&mut skew, Grid::SKEW_RANGE)).changed()
                         {
-                            self.grid_changed = true;
                             grid.set_skew(skew);
                         }
 
@@ -214,7 +214,6 @@ impl SettingsWindow
 
                         if ui.add(egui::Slider::new(&mut angle, Grid::ANGLE_RANGE)).changed()
                         {
-                            self.grid_changed = true;
                             grid.set_angle(angle);
                         }
 

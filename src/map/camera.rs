@@ -28,7 +28,7 @@ impl Camera for Transform
     fn scale(&self) -> f32 { self.scale.x }
 
     #[inline]
-    fn viewport(&self, window: &Window, grid: Grid) -> Hull
+    fn viewport(&self, window: &Window, grid: &Grid) -> Hull
     {
         const VISIBILITY_PADDING: f32 = 64f32;
 
@@ -74,7 +74,7 @@ impl Camera for Transform
     }
 
     #[inline]
-    fn scale_viewport_to_hull(&mut self, window: &Window, grid: Grid, hull: &Hull, padding: f32)
+    fn scale_viewport_to_hull(&mut self, window: &Window, grid: &Grid, hull: &Hull, padding: f32)
     {
         let hull = &hull.transformed(|vx| grid.transform_point(vx));
 

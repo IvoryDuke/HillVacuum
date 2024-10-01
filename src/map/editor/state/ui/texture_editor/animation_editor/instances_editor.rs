@@ -83,7 +83,7 @@ impl InstancesEditor
                     .clone();
 
                 edits_history.list_animation_texture(
-                    manager.selected_textured_brushes_mut(drawing_resources, **grid).map(
+                    manager.selected_textured_brushes_mut(drawing_resources, grid).map(
                         |mut brush| {
                             _ = brush.set_list_animation_texture(index, texture);
                             brush.id()
@@ -101,7 +101,7 @@ impl InstancesEditor
                     .1;
 
                 edits_history.list_animation_time(
-                    manager.selected_textured_brushes_mut(drawing_resources, **grid).map(
+                    manager.selected_textured_brushes_mut(drawing_resources, grid).map(
                         |mut brush| {
                             _ = brush.set_texture_list_animation_time(index, time);
                             brush.id()
@@ -113,7 +113,7 @@ impl InstancesEditor
             },
             |index| {
                 edits_history.animation_move_up(
-                    manager.selected_textured_brushes_mut(drawing_resources, **grid).map(
+                    manager.selected_textured_brushes_mut(drawing_resources, grid).map(
                         |mut brush| {
                             brush.move_up_list_animation_frame(index);
                             brush.id()
@@ -125,7 +125,7 @@ impl InstancesEditor
             },
             |index| {
                 edits_history.animation_move_down(
-                    manager.selected_textured_brushes_mut(drawing_resources, **grid).map(
+                    manager.selected_textured_brushes_mut(drawing_resources, grid).map(
                         |mut brush| {
                             brush.move_down_list_animation_frame(index);
                             brush.id()
@@ -143,7 +143,7 @@ impl InstancesEditor
                     .clone();
 
                 edits_history.list_animation_frame_removal(
-                    manager.selected_textured_brushes_mut(drawing_resources, **grid).map(
+                    manager.selected_textured_brushes_mut(drawing_resources, grid).map(
                         |mut brush| {
                             brush.remove_list_animation_frame(index);
                             brush.id()
@@ -156,7 +156,7 @@ impl InstancesEditor
             },
             |texture| {
                 edits_history.list_animation_new_frame(
-                    manager.selected_textured_brushes_mut(drawing_resources, **grid).map(
+                    manager.selected_textured_brushes_mut(drawing_resources, grid).map(
                         |mut brush| {
                             brush.push_list_animation_frame(texture);
                             brush.id()
@@ -193,10 +193,10 @@ impl InstancesEditor
                 paste::paste! {
                     |value| {
                         let valid = manager.test_operation_validity(|manager| {
-                            manager.selected_brushes_with_sprite_mut(drawing_resources, **grid).find_map(|mut brush| {
+                            manager.selected_brushes_with_sprite_mut(drawing_resources, grid).find_map(|mut brush| {
                                 (!brush.[< check_atlas_animation_ $xy _partition >](
                                     drawing_resources,
-                                    **grid,
+                                    grid,
                                     value
                                 )).then_some(brush.id())
                             })
@@ -208,7 +208,7 @@ impl InstancesEditor
                         }
 
                         edits_history.[< atlas_ $xy _cluster >](
-                            manager.selected_textured_brushes_mut(drawing_resources, **grid).filter_map(|mut brush| {
+                            manager.selected_textured_brushes_mut(drawing_resources, grid).filter_map(|mut brush| {
                                 brush
                                     .[< set_texture_atlas_animation_ $xy _partition >](
                                         value
@@ -229,7 +229,7 @@ impl InstancesEditor
                 paste::paste! {
                     |index| {
                         edits_history.[< animation_move_ $ud >](
-                            manager.selected_textured_brushes_mut(drawing_resources, **grid).map(|mut brush| {
+                            manager.selected_textured_brushes_mut(drawing_resources, grid).map(|mut brush| {
                                 brush.[< move_ $ud _atlas_animation_frame_time >](index);
                                 brush.id()
                             }),
@@ -265,7 +265,7 @@ impl InstancesEditor
 
                 edits_history.atlas_len_cluster(
                     manager
-                        .selected_textured_brushes_mut(drawing_resources, **grid)
+                        .selected_textured_brushes_mut(drawing_resources, grid)
                         .filter_map(|mut brush| {
                             brush
                                 .set_texture_atlas_animation_len(len)
@@ -280,7 +280,7 @@ impl InstancesEditor
                 {
                     edits_history.atlas_timing_cluster(
                         manager
-                            .selected_textured_brushes_mut(drawing_resources, **grid)
+                            .selected_textured_brushes_mut(drawing_resources, grid)
                             .filter_map(|mut brush| {
                                 brush
                                     .set_atlas_animation_uniform_timing()
@@ -292,7 +292,7 @@ impl InstancesEditor
                 {
                     edits_history.atlas_timing_cluster(
                         manager
-                            .selected_textured_brushes_mut(drawing_resources, **grid)
+                            .selected_textured_brushes_mut(drawing_resources, grid)
                             .filter_map(|mut brush| {
                                 brush
                                     .set_atlas_animation_per_frame_timing()
@@ -312,7 +312,7 @@ impl InstancesEditor
             |_, time| {
                 edits_history.atlas_uniform_time_cluster(
                     manager
-                        .selected_textured_brushes_mut(drawing_resources, **grid)
+                        .selected_textured_brushes_mut(drawing_resources, grid)
                         .filter_map(|mut brush| {
                             brush
                                 .set_texture_atlas_animation_uniform_time(time)
@@ -323,7 +323,7 @@ impl InstancesEditor
             |index, time| {
                 edits_history.atlas_frame_time_cluster(
                     manager
-                        .selected_textured_brushes_mut(drawing_resources, **grid)
+                        .selected_textured_brushes_mut(drawing_resources, grid)
                         .filter_map(|mut brush| {
                             brush
                                 .set_texture_atlas_animation_frame_time(index, time)
@@ -356,12 +356,12 @@ impl InstancesEditor
                             manager
                                 .selected_brushes_with_sprite_mut(
                                     bundle.drawing_resources,
-                                    *bundle.grid
+                                    bundle.grid
                                 )
                                 .find_map(|mut brush| {
                                     (!brush.check_texture_animation_change(
                                         bundle.drawing_resources,
-                                        *bundle.grid,
+                                        bundle.grid,
                                         new
                                     ))
                                     .then_some(brush.id())
@@ -376,7 +376,7 @@ impl InstancesEditor
                                     .manager
                                     .selected_textured_brushes_mut(
                                         bundle.drawing_resources,
-                                        *bundle.grid
+                                        bundle.grid
                                     )
                                     .map(|mut brush| (brush.id(), $f(&mut brush)))
                             );
@@ -439,7 +439,7 @@ impl InstancesEditor
                                         for mut brush in
                                             bundle.manager.selected_textured_brushes_mut(
                                                 bundle.drawing_resources,
-                                                *bundle.grid
+                                                bundle.grid
                                             )
                                         {
                                             bundle.edits_history.animation(

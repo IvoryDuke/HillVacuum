@@ -38,7 +38,7 @@ macro_rules! movement_values {
             drawing_resources: &DrawingResources,
             manager: &mut EntitiesManager,
             edits_history: &mut EditsHistory,
-            grid: Grid,
+            grid: &Grid,
             new_value: f32,
             overall: &mut OverallMovement
         ) -> f32
@@ -77,7 +77,7 @@ macro_rules! movement_values {
                         bundle.drawing_resources,
                         bundle.manager,
                         bundle.edits_history,
-                        *bundle.grid,
+                        bundle.grid,
                         new_value,
                         &mut overall
                     ).into()
@@ -206,7 +206,7 @@ impl NodesEditor
                 &DrawingResources,
                 &mut EntitiesManager,
                 &mut EditsHistory,
-                Grid,
+                &Grid,
                 f32,
                 &mut OverallMovement
             ) -> f32
@@ -234,7 +234,7 @@ impl NodesEditor
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.edits_history,
-                *bundle.grid,
+                bundle.grid,
                 value,
                 &mut OverallMovement::new()
             )

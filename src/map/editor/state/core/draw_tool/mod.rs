@@ -200,7 +200,7 @@ impl DrawTool
         bundle.manager.despawn_drawn_brushes(
             bundle.drawing_resources,
             bundle.edits_history,
-            *bundle.grid,
+            bundle.grid,
             &mut self.drawn_brushes
         );
     }

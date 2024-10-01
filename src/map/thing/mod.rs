@@ -701,7 +701,7 @@ pub mod ui_mod
 
         /// Snaps `self` to the grid. Returns how much `self` was moved, if it was.
         #[inline]
-        pub fn snap(&mut self, grid: Grid) -> Option<Vec2>
+        pub fn snap(&mut self, grid: &Grid) -> Option<Vec2>
         {
             let delta = grid.snap_point(self.center())?;
             self.check_move(delta).then_some(delta)

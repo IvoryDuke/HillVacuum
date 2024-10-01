@@ -447,7 +447,7 @@ impl<'a> UndoRedoInterface<'a>
     pub fn spawn_brush(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         data: BrushData,
         b_type: BrushType
@@ -473,7 +473,7 @@ impl<'a> UndoRedoInterface<'a>
     pub fn despawn_brush(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         b_type: BrushType
     ) -> BrushData
@@ -510,7 +510,7 @@ impl<'a> UndoRedoInterface<'a>
     pub fn brush_mut<'b>(
         &'b mut self,
         drawing_resources: &'b DrawingResources,
-        grid: Grid,
+        grid: &'b Grid,
         identifier: Id
     ) -> BrushMut<'b>
     {
@@ -522,7 +522,7 @@ impl<'a> UndoRedoInterface<'a>
     pub fn moving_mut<'b>(
         &'b mut self,
         drawing_resources: &'b DrawingResources,
-        grid: Grid,
+        grid: &'b Grid,
         identifier: Id
     ) -> MovingMut<'b>
     {
@@ -534,7 +534,7 @@ impl<'a> UndoRedoInterface<'a>
     pub fn set_path(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         path: Path
     )
@@ -547,7 +547,7 @@ impl<'a> UndoRedoInterface<'a>
     pub fn remove_path(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id
     ) -> Path
     {
@@ -598,7 +598,7 @@ impl<'a> UndoRedoInterface<'a>
     pub fn set_texture(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         texture: &str
     ) -> TextureSetResult
@@ -611,7 +611,7 @@ impl<'a> UndoRedoInterface<'a>
     pub fn set_texture_settings(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         texture: TextureSettings
     )
@@ -626,7 +626,7 @@ impl<'a> UndoRedoInterface<'a>
     pub fn remove_texture(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id
     ) -> TextureSettings
     {
@@ -639,7 +639,7 @@ impl<'a> UndoRedoInterface<'a>
     pub fn undo_redo_texture_sprite(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         value: &mut TextureSpriteSet
     )
@@ -741,7 +741,7 @@ impl<'a> UndoRedoInterface<'a>
     pub fn set_property(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         identifier: Id,
         k: &str,
         value: &Value
@@ -850,7 +850,7 @@ impl Core
         things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         ui: &mut Ui
     )
     {
@@ -871,7 +871,7 @@ impl Core
         things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         ui: &mut Ui
     )
     {
@@ -930,7 +930,7 @@ impl Core
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
-        grid: Grid,
+        grid: &Grid,
         settings: &mut ToolsSettings
     )
     {
@@ -995,7 +995,7 @@ impl Core
                 {
                     for mut brush in bundle
                         .manager
-                        .selected_brushes_mut(bundle.drawing_resources, *bundle.grid)
+                        .selected_brushes_mut(bundle.drawing_resources, bundle.grid)
                     {
                         brush.deselect_vertexes_no_indexes();
                     }
@@ -1004,7 +1004,7 @@ impl Core
                 {
                     for mut brush in bundle
                         .manager
-                        .selected_movings_mut(bundle.drawing_resources, *bundle.grid)
+                        .selected_movings_mut(bundle.drawing_resources, bundle.grid)
                     {
                         brush.deselect_path_nodes_no_indexes();
                     }
@@ -1028,7 +1028,7 @@ impl Core
             bundle.drawing_resources,
             bundle.manager,
             bundle.edits_history,
-            Grid::quick_snap(bundle.grid.shifted),
+            &Grid::quick_snap(bundle.grid.shifted),
             settings
         );
     }
@@ -1088,7 +1088,7 @@ fn deselect_vertexes(
     drawing_resources: &DrawingResources,
     manager: &mut EntitiesManager,
     edits_history: &mut EditsHistory,
-    grid: Grid
+    grid: &Grid
 )
 {
     edits_history.vertexes_selection_cluster(

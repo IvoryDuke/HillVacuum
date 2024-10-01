@@ -9,7 +9,8 @@
 - scroll and parallax direction are now always perpendicular to the x and y axis regardless of the texture angle. Scroll values from older map files are automatically converted to the new system, unfortunately parallax is a breaking change;
 - added window message in case of a fatal error;
 - added a column in the properties editor displaying their types.
-- added `draw_offset` and `draw_offset_with_scroll_and_parallax` to `TextureInterface`.
+- added `draw_offset` and `draw_offset_with_parallax_and_scroll` to `TextureInterface`;
+- grid skew and angle changes now mark the map as having unsaved changes.
 
 ### Fixes
 - Fixed overlapping actions in rotate tool;

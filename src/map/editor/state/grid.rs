@@ -19,6 +19,19 @@ use crate::{
 };
 
 //=======================================================================//
+// ENUMS
+//
+//=======================================================================//
+
+#[derive(Clone, Copy, Debug)]
+enum Change
+{
+    False,
+    ChangedRequiresUpdate,
+    Changed
+}
+
+//=======================================================================//
 // STRUCTS
 //
 //=======================================================================//
@@ -35,7 +48,8 @@ pub(crate) struct Grid
     pub visible: bool,
     /// When true, the position of the grid squares is shifted by half of its size, both
     /// horizontally and vertically.
-    pub shifted: bool
+    pub shifted: bool,
+    change:      Change
 }
 
 impl Default for Grid
@@ -47,7 +61,8 @@ impl Default for Grid
             size:     64,
             settings: GridSettings::default(),
             visible:  true,
-            shifted:  false
+            shifted:  false,
+            change:   Change::False
         }
     }
 }
@@ -70,7 +85,8 @@ impl Grid
             size: 64,
             settings,
             visible: true,
-            shifted: false
+            shifted: false,
+            change: Change::False
         }
     }
 
@@ -82,7 +98,8 @@ impl Grid
             size: 2,
             settings: GridSettings::default(),
             visible: true,
-            shifted
+            shifted,
+            change: Change::False
         }
     }
 
@@ -92,36 +109,50 @@ impl Grid
     /// Returns the length of the sides of the squares.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor) const fn size(self) -> i16 { self.size }
+    pub(in crate::map::editor) const fn size(&self) -> i16 { self.size }
 
     /// Returns the length of the sides of the squares as an `f32`.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor) fn size_f32(self) -> f32 { f32::from(self.size) }
+    pub(in crate::map::editor) fn size_f32(&self) -> f32 { f32::from(self.size) }
 
     #[inline]
     #[must_use]
-    pub const fn skew(self) -> i8 { self.settings.skew() }
+    pub const fn skew(&self) -> i8 { self.settings.skew() }
 
     #[inline]
     #[must_use]
-    pub const fn angle(self) -> i16 { self.settings.angle() }
+    pub const fn angle(&self) -> i16 { self.settings.angle() }
 
     #[inline]
-    pub(in crate::map) const fn settings(self) -> GridSettings { self.settings }
+    pub(in crate::map) const fn settings(&self) -> GridSettings { self.settings }
 
     #[inline]
     #[must_use]
-    pub const fn isometric(self) -> bool { matches!(self.settings, GridSettings::Isometric { .. }) }
+    pub const fn isometric(&self) -> bool
+    {
+        matches!(self.settings, GridSettings::Isometric { .. })
+    }
 
-    //==============================================================
-    // Square
+    #[inline]
+    #[must_use]
+    pub const fn changed(&self) -> bool
+    {
+        matches!(self.change, Change::Changed | Change::ChangedRequiresUpdate)
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn changed_requires_update(&self) -> bool
+    {
+        matches!(self.change, Change::ChangedRequiresUpdate)
+    }
 
     /// Returns the square that contains `pos`.
     #[allow(clippy::cast_possible_truncation)]
     #[inline]
     #[must_use]
-    pub fn square(self, pos: Vec2) -> Hull
+    pub fn square(&self, pos: Vec2) -> Hull
     {
         let size_f = self.size_f32();
         let (mut top, mut bottom, mut left, mut right);
@@ -207,12 +238,17 @@ impl Grid
     }
 
     #[inline]
-    pub(in crate::map::editor) fn set_skew(&mut self, value: i8) { self.settings.set_skew(value); }
+    pub(in crate::map::editor) fn set_skew(&mut self, value: i8)
+    {
+        self.settings.set_skew(value);
+        self.change = Change::ChangedRequiresUpdate;
+    }
 
     #[inline]
     pub(in crate::map::editor) fn set_angle(&mut self, value: i16)
     {
         self.settings.set_angle(value);
+        self.change = Change::ChangedRequiresUpdate;
     }
 
     /// Toggles whether the grid is shifted or not.
@@ -226,12 +262,18 @@ impl Grid
         }
     }
 
+    #[inline]
+    pub(in crate::map::editor) fn set_updated(&mut self) { self.change = Change::Changed; }
+
+    #[inline]
+    pub(in crate::map::editor) fn reset_changed(&mut self) { self.change = Change::False; }
+
     //==============================================================
     // Transform
 
     #[inline]
     #[must_use]
-    pub fn transform_point(self, mut point: Vec2) -> Vec2
+    pub fn transform_point(&self, mut point: Vec2) -> Vec2
     {
         #[inline]
         fn skew(point: &mut Vec2, skew: i8) { point.x += skew.fast_tan() * point.y; }
@@ -259,7 +301,7 @@ impl Grid
 
     #[inline]
     #[must_use]
-    pub fn point_projection(self, mut point: Vec2) -> Vec2
+    pub fn point_projection(&self, mut point: Vec2) -> Vec2
     {
         #[inline]
         fn skew(point: &mut Vec2, skew: i8) { point.x -= skew.fast_tan() * point.y; }
@@ -288,7 +330,7 @@ impl Grid
     /// Snaps `point` to the closest grid vertex.
     #[inline]
     #[must_use]
-    pub fn snap_point(self, point: Vec2) -> Option<Vec2>
+    pub fn snap_point(&self, point: Vec2) -> Option<Vec2>
     {
         let center = self.square(point).center();
         let snapped = Vec2::new(
@@ -303,7 +345,7 @@ impl Grid
     #[allow(clippy::cast_possible_truncation)]
     #[inline]
     #[must_use]
-    fn snap_value_from_center(self, value: f32, center: f32) -> f32
+    fn snap_value_from_center(&self, value: f32, center: f32) -> f32
     {
         let rounded = if value < center { value.floor() } else { value.ceil() };
         let rounded_i = rounded as i16;
@@ -366,7 +408,7 @@ impl Grid
     /// Snaps `point` to the grid in a way that moves it further away from `center`.
     #[inline]
     #[must_use]
-    pub fn snap_point_from_center(self, point: Vec2, center: Vec2) -> Option<Vec2>
+    pub fn snap_point_from_center(&self, point: Vec2, center: Vec2) -> Option<Vec2>
     {
         let snapped = Vec2::new(
             self.snap_value_from_center(point.x, center.x),
@@ -379,7 +421,7 @@ impl Grid
     /// Snaps `hull` to the grid.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) fn snap_hull(self, hull: &Hull) -> Hull
+    pub(in crate::map::editor::state) fn snap_hull(&self, hull: &Hull) -> Hull
     {
         // Transform the hull to match the grid for better pivot setting.
         let center = hull.center();
@@ -406,7 +448,7 @@ impl Grid
     /// if they are visible.
     #[allow(clippy::cast_possible_truncation)]
     #[inline]
-    pub(in crate::map) fn lines(self, window: &Window, camera: &Transform) -> GridLines
+    pub(in crate::map) fn lines(&self, window: &Window, camera: &Transform) -> GridLines
     {
         let viewport = camera.viewport(window, self);
         let (top, bottom, left, right) = viewport.decompose();
@@ -524,7 +566,7 @@ impl ParallelLines
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
     #[inline]
-    fn new(grid: Grid, viewport: &Hull) -> Self
+    fn new(grid: &Grid, viewport: &Hull) -> Self
     {
         /// Returns the result of the division of `value`/`rhs` rounded to the higher integer.
         #[inline]

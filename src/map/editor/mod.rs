@@ -149,7 +149,7 @@ struct ToolUpdateBundle<'world, 'state, 'a, 'b, 'c>
     clipboard: &'b mut Clipboard,
     edits_history: &'b mut EditsHistory,
     inputs: &'b mut InputsPresses,
-    grid: Grid
+    grid: &'b Grid
 }
 
 //=======================================================================//
@@ -444,7 +444,7 @@ impl Editor
             clipboard: &mut self.clipboard,
             edits_history: &mut self.edits_history,
             inputs: &mut self.inputs,
-            grid: self.grid
+            grid: &self.grid
         });
     }
 
@@ -479,7 +479,7 @@ impl Editor
                 window,
                 camera,
                 &self.state,
-                self.grid,
+                &self.grid,
                 self.inputs.space_pressed()
             );
         }
@@ -529,7 +529,7 @@ impl Editor
         if let Some(hull) = State::quick_zoom_hull(key_inputs, &mut self.manager, binds)
         {
             // Zoom on the selected entities.
-            camera.scale_viewport_to_hull(window, self.grid, &hull, self.grid.size_f32());
+            camera.scale_viewport_to_hull(window, &self.grid, &hull, self.grid.size_f32());
             return true;
         }
 
@@ -579,7 +579,7 @@ impl Editor
         {
             camera.zoom_on_ui_pos(
                 window,
-                self.grid,
+                &self.grid,
                 self.cursor.world_snapped(),
                 self.cursor.ui_snapped(),
                 mouse_wheel_scroll
@@ -754,7 +754,7 @@ impl Editor
                     meshes,
                     meshes_query,
                     &mut self.drawing_resources,
-                    self.grid,
+                    &self.grid,
                     elapsed_time
                 ),
                 camera,
@@ -777,7 +777,7 @@ impl Editor
                 &mut self.drawing_resources,
                 color_resources,
                 self.state.tools_settings(),
-                self.grid,
+                &self.grid,
                 elapsed_time,
                 camera.scale(),
                 paint_tool_camera.scale(),
@@ -817,7 +817,7 @@ impl Editor
             &mut self.manager,
             &mut self.clipboard,
             &mut self.edits_history,
-            self.grid
+            &self.grid
         );
     }
 

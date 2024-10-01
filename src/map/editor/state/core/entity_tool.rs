@@ -171,7 +171,7 @@ impl Selector
             drawing_resources: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
-            grid: Grid,
+            grid: &Grid,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
         {
@@ -195,7 +195,7 @@ impl Selector
             _: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
-            _: Grid,
+            _: &Grid,
             _: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
@@ -220,7 +220,7 @@ impl Selector
             _: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
-            _: Grid,
+            _: &Grid,
             _: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
@@ -234,7 +234,7 @@ impl Selector
             drawing_resources: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
-            grid: Grid,
+            grid: &Grid,
             _: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )
@@ -258,7 +258,7 @@ impl Selector
             drawing_resources: &DrawingResources,
             manager: &EntitiesManager,
             cursor: &Cursor,
-            grid: Grid,
+            grid: &Grid,
             camera_scale: f32,
             items: &mut ItemsBeneathCursor<ItemBeneathCursor>
         )

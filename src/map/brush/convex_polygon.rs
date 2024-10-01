@@ -911,7 +911,7 @@ pub(in crate::map) mod ui_mod
         fn sprite_hull(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             brush_center: Vec2
         ) -> Option<Hull>
         {
@@ -923,7 +923,7 @@ pub(in crate::map) mod ui_mod
         fn sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             brush_center: Vec2
         ) -> Option<[Vec2; 4]>
         {
@@ -935,7 +935,7 @@ pub(in crate::map) mod ui_mod
         fn animated_sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             animator: Option<&Animator>,
             brush_center: Vec2
         ) -> Option<[Vec2; 4]>
@@ -1202,7 +1202,7 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn sprite_hull(&self, drawing_resources: &DrawingResources, grid: Grid)
+        pub fn sprite_hull(&self, drawing_resources: &DrawingResources, grid: &Grid)
             -> Option<Hull>
         {
             self.texture_settings()?
@@ -1221,7 +1221,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn sprite_hull_out_of_bounds(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             center: Vec2
         ) -> bool
         {
@@ -1274,7 +1274,7 @@ pub(in crate::map) mod ui_mod
         pub fn check_move(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             delta: Vec2,
             move_texture: bool
         ) -> bool
@@ -1445,7 +1445,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_change(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             texture: &str
         ) -> bool
         {
@@ -1510,7 +1510,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_move(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             value: Vec2
         ) -> bool
         {
@@ -1530,7 +1530,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_offset_x(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             value: f32
         ) -> bool
         {
@@ -1552,7 +1552,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_offset_y(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             value: f32
         ) -> bool
         {
@@ -1574,7 +1574,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_scale_x(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             value: f32
         ) -> bool
         {
@@ -1603,7 +1603,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_scale_y(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             value: f32
         ) -> bool
         {
@@ -1664,7 +1664,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_angle(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             value: f32
         ) -> bool
         {
@@ -1678,7 +1678,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn set_texture_angle(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             value: f32
         ) -> Option<TextureRotation>
         {
@@ -1703,7 +1703,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_sprite(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             value: bool
         ) -> bool
         {
@@ -1752,7 +1752,7 @@ pub(in crate::map) mod ui_mod
         pub fn check_texture_within_bounds(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid
+            grid: &Grid
         ) -> bool
         {
             self.texture_settings().unwrap().check_within_bounds(
@@ -1767,7 +1767,7 @@ pub(in crate::map) mod ui_mod
         pub fn check_texture_animation_change(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             animation: &Animation
         ) -> bool
         {
@@ -1809,7 +1809,7 @@ pub(in crate::map) mod ui_mod
         pub fn check_atlas_animation_x_partition(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             value: u32
         ) -> bool
         {
@@ -1839,7 +1839,7 @@ pub(in crate::map) mod ui_mod
         pub fn check_atlas_animation_y_partition(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             value: u32
         ) -> bool
         {
@@ -2037,7 +2037,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         fn snap_filtered_vertexes<F>(
             &mut self,
-            grid: Grid,
+            grid: &Grid,
             f: F
         ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
         where
@@ -2123,7 +2123,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map::brush) fn snap_vertexes(
             &mut self,
-            grid: Grid
+            grid: &Grid
         ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
         {
             self.snap_filtered_vertexes(grid, |_| true)
@@ -2133,7 +2133,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map::brush) fn snap_selected_vertexes(
             &mut self,
-            grid: Grid
+            grid: &Grid
         ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
         {
             self.snap_filtered_vertexes(grid, |svx| svx.selected)
@@ -2143,7 +2143,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map::brush) fn snap_selected_sides(
             &mut self,
-            grid: Grid
+            grid: &Grid
         ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
         {
             let vertexes_to_deselect = self.select_vertexes_of_selected_sides();
@@ -3871,7 +3871,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_scale(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             info: &ScaleInfo,
             scale_texture: bool
         ) -> ScaleResult
@@ -3931,7 +3931,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_texture_scale(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             info: &ScaleInfo
         ) -> Option<TextureScale>
         {
@@ -3954,7 +3954,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_horizontal_shear(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             info: &ShearInfo
         ) -> Option<(Vec2, HvVec<f32>)>
         {
@@ -4002,7 +4002,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_vertical_shear(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             info: &ShearInfo
         ) -> Option<(Vec2, HvVec<f32>)>
         {
@@ -4053,7 +4053,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_rotation(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             pivot: Vec2,
             angle: f32,
             rotate_texture: bool
@@ -4108,7 +4108,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_texture_rotation(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             pivot: Vec2,
             angle: f32
         ) -> Option<TextureRotation>
@@ -4150,7 +4150,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_y_flip(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             y: f32,
             flip_texture: bool
         ) -> Option<Vec2>
@@ -4182,7 +4182,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_x_flip(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             x: f32,
             flip_texture: bool
         ) -> Option<Vec2>
@@ -4215,7 +4215,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_flip_above(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             y: f32,
             flip_texture: bool
         ) -> Option<Vec2>
@@ -4244,7 +4244,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_flip_below(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             y: f32,
             flip_texture: bool
         ) -> Option<Vec2>
@@ -4296,7 +4296,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_flip_left(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             x: f32,
             flip_texture: bool
         ) -> Option<Vec2>
@@ -4325,7 +4325,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn check_flip_right(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             x: f32,
             flip_texture: bool
         ) -> Option<Vec2>

@@ -536,7 +536,7 @@ impl ActiveTool
 
         bundle.clipboard.copy(
             bundle.drawing_resources,
-            *bundle.grid,
+            bundle.grid,
             bundle.manager.selected_entities()
         );
     }
@@ -555,7 +555,7 @@ impl ActiveTool
                     bundle.drawing_resources,
                     bundle.manager,
                     bundle.edits_history,
-                    *bundle.grid,
+                    bundle.grid,
                     return_if_none!(t.selected_moving_beneath_cursor(bundle))
                 );
 
@@ -567,13 +567,13 @@ impl ActiveTool
 
         bundle.clipboard.copy(
             bundle.drawing_resources,
-            *bundle.grid,
+            bundle.grid,
             bundle.manager.selected_entities()
         );
         bundle.manager.despawn_selected_entities(
             bundle.drawing_resources,
             bundle.edits_history,
-            *bundle.grid
+            bundle.grid
         );
         bundle.manager.schedule_outline_update();
     }
@@ -590,7 +590,7 @@ impl ActiveTool
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.edits_history,
-                *bundle.grid,
+                bundle.grid,
                 return_if_none!(t.possible_moving_beneath_cursor(bundle))
             );
 
@@ -608,7 +608,7 @@ impl ActiveTool
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.edits_history,
-                *bundle.grid
+                bundle.grid
             );
         }
 
@@ -617,7 +617,7 @@ impl ActiveTool
             bundle.drawing_resources,
             bundle.manager,
             bundle.edits_history,
-            *bundle.grid,
+            bundle.grid,
             bundle.cursor.world_snapped()
         );
         bundle.manager.schedule_outline_update();
@@ -634,7 +634,7 @@ impl ActiveTool
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.edits_history,
-                *bundle.grid
+                bundle.grid
             );
         }
 
@@ -642,7 +642,7 @@ impl ActiveTool
             bundle.drawing_resources,
             bundle.manager,
             bundle.edits_history,
-            *bundle.grid,
+            bundle.grid,
             delta
         );
         bundle.manager.schedule_outline_update();
@@ -654,7 +654,7 @@ impl ActiveTool
         &mut self,
         drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
-        grid: Grid,
+        grid: &Grid,
         settings: &ToolsSettings
     )
     {
@@ -728,7 +728,7 @@ impl ActiveTool
                 bundle.edits_history.vertexes_selection_cluster(
                     bundle
                         .manager
-                        .selected_brushes_mut(bundle.drawing_resources, *bundle.grid)
+                        .selected_brushes_mut(bundle.drawing_resources, bundle.grid)
                         .filter_map(|mut brush| {
                             brush.select_all_vertexes().map(|idxs| (brush.id(), idxs))
                         })
@@ -739,7 +739,7 @@ impl ActiveTool
                 if bundle.edits_history.path_nodes_selection_cluster(
                     bundle
                         .manager
-                        .selected_movings_mut(bundle.drawing_resources, *bundle.grid)
+                        .selected_movings_mut(bundle.drawing_resources, bundle.grid)
                         .filter_map(|mut brush| {
                             brush.select_all_path_nodes().map(|idxs| (brush.id(), idxs))
                         })
@@ -751,7 +751,7 @@ impl ActiveTool
             _ => bundle.manager.select_all_entities(bundle.edits_history)
         };
 
-        self.update_outline(bundle.drawing_resources, bundle.manager, *bundle.grid, settings);
+        self.update_outline(bundle.drawing_resources, bundle.manager, bundle.grid, settings);
     }
 
     //==============================================================
@@ -856,7 +856,7 @@ impl ActiveTool
                     bundle.drawing_resources,
                     bundle.manager,
                     bundle.edits_history,
-                    *bundle.grid,
+                    bundle.grid,
                     settings
                 );
                 return;
@@ -898,7 +898,7 @@ impl ActiveTool
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         settings: &ToolsSettings
     )
     {
@@ -909,7 +909,7 @@ impl ActiveTool
             drawing_resources: &DrawingResources,
             manager: &mut EntitiesManager,
             edits_history: &mut EditsHistory,
-            grid: Grid
+            grid: &Grid
         ) -> bool
         {
             manager
@@ -928,7 +928,7 @@ impl ActiveTool
         fn snap_things(
             manager: &mut EntitiesManager,
             edits_history: &mut EditsHistory,
-            grid: Grid
+            grid: &Grid
         ) -> bool
         {
             manager.selected_things_mut().fold(false, |acc, mut thing| {
@@ -1030,7 +1030,7 @@ impl ActiveTool
             _ = bundle.manager.replace_brush_with_partition(
                 bundle.drawing_resources,
                 bundle.edits_history,
-                *bundle.grid,
+                bundle.grid,
                 result.walls.into_iter(),
                 result.id,
                 |brush| brush.set_polygon(result.main)
@@ -1063,7 +1063,7 @@ impl ActiveTool
                 bundle.manager.despawn_selected_brushes(
                     bundle.drawing_resources,
                     bundle.edits_history,
-                    *bundle.grid
+                    bundle.grid
                 );
                 return;
             }
@@ -1086,7 +1086,7 @@ impl ActiveTool
             bundle.manager.despawn_selected_brushes(
                 bundle.drawing_resources,
                 bundle.edits_history,
-                *bundle.grid
+                bundle.grid
             );
 
             if success
@@ -1094,14 +1094,14 @@ impl ActiveTool
                 bundle.manager.spawn_brushes(
                     bundle.drawing_resources,
                     bundle.edits_history,
-                    *bundle.grid,
+                    bundle.grid,
                     Some(intersection_polygon).into_iter(),
                     bundle.default_properties.brushes.instance()
                 );
             }
         });
 
-        self.update_outline(bundle.drawing_resources, bundle.manager, *bundle.grid, settings);
+        self.update_outline(bundle.drawing_resources, bundle.manager, bundle.grid, settings);
     }
 
     /// Merges all selected vertexes.
@@ -1111,7 +1111,7 @@ impl ActiveTool
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
-        grid: Grid,
+        grid: &Grid,
         sides: bool
     )
     {
@@ -1163,7 +1163,7 @@ impl ActiveTool
                         bundle.drawing_resources,
                         bundle.manager,
                         bundle.edits_history,
-                        *bundle.grid,
+                        bundle.grid,
                         false
                     );
                     return;
@@ -1175,7 +1175,7 @@ impl ActiveTool
                         bundle.drawing_resources,
                         bundle.manager,
                         bundle.edits_history,
-                        *bundle.grid,
+                        bundle.grid,
                         true
                     );
                     return;
@@ -1235,7 +1235,7 @@ impl ActiveTool
             bundle.manager.replace_selected_brushes(
                 bundle.drawing_resources,
                 bundle.edits_history,
-                *bundle.grid,
+                bundle.grid,
                 Some(poly).into_iter(),
                 bundle.default_properties.brushes.instance()
             );

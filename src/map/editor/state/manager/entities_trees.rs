@@ -42,7 +42,7 @@ macro_rules! visible_iters {
             &self,
             camera: &Transform,
             window: &Window,
-            grid: Grid
+            grid: &Grid
         ) -> Ref<'_, QuadTreeIds>
         {
             self.[< visible_ $entities >].borrow_mut().update(camera, window, grid, |ids, viewport| {
@@ -188,7 +188,7 @@ impl Trees
     pub fn rebuild_sprite_quad_tree<'a, I: Iterator<Item = &'a Brush>>(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         iter: I
     )
     {
@@ -209,7 +209,7 @@ impl Trees
     pub fn insert_sprite_hull(
         &mut self,
         drawing_resources: &DrawingResources,
-        grid: Grid,
+        grid: &Grid,
         brush: &Brush
     ) -> InsertResult
     {
@@ -489,7 +489,7 @@ impl VisibleQuadTreeIds
         &mut self,
         camera: &Transform,
         window: &Window,
-        grid: Grid,
+        grid: &Grid,
         f: F
     )
     {

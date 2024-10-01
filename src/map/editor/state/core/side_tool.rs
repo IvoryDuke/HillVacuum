@@ -88,7 +88,7 @@ impl XTrusionDrag
     pub fn conditional_update<F: FnOnce(Vec2) -> bool>(
         &mut self,
         cursor: &Cursor,
-        grid: Grid,
+        grid: &Grid,
         line: &[Vec2; 2],
         dragger: F
     )
@@ -674,7 +674,7 @@ impl SideTool
         let mut id_vx_id = None;
 
         for (id, result) in manager
-            .selected_brushes_mut_at_pos(drawing_resources, *grid, cursor_pos, camera_scale)
+            .selected_brushes_mut_at_pos(drawing_resources, grid, cursor_pos, camera_scale)
             .map(|mut brush| {
                 (
                     brush.id(),
@@ -702,7 +702,7 @@ impl SideTool
                 .iter()
                 .filter_set_with_predicate(id, |id| **id)
                 .filter_map(|id| {
-                    let mut brush = manager.brush_mut(drawing_resources, *grid, *id);
+                    let mut brush = manager.brush_mut(drawing_resources, grid, *id);
                     (!brush.hull().contains_point(side[0]) || !brush.hull().contains_point(side[1]))
                         .then(|| brush.deselect_vertexes().map(|idxs| (brush.id(), idxs)).unwrap())
                 })
@@ -711,7 +711,7 @@ impl SideTool
         // Stash these right away.
         edits_history.vertexes_selection_cluster(
             manager
-                .selected_brushes_mut(drawing_resources, *grid)
+                .selected_brushes_mut(drawing_resources, grid)
                 .filter_set_with_predicate(id, EntityId::id)
                 .filter_map(|mut brush| {
                     brush
@@ -780,7 +780,7 @@ impl SideTool
 
         let valid = manager.test_operation_validity(|manager| {
             manager
-                .selected_brushes_mut(drawing_resources, *grid)
+                .selected_brushes_mut(drawing_resources, grid)
                 .find_map(|mut brush| {
                     match brush.check_selected_sides_move(delta)
                     {
@@ -821,7 +821,7 @@ impl SideTool
             }
 
             let vx_move = manager
-                .brush_mut(drawing_resources, *grid, id)
+                .brush_mut(drawing_resources, grid, id)
                 .apply_vertexes_move_result(payload);
 
             let mov = cumulative_move
@@ -850,7 +850,7 @@ impl SideTool
             {
                 selections.extend(
                     manager
-                        .selected_brushes_mut_at_pos(drawing_resources, *grid, vx, None)
+                        .selected_brushes_mut_at_pos(drawing_resources, grid, vx, None)
                         .filter_map(|mut brush| {
                             brush
                                 .try_select_side(&[vx_j.0, vx_i.0])
@@ -1150,7 +1150,7 @@ impl SideTool
 
         edits_history.vertexes_selection_cluster(
             manager
-                .selected_brushes_mut(drawing_resources, *grid)
+                .selected_brushes_mut(drawing_resources, grid)
                 .filter_map(|mut brush| brush.deselect_vertexes().map(|idxs| (brush.id(), idxs)))
         );
 
@@ -1159,7 +1159,7 @@ impl SideTool
         for (id, _, cp) in polygons.take_value()
         {
             let properties = manager.brush(id).properties();
-            manager.spawn_brush(drawing_resources, edits_history, *grid, cp, properties);
+            manager.spawn_brush(drawing_resources, edits_history, grid, cp, properties);
         }
 
         edits_history.override_edit_tag("Brushes Extrusion");
@@ -1288,7 +1288,7 @@ impl SideTool
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.edits_history,
-                *bundle.grid,
+                bundle.grid,
                 true
             );
 

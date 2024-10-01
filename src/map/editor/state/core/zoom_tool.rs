@@ -80,7 +80,7 @@ impl ZoomTool
             },
             hull,
             {
-                camera.scale_viewport_to_hull(window, *grid, &hull, 0f32);
+                camera.scale_viewport_to_hull(window, grid, &hull, 0f32);
                 return Some(&mut self.previous_active_tool);
             }
         );

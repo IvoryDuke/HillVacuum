@@ -384,7 +384,7 @@ pub(in crate::map) mod ui_mod
             pub(in crate::map) fn [< check_offset_ $xy >](
                 &mut self,
                 drawing_resources: &DrawingResources,
-                grid: Grid,
+                grid: &Grid,
                 value: f32,
                 brush_center: Vec2
             ) -> bool
@@ -418,7 +418,7 @@ pub(in crate::map) mod ui_mod
             pub(in crate::map) fn [< check_scale_ $xy >](
                 &mut self,
                 drawing_resources: &DrawingResources,
-                grid: Grid,
+                grid: &Grid,
                 value: f32,
                 brush_center: Vec2
             ) -> bool
@@ -456,7 +456,7 @@ pub(in crate::map) mod ui_mod
             pub(in crate::map) fn [< check_ $xy _flip >](
                 &mut self,
                 drawing_resources: &DrawingResources,
-                grid: Grid,
+                grid: &Grid,
                 mirror: f32,
                 old_brush_center: Vec2,
                 new_center: Vec2
@@ -520,7 +520,7 @@ pub(in crate::map) mod ui_mod
             pub(in crate::map) fn [< check_atlas_animation_ $xy _partition >](
                 &mut self,
                 drawing_resources: &DrawingResources,
-                grid: Grid,
+                grid: &Grid,
                 value: u32,
                 brush_center: Vec2
             ) -> bool
@@ -646,7 +646,7 @@ pub(in crate::map) mod ui_mod
         fn sprite_hull(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             brush_center: Vec2
         ) -> Option<Hull>;
 
@@ -654,7 +654,7 @@ pub(in crate::map) mod ui_mod
         fn sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             brush_center: Vec2
         ) -> Option<[Vec2; 4]>;
 
@@ -662,7 +662,7 @@ pub(in crate::map) mod ui_mod
         fn animated_sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             animator: Option<&Animator>,
             brush_center: Vec2
         ) -> Option<[Vec2; 4]>;
@@ -1098,7 +1098,7 @@ pub(in crate::map) mod ui_mod
         fn sprite_hull(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             brush_center: Vec2
         ) -> Option<Hull>
         {
@@ -1110,7 +1110,7 @@ pub(in crate::map) mod ui_mod
         fn sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             brush_center: Vec2
         ) -> Option<[Vec2; 4]>
         {
@@ -1121,7 +1121,7 @@ pub(in crate::map) mod ui_mod
         fn animated_sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             animator: Option<&Animator>,
             brush_center: Vec2
         ) -> Option<[Vec2; 4]>
@@ -1205,7 +1205,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_move(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             delta: Vec2,
             brush_center: Vec2
         ) -> bool
@@ -1221,7 +1221,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_scale(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             info: &ScaleInfo,
             old_brush_center: Vec2,
             new_center: Vec2
@@ -1310,7 +1310,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_texture_change(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             texture: &str,
             brush_center: Vec2
         ) -> bool
@@ -1379,7 +1379,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_angle(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             value: f32,
             brush_center: Vec2
         ) -> bool
@@ -1404,7 +1404,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_rotation(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             pivot: Vec2,
             angle: f32,
             old_brush_center: Vec2,
@@ -1484,7 +1484,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn set_angle(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             value: f32,
             brush_center: Vec2
         ) -> Option<TextureRotation>
@@ -1525,7 +1525,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_sprite(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             value: bool,
             brush_center: Vec2
         ) -> bool
@@ -1592,7 +1592,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_within_bounds(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             brush_center: Vec2
         ) -> bool
         {
@@ -1605,7 +1605,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn check_animation_change(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             animation: &Animation,
             brush_center: Vec2
         ) -> bool
@@ -1808,7 +1808,7 @@ pub(in crate::map) mod ui_mod
         fn texture_sprite_vxs_at_origin_no_offset(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             texture: &str
         ) -> Option<[Vec2; 4]>
         {
@@ -1846,7 +1846,7 @@ pub(in crate::map) mod ui_mod
         fn texture_sprite_vxs_at_origin(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             texture: &str
         ) -> Option<[Vec2; 4]>
         {
@@ -1862,7 +1862,7 @@ pub(in crate::map) mod ui_mod
         fn texture_sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             texture: &str,
             brush_center: Vec2
         ) -> Option<[Vec2; 4]>
@@ -1889,7 +1889,7 @@ pub(in crate::map) mod ui_mod
         fn check_sprite_vxs(
             &self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             brush_center: Vec2
         ) -> Result<Option<[Vec2; 4]>, ()>
         {

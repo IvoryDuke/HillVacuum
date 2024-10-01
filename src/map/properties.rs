@@ -230,7 +230,7 @@ pub(in crate::map) mod ui_mod
         fn set_property(
             &mut self,
             drawing_resources: &DrawingResources,
-            grid: Grid,
+            grid: &Grid,
             key: &str,
             value: &Value
         );

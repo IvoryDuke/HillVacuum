@@ -41,7 +41,7 @@ enum Position
 
 #[allow(clippy::missing_docs_in_private_items)]
 type SelectorFunc<T> =
-    fn(&DrawingResources, &EntitiesManager, &Cursor, Grid, f32, &mut ItemsBeneathCursor<T>);
+    fn(&DrawingResources, &EntitiesManager, &Cursor, &Grid, f32, &mut ItemsBeneathCursor<T>);
 
 //=======================================================================//
 
@@ -203,7 +203,7 @@ where
         drawing_resources: &DrawingResources,
         manager: &EntitiesManager,
         cursor: &Cursor,
-        grid: Grid,
+        grid: &Grid,
         camera_scale: f32,
         inputs: &InputsPresses
     ) -> Option<T>

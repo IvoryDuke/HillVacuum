@@ -175,7 +175,7 @@ pub(in crate::map) struct EditDrawer<'w, 's, 'a>
     resources:              &'a mut DrawingResources,
     /// The color resources.
     color_resources:        &'a ColorResources,
-    grid:                   Grid,
+    grid:                   &'a Grid,
     /// The scale of the current frame's camera.
     camera_scale:           f32,
     /// The time that has passed since startup.
@@ -229,7 +229,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         resources: &'a mut DrawingResources,
         color_resources: &'a ColorResources,
         settings: &ToolsSettings,
-        grid: Grid,
+        grid: &'a Grid,
         mut elapsed_time: f32,
         camera_scale: f32,
         paint_tool_camera_scale: f32,
@@ -382,7 +382,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     pub const fn camera_scale(&self) -> f32 { self.camera_scale }
 
     #[inline]
-    pub const fn grid(&self) -> Grid { self.grid }
+    pub const fn grid(&self) -> &Grid { self.grid }
 
     #[inline]
     #[must_use]
@@ -1303,7 +1303,7 @@ pub(in crate::map) struct MapPreviewDrawer<'w, 's, 'a>
     meshes:       &'a mut Assets<Mesh>,
     /// The resources required to draw things.
     resources:    &'a mut DrawingResources,
-    grid:         Grid,
+    grid:         &'a Grid,
     /// The time that has passed.
     elapsed_time: f32
 }
@@ -1325,7 +1325,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
         meshes: &'a mut Assets<Mesh>,
         meshes_query: &Query<Entity, With<Mesh2dHandle>>,
         resources: &'a mut DrawingResources,
-        grid: Grid,
+        grid: &'a Grid,
         elapsed_time: f32
     ) -> Self
     {
@@ -1341,7 +1341,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
     }
 
     #[inline]
-    pub const fn grid(&self) -> Grid { self.grid }
+    pub const fn grid(&self) -> &Grid { self.grid }
 
     /// Draws `settings` mapping the texture to `vertexes`.
     #[inline]
@@ -1551,7 +1551,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
 #[allow(clippy::cast_precision_loss)]
 pub(in crate::map::drawer) fn thing_texture_hull<T: ThingInterface + EntityHull>(
     resources: &DrawingResources,
-    grid: Grid,
+    grid: &Grid,
     thing: &T,
     texture: &str
 ) -> Hull

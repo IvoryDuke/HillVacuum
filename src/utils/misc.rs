@@ -137,12 +137,12 @@ pub(crate) mod ui_mod
 
         /// Returns a [`Hull`] representing the camera's viewport.
         #[must_use]
-        fn viewport(&self, window: &Window, grid: Grid) -> Hull;
+        fn viewport(&self, window: &Window, grid: &Grid) -> Hull;
 
         /// Returns the world position of 'p'.
         #[inline]
         #[must_use]
-        fn to_world_coordinates(&self, window: &Window, grid: Grid, p: Vec2) -> Vec2
+        fn to_world_coordinates(&self, window: &Window, grid: &Grid, p: Vec2) -> Vec2
         {
             let p = p * self.scale() -
                 (Vec2::new(window.width(), window.height()) * self.scale()) / 2f32;
@@ -153,7 +153,7 @@ pub(crate) mod ui_mod
         /// Converts 'p' to UI coordinates.
         #[inline]
         #[must_use]
-        fn to_egui_coordinates(&self, window: &Window, grid: Grid, p: Vec2) -> egui::Pos2
+        fn to_egui_coordinates(&self, window: &Window, grid: &Grid, p: Vec2) -> egui::Pos2
         {
             let p = grid.transform_point(p);
             let pos = self.pos();
@@ -193,7 +193,7 @@ pub(crate) mod ui_mod
         fn zoom_on_ui_pos(
             &mut self,
             window: &Window,
-            grid: Grid,
+            grid: &Grid,
             world_pos: Vec2,
             ui_pos: Vec2,
             units: f32
@@ -209,7 +209,7 @@ pub(crate) mod ui_mod
         fn scale_viewport_to_hull(
             &mut self,
             window: &Window,
-            grid: Grid,
+            grid: &Grid,
             hull: &Hull,
             padding: f32
         );

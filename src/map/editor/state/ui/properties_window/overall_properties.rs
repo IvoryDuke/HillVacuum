@@ -169,7 +169,7 @@ impl UiOverallProperties
         default_properties: &DefaultProperties,
         clipboard: &mut Clipboard,
         inputs: &InputsPresses,
-        grid: Grid,
+        grid: &Grid,
         value_setter: &mut S
     )
     {
