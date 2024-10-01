@@ -164,10 +164,7 @@ impl Cursor
         self.previous_world_snapped = self.world_grid_snapped;
         self.world = camera.to_world_coordinates(window, grid, ui);
 
-        let mut absolute_grid = *grid;
-        absolute_grid.set_angle(0);
-        absolute_grid.set_skew(0);
-        self.world_no_grid = camera.to_world_coordinates(window, &absolute_grid, ui);
+        self.world_no_grid = camera.to_world_coordinates(window, &Grid::absolute(grid), ui);
 
         clamp_world_coordinate!(x, y);
 

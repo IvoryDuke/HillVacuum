@@ -103,6 +103,15 @@ impl Grid
         }
     }
 
+    #[inline]
+    pub(in crate::map::editor) fn absolute(other: &Self) -> Self
+    {
+        let mut grid = *other;
+        grid.set_angle(0);
+        grid.set_skew(0);
+        grid
+    }
+
     //==============================================================
     // Info
 
@@ -238,14 +247,14 @@ impl Grid
     }
 
     #[inline]
-    pub(in crate::map::editor) fn set_skew(&mut self, value: i8)
+    pub(in crate::map::editor::state) fn set_skew(&mut self, value: i8)
     {
         self.settings.set_skew(value);
         self.change = Change::ChangedRequiresUpdate;
     }
 
     #[inline]
-    pub(in crate::map::editor) fn set_angle(&mut self, value: i16)
+    pub(in crate::map::editor::state) fn set_angle(&mut self, value: i16)
     {
         self.settings.set_angle(value);
         self.change = Change::ChangedRequiresUpdate;
