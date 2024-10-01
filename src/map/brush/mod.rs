@@ -312,7 +312,7 @@ pub(in crate::map) mod ui_mod
                     assert!(vertexes.len() >= 3, "Not enough vertexes to create a polygon.\n{vertexes:?}.");
 
                     let center = crate::utils::math::points::vxs_center(vertexes.iter().map(|svx| svx.vec));
-                    let hull = crate::utils::hull::Hull::from_points(vertexes.iter().map(|svx| svx.vec)).unwrap();
+                    let hull = crate::utils::hull::Hull::from_points(vertexes.iter().map(|svx| svx.vec));
                     let selected_vertexes = vertexes.iter().fold(0, |add, svx| add + u8::from(svx.selected));
                     let cp = Self {
                         vertexes,
@@ -348,7 +348,7 @@ pub(in crate::map) mod ui_mod
                     use crate::utils::math::AroundEqual;
 
                     if !self.center.around_equal(&crate::utils::math::points::vxs_center(self.vertexes())) ||
-                        !self.hull.around_equal(&crate::utils::hull::Hull::from_points(self.vertexes()).unwrap())
+                        !self.hull.around_equal(&crate::utils::hull::Hull::from_points(self.vertexes()))
                     {
                         eprintln!("Failed center/hull assertion.");
                         return false;
@@ -945,7 +945,7 @@ pub(in crate::map) mod ui_mod
 
             if let Some(pivot) = self.sprite_pivot()
             {
-                hull = Hull::from_points(hull.rectangle().into_iter().chain(Some(pivot))).unwrap();
+                hull = Hull::from_points(hull.rectangle().into_iter().chain(Some(pivot)));
             }
 
             if let Some(p_hull) = self.path_hull()
@@ -1446,12 +1446,14 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            Hull::from_points(self.attachments_iter().unwrap().map(|id| brushes.get(*id).center()))
-                .map(|hull| {
-                    let center = self.center();
-                    hull.merged(&Hull::new(center.y, center.y, center.x, center.x).unwrap())
-                        .bumped(2f32)
-                })
+            Hull::from_points(
+                self.attachments_iter()
+                    .unwrap()
+                    .map(|id| brushes.get(*id).center())
+                    .chain(Some(self.center()))
+            )
+            .bumped(2f32)
+            .into()
         }
 
         #[inline]
@@ -1494,7 +1496,6 @@ pub(in crate::map) mod ui_mod
                     .into_iter()
                     .chain(hull.rectangle())
                 )
-                .unwrap()
             })
         }
 

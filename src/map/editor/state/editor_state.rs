@@ -1456,7 +1456,7 @@ impl State
         ) -> Result<BufReader<File>, &'static str>
         {
             let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
-            file_name.push_str("_073.hv");
+            file_name.push_str("_08.hv");
 
             warning_message(&format!(
                 "This file appears to use the old file structure {version}, if it is valid it \

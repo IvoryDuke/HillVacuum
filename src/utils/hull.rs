@@ -306,7 +306,7 @@ impl<T: ExactSizeIterator<Item = Vec2>> From<T> for Hull
 {
     #[inline]
     #[must_use]
-    fn from(value: T) -> Self { Self::from_points(value).unwrap() }
+    fn from(value: T) -> Self { Self::from_points(value) }
 }
 
 impl AroundEqual for Hull
@@ -344,7 +344,7 @@ impl Hull
     #[must_use]
     pub fn new(top: f32, bottom: f32, left: f32, right: f32) -> Option<Self>
     {
-        if top <= bottom || left >= right
+        if bottom > top || left > right
         {
             return None;
         }
@@ -362,7 +362,7 @@ impl Hull
     /// Returns None if `points` contained no elements.
     #[inline]
     #[must_use]
-    pub fn from_points(points: impl Iterator<Item = Vec2>) -> Option<Self>
+    pub fn from_points(points: impl Iterator<Item = Vec2>) -> Self
     {
         let (mut top, mut bottom, mut left, mut right) = (f32::MIN, f32::MAX, f32::MAX, f32::MIN);
 
@@ -389,15 +389,15 @@ impl Hull
             }
         }
 
-        Hull::new(top, bottom, left, right)
+        Hull::new(top, bottom, left, right).unwrap()
     }
 
     /// Returns a new [`Hull`] from two points used as opposite vertexes of a rectangular shape.
     #[inline]
     #[must_use]
-    pub fn from_opposite_vertexes(a: Vec2, b: Vec2) -> Option<Self>
+    pub fn from_opposite_vertexes(a: Vec2, b: Vec2) -> Self
     {
-        Self::new(a.y.max(b.y), a.y.min(b.y), a.x.min(b.x), a.x.max(b.x))
+        Self::new(a.y.max(b.y), a.y.min(b.y), a.x.min(b.x), a.x.max(b.x)).unwrap()
     }
 
     /// Returns the [`Hull`] encompassing all the [`Hull`]s contained in `iter`.
@@ -596,7 +596,7 @@ impl Hull
     #[must_use]
     pub fn transformed<F: Fn(Vec2) -> Vec2>(&self, f: F) -> Self
     {
-        Self::from_points(self.vertexes().map(f)).unwrap()
+        Self::from_points(self.vertexes().map(f))
     }
 
     /// Returns the vector representing the overlap of the [`Hull`] and `other`.
@@ -852,7 +852,6 @@ impl Hull
     pub fn scaled(&self, selected_corner: &mut Corner, new_corner_position: Vec2) -> ScaleResult
     {
         use arrayvec::ArrayVec;
-        use hill_vacuum_shared::return_if_none;
 
         /// Checks a flip above the pivot.
         macro_rules! check_flip_higher {
@@ -928,10 +927,7 @@ impl Hull
             Corner::BottomRight => check_flips!([check_flip_left, check_flip_above])
         };
 
-        let hull = return_if_none!(
-            Hull::from_opposite_vertexes(new_corner_position, opposite_vertex),
-            ScaleResult::None
-        );
+        let hull = Hull::from_opposite_vertexes(new_corner_position, opposite_vertex);
 
         if hull.width() == 0f32 || hull.height() == 0f32
         {

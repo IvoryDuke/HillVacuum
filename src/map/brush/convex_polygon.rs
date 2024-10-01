@@ -1072,7 +1072,7 @@ pub(in crate::map) mod ui_mod
         {
             let vertexes = hv_vec![collect; vxs.map(SelectableVector::new)];
             let center = vxs_center(vertexes.iter().map(|svx| svx.vec));
-            let hull = Hull::from_points(vertexes.iter().map(|svx| svx.vec)).unwrap();
+            let hull = Hull::from_points(vertexes.iter().map(|svx| svx.vec));
             let mut cp = ConvexPolygon {
                 vertexes,
                 center,
@@ -1243,7 +1243,7 @@ pub(in crate::map) mod ui_mod
         pub fn update_center_hull(&mut self)
         {
             self.center = vxs_center(self.vertexes());
-            self.hull = Hull::from_points(self.vertexes()).unwrap();
+            self.hull = Hull::from_points(self.vertexes());
         }
 
         #[inline]

@@ -268,7 +268,6 @@ pub mod ui_mod
                 pos + Vec2::new(-half_width, half_height),
                 pos + Vec2::new(half_width, -half_height)
             )
-            .unwrap()
         }
 
         /// Return the [`Hull`] of the associated [`Path`], if any.

@@ -165,12 +165,9 @@ impl ClipboardData
 
                 if let Some(h) = data.sprite_hull(drawing_resources, grid)
                 {
-                    hull = hull.merged(
-                        &Hull::from_points(
-                            h.rectangle().into_iter().map(|vx| grid.point_projection(vx))
-                        )
-                        .unwrap()
-                    );
+                    hull = hull.merged(&Hull::from_points(
+                        h.rectangle().into_iter().map(|vx| grid.point_projection(vx))
+                    ));
                 }
 
                 match data.path_hull()

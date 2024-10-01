@@ -169,7 +169,7 @@ impl RectTrait for Rect
         match self.0
         {
             RectCore::None | RectCore::Initiated(_) => None,
-            RectCore::Formed(o, e) => Some(Hull::from_opposite_vertexes(o, e).unwrap())
+            RectCore::Formed(o, e) => Some(Hull::from_opposite_vertexes(o, e))
         }
     }
 

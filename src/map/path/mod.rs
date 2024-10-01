@@ -1732,7 +1732,7 @@ pub(in crate::map) mod ui_mod
 
             Self {
                 nodes: hv_vec![node_0, node_1],
-                hull: hull.unwrap(),
+                hull,
                 buckets
             }
         }
@@ -1744,7 +1744,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         fn nodes_hull<'a, I: ExactSizeIterator<Item = &'a Node>>(nodes: I) -> Hull
         {
-            Hull::from_points(nodes.map(Node::pos)).unwrap()
+            Hull::from_points(nodes.map(Node::pos))
         }
 
         /// Returns a reference to the vector containing the [`Node`]s of the path.
@@ -3103,7 +3103,7 @@ pub(in crate::map) mod ui_mod
     pub(in crate::map) fn calc_path_hull(path: &Path, center: Vec2) -> Hull
     {
         (path.hull() + center)
-            .merged(&Some(center).into_iter().into())
+            .merged(&Hull::from_points(Some(center).into_iter()))
             .bumped(2f32)
     }
 }

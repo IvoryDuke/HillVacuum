@@ -1459,8 +1459,7 @@ pub(in crate::map::drawer) fn thing_texture_hull<T: ThingInterface + EntityHull>
                 Vec2::new(half_width, -half_height)
             ]
             .into_iter()
-        )
-        .unwrap();
+        );
     }
 
     vxs += grid.transform_point(thing.pos());

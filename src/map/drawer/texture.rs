@@ -1103,7 +1103,7 @@ pub(in crate::map) mod ui_mod
         ) -> Option<Hull>
         {
             self.texture_sprite_vxs(drawing_resources, grid, &self.texture, brush_center)
-                .map(|vxs| Hull::from_points(vxs.into_iter()).unwrap())
+                .map(|vxs| Hull::from_points(vxs.into_iter()))
         }
 
         #[inline]
@@ -1835,7 +1835,7 @@ pub(in crate::map) mod ui_mod
             {
                 rect.translate(Vec2::new(
                     0f32,
-                    Hull::from_points(rect.iter().copied()).unwrap().half_height()
+                    Hull::from_points(rect.iter().copied()).half_height()
                 ));
             }
 
