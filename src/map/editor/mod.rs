@@ -176,14 +176,14 @@ struct DrawBundle<'world, 'state, 'w, 's, 'a, 'b, 'c>
 /// A bundle of variables required to draw the visible portion of the map in map preview mode.
 #[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
-struct DrawBundleMapPreview<'w, 's, 'a, 'b, 'c>
+struct DrawBundleMapPreview<'w, 's, 'a, 'b>
 {
     window:         &'a Window,
     egui_context:   &'a egui::Context,
+    camera:         &'a Transform,
     drawer:         MapPreviewDrawer<'w, 's, 'a>,
     things_catalog: &'b ThingsCatalog,
-    camera:         &'a Transform,
-    manager:        &'c EntitiesManager
+    manager:        &'b EntitiesManager
 }
 
 //=======================================================================//
