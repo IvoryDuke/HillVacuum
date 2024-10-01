@@ -1227,7 +1227,11 @@ pub(in crate::map) mod ui_mod
         {
             return_if_none!(self.texture_settings(), false)
                 .sprite_hull(drawing_resources, grid, center)
-                .map_or(false, |hull| hull.out_of_bounds())
+                .map_or(false, |hull| {
+                    hull.rectangle()
+                        .into_iter()
+                        .any(|vx| grid.point_projection(vx).out_of_bounds())
+                })
         }
 
         //============================================================

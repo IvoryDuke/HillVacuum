@@ -14,7 +14,7 @@ use super::{
     RemoveResult
 };
 use crate::{
-    map::{editor::MAP_HALF_SIZE, MAP_SIZE},
+    map::{MAP_HALF_SIZE, MAP_SIZE},
     utils::{hull::Hull, identifiers::Id, misc::TakeValue}
 };
 

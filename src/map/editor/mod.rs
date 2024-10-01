@@ -33,13 +33,11 @@ use state::{
     edits_history::EditsHistory,
     grid::Grid,
     inputs_presses::InputsPresses,
-    manager::EntitiesManager
+    manager::EntitiesManager,
+    ui::ui_camera_displacement
 };
 
-use self::state::{
-    clipboard::{PropCameras, PropCamerasMut},
-    ui::{ui_left_space, ui_right_space, ui_top_space}
-};
+use self::state::clipboard::{PropCameras, PropCamerasMut};
 use super::{
     drawer::{
         color::ColorResources,
@@ -49,14 +47,12 @@ use super::{
         texture_loader::{TextureLoader, TextureLoadingProgress}
     },
     properties::{BrushProperties, DefaultProperties, ThingProperties},
-    thing::{catalog::ThingsCatalog, HardcodedThings}
+    thing::{catalog::ThingsCatalog, HardcodedThings},
+    BoundToMap
 };
 use crate::{
     config::{controls::BindsKeyCodes, Config},
-    map::{
-        editor::{cursor::Cursor, state::editor_state::State},
-        MAP_HALF_SIZE
-    },
+    map::editor::{cursor::Cursor, state::editor_state::State},
     utils::{
         math::AroundEqual,
         misc::{Camera, TakeValue}
@@ -484,7 +480,9 @@ impl Editor
             );
         }
 
-        Self::cap_map_size(window, camera);
+        let ui_displacement = ui_camera_displacement(camera.scale());
+        let pos = self.grid.point_projection(camera.pos() + ui_displacement);
+        camera.set_pos(self.grid.transform_point(pos.bound()) - ui_displacement);
     }
 
     /// Update the position and scale of the camera based on the keyboard inputs.
@@ -618,52 +616,6 @@ impl Editor
         let delta = self.cursor.delta_ui() * camera.scale();
         camera.translate(Vec2::new(-delta.x, delta.y));
         egui_context.set_cursor_icon(egui::CursorIcon::Grabbing);
-    }
-
-    /// Caps the camera position so that its viewport does not go out of map bounds.
-    #[inline]
-    fn cap_map_size(window: &Window, camera: &mut Transform)
-    {
-        let (half_width, half_height) = camera.scaled_window_half_sizes(window);
-        let mut camera_pos = camera.pos();
-
-        // Y Cap.
-        let top_dif = camera_pos.y + half_height - ui_top_space() * camera.scale() - MAP_HALF_SIZE;
-
-        if top_dif > 0f32
-        {
-            camera_pos.y -= top_dif;
-        }
-        else
-        {
-            let bottom_dif = camera_pos.y - half_height + MAP_HALF_SIZE;
-
-            if bottom_dif < 0f32
-            {
-                camera_pos.y -= bottom_dif;
-            }
-        }
-
-        // X Cap.
-        let right_dif =
-            camera_pos.x + half_width - ui_right_space() * camera.scale() - MAP_HALF_SIZE;
-
-        if right_dif > 0f32
-        {
-            camera_pos.x -= right_dif;
-        }
-        else
-        {
-            let left_dif =
-                camera_pos.x - half_width + ui_left_space() * camera.scale() + MAP_HALF_SIZE;
-
-            if left_dif < 0f32
-            {
-                camera_pos.x -= left_dif;
-            }
-        }
-
-        camera.set_pos(camera_pos);
     }
 
     /// Quits the application.

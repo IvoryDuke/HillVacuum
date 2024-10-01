@@ -10,10 +10,10 @@ use glam::Vec2;
 
 use super::manager::EntitiesManager;
 use crate::{
-    map::{drawer::color::Color, GridSettings},
+    map::{drawer::color::Color, BoundToMap, GridSettings},
     utils::{
         hull::Hull,
-        math::{angles::FastSinCosTan, points::fast_rotate_point_around_origin, AroundEqual},
+        math::{angles::FastSinCosTan, points::fast_rotate_point_around_origin},
         misc::Camera
     }
 };
@@ -249,15 +249,25 @@ impl Grid
     #[inline]
     pub(in crate::map::editor::state) fn set_skew(&mut self, value: i8)
     {
+        let prev = self.skew();
         self.settings.set_skew(value);
-        self.change = Change::ChangedRequiresUpdate;
+
+        if prev != value
+        {
+            self.change = Change::ChangedRequiresUpdate;
+        }
     }
 
     #[inline]
     pub(in crate::map::editor::state) fn set_angle(&mut self, value: i16)
     {
+        let prev = self.angle();
         self.settings.set_angle(value);
-        self.change = Change::ChangedRequiresUpdate;
+
+        if prev != value
+        {
+            self.change = Change::ChangedRequiresUpdate;
+        }
     }
 
     /// Toggles whether the grid is shifted or not.
@@ -461,6 +471,10 @@ impl Grid
     {
         let viewport = camera.viewport(window, self);
         let (top, bottom, left, right) = viewport.decompose();
+        let top = top.bound();
+        let bottom = bottom.bound();
+        let left = left.bound();
+        let right = right.bound();
         let (x_range, y_range) = viewport.range();
 
         GridLines {
@@ -472,7 +486,7 @@ impl Grid
                     .contains(&0f32)
                     .then(|| (Vec2::new(0f32, top), Vec2::new(0f32, bottom)))
             },
-            parallel_lines: ParallelLines::new(self, &viewport)
+            parallel_lines: ParallelLines::new(self, top, bottom, left, right)
         }
     }
 }
@@ -542,7 +556,7 @@ impl Iterator for ParallelLines
     #[must_use]
     fn next(&mut self) -> Option<Self::Item>
     {
-        if !self.x_left.around_equal(&self.x_right)
+        if self.x_left <= self.x_right
         {
             let line_x = self.x_left;
             self.x_left += self.grid_size;
@@ -552,7 +566,7 @@ impl Iterator for ParallelLines
                 (self.color)(self.half_grid_size, line_x)
             ))
         }
-        else if !self.y_left.around_equal(&self.y_right)
+        else if self.y_left <= self.y_right
         {
             let line_y = self.y_left;
             self.y_left += self.grid_size;
@@ -575,7 +589,7 @@ impl ParallelLines
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
     #[inline]
-    fn new(grid: &Grid, viewport: &Hull) -> Self
+    fn new(grid: &Grid, top: f32, bottom: f32, left: f32, right: f32) -> Self
     {
         /// Returns the result of the division of `value`/`rhs` rounded to the higher integer.
         #[inline]
@@ -595,15 +609,14 @@ impl ParallelLines
             }
         }
 
-        let (top, bottom, left, right) = viewport.decompose();
         let y_right = div_ceil(top as i16, grid.size);
         let y_left = div_ceil(bottom as i16, grid.size);
         let x_left = div_ceil(left as i16, grid.size);
         let x_right = div_ceil(right as i16, grid.size);
 
         let grid_size = grid.size_f32();
-        let mut y_right = f32::from(y_right) * grid_size;
         let mut y_left = f32::from(y_left) * grid_size;
+        let mut y_right = f32::from(y_right) * grid_size;
         let mut x_left = f32::from(x_left) * grid_size;
         let mut x_right = f32::from(x_right) * grid_size;
 
@@ -611,17 +624,23 @@ impl ParallelLines
 
         if grid.shifted
         {
-            y_right += half_grid_size;
-            y_left -= half_grid_size;
-            x_left -= half_grid_size;
-            x_right += half_grid_size;
+            for (ns, delta) in [
+                ([&mut x_right, &mut y_right], half_grid_size),
+                ([&mut x_left, &mut y_left], -half_grid_size)
+            ]
+            {
+                for n in ns
+                {
+                    *n = delta;
+                }
+            }
         }
 
         Self {
-            y_right,
-            y_left,
             x_left,
             x_right,
+            y_left,
+            y_right,
             grid_size,
             half_grid_size,
             top,

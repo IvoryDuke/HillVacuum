@@ -10,7 +10,8 @@
 - added window message in case of a fatal error;
 - added a column in the properties editor displaying their types.
 - added `draw_offset` and `draw_offset_with_parallax_and_scroll` to `TextureInterface`;
-- grid skew and angle changes now mark the map as having unsaved changes.
+- grid skew and angle changes now mark the map as having unsaved changes;
+- improved the way the camera position is capped to the map size.
 
 ### Fixes
 - Fixed overlapping actions in rotate tool;

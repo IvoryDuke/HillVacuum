@@ -6,9 +6,9 @@
 use bevy::{transform::components::Transform, window::Window};
 use glam::Vec2;
 
-use super::{state::editor_state::State, MAP_HALF_SIZE};
+use super::state::editor_state::State;
 use crate::{
-    map::editor::state::grid::Grid,
+    map::{editor::state::grid::Grid, BoundToMap, MAP_HALF_SIZE},
     utils::{hull::Hull, misc::Camera}
 };
 
@@ -146,12 +146,6 @@ impl Cursor
         space_pressed: bool
     )
     {
-        macro_rules! clamp_world_coordinate {
-            ($($xy:ident),+) => { $(
-                self.world.$xy = self.world.$xy.clamp(-MAP_HALF_SIZE, MAP_HALF_SIZE);
-            )+};
-        }
-
         self.delta_ui = ui - self.ui;
         self.ui = ui;
 
@@ -162,11 +156,9 @@ impl Cursor
 
         self.previous_world = self.world;
         self.previous_world_snapped = self.world_grid_snapped;
-        self.world = camera.to_world_coordinates(window, grid, ui);
+        self.world = camera.to_world_coordinates(window, grid, ui).bound();
 
-        self.world_no_grid = camera.to_world_coordinates(window, &Grid::absolute(grid), ui);
-
-        clamp_world_coordinate!(x, y);
+        self.world_no_grid = camera.to_world_coordinates(window, &Grid::absolute(grid), ui).bound();
 
         self.grid_square = grid.square(self.world);
         self.world_grid_snapped = self.grid_square.nearest_corner_to_point(self.world);

@@ -1226,8 +1226,9 @@ impl Ui
     {
         ui.separator();
 
-        let ui_vector = ui_camera_displacement() * bundle.camera.scale();
-        let pos = bundle.grid.point_projection(bundle.camera.pos() + ui_vector);
+        let pos = bundle
+            .grid
+            .point_projection(bundle.camera.pos() + ui_camera_displacement(bundle.camera.scale()));
 
         ui.label(egui::RichText::new(format!(
             "CAMERA\nX: {:.2}\nY: {:.2}\nScale: {:.2}",
@@ -1268,9 +1269,9 @@ pub(in crate::map) const fn ui_top_space() -> f32 { MENU_BAR_HEIGHT }
 /// drawn map can be seen.
 #[inline]
 #[must_use]
-pub(in crate::map) fn ui_camera_displacement() -> Vec2
+pub(in crate::map) fn ui_camera_displacement(scale: f32) -> Vec2
 {
-    Vec2::new(ui_left_space() - ui_right_space(), -ui_top_space()) / 2f32
+    (Vec2::new(ui_left_space() - ui_right_space(), -ui_top_space()) / 2f32) * scale
 }
 
 //=======================================================================//

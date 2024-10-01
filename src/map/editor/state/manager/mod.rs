@@ -1896,7 +1896,10 @@ impl EntitiesManager
     /// Whether the entities properties have been refactored on file load.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) const fn refactored_properties(&self) -> bool { self.innards.refactored_properties }
+    pub(in crate::map::editor::state) const fn refactored_properties(&self) -> bool
+    {
+        self.innards.refactored_properties
+    }
 
     /// Turns off the refactored properties flag.
     #[inline]
@@ -3217,7 +3220,10 @@ impl EntitiesManager
 
     /// Returns the amount of selected brushes with sprites.
     #[inline]
-    pub(in crate::map::editor::state) const fn selected_sprites_amount(&self) -> usize { self.innards.selected_sprites.len() }
+    pub(in crate::map::editor::state) const fn selected_sprites_amount(&self) -> usize
+    {
+        self.innards.selected_sprites.len()
+    }
 
     /// Returns an iterator to the [`Id`]s of the selected textured brushes.
     #[inline]
@@ -3277,7 +3283,11 @@ impl EntitiesManager
     }
 
     #[inline]
-    pub(in crate::map::editor::state) fn rebuild_sprite_quad_tree(&mut self, drawing_resources: &DrawingResources, grid: &Grid)
+    pub(in crate::map::editor::state) fn rebuild_sprite_quad_tree(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        grid: &Grid
+    )
     {
         self.quad_trees.rebuild_sprite_quad_tree(
             drawing_resources,

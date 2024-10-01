@@ -441,6 +441,26 @@ pub(in crate::map) mod ui_mod
     }
 
     //=======================================================================//
+
+    pub(crate) trait BoundToMap
+    {
+        #[must_use]
+        fn bound(&self) -> Self;
+    }
+
+    impl BoundToMap for f32
+    {
+        #[inline]
+        fn bound(&self) -> Self { self.clamp(-MAP_HALF_SIZE, MAP_HALF_SIZE) }
+    }
+
+    impl BoundToMap for Vec2
+    {
+        #[inline]
+        fn bound(&self) -> Self { Self::new(self.x.bound(), self.y.bound()) }
+    }
+
+    //=======================================================================//
     // ENUMS
     //
     //=======================================================================//
