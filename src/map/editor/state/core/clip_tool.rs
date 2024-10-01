@@ -414,8 +414,6 @@ impl ClipTool
 
                 let hgl_s = return_if_none!(hgl_s);
                 bundle.manager.brush(hgl_s.id).draw_extended_side(
-                    bundle.window,
-                    bundle.camera,
                     bundle.drawer,
                     hgl_s.index,
                     Color::ToolCursor
@@ -430,12 +428,7 @@ impl ClipTool
                 // going through.
                 if let Some(ce) = ce
                 {
-                    bundle.drawer.line_within_window_bounds(
-                        bundle.window,
-                        bundle.camera,
-                        (*co, *ce),
-                        Color::ToolCursor
-                    );
+                    bundle.drawer.infinite_line(*co, *ce, Color::ToolCursor);
                 }
             },
             Status::PostClip { pick, results } =>

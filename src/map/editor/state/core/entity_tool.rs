@@ -3,6 +3,8 @@
 //
 //=======================================================================//
 
+use std::fmt::Write;
+
 use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_shared::{match_or_panic, return_if_no_match, return_if_none};
@@ -20,7 +22,11 @@ use super::{
 use crate::{
     map::{
         brush::Brush,
-        drawer::{color::Color, drawing_resources::DrawingResources},
+        drawer::{
+            color::Color,
+            drawers::{HULL_HEIGHT_LABEL, HULL_WIDTH_LABEL},
+            drawing_resources::DrawingResources
+        },
         editor::{
             cursor::Cursor,
             state::{
@@ -37,7 +43,7 @@ use crate::{
     utils::{
         hull::{EntityHull, Hull},
         identifiers::{EntityId, Id},
-        iterators::FilterSet,
+        iterators::{FilterSet, PairIterator},
         misc::Camera
     }
 };
@@ -881,6 +887,9 @@ impl EntityTool
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, settings: &ToolsSettings)
     {
+        /// The color of the text of the tooltip showing the size of the hull.
+        const HULL_TOOLTIP_TEXT_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 165, 0);
+
         let texture_editing = settings.texture_editing();
 
         /// Draws the selected and non selected entities, except `filters`.
@@ -999,7 +1008,14 @@ impl EntityTool
                 if bundle.manager.is_selected(id)
                 {
                     brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
-                    brush.hull().into()
+                    let mut rect = brush.hull().rectangle();
+
+                    for vx in &mut rect
+                    {
+                        *vx = bundle.drawer.grid().transform_point(*vx);
+                    }
+
+                    rect.into()
                 }
                 else
                 {
@@ -1015,7 +1031,7 @@ impl EntityTool
                 {
                     brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
                     brush
-                        .sprite_hull(bundle.drawer.resources(), bundle.drawer.grid())
+                        .sprite_vxs(bundle.drawer.resources(), bundle.drawer.grid())
                         .unwrap()
                         .into()
                 }
@@ -1037,7 +1053,15 @@ impl EntityTool
                         bundle.drawer,
                         bundle.things_catalog
                     );
-                    thing.hull().into()
+
+                    let mut rect = thing.hull().rectangle();
+
+                    for vx in &mut rect
+                    {
+                        *vx = bundle.drawer.grid().transform_point(*vx);
+                    }
+
+                    rect.into()
                 }
                 else
                 {
@@ -1052,12 +1076,54 @@ impl EntityTool
             }
         };
 
-        if bundle.drawer.show_tooltips()
+        if !bundle.drawer.show_tooltips()
         {
-            bundle
-                .drawer
-                .hull_extensions(&return_if_none!(hull), bundle.window, bundle.camera);
+            return;
         }
+
+        let hull = &mut return_if_none!(hull);
+
+        for [a, b] in hull.pair_iter().unwrap()
+        {
+            bundle.drawer.unskewed_infinite_line(*a, *b, Color::HullExtensions);
+        }
+
+        for vx in &mut *hull
+        {
+            *vx = bundle.drawer.grid().point_projection(*vx);
+        }
+
+        let [top_right, top_left, _, bottom_right] = hull;
+        let top = top_right.y;
+        let bottom = bottom_right.y;
+        let left = top_left.x;
+        let right = top_right.x;
+        let mut value = format!("{}", top - bottom);
+
+        bundle.drawer.draw_tooltip_y_centered(
+            bundle.window,
+            bundle.camera,
+            HULL_HEIGHT_LABEL,
+            value.as_str(),
+            Vec2::new(right, (bottom + top) / 2f32),
+            Vec2::new(4f32, -4f32),
+            HULL_TOOLTIP_TEXT_COLOR,
+            egui::Color32::from_black_alpha(0)
+        );
+
+        value.clear();
+        write!(&mut value, "{}", top_right.x - top_left.x).ok();
+
+        bundle.drawer.draw_tooltip_x_centered_above_pos(
+            bundle.window,
+            bundle.camera,
+            HULL_WIDTH_LABEL,
+            value.as_str(),
+            Vec2::new((left + right) / 2f32, top),
+            Vec2::new(0f32, -4f32),
+            HULL_TOOLTIP_TEXT_COLOR,
+            egui::Color32::from_black_alpha(0)
+        );
     }
 
     /// Draws the tool's UI.

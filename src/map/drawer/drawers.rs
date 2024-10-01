@@ -3,8 +3,6 @@
 //
 //=======================================================================//
 
-use std::fmt::Write;
-
 use bevy::{
     asset::{Assets, Handle},
     color::{ColorToComponents, LinearRgba},
@@ -41,10 +39,7 @@ use crate::{
     utils::{
         hull::{CircleIterator, Corner, EntityHull, Hull, Side},
         iterators::SkipIndexIterator,
-        math::{
-            lines_and_segments::{line_equation, LineEquation},
-            points::rotate_point
-        },
+        math::points::rotate_point,
         misc::{Camera, VX_HGL_SIDE}
     },
     Animation,
@@ -56,8 +51,8 @@ use crate::{
 //
 //=======================================================================//
 
-pub(in crate::map::drawer) const HULL_HEIGHT_LABEL: &str = "hull_height";
-pub(in crate::map::drawer) const HULL_WIDTH_LABEL: &str = "hull_width";
+pub(in crate::map) const HULL_HEIGHT_LABEL: &str = "hull_height";
+pub(in crate::map) const HULL_WIDTH_LABEL: &str = "hull_width";
 /// The size of the tooltips' font.
 const TOOLTIP_FONT_SIZE: f32 = 13f32;
 /// The coefficient the tooltip's text needs to be offset to be spawned centered with respect to a
@@ -399,6 +394,15 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(line, self.color_resources.line_material(color), color.line_height());
     }
 
+    #[inline]
+    pub fn unskewed_line(&mut self, start: Vec2, end: Vec2, color: Color)
+    {
+        let mut mesh = self.resources.mesh_generator();
+        mesh.push_positions([start, end]);
+        let mesh = mesh.mesh(PrimitiveTopology::LineStrip);
+        self.push_mesh(mesh, self.color_resources.line_material(color), color.line_height());
+    }
+
     /// Draws a semitransparent line.
     #[inline]
     pub fn semitransparent_line(&mut self, start: Vec2, end: Vec2, color: Color)
@@ -523,79 +527,17 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
 
     /// Draws a line within the bounds of `window`.
     #[inline]
-    pub fn line_within_window_bounds(
-        &mut self,
-        window: &Window,
-        camera: &Transform,
-        points: (Vec2, Vec2),
-        color: Color
-    )
+    pub fn infinite_line(&mut self, a: Vec2, b: Vec2, color: Color)
     {
-        let (half_width, half_height) = camera.scaled_window_half_sizes(window);
-        let camera_pos = camera.pos();
+        let vec = (b - a) * 65636f32;
+        self.line(a - vec, a + vec, color);
+    }
 
-        // Draw line passing through the two points.
-        let [start, end] = match line_equation(&points.into())
-        {
-            LineEquation::Horizontal(y) =>
-            {
-                [
-                    Vec2::new(camera_pos.x - half_width, y),
-                    Vec2::new(camera_pos.x + half_width, y)
-                ]
-            },
-            LineEquation::Vertical(x) =>
-            {
-                [
-                    Vec2::new(x, camera_pos.y + half_height),
-                    Vec2::new(x, camera_pos.y - half_height)
-                ]
-            },
-            LineEquation::Generic(m, q) =>
-            {
-                let left_border = camera_pos.x - half_width;
-                let right_border = camera_pos.x + half_width;
-                let bottom_border = camera_pos.y - half_height;
-                let top_border = camera_pos.y + half_height;
-
-                let mut j = 0;
-                let mut screen_intersections = [None, None];
-
-                for x in [left_border, right_border]
-                {
-                    let y = m * x + q;
-
-                    if y <= top_border && y >= bottom_border
-                    {
-                        screen_intersections[j] = Vec2::new(x, y).into();
-                        j += 1;
-                    }
-                }
-
-                for y in [top_border, bottom_border]
-                {
-                    if j >= 2
-                    {
-                        break;
-                    }
-
-                    let x = (y - q) / m;
-
-                    if x <= right_border && x >= left_border
-                    {
-                        screen_intersections[j] = Vec2::new(x, y).into();
-                        j += 1;
-                    }
-                }
-
-                [
-                    screen_intersections[0].unwrap(),
-                    screen_intersections[1].unwrap()
-                ]
-            }
-        };
-
-        self.line(start, end, color);
+    #[inline]
+    pub fn unskewed_infinite_line(&mut self, a: Vec2, b: Vec2, color: Color)
+    {
+        let vec = (b - a) * 65636f32;
+        self.unskewed_line(a - vec, a + vec, color);
     }
 
     /// Draws a circle.
@@ -643,61 +585,6 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         let hgl_side = hull.side_segment(side);
         self.line(hgl_side[0], hgl_side[1], hgl_color);
         self.sides(hull.vertexes(), color);
-    }
-
-    /// Draws the line extensions of `hull`.
-    #[inline]
-    pub fn hull_extensions(&mut self, hull: &Hull, window: &Window, camera: &Transform)
-    {
-        /// The color of the text of the tooltip showing the size of the hull.
-        const HULL_TOOLTIP_TEXT_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 165, 0);
-
-        let window_hull = camera.viewport(window, self.grid);
-
-        for x in [hull.left(), hull.right()]
-        {
-            self.line(
-                Vec2::new(x, window_hull.bottom()),
-                Vec2::new(x, window_hull.top()),
-                Color::HullExtensions
-            );
-        }
-
-        for y in [hull.top(), hull.bottom()]
-        {
-            self.line(
-                Vec2::new(window_hull.left(), y),
-                Vec2::new(window_hull.right(), y),
-                Color::HullExtensions
-            );
-        }
-
-        let mut value = format!("{}", hull.height());
-
-        self.draw_tooltip_y_centered(
-            window,
-            camera,
-            HULL_HEIGHT_LABEL,
-            value.as_str(),
-            Vec2::new(hull.right(), (hull.bottom() + hull.top()) / 2f32),
-            Vec2::new(4f32, 0f32),
-            HULL_TOOLTIP_TEXT_COLOR,
-            egui::Color32::from_black_alpha(0)
-        );
-
-        value.clear();
-        write!(&mut value, "{}", hull.width()).ok();
-
-        self.draw_tooltip_x_centered_above_pos(
-            window,
-            camera,
-            HULL_WIDTH_LABEL,
-            value.as_str(),
-            Vec2::new((hull.left() + hull.right()) / 2f32, hull.top()),
-            Vec2::new(0f32, -4f32),
-            HULL_TOOLTIP_TEXT_COLOR,
-            egui::Color32::from_black_alpha(0)
-        );
     }
 
     /// Draws a square.

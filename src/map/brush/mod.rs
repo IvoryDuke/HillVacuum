@@ -913,6 +913,17 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
+        pub fn sprite_vxs(
+            &self,
+            drawing_resources: &DrawingResources,
+            grid: &Grid
+        ) -> Option<[Vec2; 4]>
+        {
+            self.polygon.sprite_vxs(drawing_resources, grid)
+        }
+
+        #[inline]
+        #[must_use]
         pub fn sprite_pivot(&self) -> Option<Vec2> { self.polygon.sprite_pivot() }
 
         #[inline]
@@ -1449,6 +1460,17 @@ pub(in crate::map) mod ui_mod
             -> Option<Hull>
         {
             self.data.sprite_hull(drawing_resources, grid)
+        }
+
+        #[inline]
+        #[must_use]
+        pub fn sprite_vxs(
+            &self,
+            drawing_resources: &DrawingResources,
+            grid: &Grid
+        ) -> Option<[Vec2; 4]>
+        {
+            self.data.sprite_vxs(drawing_resources, grid)
         }
 
         #[inline]
@@ -2936,18 +2958,9 @@ pub(in crate::map) mod ui_mod
 
         /// Draws the line passing through the side at `index`.
         #[inline]
-        pub fn draw_extended_side(
-            &self,
-            window: &Window,
-            camera: &Transform,
-            drawer: &mut EditDrawer,
-            index: usize,
-            color: Color
-        )
+        pub fn draw_extended_side(&self, drawer: &mut EditDrawer, index: usize, color: Color)
         {
-            self.data
-                .polygon
-                .draw_extended_side(window, camera, drawer, index, color);
+            self.data.polygon.draw_extended_side(drawer, index, color);
         }
 
         /// Draws the underlying `ConvexPolygon` with the special vertex highlight

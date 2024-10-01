@@ -1211,6 +1211,18 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
+        pub fn sprite_vxs(
+            &self,
+            drawing_resources: &DrawingResources,
+            grid: &Grid
+        ) -> Option<[Vec2; 4]>
+        {
+            self.texture_settings()?
+                .sprite_vxs(drawing_resources, grid, self.center)
+        }
+
+        #[inline]
+        #[must_use]
         pub fn sprite_pivot(&self) -> Option<Vec2>
         {
             self.texture_settings()?.sprite_pivot(self.center)
@@ -4475,17 +4487,14 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn draw_extended_side(
             &self,
-            window: &Window,
-            camera: &Transform,
             drawer: &mut EditDrawer,
             index: usize,
             color: Color
         )
         {
-            drawer.line_within_window_bounds(
-                window,
-                camera,
-                (self.vertexes[index].vec, next_element(index, &self.vertexes).vec),
+            drawer.infinite_line(
+                self.vertexes[index].vec,
+                next_element(index, &self.vertexes).vec,
                 color
             );
         }
