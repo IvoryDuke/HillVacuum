@@ -146,6 +146,8 @@ impl Cursor
         space_pressed: bool
     )
     {
+        const SQUARE_BOUND: Vec2 = Vec2::splat(MAP_HALF_SIZE - 0.25f32);
+
         self.delta_ui = ui - self.ui;
         self.ui = ui;
 
@@ -157,10 +159,9 @@ impl Cursor
         self.previous_world = self.world;
         self.previous_world_snapped = self.world_grid_snapped;
         self.world = camera.to_world_coordinates(window, grid, ui).bound();
-
         self.world_no_grid = camera.to_world_coordinates(window, &Grid::absolute(grid), ui).bound();
 
-        self.grid_square = grid.square(self.world);
+        self.grid_square = grid.square(self.world.clamp(-SQUARE_BOUND, SQUARE_BOUND));
         self.world_grid_snapped = self.grid_square.nearest_corner_to_point(self.world);
         let p = camera.to_egui_coordinates(window, grid, self.world_grid_snapped);
         self.ui_grid_snapped = Vec2::new(p.x, p.y);

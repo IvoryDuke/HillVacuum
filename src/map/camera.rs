@@ -62,7 +62,7 @@ impl Camera for Transform
     fn change_scale(&mut self, units: f32) -> f32
     {
         let prev_scale = self.scale();
-        self.scale = Vec3::splat((self.scale() - units * 0.125).clamp(0.125, 5f32));
+        self.scale = Vec3::splat((self.scale() - units * 0.125).clamp(0.125, 20f32));
         prev_scale
     }
 
