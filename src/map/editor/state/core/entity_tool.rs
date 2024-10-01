@@ -859,7 +859,7 @@ impl EntityTool
 
         for mut brush in bundle
             .manager
-            .selected_brushes_mut(bundle.drawing_resources, bundle.grid)
+            .selected_textured_brushes_mut(bundle.drawing_resources, bundle.grid)
         {
             brush.move_texture(delta);
         }
