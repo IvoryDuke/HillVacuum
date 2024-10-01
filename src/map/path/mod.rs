@@ -3104,7 +3104,7 @@ pub(in crate::map) mod ui_mod
     {
         (path.hull() + center)
             .merged(&Hull::from_points(Some(center).into_iter()))
-            .bumped(2f32)
+            .bumped(4f32)
     }
 }
 

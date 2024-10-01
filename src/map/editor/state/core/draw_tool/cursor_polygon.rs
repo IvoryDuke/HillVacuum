@@ -238,10 +238,8 @@ impl DrawMode
         v: V
     )
     {
-        let ToolUpdateBundle { cursor, camera, .. } = bundle;
-
+        let ToolUpdateBundle { cursor, .. } = bundle;
         let cursor_pos = cursor.world_snapped();
-        let camera_scale = camera.scale();
 
         match self
         {
@@ -267,7 +265,7 @@ impl DrawMode
                     }
                 };
             },
-            Self::Drag(da, _) => da.update_extremes(cursor_pos, camera_scale)
+            Self::Drag(da, _) => da.update_extremes(cursor_pos)
         };
 
         match self.hull().map(|hull| v(&hull))

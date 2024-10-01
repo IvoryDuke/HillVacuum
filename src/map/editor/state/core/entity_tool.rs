@@ -43,8 +43,7 @@ use crate::{
     utils::{
         hull::{EntityHull, Hull},
         identifiers::{EntityId, Id},
-        iterators::{FilterSet, PairIterator},
-        misc::Camera
+        iterators::{FilterSet, PairIterator}
     }
 };
 
@@ -444,7 +443,6 @@ impl EntityTool
                 rect::update!(
                     ds,
                     cursor_pos,
-                    bundle.camera.scale(),
                     bundle.inputs.left_mouse.pressed(),
                     {
                         if settings.entity_editing()

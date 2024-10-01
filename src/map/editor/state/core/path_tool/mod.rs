@@ -465,7 +465,6 @@ impl PathTool
                 rect::update!(
                     ds,
                     bundle.cursor.world(),
-                    bundle.camera.scale(),
                     bundle.inputs.left_mouse.pressed(),
                     {
                         ds.set_highlighted_entity(item_beneath_cursor);

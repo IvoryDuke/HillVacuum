@@ -469,7 +469,6 @@ impl SideTool
                 rect::update!(
                     ds,
                     cursor_pos,
-                    bundle.camera.scale(),
                     bundle.inputs.left_mouse.pressed(),
                     {
                         if self.check_xtrusion.take_value()

@@ -72,7 +72,6 @@ impl ZoomTool
         rect::update!(
             self.drag_selection,
             cursor.world_snapped(),
-            camera.scale(),
             inputs.left_mouse.pressed(),
             inputs.left_mouse.just_pressed(),
             {

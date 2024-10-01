@@ -6,7 +6,7 @@
 use glam::Vec2;
 use hill_vacuum_shared::return_if_no_match;
 
-use crate::utils::{hull::Hull, identifiers::EntityId};
+use crate::utils::{hull::Hull, identifiers::EntityId, math::AroundEqual};
 
 //=======================================================================//
 // MACROS
@@ -18,7 +18,6 @@ macro_rules! update {
     (
         $rect:expr,
         $p:expr,
-        $camera_scale:expr,
         $left_mouse_pressed:expr,
         $none:expr,
         $initiated:block,
@@ -29,12 +28,12 @@ macro_rules! update {
         {
             if $none
             {
-                $rect.update_extremes($p, $camera_scale);
+                $rect.update_extremes($p);
             }
         }
         else if $rect.initiated()
         {
-            $rect.update_extremes($p, $camera_scale);
+            $rect.update_extremes($p);
 
             if !$left_mouse_pressed
             {
@@ -44,7 +43,7 @@ macro_rules! update {
         }
         else
         {
-            $rect.update_extremes($p, $camera_scale);
+            $rect.update_extremes($p);
 
             if !$left_mouse_pressed
             {
@@ -97,7 +96,7 @@ pub(crate) trait RectTrait
     fn hull(&self) -> Option<Hull>;
 
     /// Updates the extremeties of the surface from `p`.
-    fn update_extremes(&mut self, p: Vec2, camera_scale: f32);
+    fn update_extremes(&mut self, p: Vec2);
 
     /// Resets the drag area.
     fn reset(&mut self);
@@ -177,7 +176,7 @@ impl RectTrait for Rect
     // Update
 
     #[inline]
-    fn update_extremes(&mut self, p: Vec2, camera_scale: f32)
+    fn update_extremes(&mut self, p: Vec2)
     {
         match &mut self.0
         {
@@ -187,14 +186,14 @@ impl RectTrait for Rect
             },
             RectCore::Initiated(o) =>
             {
-                if valid_points(*o, p, camera_scale)
+                if !o.around_equal_narrow(&p)
                 {
                     *self = Self(RectCore::Formed(*o, p));
                 }
             },
             RectCore::Formed(o, e) =>
             {
-                if valid_points(*o, p, camera_scale)
+                if !o.around_equal_narrow(&p)
                 {
                     *e = p;
                 }
@@ -263,9 +262,9 @@ where
     fn hull(&self) -> Option<crate::utils::hull::Hull> { self.0.hull() }
 
     #[inline]
-    fn update_extremes(&mut self, p: Vec2, camera_scale: f32)
+    fn update_extremes(&mut self, p: Vec2)
     {
-        self.0.update_extremes(p, camera_scale);
+        self.0.update_extremes(p);
 
         if self.0.formed()
         {
@@ -303,17 +302,4 @@ where
     /// Sets the highlighted entity, if any.
     #[inline]
     pub fn set_highlighted_entity(&mut self, entity: Option<T>) { self.1 = entity; }
-}
-
-//=======================================================================//
-// FUNCTIONS
-//
-//=======================================================================//
-
-/// Whether `a` and `b` are valid points to generate a [`Rect`].
-#[inline]
-#[must_use]
-fn valid_points(a: Vec2, b: Vec2, camera_scale: f32) -> bool
-{
-    (a.x - b.x).abs() * camera_scale >= 2f32 && (a.y - b.y).abs() * camera_scale >= 2f32
 }

@@ -31,7 +31,7 @@ use crate::{
         collections::{hv_hash_set, Ids},
         identifiers::{EntityId, Id},
         iterators::FilterSet,
-        misc::{AssertedInsertRemove, Camera, ReplaceValues, TakeValue}
+        misc::{AssertedInsertRemove, ReplaceValues, TakeValue}
     }
 };
 
@@ -170,7 +170,6 @@ impl SubtractTool
         rect::update!(
             self.drag_selection,
             cursor.world(),
-            bundle.camera.scale(),
             inputs.left_mouse.pressed(),
             {
                 // Apply subtraction.

@@ -400,7 +400,6 @@ impl VertexTool
                 rect::update!(
                     ds,
                     cursor_pos,
-                    bundle.camera.scale(),
                     bundle.inputs.left_mouse.pressed(),
                     {
                         if !bundle.inputs.left_mouse.just_pressed()

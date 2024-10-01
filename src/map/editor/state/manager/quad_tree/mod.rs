@@ -9,7 +9,7 @@ mod subnodes;
 
 use glam::Vec2;
 use hashbrown::hash_map::Iter;
-use hill_vacuum_shared::return_if_none;
+use hill_vacuum_shared::{return_if_none, NextValue};
 
 use self::{
     node::{Node, Square},
@@ -171,14 +171,16 @@ impl QuadTree
     #[inline]
     pub fn entities_near_pos(&self, entities: &mut QuadTreeIds, pos: Vec2, camera_scale: f32)
     {
-        let pos_hull = bumped_vertex_highlight_square(camera_scale) + pos;
+        let hull = bumped_vertex_highlight_square(camera_scale) + pos;
+        let mut iter = hull.vertexes().chain(Some(pos));
+        let points = std::array::from_fn::<_, 5, _>(|_| iter.next_value());
 
-        for pos in pos_hull.vertexes()
+        for pos in &points
         {
-            assert!(Node::entities_at_pos(self, entities, 0, pos), "Entities research failed.");
+            assert!(Node::entities_at_pos(self, entities, 0, *pos), "Entities research failed.");
         }
 
-        entities.retain(|_, hull| pos_hull.vertexes().any(|vx| hull.contains_point(vx)));
+        entities.retain(|_, hull| points.iter().any(|vx| hull.contains_point(*vx)));
     }
 
     /// Inserts `entity`.
