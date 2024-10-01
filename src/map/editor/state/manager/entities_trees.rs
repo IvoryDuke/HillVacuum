@@ -112,7 +112,7 @@ impl Trees
             brushes_tree:     QuadTree::new(),
             paths_tree:       QuadTree::new(),
             anchors_tree:     QuadTree::new(),
-            sprites_tree:     QuadTree::new(),
+            sprites_tree:     QuadTree::with_size(MAP_SIZE * 2f32),
             brushes_at_pos:   QuadTreeIdsNearPos::new().into(),
             visible_brushes:  VisibleQuadTreeIds::new().into(),
             brushes_in_range: QuadTreeIds::new().into(),

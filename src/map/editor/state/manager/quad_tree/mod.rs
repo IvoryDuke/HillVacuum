@@ -16,6 +16,7 @@ use self::{
     points::{Corner, Intersections, Sides, Vertex, Vertexes}
 };
 use crate::{
+    map::MAP_SIZE,
     utils::{
         collections::{hv_hash_map, hv_vec},
         hull::Hull,
@@ -108,6 +109,7 @@ impl MaybeNode
 #[derive(Debug)]
 pub(in crate::map::editor::state::manager) struct QuadTree
 {
+    size:                  f32,
     entities:              HvHashMap<Id, Hull>,
     /// The nodes of the tree.
     nodes:                 HvVec<MaybeNode>,
@@ -122,24 +124,29 @@ impl QuadTree
     /// Returns a new [`QuadTree`].
     #[inline]
     #[must_use]
-    pub fn new() -> Self
+    pub fn new() -> Self { Self::with_size(MAP_SIZE) }
+
+    #[inline]
+    #[must_use]
+    pub fn with_size(size: f32) -> Self
     {
         let mut vec = hv_vec![capacity; 256];
-        Self::start_nodes(&mut vec);
+        Self::start_nodes(&mut vec, size);
 
         Self {
-            entities:              hv_hash_map![],
-            nodes:                 vec,
-            vacant_spots:          hv_vec![],
+            size,
+            entities: hv_hash_map![],
+            nodes: vec,
+            vacant_spots: hv_vec![],
             recycle_intersections: hv_vec![capacity; 32]
         }
     }
 
     #[inline]
-    fn start_nodes(vec: &mut HvVec<MaybeNode>)
+    fn start_nodes(vec: &mut HvVec<MaybeNode>, size: f32)
     {
         vec.clear();
-        vec.push(MaybeNode(Node::full_map().into()));
+        vec.push(MaybeNode(Node::from_size(size).into()));
     }
 
     /// Returns a reference to the [`Node`] at `index`.
@@ -334,7 +341,7 @@ impl QuadTree
     pub fn clear(&mut self)
     {
         self.entities.clear();
-        Self::start_nodes(&mut self.nodes);
+        Self::start_nodes(&mut self.nodes, self.size);
         self.vacant_spots.clear();
         self.recycle_intersections.clear();
     }

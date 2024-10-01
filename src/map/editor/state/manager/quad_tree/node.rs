@@ -13,10 +13,7 @@ use super::{
     QuadTreeIds,
     RemoveResult
 };
-use crate::{
-    map::{MAP_HALF_SIZE, MAP_SIZE},
-    utils::{hull::Hull, identifiers::Id, misc::TakeValue}
-};
+use crate::utils::{hull::Hull, identifiers::Id, misc::TakeValue};
 
 //=======================================================================//
 // MACROS
@@ -164,10 +161,12 @@ impl Node
     /// Returns a [`Node`] that covers the entire area of the map.
     #[inline]
     #[must_use]
-    pub fn full_map() -> Self
+    pub fn from_size(size: f32) -> Self
     {
+        let half_size = size / 2f32;
+
         Self {
-            square:  Square::new(Vec2::new(-MAP_HALF_SIZE, MAP_HALF_SIZE), MAP_SIZE),
+            square:  Square::new(Vec2::new(-half_size, half_size), size),
             content: Content::default()
         }
     }
