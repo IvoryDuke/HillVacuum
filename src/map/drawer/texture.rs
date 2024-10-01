@@ -1200,19 +1200,19 @@ pub(in crate::map) mod ui_mod
             self.animation.get_list_animation().frame(index)
         }
 
-        /// Checks whether the move is valid.
         #[inline]
+        #[must_use]
         pub(in crate::map) fn check_move(
             &self,
             drawing_resources: &DrawingResources,
             grid: &Grid,
-            delta: Vec2,
-            brush_center: Vec2
+            new_center: Vec2
         ) -> bool
         {
-            !(return_if_none!(self.sprite_hull(drawing_resources, grid, brush_center), true) +
-                delta)
-                .out_of_bounds()
+            self.sprite_vxs(drawing_resources, grid, new_center)
+                .map_or(false, |hull| {
+                    !hull.into_iter().any(|vx| grid.point_projection(vx).out_of_bounds())
+                })
         }
 
         /// Checks whether the scale and flipping of the texture is valid. Returns a

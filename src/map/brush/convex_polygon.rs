@@ -1216,24 +1216,6 @@ pub(in crate::map) mod ui_mod
             self.texture_settings()?.sprite_pivot(self.center)
         }
 
-        #[inline]
-        #[must_use]
-        pub(in crate::map::brush) fn sprite_hull_out_of_bounds(
-            &self,
-            drawing_resources: &DrawingResources,
-            grid: &Grid,
-            center: Vec2
-        ) -> bool
-        {
-            return_if_none!(self.texture_settings(), false)
-                .sprite_hull(drawing_resources, grid, center)
-                .map_or(false, |hull| {
-                    hull.rectangle()
-                        .into_iter()
-                        .any(|vx| grid.point_projection(vx).out_of_bounds())
-                })
-        }
-
         //============================================================
         // General Editing
 
@@ -1288,14 +1270,9 @@ pub(in crate::map) mod ui_mod
                 return false;
             }
 
-            if move_texture && self.has_sprite()
+            if move_texture
             {
-                return self.texture_settings().unwrap().check_move(
-                    drawing_resources,
-                    grid,
-                    delta,
-                    self.center
-                );
+                return self.check_texture_move(drawing_resources, grid, self.center + delta);
             }
 
             true
@@ -1515,12 +1492,14 @@ pub(in crate::map) mod ui_mod
             &self,
             drawing_resources: &DrawingResources,
             grid: &Grid,
-            value: Vec2
+            new_center: Vec2
         ) -> bool
         {
-            self.texture_settings()
-                .unwrap()
-                .check_move(drawing_resources, grid, value, self.center)
+            return_if_none!(self.texture_settings(), true).check_move(
+                drawing_resources,
+                grid,
+                new_center
+            )
         }
 
         #[inline]
@@ -3981,7 +3960,7 @@ pub(in crate::map) mod ui_mod
 
             new_center /= self.sides_f32();
 
-            if self.sprite_hull_out_of_bounds(drawing_resources, grid, new_center)
+            if self.check_texture_move(drawing_resources, grid, new_center)
             {
                 return None;
             }
@@ -4029,7 +4008,7 @@ pub(in crate::map) mod ui_mod
 
             new_center /= self.sides_f32();
 
-            if self.sprite_hull_out_of_bounds(drawing_resources, grid, new_center)
+            if self.check_texture_move(drawing_resources, grid, new_center)
             {
                 return None;
             }
@@ -4178,7 +4157,7 @@ pub(in crate::map) mod ui_mod
                     .then_some(new_center);
             }
 
-            (!self.sprite_hull_out_of_bounds(drawing_resources, grid, new_center))
+            self.check_texture_move(drawing_resources, grid, new_center)
                 .then_some(new_center)
         }
 
@@ -4210,7 +4189,7 @@ pub(in crate::map) mod ui_mod
                     .then_some(new_center);
             }
 
-            (!self.sprite_hull_out_of_bounds(drawing_resources, grid, new_center))
+            self.check_texture_move(drawing_resources, grid, new_center)
                 .then_some(new_center)
         }
 

@@ -234,7 +234,7 @@ impl Grid
         }
     }
 
-    /// Increases the grid size to the previous power of two.
+    /// Decreases the grid size to the previous power of two.
     /// 2 units is the minimum length.
     #[inline]
     pub(in crate::map::editor::state) fn decrease_size(&mut self, manager: &mut EntitiesManager)

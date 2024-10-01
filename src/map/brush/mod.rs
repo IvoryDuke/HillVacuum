@@ -284,7 +284,7 @@ pub(in crate::map) mod ui_mod
                             let collision =
                                 collision.ok_or_else(|| serde::de::Error::missing_field("collision"))?;
 
-                            let mut poly = <ConvexPolygon>::new(vertexes.into_iter().map(|svec| svec.vec));
+                            let mut poly = ConvexPolygon::new(vertexes.into_iter().map(|svec| svec.vec));
                             poly.texture = texture;
                             poly.collision = collision;
                             Ok(poly)
@@ -1508,7 +1508,11 @@ pub(in crate::map) mod ui_mod
         ) -> bool
         {
             !self.has_texture() ||
-                self.data.polygon.check_texture_move(drawing_resources, grid, delta)
+                self.data.polygon.check_texture_move(
+                    drawing_resources,
+                    grid,
+                    self.center() + delta
+                )
         }
 
         /// Moves the `Brush` by the amount delta.
