@@ -134,6 +134,7 @@ impl SettingsWindow
                     ..
                 },
             drawing_resources,
+            manager,
             clipboard,
             inputs,
             grid,
@@ -143,6 +144,7 @@ impl SettingsWindow
         if self.grid_changed && (!inputs.left_mouse.pressed() || !self.window.is_open())
         {
             self.grid_changed = false;
+            manager.rebuild_sprite_quad_tree(drawing_resources, **grid);
             clipboard.queue_all_props_screenshots(
                 images,
                 prop_cameras,

@@ -184,6 +184,25 @@ impl Trees
         self.paths_tree.remove_entity(entity)
     }
 
+    #[inline]
+    pub fn rebuild_sprite_quad_tree<'a, I: Iterator<Item = &'a Brush>>(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        grid: Grid,
+        iter: I
+    )
+    {
+        self.sprites_tree.clear();
+
+        for brush in iter
+        {
+            assert!(
+                self.insert_sprite_hull(drawing_resources, grid, brush).inserted(),
+                "Sprite hull was already in the quad tree."
+            );
+        }
+    }
+
     /// Inserts the [`Hull`] of the sprite of `brush`.
     #[inline]
     #[must_use]

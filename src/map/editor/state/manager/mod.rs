@@ -3276,6 +3276,19 @@ impl EntitiesManager
         self.brushes_iter(self.quad_trees.visible_sprites(camera, window, grid))
     }
 
+    #[inline]
+    pub fn rebuild_sprite_quad_tree(&mut self, drawing_resources: &DrawingResources, grid: Grid)
+    {
+        self.quad_trees.rebuild_sprite_quad_tree(
+            drawing_resources,
+            grid,
+            self.innards.textured.iter().filter_map(|id| {
+                let brush = self.innards.brush(*id);
+                brush.has_sprite().then_some(brush)
+            })
+        );
+    }
+
     /// Anchors the brush with [`Id`] `attachment` to the one with [`Id`] `owner`.
     #[inline]
     pub(in crate::map::editor::state) fn attach(&mut self, owner: Id, attachment: Id)

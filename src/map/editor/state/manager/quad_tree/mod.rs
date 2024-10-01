@@ -125,7 +125,7 @@ impl QuadTree
     pub fn new() -> Self
     {
         let mut vec = hv_vec![capacity; 256];
-        vec.push(MaybeNode(Node::full_map().into()));
+        Self::start_nodes(&mut vec);
 
         Self {
             entities:              hv_hash_map![],
@@ -133,6 +133,13 @@ impl QuadTree
             vacant_spots:          hv_vec![],
             recycle_intersections: hv_vec![capacity; 32]
         }
+    }
+
+    #[inline]
+    fn start_nodes(vec: &mut HvVec<MaybeNode>)
+    {
+        vec.clear();
+        vec.push(MaybeNode(Node::full_map().into()));
     }
 
     /// Returns a reference to the [`Node`] at `index`.
@@ -321,6 +328,15 @@ impl QuadTree
     {
         Node::intersect_range(self, 0, entities, range);
         entities.retain(|_, hull| range.overlaps(hull));
+    }
+
+    #[inline]
+    pub fn clear(&mut self)
+    {
+        self.entities.clear();
+        Self::start_nodes(&mut self.nodes);
+        self.vacant_spots.clear();
+        self.recycle_intersections.clear();
     }
 }
 
