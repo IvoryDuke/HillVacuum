@@ -24,7 +24,7 @@ use crate::{
         brush::Brush,
         drawer::{
             color::Color,
-            drawers::{HULL_HEIGHT_LABEL, HULL_WIDTH_LABEL},
+            drawers::{EditDrawer, HULL_HEIGHT_LABEL, HULL_WIDTH_LABEL},
             drawing_resources::DrawingResources
         },
         editor::{
@@ -888,6 +888,30 @@ impl EntityTool
         /// The color of the text of the tooltip showing the size of the hull.
         const HULL_TOOLTIP_TEXT_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 165, 0);
 
+        #[inline]
+        fn rect_extensions<F>(drawer: &mut EditDrawer, rect: &mut [Vec2; 4], f: F)
+        where
+            F: Fn(&EditDrawer, Vec2) -> Vec2
+        {
+            if drawer.show_tooltips()
+            {
+                for [a, b] in rect.pair_iter().unwrap()
+                {
+                    drawer.unskewed_infinite_line(
+                        f(drawer, *a),
+                        f(drawer, *b),
+                        Color::HullExtensions
+                    );
+                }
+            }
+        }
+
+        #[inline]
+        fn entity_rect_extensions(drawer: &mut EditDrawer, rect: &mut [Vec2; 4])
+        {
+            rect_extensions(drawer, rect, |drawer, p| drawer.grid().transform_point(p));
+        }
+
         let texture_editing = settings.texture_editing();
 
         /// Draws the selected and non selected entities, except `filters`.
@@ -1006,13 +1030,9 @@ impl EntityTool
                 if bundle.manager.is_selected(id)
                 {
                     brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
+
                     let mut rect = brush.hull().rectangle();
-
-                    for vx in &mut rect
-                    {
-                        *vx = bundle.drawer.grid().transform_point(*vx);
-                    }
-
+                    entity_rect_extensions(bundle.drawer, &mut rect);
                     rect.into()
                 }
                 else
@@ -1028,10 +1048,11 @@ impl EntityTool
                 if bundle.manager.is_selected(id)
                 {
                     brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
-                    brush
+                    let mut rect = brush
                         .sprite_vxs(bundle.drawer.resources(), bundle.drawer.grid())
-                        .unwrap()
-                        .into()
+                        .unwrap();
+                    rect_extensions(bundle.drawer, &mut rect, |_, p| p);
+                    rect.into()
                 }
                 else
                 {
@@ -1053,12 +1074,7 @@ impl EntityTool
                     );
 
                     let mut rect = thing.hull().rectangle();
-
-                    for vx in &mut rect
-                    {
-                        *vx = bundle.drawer.grid().transform_point(*vx);
-                    }
-
+                    entity_rect_extensions(bundle.drawer, &mut rect);
                     rect.into()
                 }
                 else
@@ -1080,16 +1096,6 @@ impl EntityTool
         }
 
         let hull = &mut return_if_none!(hull);
-
-        for [a, b] in hull.pair_iter().unwrap()
-        {
-            bundle.drawer.unskewed_infinite_line(*a, *b, Color::HullExtensions);
-        }
-
-        for vx in &mut *hull
-        {
-            *vx = bundle.drawer.grid().point_projection(*vx);
-        }
 
         let [top_right, top_left, _, bottom_right] = hull;
         let top = top_right.y;
