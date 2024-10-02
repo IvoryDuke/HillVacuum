@@ -1513,14 +1513,9 @@ pub(in crate::map::drawer) fn thing_texture_hull<T: ThingInterface + EntityHull>
         let half_width = (vxs.width() / anim.x_partition() as f32) / 2f32;
         let half_height = (vxs.height() / anim.y_partition() as f32) / 2f32;
 
-        vxs = Hull::from_points(
-            [
-                Vec2::new(half_width, half_height),
-                Vec2::new(-half_width, half_height),
-                Vec2::new(-half_width, -half_height),
-                Vec2::new(half_width, -half_height)
-            ]
-            .into_iter()
+        vxs = Hull::from_opposite_vertexes(
+            Vec2::new(half_width, half_height),
+            Vec2::new(-half_width, -half_height)
         );
     }
 

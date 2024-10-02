@@ -1725,7 +1725,7 @@ pub(in crate::map) mod ui_mod
 
             let node_0 = Node::from_world_pos(points[0], false, center);
             let node_1 = Node::from_world_pos(points[1], false, center);
-            let hull = Hull::from_points([node_0.pos(), node_1.pos()].into_iter());
+            let hull = Hull::from_points([node_0.pos(), node_1.pos()]);
             let mut buckets = Buckets::new();
             buckets.insert(0, node_0.pos());
             buckets.insert(1, node_1.pos());
@@ -3103,7 +3103,7 @@ pub(in crate::map) mod ui_mod
     pub(in crate::map) fn calc_path_hull(path: &Path, center: Vec2) -> Hull
     {
         (path.hull() + center)
-            .merged(&Hull::from_points(Some(center).into_iter()))
+            .merged(&Hull::from_points(Some(center)))
             .bumped(4f32)
     }
 }

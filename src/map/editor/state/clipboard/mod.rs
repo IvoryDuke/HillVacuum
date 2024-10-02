@@ -165,8 +165,9 @@ impl ClipboardData
 
                 if let Some(h) = data.sprite_hull(drawing_resources, grid)
                 {
-                    hull = hull.merged(&Hull::from_points(
-                        h.rectangle().into_iter().map(|vx| grid.point_projection(vx))
+                    hull = hull.merged(&Hull::from_opposite_vertexes(
+                        grid.point_projection(h.top_right()),
+                        grid.point_projection(h.bottom_left())
                     ));
                 }
 

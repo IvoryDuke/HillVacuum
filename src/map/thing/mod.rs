@@ -265,8 +265,8 @@ pub mod ui_mod
             let half_height = thing.height / 2f32;
 
             Hull::from_opposite_vertexes(
-                pos + Vec2::new(-half_width, half_height),
-                pos + Vec2::new(half_width, -half_height)
+                pos + Vec2::new(-half_width, -half_height),
+                pos + Vec2::new(half_width, half_height)
             )
         }
 

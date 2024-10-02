@@ -934,7 +934,7 @@ pub(in crate::map) mod ui_mod
 
             if let Some(pivot) = self.sprite_pivot()
             {
-                hull = Hull::from_points(hull.rectangle().into_iter().chain(Some(pivot)));
+                hull = Hull::from_points([hull.top_right(), hull.bottom_left(), pivot]);
             }
 
             if let Some(p_hull) = self.path_hull()
@@ -1466,14 +1466,11 @@ pub(in crate::map) mod ui_mod
         ) -> Option<Hull>
         {
             self.sprite_hull(drawing_resources, grid).map(|hull| {
-                Hull::from_points(
-                    [
-                        grid.transform_point(self.center()),
-                        Vec2::new(hull.left() + hull.half_width(), hull.bottom())
-                    ]
-                    .into_iter()
-                    .chain(hull.rectangle())
-                )
+                Hull::from_points([
+                    grid.transform_point(self.center()),
+                    hull.top_right(),
+                    hull.bottom_left()
+                ])
             })
         }
 

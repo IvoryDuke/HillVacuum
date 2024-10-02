@@ -362,7 +362,7 @@ impl Hull
     /// Returns None if `points` contained no elements.
     #[inline]
     #[must_use]
-    pub fn from_points(points: impl Iterator<Item = Vec2>) -> Self
+    pub fn from_points(points: impl IntoIterator<Item = Vec2>) -> Self
     {
         let (mut top, mut bottom, mut left, mut right) = (f32::MIN, f32::MAX, f32::MAX, f32::MIN);
 
