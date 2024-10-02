@@ -210,6 +210,7 @@ pub mod ui_mod
         },
         Id,
         ThingId,
+        ToValue,
         Value
     };
 
@@ -346,40 +347,40 @@ pub mod ui_mod
         data: ThingInstanceData
     }
 
-    // impl From<super::compatibility::ThingInstance> for ThingInstance
-    // {
-    //     #[allow(clippy::cast_possible_truncation)]
-    //     #[inline]
-    //     fn from(value: super::compatibility::ThingInstance) -> Self
-    //     {
-    //         let super::compatibility::ThingInstance {
-    //             id,
-    //             data:
-    //                 super::compatibility::ThingInstanceData {
-    //                     thing,
-    //                     pos,
-    //                     angle,
-    //                     draw_height,
-    //                     hull,
-    //                     path,
-    //                     properties
-    //                 }
-    //         } = value;
+    impl<'a> From<(crate::map::thing::compatibility::ThingViewer, &'a ThingsCatalog)> for ThingInstance
+    {
+        #[allow(clippy::cast_possible_truncation)]
+        #[inline]
+        fn from(value: (crate::map::thing::compatibility::ThingViewer, &'a ThingsCatalog)) -> Self
+        {
+            let (
+                crate::map::thing::compatibility::ThingViewer {
+                    id,
+                    thing_id,
+                    pos,
+                    angle,
+                    draw_height,
+                    path,
+                    mut properties
+                },
+                catalog
+            ) = value;
 
-    //         Self {
-    //             id,
-    //             data: ThingInstanceData {
-    //                 thing,
-    //                 pos,
-    //                 angle: angle as i16,
-    //                 draw_height,
-    //                 hull,
-    //                 path,
-    //                 properties
-    //             }
-    //         }
-    //     }
-    // }
+            properties.insert(ANGLE_LABEL.to_string(), angle.to_value());
+            properties.insert(HEIGHT_LABEL.to_string(), draw_height.to_value());
+
+            Self::from((
+                ThingViewer {
+                    id,
+                    thing_id,
+                    pos,
+                    path,
+                    properties
+                },
+                catalog
+            ))
+        }
+    }
 
     impl ThingInterface for ThingInstance
     {

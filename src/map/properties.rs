@@ -281,7 +281,7 @@ pub(in crate::map) mod ui_mod
                     values.push((k, std::mem::replace(&mut vec[i], Value::Bool(true))));
                 }
 
-                Self::brush(values)
+                Self::$entity(values)
             }
         )+}};
     }
@@ -473,16 +473,18 @@ pub(in crate::map) mod ui_mod
                 return write!(f, "{properties}]");
             }
 
+            properties.push('\n');
+
             let mut iter = self.0.iter();
 
             for _ in 0..len - 1
             {
                 let (k, v) = iter.next_value();
-                properties.push_str(&format!("({k}, {v:?}) "));
+                properties.push_str(&format!("\t({k}, {v:?}),\n"));
             }
 
             let (k, v) = iter.next_value();
-            properties.push_str(&format!("({k}, {v:?})]"));
+            properties.push_str(&format!("\t({k}, {v:?})\n]"));
 
             write!(f, "{properties}")
         }
@@ -539,9 +541,9 @@ pub(in crate::map) mod ui_mod
         {
             let mut remove = hv_vec![];
 
-            for (k, v) in &self.1 .0
+            for (k, v) in self.0.iter()
             {
-                if !new.1 .0.contains_key(k) || v.eq_discriminant(new.get(k))
+                if !new.contains(k) || !v.eq_discriminant(new.get(k))
                 {
                     remove.push(k.clone());
                 }
@@ -549,9 +551,9 @@ pub(in crate::map) mod ui_mod
 
             let mut insert = hv_vec![];
 
-            for k in new.1 .0.keys()
+            for (k, v) in new.0.iter()
             {
-                if !self.1 .0.contains_key(k)
+                if !self.contains(k) || !v.eq_discriminant(self.get(k))
                 {
                     insert.push(k.as_str());
                 }
