@@ -1577,14 +1577,21 @@ impl State
 
         let mut file = match version_number
         {
-            // "0.3" => convert(version_number, &mut path, reader, things_catalog, convert_03)?,
-            // "0.4" => convert(version_number, &mut path, reader, things_catalog, convert_04)?,
-            // "0.5" => convert(version_number, &mut path, reader, things_catalog, convert_05)?,
-            // "0.6" => convert(version_number, &mut path, reader, things_catalog, convert_06)?,
-            // "0.6.1" => convert(version_number, &mut path, reader, things_catalog, convert_061)?,
-            // "0.7" => convert(version_number, &mut path, reader, things_catalog, convert_07)?,
+            "0.7" => todo!(), /* convert(version_number, &mut path, reader, things_catalog, */
+            // convert_07)?,
             FILE_VERSION_NUMBER => reader,
-            _ => unreachable!()
+            _ =>
+            {
+                warning_message(&format!(
+                    "This file appears to use the old file structure {version_number}, only files \
+                     from version from 0.7 to 0.7.2 are supported to be upgraded to version \
+                     0.8.\nTo upgrade the file you will need to open it with the previous \
+                     HillVacuum version and then open the generated file with this version.\nI \
+                     apologize for the inconvenience."
+                ));
+
+                reader
+            }
         };
 
         steps.next_value().assert(FileStructure::Header);

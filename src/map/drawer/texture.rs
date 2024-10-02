@@ -575,46 +575,6 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    // macro_rules! from_compat {
-    //     ($($v:ident),+) => { $(
-    //         impl From<crate::map::brush::compatibility::$v::TextureSettings> for TextureSettings
-    //         {
-    //             #[inline]
-    //             fn from(value: crate::map::brush::compatibility::$v::TextureSettings) -> Self
-    //             {
-    //                 let sprite = if value.sprite()
-    //                 {
-    //                     Sprite::True
-    //                 }
-    //                 else
-    //                 {
-    //                     Sprite::False {
-    //                         parallax_x: value.parallax_x(),
-    //                         parallax_y: value.parallax_y(),
-    //                         scroll_x:   value.scroll_x(),
-    //                         scroll_y:   value.scroll_y(),
-    //                         offset_auxiliary:
-    // crate::map::drawer::texture::OffsetAuxiliary::default()                     }
-    //                 };
-
-    //                 Self {
-    //                     texture: value.name().to_string(),
-    //                     scale_x: value.scale_x(),
-    //                     scale_y: value.scale_y(),
-    //                     offset_x: value.offset_x(),
-    //                     offset_y: value.offset_y(),
-    //                     angle: value.angle(),
-    //                     height: value.height(),
-    //                     sprite,
-    //                     animation: value.animation().clone()
-    //                 }
-    //             }
-    //         }
-    //     )+};
-    // }
-
-    //=======================================================================//
-
     macro_rules! swap {
         ($self:ident, $source:ident, ($($value:ident),+)) => { $(
             $self.$value.swap_value(&mut $source.$value);
@@ -1056,7 +1016,39 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    // from_compat!(_03, _04, _06, _061, _07);
+    impl From<crate::map::brush::compatibility::TextureSettings> for TextureSettings
+    {
+        #[inline]
+        fn from(value: crate::map::brush::compatibility::TextureSettings) -> Self
+        {
+            let sprite = if value.sprite()
+            {
+                Sprite::True
+            }
+            else
+            {
+                Sprite::False {
+                    parallax_x:       value.parallax_x(),
+                    parallax_y:       value.parallax_y(),
+                    scroll_x:         value.scroll_x(),
+                    scroll_y:         value.scroll_y(),
+                    offset_auxiliary: OffsetAuxiliary::default()
+                }
+            };
+
+            Self {
+                texture: value.name().to_string(),
+                scale_x: value.scale_x(),
+                scale_y: value.scale_y(),
+                offset_x: value.offset_x(),
+                offset_y: value.offset_y(),
+                angle: value.angle(),
+                height: value.height(),
+                sprite,
+                animation: value.animation().clone()
+            }
+        }
+    }
 
     impl From<&Texture> for TextureSettings
     {
