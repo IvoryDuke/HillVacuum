@@ -77,7 +77,6 @@ macro_rules! to_value {
 //=======================================================================//
 
 pub const COLLISION_LABEL: &str = "collision";
-pub const COLLISION_PAIR: (&str, Value) = (COLLISION_LABEL, Value::Bool(true));
 
 //=======================================================================//
 // TRAITS
@@ -207,7 +206,7 @@ pub(in crate::map) mod ui_mod
     use bevy::prelude::Resource;
     use hill_vacuum_shared::{match_or_panic, return_if_none, NextValue};
 
-    use super::{DefaultProperties, Properties, COLLISION_LABEL, COLLISION_PAIR};
+    use super::{DefaultProperties, Properties, COLLISION_LABEL};
     use crate::{
         map::{
             drawer::drawing_resources::DrawingResources,
@@ -403,7 +402,7 @@ pub(in crate::map) mod ui_mod
     impl Default for DefaultProperties
     {
         #[inline]
-        fn default() -> Self { Self::new(vec![COLLISION_PAIR]) }
+        fn default() -> Self { Self::new(Vec::<(&'static str, _)>::new()) }
     }
 
     impl std::fmt::Display for DefaultProperties
@@ -455,7 +454,7 @@ pub(in crate::map) mod ui_mod
     {
         /// Returns a new [`DefaultProperties`] generated for the values contained in `values`.
         #[inline]
-        pub fn new(values: Vec<(&'static str, Value)>) -> Self
+        pub fn new<T: ToString>(values: Vec<(T, Value)>) -> Self
         {
             let mut properties = hv_hash_map![];
 
@@ -477,6 +476,13 @@ pub(in crate::map) mod ui_mod
             let mut keys = keys.into_iter();
             let map = IndexedMap::new(values, |_| keys.next_value());
             Self(map, Properties(properties))
+        }
+
+        #[inline]
+        pub fn insert_collision_property(&mut self)
+        {
+            *self =
+                Self::new(self.0.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>());
         }
 
         /// Returns the amount of contained values.

@@ -1464,11 +1464,13 @@ impl State
                 header,
                 grid,
                 animations,
-                default_properties: [default_brush_properties, default_thing_properties],
+                default_properties: [mut default_brush_properties, default_thing_properties],
                 mut brushes,
                 mut things,
                 props
             } = f(reader, things_catalog)?;
+
+            default_brush_properties.insert_collision_property();
 
             // Write to file.
             let mut data = Vec::new();
@@ -1582,15 +1584,11 @@ impl State
             FILE_VERSION_NUMBER => reader,
             _ =>
             {
-                warning_message(&format!(
-                    "This file appears to use the old file structure {version_number}, only files \
-                     from version from 0.7 to 0.7.2 are supported to be upgraded to version \
-                     0.8.\nTo upgrade the file you will need to open it with the previous \
-                     HillVacuum version and then open the generated file with this version.\nI \
-                     apologize for the inconvenience."
-                ));
-
-                reader
+                return Err("This file appears to use a no longer supported format, only files \
+                            from version from 0.7 to 0.7.2 are supported to be upgraded to \
+                            version 0.8.\nTo upgrade the file you will need to open it with the \
+                            previous HillVacuum version and then open the generated file with \
+                            this version.\nI apologize for the inconvenience.");
             }
         };
 
