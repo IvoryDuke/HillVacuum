@@ -53,7 +53,7 @@ pub(in crate::map) mod ui_mod
 
     use super::GroupViewer;
     use crate::{
-        map::{brush::compatibility::Mover, path::Path},
+        map::path::Path,
         utils::{
             collections::{hv_hash_set, Ids},
             misc::{AssertedInsertRemove, TakeValue}
@@ -88,26 +88,26 @@ pub(in crate::map) mod ui_mod
         Attached(Id)
     }
 
-    impl From<Mover> for Group
-    {
-        #[inline]
-        fn from(value: Mover) -> Self
-        {
-            match value
-            {
-                Mover::None => Self::None,
-                Mover::Anchors(ids) => Self::Attachments(ids),
-                Mover::Motor(path) =>
-                {
-                    Self::Path {
-                        path:             path.path,
-                        attached_brushes: path.anchored_brushes
-                    }
-                },
-                Mover::Anchored(id) => Self::Attached(id)
-            }
-        }
-    }
+    // impl From<Mover> for Group
+    // {
+    //     #[inline]
+    //     fn from(value: Mover) -> Self
+    //     {
+    //         match value
+    //         {
+    //             Mover::None => Self::None,
+    //             Mover::Anchors(ids) => Self::Attachments(ids),
+    //             Mover::Motor(path) =>
+    //             {
+    //                 Self::Path {
+    //                     path:             path.path,
+    //                     attached_brushes: path.anchored_brushes
+    //                 }
+    //             },
+    //             Mover::Anchored(id) => Self::Attached(id)
+    //         }
+    //     }
+    // }
 
     impl From<GroupViewer> for Group
     {
@@ -274,26 +274,26 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    impl From<Mover> for GroupViewer
-    {
-        #[inline]
-        fn from(value: Mover) -> Self
-        {
-            match value
-            {
-                Mover::None => Self::None,
-                Mover::Anchors(ids) => Self::Attachments(ids),
-                Mover::Motor(motor) =>
-                {
-                    Self::Path {
-                        path:             motor.path.take_nodes(),
-                        attached_brushes: motor.anchored_brushes
-                    }
-                },
-                Mover::Anchored(id) => Self::Attached(id)
-            }
-        }
-    }
+    // impl From<Mover> for GroupViewer
+    // {
+    //     #[inline]
+    //     fn from(value: Mover) -> Self
+    //     {
+    //         match value
+    //         {
+    //             Mover::None => Self::None,
+    //             Mover::Anchors(ids) => Self::Attachments(ids),
+    //             Mover::Motor(motor) =>
+    //             {
+    //                 Self::Path {
+    //                     path:             motor.path.take_nodes(),
+    //                     attached_brushes: motor.anchored_brushes
+    //                 }
+    //             },
+    //             Mover::Anchored(id) => Self::Attached(id)
+    //         }
+    //     }
+    // }
 
     impl From<Group> for GroupViewer
     {

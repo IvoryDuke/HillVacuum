@@ -6,7 +6,7 @@ mod overall_properties;
 //=======================================================================//
 
 use bevy_egui::egui;
-use hill_vacuum_shared::{continue_if_none, TEXTURE_HEIGHT_RANGE};
+use hill_vacuum_shared::TEXTURE_HEIGHT_RANGE;
 
 use self::overall_properties::UiOverallProperties;
 use super::{window::Window, UiBundle, WindowCloser, WindowCloserInfo};
@@ -20,7 +20,7 @@ use crate::{
                 edits_history::EditsHistory,
                 grid::Grid,
                 manager::EntitiesManager,
-                ui::{checkbox::CheckBox, overall_value_field::OverallValueField}
+                ui::overall_value_field::OverallValueField
             },
             Placeholder
         },
@@ -62,8 +62,6 @@ struct Innards
 {
     /// The properties to edit.
     target:                     Target,
-    /// The overall collision of the brushes.
-    overall_brushes_collision:  OverallValue<bool>,
     /// The overall brushes properties.
     overall_brushes_properties: UiOverallProperties,
     /// The overall draw height of the [`ThingInstance`]s.
@@ -228,22 +226,6 @@ impl Innards
             Target::None => filler(ui, self.max_rows),
             Target::Brushes =>
             {
-                ui.label("Collision");
-                ui.label("bool");
-
-                if let Some(value) = CheckBox::show(ui, &self.overall_brushes_collision, |v| *v)
-                {
-                    for mut brush in manager.selected_brushes_mut(drawing_resources, grid)
-                    {
-                        edits_history
-                            .collision(brush.id(), continue_if_none!(brush.set_collision(value)));
-                    }
-
-                    self.overall_brushes_collision = value.into();
-                }
-
-                ui.end_row();
-
                 self.overall_brushes_properties.show(
                     ui,
                     drawing_resources,
@@ -371,7 +353,6 @@ impl Placeholder for PropertiesWindow
             window:  Window::default(),
             innards: Innards {
                 target:                     Target::default(),
-                overall_brushes_collision:  true.into(),
                 overall_brushes_properties: UiOverallProperties::placeholder(),
                 overall_things_draw_height: UiOverallValue::none(),
                 overall_things_angle:       UiOverallValue::none(),
@@ -393,15 +374,14 @@ impl PropertiesWindow
         things_default_properties: &DefaultProperties
     ) -> Self
     {
-        let b_len = brushes_default_properties.len() + 1;
-        let t_len = things_default_properties.len() + 2;
-        let max_rows = b_len.max(t_len).max(10) + 1;
+        let b_len = brushes_default_properties.len();
+        let t_len = things_default_properties.len();
+        let max_rows = b_len.max(t_len).max(10);
 
         Self {
             window:  Window::default(),
             innards: Innards {
                 target: Target::default(),
-                overall_brushes_collision: true.into(),
                 overall_brushes_properties: UiOverallProperties::from(brushes_default_properties),
                 overall_things_draw_height: UiOverallValue::none(),
                 overall_things_angle: UiOverallValue::none(),
@@ -411,21 +391,6 @@ impl PropertiesWindow
                 things_filler: max_rows - t_len
             }
         }
-    }
-
-    /// Updates the brushes collision.
-    #[inline]
-    pub fn update_overall_brushes_collision(&mut self, manager: &EntitiesManager)
-    {
-        if !manager.any_selected_brushes()
-        {
-            return;
-        }
-
-        self.innards.overall_brushes_collision = OverallValue::None;
-        _ = manager
-            .selected_brushes()
-            .any(|brush| self.innards.overall_brushes_collision.stack(&brush.collision()));
     }
 
     /// Updates all the overall brushes properties.

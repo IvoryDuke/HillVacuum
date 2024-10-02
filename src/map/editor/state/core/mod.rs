@@ -718,13 +718,6 @@ impl<'a> UndoRedoInterface<'a>
         thing.take_data()
     }
 
-    /// Schedules the overall brushes collision update.
-    #[inline]
-    pub fn schedule_overall_collision_update(&mut self)
-    {
-        self.manager.schedule_overall_collision_update();
-    }
-
     /// Schedules the overall [`ThingInstance`]s info update.
     #[inline]
     pub fn schedule_overall_things_info_update(&mut self)

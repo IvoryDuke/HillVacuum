@@ -480,9 +480,10 @@ impl ClipTool
                     {
                         for result in results.values()
                         {
-                            result.left.draw(camera, drawer, Color::ClippedPolygonsToSpawn);
-
-                            result.right.draw(camera, drawer, Color::ClippedPolygonsToSpawn);
+                            result.left.draw(camera, drawer, false, Color::ClippedPolygonsToSpawn);
+                            result
+                                .right
+                                .draw(camera, drawer, false, Color::ClippedPolygonsToSpawn);
 
                             draw_sprite_with_highlight(
                                 &result.right,
@@ -495,28 +496,30 @@ impl ClipTool
                     {
                         for result in results.values()
                         {
-                            result.left.draw(camera, drawer, Color::ClippedPolygonsToSpawn);
+                            result.left.draw(camera, drawer, false, Color::ClippedPolygonsToSpawn);
                             draw_sprite_with_highlight(
                                 &result.left,
                                 drawer,
                                 Color::ClippedPolygonsToSpawn
                             );
 
-                            result.right.draw(camera, drawer, Color::OpaqueEntity);
+                            result.right.draw(camera, drawer, false, Color::OpaqueEntity);
                         }
                     },
                     PickedPolygons::Right =>
                     {
                         for result in results.values()
                         {
-                            result.right.draw(camera, drawer, Color::ClippedPolygonsToSpawn);
+                            result
+                                .right
+                                .draw(camera, drawer, false, Color::ClippedPolygonsToSpawn);
                             draw_sprite_with_highlight(
                                 &result.right,
                                 drawer,
                                 Color::ClippedPolygonsToSpawn
                             );
 
-                            result.left.draw(camera, drawer, Color::OpaqueEntity);
+                            result.left.draw(camera, drawer, false, Color::OpaqueEntity);
                         }
                     }
                 };

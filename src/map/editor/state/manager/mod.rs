@@ -1972,11 +1972,6 @@ impl EntitiesManager
             core.update_overall_node(self);
         }
 
-        if self.innards.overall_collision_update.take_value()
-        {
-            ui.update_overall_brushes_collision(self);
-        }
-
         match self.innards.overall_brushes_properties_update.take_value()
         {
             PropertyUpdate::None => (),
@@ -2007,13 +2002,6 @@ impl EntitiesManager
         let error = return_if_none!(f(self), true);
         self.innards.error_highlight.set_error(error);
         false
-    }
-
-    /// Schedules the update of the overall collision of the brushes.
-    #[inline]
-    pub(in crate::map::editor::state) fn schedule_overall_collision_update(&mut self)
-    {
-        self.innards.overall_collision_update = true;
     }
 
     /// Schedules the update of the overall brushs property with key `k` value.
@@ -2774,9 +2762,7 @@ impl EntitiesManager
     }
 
     #[inline]
-    pub(in crate::map::editor::state) fn replace_brush_with_partition<
-        F: FnOnce(&mut Brush) -> ConvexPolygon
-    >(
+    pub(in crate::map::editor::state) fn replace_brush_with_partition<F>(
         &mut self,
         drawing_resources: &DrawingResources,
         edits_history: &mut EditsHistory,
@@ -2785,6 +2771,8 @@ impl EntitiesManager
         identifier: Id,
         f: F
     ) -> impl Iterator<Item = Id>
+    where
+        F: FnOnce(&mut Brush) -> ConvexPolygon
     {
         #[must_use]
         enum PathStatus

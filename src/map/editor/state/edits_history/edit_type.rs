@@ -274,8 +274,6 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     TAtlasAnimationUniformTime(String, f32),
     /// Default atlas animation frame time change.
     TAtlasAnimationFrameTime(String, usize, f32),
-    /// Brush collision change.
-    CollisionToggle(bool),
     /// Entity property change.
     PropertyChange(Value)
 }
@@ -367,7 +365,6 @@ impl EditType
             Self::TAtlasAnimationTiming(..) => "Texture default atlas animation timing",
             Self::TAtlasAnimationUniformTime(..) => "Texture default atlas animation uniform time",
             Self::TAtlasAnimationFrameTime(..) => "Texture default atlas animation frame time",
-            Self::CollisionToggle(..) => "Collision toggle",
             Self::PropertyChange(..) => "Properties change"
         }
     }
@@ -679,12 +676,6 @@ impl EditType
                     Self::AtlasAnimationFrameTime(index, time) =>
                     {
                         *time = brush.set_texture_atlas_animation_frame_time(*index, *time).unwrap();
-                    },
-                    Self::CollisionToggle(value) =>
-                    {
-                        *value = brush.set_collision(*value).unwrap();
-                        drop(brush);
-                        interface.schedule_overall_collision_update();
                     },
                     _ => return false
                 }

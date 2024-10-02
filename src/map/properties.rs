@@ -72,6 +72,14 @@ macro_rules! to_value {
 }
 
 //=======================================================================//
+// CONSTANTS
+//
+//=======================================================================//
+
+pub const COLLISION_LABEL: &str = "collision";
+pub const COLLISION_PAIR: (&str, Value) = (COLLISION_LABEL, Value::Bool(true));
+
+//=======================================================================//
 // TRAITS
 //
 //=======================================================================//
@@ -199,7 +207,7 @@ pub(in crate::map) mod ui_mod
     use bevy::prelude::Resource;
     use hill_vacuum_shared::{match_or_panic, return_if_none, NextValue};
 
-    use super::{DefaultProperties, Properties};
+    use super::{DefaultProperties, Properties, COLLISION_LABEL, COLLISION_PAIR};
     use crate::{
         map::{
             drawer::drawing_resources::DrawingResources,
@@ -395,7 +403,7 @@ pub(in crate::map) mod ui_mod
     impl Default for DefaultProperties
     {
         #[inline]
-        fn default() -> Self { Self(IndexedMap::default(), Properties::default()) }
+        fn default() -> Self { Self::new(vec![COLLISION_PAIR]) }
     }
 
     impl std::fmt::Display for DefaultProperties
@@ -455,6 +463,7 @@ pub(in crate::map) mod ui_mod
             {
                 properties.insert(name.to_string(), value);
             }
+            properties.insert(COLLISION_LABEL.to_string(), true.to_value());
 
             let mut values = hv_vec![];
             let mut keys = hv_vec![];

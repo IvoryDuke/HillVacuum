@@ -40,7 +40,6 @@ use crate::{
         drawer::{
             color::Color,
             drawing_resources::DrawingResources,
-            file_animations,
             texture::DefaultAnimation,
             texture_loader::TextureLoadingProgress
         },
@@ -48,7 +47,6 @@ use crate::{
             state::{
                 clipboard::prop::Prop,
                 core::{tool::ToolInterface, Core},
-                read_default_properties,
                 test_writer,
                 ui::{Command, Ui}
             },
@@ -68,7 +66,6 @@ use crate::{
         FILE_VERSION_NUMBER
     },
     utils::{
-        collections::hv_vec,
         hull::Hull,
         misc::{next, prev, Camera, TakeValue, Toggle}
     },
@@ -1108,70 +1105,70 @@ impl State
         default_properties: &mut AllDefaultProperties
     ) -> Result<(EntitiesManager, Clipboard, Grid, PathBuf), &'static str>
     {
-        macro_rules! convert_061_07 {
-            ($($version:ident),+) => { paste::paste! { $(
-                #[inline]
-                fn [< convert $version >](
-                    mut reader: BufReader<File>,
-                    things_catalog: &ThingsCatalog
-                ) -> Result<OldFileRead, &'static str>
-                {
-                    // Header.
-                    let header = ex_header(&mut reader)?;
+        // macro_rules! convert_061_07 {
+        //     ($($version:ident),+) => { paste::paste! { $(
+        //         #[inline]
+        //         fn [< convert $version >](
+        //             mut reader: BufReader<File>,
+        //             things_catalog: &ThingsCatalog
+        //         ) -> Result<OldFileRead, &'static str>
+        //         {
+        //             // Header.
+        //             let header = ex_header(&mut reader)?;
 
-                    // Grid.
-                    let grid = ex_grid(&mut reader)?;
+        //             // Grid.
+        //             let grid = ex_grid(&mut reader)?;
 
-                    // Animations.
-                    let animations = ex_animations(&mut reader, &header)?;
+        //             // Animations.
+        //             let animations = ex_animations(&mut reader, &header)?;
 
-                    // Properties.
-                    let default_properties = ex_default_properties(&mut reader)?;
+        //             // Properties.
+        //             let default_properties = ex_default_properties(&mut reader)?;
 
-                    // Brushes.
-                    let mut brushes = hv_vec![];
+        //             // Brushes.
+        //             let mut brushes = hv_vec![];
 
-                    for _ in 0..header.brushes
-                    {
-                        brushes.push(
-                            ciborium::from_reader::<
-                                crate::map::brush::compatibility::$version::BrushViewer,
-                                _
-                            >(&mut reader)
-                            .map_err(|_| "Error reading brushes for conversion.")?
-                            .into()
-                        );
-                    }
+        //             for _ in 0..header.brushes
+        //             {
+        //                 brushes.push(
+        //                     ciborium::from_reader::<
+        //                         crate::map::brush::compatibility::$version::BrushViewer,
+        //                         _
+        //                     >(&mut reader)
+        //                     .map_err(|_| "Error reading brushes for conversion.")?
+        //                     .into()
+        //                 );
+        //             }
 
-                    // Things.
-                    let mut things = hv_vec![];
+        //             // Things.
+        //             let mut things = hv_vec![];
 
-                    for _ in 0..header.things
-                    {
-                        things.push(ThingInstance::from((
-                            ciborium::from_reader::<ThingViewer, _>(&mut reader)
-                                .map_err(|_| "Error reading things for conversion.")?,
-                            things_catalog
-                        )));
-                    }
+        //             for _ in 0..header.things
+        //             {
+        //                 things.push(ThingInstance::from((
+        //                     ciborium::from_reader::<ThingViewer, _>(&mut reader)
+        //                         .map_err(|_| "Error reading things for conversion.")?,
+        //                     things_catalog
+        //                 )));
+        //             }
 
-                    // Props.
-                    let props = ex_props(&mut reader, &header)?;
+        //             // Props.
+        //             let props = ex_props(&mut reader, &header)?;
 
-                    Ok(OldFileRead {
-                        header,
-                        grid,
-                        animations,
-                        default_properties,
-                        brushes,
-                        things,
-                        props
-                    })
-                }
-            )+ }};
-        }
+        //             Ok(OldFileRead {
+        //                 header,
+        //                 grid,
+        //                 animations,
+        //                 default_properties,
+        //                 brushes,
+        //                 things,
+        //                 props
+        //             })
+        //         }
+        //     )+ }};
+        // }
 
-        use crate::map::{brush::BrushViewer, thing::ThingViewer};
+        // use crate::map::{brush::BrushViewer, thing::ThingViewer};
 
         struct OldFileRead
         {
@@ -1184,267 +1181,267 @@ impl State
             props:              HvVec<Prop>
         }
 
-        #[inline]
-        fn ex_header(reader: &mut BufReader<File>) -> Result<MapHeader, &'static str>
-        {
-            ciborium::from_reader::<MapHeader, _>(reader)
-                .map_err(|_| "Error reading file header for conversion.")
-        }
+        // #[inline]
+        // fn ex_header(reader: &mut BufReader<File>) -> Result<MapHeader, &'static str>
+        // {
+        //     ciborium::from_reader::<MapHeader, _>(reader)
+        //         .map_err(|_| "Error reading file header for conversion.")
+        // }
 
-        #[inline]
-        fn ex_default_properties(
-            reader: &mut BufReader<File>
-        ) -> Result<[DefaultProperties; 2], &'static str>
-        {
-            read_default_properties(reader)
-                .map_err(|_| "Error reading default properties for conversion.")
-        }
+        // #[inline]
+        // fn ex_default_properties(
+        //     reader: &mut BufReader<File>
+        // ) -> Result<[DefaultProperties; 2], &'static str>
+        // {
+        //     read_default_properties(reader)
+        //         .map_err(|_| "Error reading default properties for conversion.")
+        // }
 
-        #[inline]
-        fn ex_animations(
-            reader: &mut BufReader<File>,
-            header: &MapHeader
-        ) -> Result<HvVec<DefaultAnimation>, &'static str>
-        {
-            file_animations(header.animations, reader)
-                .map_err(|_| "Error reading animations for conversion.")
-        }
+        // #[inline]
+        // fn ex_animations(
+        //     reader: &mut BufReader<File>,
+        //     header: &MapHeader
+        // ) -> Result<HvVec<DefaultAnimation>, &'static str>
+        // {
+        //     file_animations(header.animations, reader)
+        //         .map_err(|_| "Error reading animations for conversion.")
+        // }
 
-        #[inline]
-        fn ex_brushes_04(
-            reader: &mut BufReader<File>,
-            header: &MapHeader
-        ) -> Result<HvVec<Brush>, &'static str>
-        {
-            let mut brushes = hv_vec![];
+        // #[inline]
+        // fn ex_brushes_04(
+        //     reader: &mut BufReader<File>,
+        //     header: &MapHeader
+        // ) -> Result<HvVec<Brush>, &'static str>
+        // {
+        //     let mut brushes = hv_vec![];
 
-            for _ in 0..header.brushes
-            {
-                brushes.push(Brush::from(
-                    ciborium::from_reader::<crate::map::brush::compatibility::_04::Brush, _>(
-                        &mut *reader
-                    )
-                    .map_err(|_| "Error reading brushes for conversion.")?
-                ));
-            }
+        //     for _ in 0..header.brushes
+        //     {
+        //         brushes.push(Brush::from(
+        //             ciborium::from_reader::<crate::map::brush::compatibility::_04::Brush, _>(
+        //                 &mut *reader
+        //             )
+        //             .map_err(|_| "Error reading brushes for conversion.")?
+        //         ));
+        //     }
 
-            Ok(brushes)
-        }
+        //     Ok(brushes)
+        // }
 
-        #[inline]
-        fn ex_things(
-            reader: &mut BufReader<File>,
-            header: &MapHeader
-        ) -> Result<HvVec<ThingInstance>, &'static str>
-        {
-            let mut things = hv_vec![];
+        // #[inline]
+        // fn ex_things(
+        //     reader: &mut BufReader<File>,
+        //     header: &MapHeader
+        // ) -> Result<HvVec<ThingInstance>, &'static str>
+        // {
+        //     let mut things = hv_vec![];
 
-            for _ in 0..header.things
-            {
-                things.push(ThingInstance::from(
-                    ciborium::from_reader::<crate::map::thing::compatibility::ThingInstance, _>(
-                        &mut *reader
-                    )
-                    .map_err(|_| "Error reading things for conversion.")?
-                ));
-            }
+        //     for _ in 0..header.things
+        //     {
+        //         things.push(ThingInstance::from(
+        //             ciborium::from_reader::<crate::map::thing::compatibility::ThingInstance, _>(
+        //                 &mut *reader
+        //             )
+        //             .map_err(|_| "Error reading things for conversion.")?
+        //         ));
+        //     }
 
-            Ok(things)
-        }
+        //     Ok(things)
+        // }
 
-        #[inline]
-        fn ex_props(
-            reader: &mut BufReader<File>,
-            header: &MapHeader
-        ) -> Result<HvVec<Prop>, &'static str>
-        {
-            let mut props = hv_vec![];
+        // #[inline]
+        // fn ex_props(
+        //     reader: &mut BufReader<File>,
+        //     header: &MapHeader
+        // ) -> Result<HvVec<Prop>, &'static str>
+        // {
+        //     let mut props = hv_vec![];
 
-            for _ in 0..header.props
-            {
-                props.push(
-                    ciborium::from_reader::<Prop, _>(&mut *reader)
-                        .map_err(|_| "Error reading props for conversion.")?
-                );
-            }
+        //     for _ in 0..header.props
+        //     {
+        //         props.push(
+        //             ciborium::from_reader::<Prop, _>(&mut *reader)
+        //                 .map_err(|_| "Error reading props for conversion.")?
+        //         );
+        //     }
 
-            Ok(props)
-        }
+        //     Ok(props)
+        // }
 
-        #[inline]
-        fn ex_grid(reader: &mut BufReader<File>) -> Result<GridSettings, &'static str>
-        {
-            ciborium::from_reader::<_, _>(reader)
-                .map_err(|_| "Error reading grid settings for conversion.")
-        }
+        // #[inline]
+        // fn ex_grid(reader: &mut BufReader<File>) -> Result<GridSettings, &'static str>
+        // {
+        //     ciborium::from_reader::<_, _>(reader)
+        //         .map_err(|_| "Error reading grid settings for conversion.")
+        // }
 
-        #[inline]
-        fn convert_03(
-            mut reader: BufReader<File>,
-            _: &ThingsCatalog
-        ) -> Result<OldFileRead, &'static str>
-        {
-            // Header
-            let header = ex_header(&mut reader)?;
+        // #[inline]
+        // fn convert_03(
+        //     mut reader: BufReader<File>,
+        //     _: &ThingsCatalog
+        // ) -> Result<OldFileRead, &'static str>
+        // {
+        //     // Header
+        //     let header = ex_header(&mut reader)?;
 
-            // Properties.
-            let default_properties = ex_default_properties(&mut reader)?;
+        //     // Properties.
+        //     let default_properties = ex_default_properties(&mut reader)?;
 
-            // Animations.
-            let animations = ex_animations(&mut reader, &header)?;
+        //     // Animations.
+        //     let animations = ex_animations(&mut reader, &header)?;
 
-            // Brushes.
-            let mut brushes = hv_vec![];
+        //     // Brushes.
+        //     let mut brushes = hv_vec![];
 
-            for _ in 0..header.brushes
-            {
-                brushes.push(Brush::from(
-                    ciborium::from_reader::<crate::map::brush::compatibility::_03::Brush, _>(
-                        &mut reader
-                    )
-                    .map_err(|_| "Error reading brushes for conversion.")?
-                ));
-            }
+        //     for _ in 0..header.brushes
+        //     {
+        //         brushes.push(Brush::from(
+        //             ciborium::from_reader::<crate::map::brush::compatibility::_03::Brush, _>(
+        //                 &mut reader
+        //             )
+        //             .map_err(|_| "Error reading brushes for conversion.")?
+        //         ));
+        //     }
 
-            // Things.
-            let things = ex_things(&mut reader, &header)?;
+        //     // Things.
+        //     let things = ex_things(&mut reader, &header)?;
 
-            // Props.
-            let props = ex_props(&mut reader, &header)?;
+        //     // Props.
+        //     let props = ex_props(&mut reader, &header)?;
 
-            Ok(OldFileRead {
-                header,
-                grid: ciborium::from_reader::<GridSettings, _>(&mut reader).unwrap_or_default(),
-                animations,
-                default_properties,
-                brushes,
-                things,
-                props
-            })
-        }
+        //     Ok(OldFileRead {
+        //         header,
+        //         grid: ciborium::from_reader::<GridSettings, _>(&mut reader).unwrap_or_default(),
+        //         animations,
+        //         default_properties,
+        //         brushes,
+        //         things,
+        //         props
+        //     })
+        // }
 
-        #[inline]
-        fn convert_04(
-            mut reader: BufReader<File>,
-            _: &ThingsCatalog
-        ) -> Result<OldFileRead, &'static str>
-        {
-            // Header
-            let header = ex_header(&mut reader)?;
+        // #[inline]
+        // fn convert_04(
+        //     mut reader: BufReader<File>,
+        //     _: &ThingsCatalog
+        // ) -> Result<OldFileRead, &'static str>
+        // {
+        //     // Header
+        //     let header = ex_header(&mut reader)?;
 
-            // Animations.
-            let animations = ex_animations(&mut reader, &header)?;
+        //     // Animations.
+        //     let animations = ex_animations(&mut reader, &header)?;
 
-            // Properties.
-            let default_properties = ex_default_properties(&mut reader)?;
+        //     // Properties.
+        //     let default_properties = ex_default_properties(&mut reader)?;
 
-            // Brushes.
-            let brushes = ex_brushes_04(&mut reader, &header)?;
+        //     // Brushes.
+        //     let brushes = ex_brushes_04(&mut reader, &header)?;
 
-            // Things.
-            let things = ex_things(&mut reader, &header)?;
+        //     // Things.
+        //     let things = ex_things(&mut reader, &header)?;
 
-            // Props.
-            let props = ex_props(&mut reader, &header)?;
+        //     // Props.
+        //     let props = ex_props(&mut reader, &header)?;
 
-            Ok(OldFileRead {
-                header,
-                grid: ex_grid(&mut reader)?,
-                animations,
-                default_properties,
-                brushes,
-                things,
-                props
-            })
-        }
+        //     Ok(OldFileRead {
+        //         header,
+        //         grid: ex_grid(&mut reader)?,
+        //         animations,
+        //         default_properties,
+        //         brushes,
+        //         things,
+        //         props
+        //     })
+        // }
 
-        #[inline]
-        fn convert_05(
-            mut reader: BufReader<File>,
-            _: &ThingsCatalog
-        ) -> Result<OldFileRead, &'static str>
-        {
-            // Header.
-            let header = ex_header(&mut reader)?;
+        // #[inline]
+        // fn convert_05(
+        //     mut reader: BufReader<File>,
+        //     _: &ThingsCatalog
+        // ) -> Result<OldFileRead, &'static str>
+        // {
+        //     // Header.
+        //     let header = ex_header(&mut reader)?;
 
-            // Grid.
-            let grid = ex_grid(&mut reader)?;
+        //     // Grid.
+        //     let grid = ex_grid(&mut reader)?;
 
-            // Animations.
-            let animations = ex_animations(&mut reader, &header)?;
+        //     // Animations.
+        //     let animations = ex_animations(&mut reader, &header)?;
 
-            // Properties.
-            let default_properties = ex_default_properties(&mut reader)?;
+        //     // Properties.
+        //     let default_properties = ex_default_properties(&mut reader)?;
 
-            // Brushes.
-            let brushes = ex_brushes_04(&mut reader, &header)?;
+        //     // Brushes.
+        //     let brushes = ex_brushes_04(&mut reader, &header)?;
 
-            // Things.
-            let things = ex_things(&mut reader, &header)?;
+        //     // Things.
+        //     let things = ex_things(&mut reader, &header)?;
 
-            // Props.
-            let props = ex_props(&mut reader, &header)?;
+        //     // Props.
+        //     let props = ex_props(&mut reader, &header)?;
 
-            Ok(OldFileRead {
-                header,
-                grid,
-                animations,
-                default_properties,
-                brushes,
-                things,
-                props
-            })
-        }
+        //     Ok(OldFileRead {
+        //         header,
+        //         grid,
+        //         animations,
+        //         default_properties,
+        //         brushes,
+        //         things,
+        //         props
+        //     })
+        // }
 
-        #[inline]
-        fn convert_06(
-            mut reader: BufReader<File>,
-            _: &ThingsCatalog
-        ) -> Result<OldFileRead, &'static str>
-        {
-            // Header.
-            let header = ex_header(&mut reader)?;
+        // #[inline]
+        // fn convert_06(
+        //     mut reader: BufReader<File>,
+        //     _: &ThingsCatalog
+        // ) -> Result<OldFileRead, &'static str>
+        // {
+        //     // Header.
+        //     let header = ex_header(&mut reader)?;
 
-            // Grid.
-            let grid = ex_grid(&mut reader)?;
+        //     // Grid.
+        //     let grid = ex_grid(&mut reader)?;
 
-            // Animations.
-            let animations = ex_animations(&mut reader, &header)?;
+        //     // Animations.
+        //     let animations = ex_animations(&mut reader, &header)?;
 
-            // Properties.
-            let default_properties = ex_default_properties(&mut reader)?;
+        //     // Properties.
+        //     let default_properties = ex_default_properties(&mut reader)?;
 
-            // Brushes.
-            let mut brushes = hv_vec![];
+        //     // Brushes.
+        //     let mut brushes = hv_vec![];
 
-            for _ in 0..header.brushes
-            {
-                brushes.push(Brush::from(
-                    ciborium::from_reader::<crate::map::brush::compatibility::_06::Brush, _>(
-                        &mut reader
-                    )
-                    .map_err(|_| "Error reading brushes for conversion.")?
-                ));
-            }
+        //     for _ in 0..header.brushes
+        //     {
+        //         brushes.push(Brush::from(
+        //             ciborium::from_reader::<crate::map::brush::compatibility::_06::Brush, _>(
+        //                 &mut reader
+        //             )
+        //             .map_err(|_| "Error reading brushes for conversion.")?
+        //         ));
+        //     }
 
-            // Things.
-            let things = ex_things(&mut reader, &header)?;
+        //     // Things.
+        //     let things = ex_things(&mut reader, &header)?;
 
-            // Props.
-            let props = ex_props(&mut reader, &header)?;
+        //     // Props.
+        //     let props = ex_props(&mut reader, &header)?;
 
-            Ok(OldFileRead {
-                header,
-                grid,
-                animations,
-                default_properties,
-                brushes,
-                things,
-                props
-            })
-        }
+        //     Ok(OldFileRead {
+        //         header,
+        //         grid,
+        //         animations,
+        //         default_properties,
+        //         brushes,
+        //         things,
+        //         props
+        //     })
+        // }
 
-        convert_061_07!(_061, _07);
+        // convert_061_07!(_061, _07);
 
         #[inline]
         fn convert(
@@ -1519,14 +1516,20 @@ impl State
                     },
                     FileStructure::Brushes =>
                     {
-                        for brush in brushes.take_value().into_iter().map(BrushViewer::new)
+                        for brush in brushes
+                            .take_value()
+                            .into_iter()
+                            .map(crate::map::brush::BrushViewer::new)
                         {
                             test_writer!(&brush, &mut writer, "Error converting brushes.");
                         }
                     },
                     FileStructure::Things =>
                     {
-                        for thing in things.take_value().into_iter().map(ThingViewer::new)
+                        for thing in things
+                            .take_value()
+                            .into_iter()
+                            .map(crate::map::thing::ThingViewer::new)
                         {
                             test_writer!(&thing, &mut writer, "Error converting things.");
                         }
@@ -1574,12 +1577,12 @@ impl State
 
         let mut file = match version_number
         {
-            "0.3" => convert(version_number, &mut path, reader, things_catalog, convert_03)?,
-            "0.4" => convert(version_number, &mut path, reader, things_catalog, convert_04)?,
-            "0.5" => convert(version_number, &mut path, reader, things_catalog, convert_05)?,
-            "0.6" => convert(version_number, &mut path, reader, things_catalog, convert_06)?,
-            "0.6.1" => convert(version_number, &mut path, reader, things_catalog, convert_061)?,
-            "0.7" => convert(version_number, &mut path, reader, things_catalog, convert_07)?,
+            // "0.3" => convert(version_number, &mut path, reader, things_catalog, convert_03)?,
+            // "0.4" => convert(version_number, &mut path, reader, things_catalog, convert_04)?,
+            // "0.5" => convert(version_number, &mut path, reader, things_catalog, convert_05)?,
+            // "0.6" => convert(version_number, &mut path, reader, things_catalog, convert_06)?,
+            // "0.6.1" => convert(version_number, &mut path, reader, things_catalog, convert_061)?,
+            // "0.7" => convert(version_number, &mut path, reader, things_catalog, convert_07)?,
             FILE_VERSION_NUMBER => reader,
             _ => unreachable!()
         };

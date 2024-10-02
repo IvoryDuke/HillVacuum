@@ -836,13 +836,6 @@ impl Ui
         self.texture_editor.update_overall_texture(drawing_resources, manager);
     }
 
-    /// Updates the overall brush collision.
-    #[inline]
-    pub fn update_overall_brushes_collision(&mut self, manager: &EntitiesManager)
-    {
-        self.properties_window.update_overall_brushes_collision(manager);
-    }
-
     /// Updates all overall brush properties.
     #[inline]
     pub fn update_overall_total_brush_properties(&mut self, manager: &EntitiesManager)

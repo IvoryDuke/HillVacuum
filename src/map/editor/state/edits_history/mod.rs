@@ -288,8 +288,7 @@ impl EditsHistory
         (atlas_len, (identifier: Id, len: usize), (hv_vec![identifier], EditType::AtlasAnimationLen(len))),
         (atlas_timing, (identifier: Id, timing: Timing), (hv_vec![identifier], EditType::AtlasAnimationTiming(timing.into()))),
         (atlas_uniform_time, (identifier: Id, time: f32), (hv_vec![identifier], EditType::AtlasAnimationUniformTime(time))),
-        (atlas_frame_time, (identifier: Id, value: (usize, f32)), (hv_vec![identifier], EditType::AtlasAnimationFrameTime(value.0, value.1))),
-        (collision, (identifier: Id, value: bool), (hv_vec![identifier], EditType::CollisionToggle(value)))
+        (atlas_frame_time, (identifier: Id, value: (usize, f32)), (hv_vec![identifier], EditType::AtlasAnimationFrameTime(value.0, value.1)))
 	);
 
     #[rustfmt::skip]

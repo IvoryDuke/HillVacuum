@@ -1,5 +1,5 @@
-#[cfg(feature = "ui")]
-pub(in crate::map) mod compatibility;
+// #[cfg(feature = "ui")]
+// pub(in crate::map) mod compatibility;
 #[cfg(feature = "ui")]
 pub(in crate::map) mod convex_polygon;
 pub mod group;
@@ -34,8 +34,6 @@ pub struct BrushViewer
     pub texture:    Option<TextureSettings>,
     /// The group of brushes this brush belong to.
     pub group:      Group,
-    /// Whether collision against the polygonal shape is enabled.
-    pub collision:  bool,
     /// The associated properties.
     pub properties: HvHashMap<String, Value>
 }
@@ -70,7 +68,7 @@ pub(in crate::map) mod ui_mod
     use arrayvec::ArrayVec;
     use bevy::{transform::components::Transform, window::Window};
     use glam::Vec2;
-    use hill_vacuum_shared::{return_if_no_match, return_if_none};
+    use hill_vacuum_shared::{match_or_panic, return_if_no_match, return_if_none};
     use serde::{Deserialize, Serialize};
 
     use crate::{
@@ -89,7 +87,7 @@ pub(in crate::map) mod ui_mod
                     VertexesMove,
                     XtrusionInfo
                 },
-                group::{Group, GroupViewer},
+                group::Group,
                 BrushViewer
             },
             drawer::{
@@ -111,7 +109,7 @@ pub(in crate::map) mod ui_mod
                 manager::{Animators, Brushes}
             },
             path::{calc_path_hull, common_edit_path, EditPath, MovementSimulator, Moving, Path},
-            properties::{Properties, PropertiesRefactor},
+            properties::{Properties, PropertiesRefactor, COLLISION_LABEL},
             selectable_vector::VectorSelectionResult,
             thing::catalog::ThingsCatalog
         },
@@ -443,35 +441,36 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    macro_rules! from_compat {
-        ($($v:ident),+) => { $(
-            impl From<crate::map::brush::compatibility::$v::Brush> for Brush
-            {
-                #[inline]
-                fn from(value: crate::map::brush::compatibility::$v::Brush) -> Self
-                {
-                    let crate::map::brush::compatibility::$v::Brush { id, data } = value;
+    // macro_rules! from_compat {
+    //     ($($v:ident),+) => { $(
+    //         impl From<crate::map::brush::compatibility::$v::Brush> for Brush
+    //         {
+    //             #[inline]
+    //             fn from(value: crate::map::brush::compatibility::$v::Brush) -> Self
+    //             {
+    //                 let crate::map::brush::compatibility::$v::Brush { id, data } = value;
 
-                    let mut polygon = ConvexPolygon::from(hv_vec![collect; data.polygon.vertexes()]);
-                    _ = polygon.set_collision(data.polygon.collision());
+    //                 let mut polygon = ConvexPolygon::from(hv_vec![collect;
+    // data.polygon.vertexes()]);                 _ =
+    // polygon.set_collision(data.polygon.collision());
 
-                    if let Some(tex) = data.polygon.take_texture_settings()
-                    {
-                        polygon.set_texture_settings(TextureSettings::from(tex));
-                    }
+    //                 if let Some(tex) = data.polygon.take_texture_settings()
+    //                 {
+    //                     polygon.set_texture_settings(TextureSettings::from(tex));
+    //                 }
 
-                    Self {
-                        data: BrushData {
-                            polygon,
-                            group: Group::from(data.mover),
-                            properties: data.properties
-                        },
-                        id
-                    }
-                }
-            }
-        )+};
-    }
+    //                 Self {
+    //                     data: BrushData {
+    //                         polygon,
+    //                         group: Group::from(data.mover),
+    //                         properties: data.properties
+    //                     },
+    //                     id
+    //                 }
+    //             }
+    //         }
+    //     )+};
+    // }
 
     //=======================================================================//
 
@@ -1039,7 +1038,7 @@ pub(in crate::map) mod ui_mod
         data: BrushData
     }
 
-    from_compat!(_03, _04, _06);
+    // from_compat!(_03, _04, _06);
 
     impl From<BrushViewer> for Brush
     {
@@ -1051,7 +1050,6 @@ pub(in crate::map) mod ui_mod
                 vertexes,
                 texture,
                 group,
-                collision,
                 properties
             } = value;
 
@@ -1061,7 +1059,6 @@ pub(in crate::map) mod ui_mod
             {
                 polygon.set_texture_settings(tex);
             }
-            _ = polygon.set_collision(collision);
 
             Self {
                 id,
@@ -1194,12 +1191,13 @@ pub(in crate::map) mod ui_mod
         {
             assert!(self.id == simulator.id(), "Simulator's ID is not equal to the Brush's ID.");
 
+            let collision = self.collision();
             let movement_vec = simulator.movement_vec();
             let center = self.center();
 
             self.data
                 .polygon
-                .draw_movement_simulation(camera, drawer, movement_vec);
+                .draw_movement_simulation(camera, drawer, collision, movement_vec);
             self.path().unwrap().draw_movement_simulation(
                 window,
                 camera,
@@ -1220,6 +1218,7 @@ pub(in crate::map) mod ui_mod
                 brushes.get(*id).data.polygon.draw_movement_simulation(
                     camera,
                     drawer,
+                    collision,
                     movement_vec
                 );
             }
@@ -1270,55 +1269,55 @@ pub(in crate::map) mod ui_mod
         fn take_path(&mut self) -> Path { self.data.group.take_path() }
     }
 
-    impl From<crate::map::brush::compatibility::_061::BrushViewer> for Brush
-    {
-        #[inline]
-        fn from(value: crate::map::brush::compatibility::_061::BrushViewer) -> Self
-        {
-            let crate::map::brush::compatibility::_061::BrushViewer {
-                id,
-                vertexes,
-                texture,
-                mover,
-                collision,
-                properties
-            } = value;
+    // impl From<crate::map::brush::compatibility::_061::BrushViewer> for Brush
+    // {
+    //     #[inline]
+    //     fn from(value: crate::map::brush::compatibility::_061::BrushViewer) -> Self
+    //     {
+    //         let crate::map::brush::compatibility::_061::BrushViewer {
+    //             id,
+    //             vertexes,
+    //             texture,
+    //             mover,
+    //             collision,
+    //             properties
+    //         } = value;
 
-            Brush::from(BrushViewer {
-                id,
-                vertexes,
-                texture: texture.map(TextureSettings::from),
-                group: GroupViewer::from(mover),
-                collision,
-                properties
-            })
-        }
-    }
+    //         Brush::from(BrushViewer {
+    //             id,
+    //             vertexes,
+    //             texture: texture.map(TextureSettings::from),
+    //             group: GroupViewer::from(mover),
+    //             collision,
+    //             properties
+    //         })
+    //     }
+    // }
 
-    impl From<crate::map::brush::compatibility::_07::BrushViewer> for Brush
-    {
-        #[inline]
-        fn from(value: crate::map::brush::compatibility::_07::BrushViewer) -> Self
-        {
-            let crate::map::brush::compatibility::_07::BrushViewer {
-                id,
-                vertexes,
-                texture,
-                group,
-                collision,
-                properties
-            } = value;
+    // impl From<crate::map::brush::compatibility::_07::BrushViewer> for Brush
+    // {
+    //     #[inline]
+    //     fn from(value: crate::map::brush::compatibility::_07::BrushViewer) -> Self
+    //     {
+    //         let crate::map::brush::compatibility::_07::BrushViewer {
+    //             id,
+    //             vertexes,
+    //             texture,
+    //             group,
+    //             collision,
+    //             properties
+    //         } = value;
 
-            Brush::from(BrushViewer {
-                id,
-                vertexes,
-                texture: texture.map(TextureSettings::from),
-                group,
-                collision,
-                properties
-            })
-        }
-    }
+    //         Brush::from(BrushViewer {
+    //             id,
+    //             vertexes,
+    //             texture: texture.map(TextureSettings::from),
+    //             group,
+    //             collision,
+    //             properties
+    //         })
+    //     }
+    // }
 
     impl Brush
     {
@@ -2120,14 +2119,10 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn set_collision(&mut self, value: bool) -> Option<bool>
+        pub fn collision(&self) -> bool
         {
-            self.data.polygon.set_collision(value)
+            match_or_panic!(self.data.properties.get(COLLISION_LABEL), Value::Bool(value), *value)
         }
-
-        #[inline]
-        #[must_use]
-        pub const fn collision(&self) -> bool { self.data.polygon.collision() }
 
         #[inline]
         pub fn properties(&self) -> Properties { self.data.properties.clone() }
@@ -2894,7 +2889,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub fn draw_with_color(&self, camera: &Transform, drawer: &mut EditDrawer, color: Color)
         {
-            self.data.polygon.draw(camera, drawer, color);
+            self.data.polygon.draw(camera, drawer, self.collision(), color);
         }
 
         /// Draws the polygon not-selected.
@@ -2950,9 +2945,13 @@ pub(in crate::map) mod ui_mod
             hgl_mode: &VertexHighlightMode
         )
         {
-            self.data
-                .polygon
-                .draw_with_vertex_highlight(window, camera, drawer, hgl_mode);
+            self.data.polygon.draw_with_vertex_highlight(
+                window,
+                camera,
+                drawer,
+                self.collision(),
+                hgl_mode
+            );
         }
 
         /// Draws the polygon with a solid color.
@@ -3034,14 +3033,12 @@ pub(in crate::map) mod ui_mod
                     },
                 id
             } = brush;
-            let collision = polygon.collision();
 
             Self {
                 id,
                 vertexes: hv_vec![collect; polygon.vertexes()],
                 texture: polygon.take_texture_settings(),
                 group: group.into(),
-                collision,
                 properties: properties.take()
             }
         }
