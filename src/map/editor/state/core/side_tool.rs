@@ -859,9 +859,7 @@ impl SideTool
             }
         }
 
-        bundle
-            .edits_history
-            .vertexes_selection_cluster(selections);
+        bundle.edits_history.vertexes_selection_cluster(selections);
 
         true
     }

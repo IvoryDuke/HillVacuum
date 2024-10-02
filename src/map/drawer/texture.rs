@@ -395,10 +395,9 @@ pub(in crate::map) mod ui_mod
                 }
 
                 let prev = self.[< offset_ $xy >].replace_value(value);
-                let result = self.check_sprite_vxs(drawing_resources, grid, brush_center);
+                let result = self.check_sprite_vxs(drawing_resources, grid, brush_center).is_ok();
                 self.[< offset_ $xy >] = prev;
-
-                result.is_ok()
+                result
             }
 
             #[inline]
@@ -431,10 +430,9 @@ pub(in crate::map) mod ui_mod
                 }
 
                 let prev = self.[< scale_ $xy >].replace_value(value);
-                let result = self.check_sprite_vxs(drawing_resources, grid, brush_center);
+                let result = self.check_sprite_vxs(drawing_resources, grid, brush_center).is_ok();
                 self.[< scale_ $xy >] = prev;
-
-                result.is_ok()
+                result
             }
 
             #[inline]
@@ -465,11 +463,10 @@ pub(in crate::map) mod ui_mod
                 let sprite_pivot = return_if_none!(self.sprite_pivot(old_brush_center), true);
                 let [< new_offset_ $xy >] = mirror - sprite_pivot.$xy - new_center.$xy;
                 let [< prev_offset_ $xy >] = self.[< offset_ $xy >].replace_value([< new_offset_ $xy >]);
-                let result = self.check_sprite_vxs(drawing_resources, grid, new_center);
 
+                let result = self.check_sprite_vxs(drawing_resources, grid, new_center).is_ok();
                 self.[< offset_ $xy >] = [< prev_offset_ $xy >];
-
-                result.is_ok()
+                result
             }
 
             #[inline]
@@ -1392,10 +1389,9 @@ pub(in crate::map) mod ui_mod
             }
 
             let prev = self.angle.replace_value(value);
-            let result = self.check_sprite_vxs(drawing_resources, grid, brush_center);
+            let result = self.check_sprite_vxs(drawing_resources, grid, brush_center).is_ok();
             self.angle = prev;
-
-            result.is_ok()
+            result
         }
 
         /// Checks whether the rotation is valid. If valid returns a [`TextureRotation`] describing
@@ -1496,13 +1492,28 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            let pivot = match &self.sprite
+            if self.sprite.enabled()
             {
-                Sprite::True => brush_center,
+                self.angle = value;
+
+                return TextureRotation {
+                    auxiliary: RotationAuxiliary::Sprite(self.offset_x, self.offset_y),
+                    angle:     value
+                }
+                .into();
+            }
+
+            let pivot = match_or_panic!(
+                &self.sprite,
                 Sprite::False {
-                    offset_auxiliary, ..
-                } => offset_auxiliary.rotation.last_pivot.unwrap_or_default()
-            };
+                    offset_auxiliary,
+                    ..
+                },
+                offset_auxiliary
+            )
+            .rotation
+            .last_pivot
+            .unwrap_or_default();
 
             let mut rotation = self
                 .check_rotation(

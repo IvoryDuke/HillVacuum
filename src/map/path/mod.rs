@@ -2085,7 +2085,10 @@ pub(in crate::map) mod ui_mod
         /// # Panic
         /// Panics if the resulting path is invalid.
         #[inline]
-        pub(in crate::map) fn remove_nodes_at_indexes(&mut self, idxs: impl IntoIterator<Item = usize>)
+        pub(in crate::map) fn remove_nodes_at_indexes(
+            &mut self,
+            idxs: impl IntoIterator<Item = usize>
+        )
         {
             for idx in idxs
             {
