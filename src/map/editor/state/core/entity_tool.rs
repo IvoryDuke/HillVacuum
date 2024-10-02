@@ -3,8 +3,6 @@
 //
 //=======================================================================//
 
-use std::fmt::Write;
-
 use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_shared::{match_or_panic, return_if_no_match, return_if_none};
@@ -22,11 +20,7 @@ use super::{
 use crate::{
     map::{
         brush::Brush,
-        drawer::{
-            color::Color,
-            drawers::{EditDrawer, HULL_HEIGHT_LABEL, HULL_WIDTH_LABEL},
-            drawing_resources::DrawingResources
-        },
+        drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             cursor::Cursor,
             state::{
@@ -43,7 +37,7 @@ use crate::{
     utils::{
         hull::{EntityHull, Hull},
         identifiers::{EntityId, Id},
-        iterators::{FilterSet, PairIterator}
+        iterators::FilterSet
     }
 };
 
@@ -885,33 +879,6 @@ impl EntityTool
     #[inline]
     pub fn draw(&self, bundle: &mut DrawBundle, settings: &ToolsSettings)
     {
-        /// The color of the text of the tooltip showing the size of the hull.
-        const HULL_TOOLTIP_TEXT_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 165, 0);
-
-        #[inline]
-        fn rect_extensions<F>(drawer: &mut EditDrawer, rect: &mut [Vec2; 4], f: F)
-        where
-            F: Fn(&EditDrawer, Vec2) -> Vec2
-        {
-            if drawer.show_tooltips()
-            {
-                for [a, b] in rect.pair_iter().unwrap()
-                {
-                    drawer.unskewed_infinite_line(
-                        f(drawer, *a),
-                        f(drawer, *b),
-                        Color::HullExtensions
-                    );
-                }
-            }
-        }
-
-        #[inline]
-        fn entity_rect_extensions(drawer: &mut EditDrawer, rect: &mut [Vec2; 4])
-        {
-            rect_extensions(drawer, rect, |drawer, p| drawer.grid().transform_point(p));
-        }
-
         let texture_editing = settings.texture_editing();
 
         /// Draws the selected and non selected entities, except `filters`.
@@ -1030,10 +997,7 @@ impl EntityTool
                 if bundle.manager.is_selected(id)
                 {
                     brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
-
-                    let mut rect = brush.hull().rectangle();
-                    entity_rect_extensions(bundle.drawer, &mut rect);
-                    rect.into()
+                    brush.hull().into()
                 }
                 else
                 {
@@ -1048,17 +1012,28 @@ impl EntityTool
                 if bundle.manager.is_selected(id)
                 {
                     brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
-                    let mut rect = brush
-                        .sprite_vxs(bundle.drawer.resources(), bundle.drawer.grid())
-                        .unwrap();
-                    rect_extensions(bundle.drawer, &mut rect, |_, p| p);
-                    rect.into()
+
+                    if !bundle.drawer.show_tooltips()
+                    {
+                        return;
+                    }
+
+                    bundle.drawer.hull_extensions(
+                        bundle.window,
+                        bundle.camera,
+                        &brush
+                            .sprite_hull(bundle.drawer.resources(), bundle.drawer.grid())
+                            .unwrap(),
+                        |_, p| p,
+                        Grid::point_projection
+                    );
                 }
                 else
                 {
                     brush.draw_highlighted_non_selected(bundle.camera, bundle.drawer);
-                    None
                 }
+
+                return;
             },
             ItemBeneathCursor::Thing(_) =>
             {
@@ -1073,9 +1048,7 @@ impl EntityTool
                         bundle.things_catalog
                     );
 
-                    let mut rect = thing.hull().rectangle();
-                    entity_rect_extensions(bundle.drawer, &mut rect);
-                    rect.into()
+                    thing.hull().into()
                 }
                 else
                 {
@@ -1085,6 +1058,7 @@ impl EntityTool
                         bundle.drawer,
                         bundle.things_catalog
                     );
+
                     None
                 }
             }
@@ -1095,38 +1069,12 @@ impl EntityTool
             return;
         }
 
-        let hull = &mut return_if_none!(hull);
-
-        let [top_right, top_left, _, bottom_right] = hull;
-        let top = top_right.y;
-        let bottom = bottom_right.y;
-        let left = top_left.x;
-        let right = top_right.x;
-        let mut value = format!("{}", top - bottom);
-
-        bundle.drawer.draw_tooltip_y_centered(
+        bundle.drawer.hull_extensions(
             bundle.window,
             bundle.camera,
-            HULL_HEIGHT_LABEL,
-            value.as_str(),
-            Vec2::new(right, (bottom + top) / 2f32),
-            Vec2::new(4f32, -4f32),
-            HULL_TOOLTIP_TEXT_COLOR,
-            egui::Color32::from_black_alpha(0)
-        );
-
-        value.clear();
-        write!(&mut value, "{}", top_right.x - top_left.x).ok();
-
-        bundle.drawer.draw_tooltip_x_centered_above_pos(
-            bundle.window,
-            bundle.camera,
-            HULL_WIDTH_LABEL,
-            value.as_str(),
-            Vec2::new((left + right) / 2f32, top),
-            Vec2::new(0f32, -4f32),
-            HULL_TOOLTIP_TEXT_COLOR,
-            egui::Color32::from_black_alpha(0)
+            return_if_none!(hull.as_ref()),
+            Grid::transform_point,
+            |_, p| p
         );
     }
 

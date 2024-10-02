@@ -1211,18 +1211,6 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn sprite_vxs(
-            &self,
-            drawing_resources: &DrawingResources,
-            grid: &Grid
-        ) -> Option<[Vec2; 4]>
-        {
-            self.texture_settings()?
-                .sprite_vxs(drawing_resources, grid, self.center)
-        }
-
-        #[inline]
-        #[must_use]
         pub fn sprite_pivot(&self) -> Option<Vec2>
         {
             self.texture_settings()?.sprite_pivot(self.center)

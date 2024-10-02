@@ -913,17 +913,6 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn sprite_vxs(
-            &self,
-            drawing_resources: &DrawingResources,
-            grid: &Grid
-        ) -> Option<[Vec2; 4]>
-        {
-            self.polygon.sprite_vxs(drawing_resources, grid)
-        }
-
-        #[inline]
-        #[must_use]
         pub fn sprite_pivot(&self) -> Option<Vec2> { self.polygon.sprite_pivot() }
 
         #[inline]
@@ -1462,17 +1451,6 @@ pub(in crate::map) mod ui_mod
             -> Option<Hull>
         {
             self.data.sprite_hull(drawing_resources, grid)
-        }
-
-        #[inline]
-        #[must_use]
-        pub fn sprite_vxs(
-            &self,
-            drawing_resources: &DrawingResources,
-            grid: &Grid
-        ) -> Option<[Vec2; 4]>
-        {
-            self.data.sprite_vxs(drawing_resources, grid)
         }
 
         #[inline]

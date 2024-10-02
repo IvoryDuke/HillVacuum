@@ -3,6 +3,8 @@
 //
 //=======================================================================//
 
+use std::fmt::Write;
+
 use bevy::{
     asset::{Assets, Handle},
     color::{ColorToComponents, LinearRgba},
@@ -34,11 +36,12 @@ use crate::{
             grid::{Grid, GridLines},
             manager::Animators
         },
-        thing::{catalog::ThingsCatalog, ThingInterface}
+        thing::{catalog::ThingsCatalog, ThingInterface},
+        MAP_SIZE
     },
     utils::{
         hull::{CircleIterator, Corner, EntityHull, Hull, Side},
-        iterators::SkipIndexIterator,
+        iterators::{PairIterator, SkipIndexIterator},
         math::points::rotate_point,
         misc::{Camera, VX_HGL_SIDE}
     },
@@ -51,8 +54,8 @@ use crate::{
 //
 //=======================================================================//
 
-pub(in crate::map) const HULL_HEIGHT_LABEL: &str = "hull_height";
-pub(in crate::map) const HULL_WIDTH_LABEL: &str = "hull_width";
+pub(in crate::map::drawer) const HULL_HEIGHT_LABEL: &str = "hull_height";
+pub(in crate::map::drawer) const HULL_WIDTH_LABEL: &str = "hull_width";
 /// The size of the tooltips' font.
 const TOOLTIP_FONT_SIZE: f32 = 13f32;
 /// The coefficient the tooltip's text needs to be offset to be spawned centered with respect to a
@@ -525,19 +528,78 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(mesh, self.resources.default_material(), max_height);
     }
 
+    #[inline]
+    fn infinite_line_vec(a: Vec2, b: Vec2) -> Vec2 { (b - a) * MAP_SIZE * 2f32 }
+
     /// Draws a line within the bounds of `window`.
     #[inline]
     pub fn infinite_line(&mut self, a: Vec2, b: Vec2, color: Color)
     {
-        let vec = (b - a) * 65636f32;
+        let vec = Self::infinite_line_vec(a, b);
         self.line(a - vec, a + vec, color);
     }
 
     #[inline]
     pub fn unskewed_infinite_line(&mut self, a: Vec2, b: Vec2, color: Color)
     {
-        let vec = (b - a) * 65636f32;
+        let vec = Self::infinite_line_vec(a, b);
         self.unskewed_line(a - vec, a + vec, color);
+    }
+
+    #[inline]
+    pub fn hull_extensions<F, G>(
+        &mut self,
+        window: &Window,
+        camera: &Transform,
+        hull: &Hull,
+        f: F,
+        g: G
+    ) where
+        F: Fn(&Grid, Vec2) -> Vec2,
+        G: Fn(&Grid, Vec2) -> Vec2
+    {
+        /// The color of the text of the tooltip showing the size of the hull.
+        const HULL_TOOLTIP_TEXT_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 165, 0);
+
+        let rect = hull.rectangle();
+
+        for [a, b] in rect.pair_iter().unwrap()
+        {
+            self.unskewed_infinite_line(f(self.grid, *a), f(self.grid, *b), Color::HullExtensions);
+        }
+
+        let [Vec2 { x: right, y: top }, _, Vec2 { x: left, y: bottom }, _] = rect;
+        let (x, y) = (
+            g(self.grid, Vec2::new((left + right) / 2f32, top)),
+            g(self.grid, Vec2::new(right, (bottom + top) / 2f32))
+        );
+
+        let mut value = format!("{}", hull.height());
+
+        self.draw_tooltip_y_centered(
+            window,
+            camera,
+            HULL_HEIGHT_LABEL,
+            value.as_str(),
+            y,
+            Vec2::new(4f32, -4f32),
+            HULL_TOOLTIP_TEXT_COLOR,
+            egui::Color32::from_black_alpha(0)
+        );
+
+        value.clear();
+        write!(&mut value, "{}", hull.width()).ok();
+
+        self.draw_tooltip_x_centered_above_pos(
+            window,
+            camera,
+            HULL_WIDTH_LABEL,
+            value.as_str(),
+            x,
+            Vec2::new(0f32, -4f32),
+            HULL_TOOLTIP_TEXT_COLOR,
+            egui::Color32::from_black_alpha(0)
+        );
     }
 
     /// Draws a circle.
