@@ -2014,13 +2014,6 @@ impl EntitiesManager
         self.innards.overall_brushes_properties_update = PropertyUpdate::Single(k.to_string());
     }
 
-    /// Schedules the update of the overall [`ThingInstance`]s infos.
-    #[inline]
-    pub(in crate::map::editor::state) fn schedule_overall_things_info_update(&mut self)
-    {
-        self.innards.overall_things_info_update = true;
-    }
-
     /// Schedules the update of the overall [`ThingInstance`]s property with key `k` value.
     #[inline]
     pub(in crate::map::editor::state) fn schedule_overall_things_property_update(&mut self, k: &str)

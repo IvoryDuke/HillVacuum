@@ -6,7 +6,7 @@ mod overall_properties;
 //=======================================================================//
 
 use bevy_egui::egui;
-use hill_vacuum_shared::TEXTURE_HEIGHT_RANGE;
+use hill_vacuum_shared::{match_or_panic, TEXTURE_HEIGHT_RANGE};
 
 use self::overall_properties::UiOverallProperties;
 use super::{window::Window, UiBundle, WindowCloser, WindowCloserInfo};
@@ -16,15 +16,10 @@ use crate::{
         brush::Brush,
         drawer::drawing_resources::DrawingResources,
         editor::{
-            state::{
-                edits_history::EditsHistory,
-                grid::Grid,
-                manager::EntitiesManager,
-                ui::overall_value_field::OverallValueField
-            },
+            state::{edits_history::EditsHistory, grid::Grid, manager::EntitiesManager},
             Placeholder
         },
-        properties::{DefaultProperties, SetProperty, Value},
+        properties::{DefaultProperties, SetProperty, Value, ANGLE_LABEL, HEIGHT_LABEL},
         thing::ThingInstance
     },
     utils::{
@@ -141,18 +136,6 @@ impl Innards
     #[inline]
     fn grid(&mut self, ui: &mut egui::Ui, bundle: &mut UiBundle)
     {
-        /// Sets a property.
-        macro_rules! set_property {
-            ($self:ident, $key:ident, $value:ident, $entities:ident $(, $drawing_resources:ident, $grid:ident)?) => {
-                $self.edits_history.property(
-                    $key,
-                    $self.manager.$entities($($drawing_resources, $grid)?).filter_map(|mut entity| {
-                        entity.set_property($key, $value).map(|value| (entity.id(), value))
-                    })
-                );
-            };
-        }
-
         /// Fills the grid in case of few or unuven properties.
         #[inline]
         fn filler(ui: &mut egui::Ui, length: usize)
@@ -181,10 +164,15 @@ impl Innards
                 drawing_resources: &DrawingResources,
                 grid: &Grid,
                 key: &str,
-                value: &Value
+                value: &mut Value
             )
             {
-                set_property!(self, key, value, selected_brushes_mut, drawing_resources, grid);
+                self.edits_history.property(
+                    key,
+                    self.manager.selected_brushes_mut(drawing_resources, grid).filter_map(
+                        |mut brush| brush.set_property(key, value).map(|value| (brush.id(), value))
+                    )
+                );
             }
         }
 
@@ -199,9 +187,30 @@ impl Innards
         impl<'a> SetProperty for ThingsPropertySetter<'a>
         {
             #[inline]
-            fn set_property(&mut self, _: &DrawingResources, _: &Grid, key: &str, value: &Value)
+            fn set_property(&mut self, _: &DrawingResources, _: &Grid, key: &str, value: &mut Value)
             {
-                set_property!(self, key, value, selected_things_mut);
+                macro_rules! set {
+                    ($($ty:ident, $min:expr, $max:expr)?) => {{
+                        $(*value = Value::$ty(match_or_panic!(value, Value::$ty(value), *value).clamp($min, $max));)?
+
+                        self.edits_history.property(
+                            key,
+                            self.manager.selected_things_mut().filter_map(|mut thing| {
+                                thing.set_property(key, value).map(|value| (thing.id(), value))
+                            })
+                        );
+                    }};
+                }
+
+                match key
+                {
+                    ANGLE_LABEL => set!(I16, 0, 359),
+                    HEIGHT_LABEL =>
+                    {
+                        set!(I8, *TEXTURE_HEIGHT_RANGE.start(), *TEXTURE_HEIGHT_RANGE.end());
+                    },
+                    _ => set!()
+                };
             }
         }
 
@@ -243,55 +252,6 @@ impl Innards
             },
             Target::Things =>
             {
-                /// The angle and draw height UI elements.
-                macro_rules! angle_height {
-                    ($label:literal, $value:ident, $t:expr, $min:expr, $max:expr) => {{
-                        paste::paste! {
-                            ui.label($label);
-                            ui.label($t);
-
-                            OverallValueField::show_always_enabled(
-                                ui,
-                                clipboard,
-                                inputs,
-                                &mut self.[< overall_things_ $value >],
-                                |value| {
-                                    let value = value.clamp($min, $max);
-
-                                    edits_history.[< thing_ $value _cluster >](
-                                        manager.selected_things_mut().filter_map(
-                                            |mut thing| {
-                                                thing
-                                                    .[< set_ $value >](value)
-                                                    .map(|value| (thing.id(), value))
-                                            }
-                                        )
-                                    );
-
-                                    value.into()
-                                }
-                            );
-
-                            ui.end_row();
-                        }
-                    }};
-                }
-
-                angle_height!(
-                    "Draw height",
-                    draw_height,
-                    Value::discriminant_type(std::mem::discriminant(&Value::I8(0))),
-                    *TEXTURE_HEIGHT_RANGE.start(),
-                    *TEXTURE_HEIGHT_RANGE.end()
-                );
-                angle_height!(
-                    "Angle",
-                    angle,
-                    Value::discriminant_type(std::mem::discriminant(&Value::I16(0))),
-                    0,
-                    359
-                );
-
                 self.overall_things_properties.show(
                     ui,
                     drawing_resources,

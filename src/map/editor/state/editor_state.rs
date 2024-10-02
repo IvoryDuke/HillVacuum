@@ -1464,13 +1464,14 @@ impl State
                 header,
                 grid,
                 animations,
-                default_properties: [mut default_brush_properties, default_thing_properties],
+                default_properties: [default_brush_properties, default_thing_properties],
                 mut brushes,
                 mut things,
                 props
             } = f(reader, things_catalog)?;
 
-            default_brush_properties.insert_collision_property();
+            let default_brush_properties = default_brush_properties.with_brush_properties();
+            let default_thing_properties = default_thing_properties.with_thing_properties();
 
             // Write to file.
             let mut data = Vec::new();

@@ -93,39 +93,39 @@ impl TextureSettings
     pub fn name(&self) -> &str { &self.texture }
 
     #[inline]
-    pub fn offset_x(&self) -> f32 { self.offset_x }
+    pub const fn offset_x(&self) -> f32 { self.offset_x }
 
     #[inline]
-    pub fn offset_y(&self) -> f32 { self.offset_y }
+    pub const fn offset_y(&self) -> f32 { self.offset_y }
 
     #[inline]
-    pub fn scale_x(&self) -> f32 { self.scale_x }
+    pub const fn scale_x(&self) -> f32 { self.scale_x }
 
     #[inline]
     #[must_use]
-    pub fn scale_y(&self) -> f32 { self.scale_y }
+    pub const fn scale_y(&self) -> f32 { self.scale_y }
 
     #[inline]
-    pub fn scroll_x(&self) -> f32 { self.sprite.scroll_x() }
+    pub const fn scroll_x(&self) -> f32 { self.sprite.scroll_x() }
 
     #[inline]
-    pub fn scroll_y(&self) -> f32 { self.sprite.scroll_y() }
+    pub const fn scroll_y(&self) -> f32 { self.sprite.scroll_y() }
 
     #[inline]
-    pub fn parallax_x(&self) -> f32 { self.sprite.parallax_x() }
+    pub const fn parallax_x(&self) -> f32 { self.sprite.parallax_x() }
 
     #[inline]
-    pub fn parallax_y(&self) -> f32 { self.sprite.parallax_y() }
+    pub const fn parallax_y(&self) -> f32 { self.sprite.parallax_y() }
 
     #[inline]
-    pub fn height(&self) -> i8 { self.height }
+    pub const fn height(&self) -> i8 { self.height }
 
     #[inline]
-    pub fn angle(&self) -> f32 { self.angle }
+    pub const fn angle(&self) -> f32 { self.angle }
 
     #[inline]
-    pub fn sprite(&self) -> bool { self.sprite.enabled() }
+    pub const fn sprite(&self) -> bool { self.sprite.enabled() }
 
     #[inline]
-    pub fn animation(&self) -> &Animation { &self.animation }
+    pub const fn animation(&self) -> &Animation { &self.animation }
 }

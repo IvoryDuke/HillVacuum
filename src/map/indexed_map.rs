@@ -100,10 +100,21 @@ pub(in crate::map) mod ui_only
         #[must_use]
         pub fn is_empty(&self) -> bool { self.vec.is_empty() }
 
-        /// Whether there are no elements.
         #[inline]
         #[must_use]
         pub fn len(&self) -> usize { self.vec.len() }
+
+        #[inline]
+        #[must_use]
+        pub fn contains<Q>(&self, k: &Q) -> bool
+        where
+            Q: ?Sized + Hash + Equivalent<K>
+        {
+            self.map.contains_key(k)
+        }
+
+        #[inline]
+        pub fn decompose(self) -> (HvVec<T>, HvHashMap<K, usize>) { (self.vec, self.map) }
 
         //==============================================================
         // Values

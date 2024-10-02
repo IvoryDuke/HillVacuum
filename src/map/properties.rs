@@ -76,7 +76,9 @@ macro_rules! to_value {
 //
 //=======================================================================//
 
-pub const COLLISION_LABEL: &str = "collision";
+pub(crate) const COLLISION_LABEL: &str = "collision";
+pub(crate) const ANGLE_LABEL: &str = "angle";
+pub(crate) const HEIGHT_LABEL: &str = "height";
 
 //=======================================================================//
 // TRAITS
@@ -206,7 +208,7 @@ pub(in crate::map) mod ui_mod
     use bevy::prelude::Resource;
     use hill_vacuum_shared::{match_or_panic, return_if_none, NextValue};
 
-    use super::{DefaultProperties, Properties, COLLISION_LABEL};
+    use super::{DefaultProperties, Properties, ANGLE_LABEL, COLLISION_LABEL, HEIGHT_LABEL};
     use crate::{
         map::{
             drawer::drawing_resources::DrawingResources,
@@ -226,6 +228,65 @@ pub(in crate::map) mod ui_mod
     use crate::{Brush, ThingInstance};
 
     //=======================================================================//
+    // MACROS
+    //
+    //=======================================================================//
+
+    macro_rules! new_default_properties {
+        ($(($entity:ident, $($property:ident, $default:literal),+)),+) => { paste::paste! {$(
+            #[inline]
+            pub fn [< default_ $entity >]() -> Self { Self::$entity(Vec::<(&'static str, _)>::new()) }
+
+            #[inline]
+            pub fn $entity<T: ToString>(values: Vec<(T, Value)>) -> Self
+            {
+                let mut properties = hv_hash_map![];
+
+                for (name, value) in values
+                {
+                    properties.insert(name.to_string(), value);
+                }
+
+                $(properties.insert($property.to_string(), $default.to_value());)+
+                let mut properties = hv_vec![collect; properties];
+                properties.sort_by(|a, b| a.0.cmp(&b.0));
+
+                let mut values = hv_vec![];
+                let mut keys = hv_vec![];
+
+                for (k, v) in &properties
+                {
+                    values.push(v.clone());
+                    keys.push(k.clone());
+                }
+
+                let mut keys = keys.into_iter();
+                let map = IndexedMap::new(values, |_| keys.next_value());
+                Self(map, Properties(hv_hash_map![collect; properties]))
+            }
+
+            #[inline]
+            pub fn [< with_ $entity _properties >](self) -> Self
+            {
+                if $(self.contains($property))&& +
+                {
+                    return self;
+                }
+
+                let (mut vec, map) = self.0.decompose();
+                let mut values = Vec::with_capacity(vec.len());
+
+                for (k, i) in map
+                {
+                    values.push((k, std::mem::replace(&mut vec[i], Value::Bool(true))));
+                }
+
+                Self::brush(values)
+            }
+        )+}};
+    }
+
+    //=======================================================================//
     // TRAITS
     //
     //=======================================================================//
@@ -239,7 +300,7 @@ pub(in crate::map) mod ui_mod
             drawing_resources: &DrawingResources,
             grid: &Grid,
             key: &str,
-            value: &Value
+            value: &mut Value
         );
     }
 
@@ -446,46 +507,18 @@ pub(in crate::map) mod ui_mod
 
     impl DefaultProperties
     {
-        #[inline]
-        pub fn default_brush() -> Self { Self::brush(Vec::<(&'static str, _)>::new()) }
-
-        /// Returns a new [`DefaultProperties`] generated for the values contained in `values`.
-        #[inline]
-        pub fn brush<T: ToString>(values: Vec<(T, Value)>) -> Self
-        {
-            let mut properties = hv_hash_map![];
-
-            for (name, value) in values
-            {
-                properties.insert(name.to_string(), value);
-            }
-            properties.insert(COLLISION_LABEL.to_string(), true.to_value());
-
-            let mut values = hv_vec![];
-            let mut keys = hv_vec![];
-
-            for (k, v) in &properties
-            {
-                values.push(v.clone());
-                keys.push(k.clone());
-            }
-
-            let mut keys = keys.into_iter();
-            let map = IndexedMap::new(values, |_| keys.next_value());
-            Self(map, Properties(properties))
-        }
-
-        #[inline]
-        pub fn insert_collision_property(&mut self)
-        {
-            *self =
-                Self::brush(self.0.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>());
-        }
+        new_default_properties!(
+            (brush, COLLISION_LABEL, true),
+            (thing, HEIGHT_LABEL, 0i8, ANGLE_LABEL, 0i16)
+        );
 
         /// Returns the amount of contained values.
         #[inline]
         #[must_use]
         pub fn len(&self) -> usize { self.0.len() }
+
+        #[inline]
+        pub fn contains(&self, k: &str) -> bool { self.0.contains(k) }
 
         /// Returns a reference to the [`Value`] associated with `k`.
         #[inline]

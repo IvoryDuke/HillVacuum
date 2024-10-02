@@ -184,10 +184,6 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     ThingMove(Vec2),
     /// Thing changed to new ID.
     ThingChange(ThingId),
-    /// Thing draw height change.
-    ThingHeight(i8),
-    /// Thing angle change.
-    ThingAngle(i16),
     /// Brush texture change.
     TextureChange(Option<String>),
     /// Brush texture removed.
@@ -321,8 +317,6 @@ impl EditType
             Self::ThingDespawn(..) | Self::DrawnThingDespawn(..) => "Things despawn",
             Self::ThingMove(..) => "Thing move",
             Self::ThingChange(..) => "Things change",
-            Self::ThingHeight(..) => "Thing height",
-            Self::ThingAngle(..) => "Things angle",
             Self::TextureChange(..) => "Textures change",
             Self::TextureRemoval(..) => "Textures removal",
             Self::SpriteToggle(..) => "Sprites toggle",
@@ -440,9 +434,7 @@ impl EditType
                 Self::ThingSpawn(..) |
                 Self::DrawnThingDespawn(..) |
                 Self::ThingDespawn(..) |
-                Self::ThingMove(_) |
-                Self::ThingHeight(_) |
-                Self::ThingAngle(_)
+                Self::ThingMove(_)
         )
     }
 
@@ -732,16 +724,6 @@ impl EditType
         match self
         {
             Self::ThingChange(id) => *id = interface.set_thing(identifier, *id),
-            Self::ThingHeight(height) =>
-            {
-                *height = interface.thing_mut(identifier).set_draw_height(*height).unwrap();
-                interface.schedule_overall_things_info_update();
-            },
-            Self::ThingAngle(angle) =>
-            {
-                *angle = interface.thing_mut(identifier).set_angle(*angle).unwrap();
-                interface.schedule_overall_things_info_update();
-            },
             _ => return false
         };
 

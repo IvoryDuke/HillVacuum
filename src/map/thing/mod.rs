@@ -156,19 +156,15 @@ impl Thing
 pub struct ThingViewer
 {
     /// The unique id.
-    pub id:          Id,
+    pub id:         Id,
     /// The id of the [`Thing`].
-    pub thing_id:    ThingId,
+    pub thing_id:   ThingId,
     /// The position of the center.
-    pub pos:         Vec2,
-    /// The angle.
-    pub angle:       f32,
-    /// The draw height.
-    pub draw_height: f32,
+    pub pos:        Vec2,
     /// The optional associated path.
-    pub path:        Option<HvVec<Node>>,
+    pub path:       Option<HvVec<Node>>,
     /// The associated properties.
-    pub properties:  HvHashMap<String, Value>
+    pub properties: HvHashMap<String, Value>
 }
 
 //=======================================================================//
@@ -187,7 +183,7 @@ pub mod ui_mod
     use bevy::{prelude::Resource, transform::components::Transform, window::Window};
     use bevy_egui::egui;
     use glam::Vec2;
-    use hill_vacuum_shared::{return_if_none, TEXTURE_HEIGHT_RANGE};
+    use hill_vacuum_shared::{match_or_panic, return_if_none};
     use serde::{Deserialize, Serialize};
 
     use super::{catalog::ThingsCatalog, MapThing, Thing, ThingInterface, ThingViewer};
@@ -203,7 +199,7 @@ pub mod ui_mod
                 manager::{Animators, Brushes}
             },
             path::{common_edit_path, EditPath, MovementSimulator, Moving, Path},
-            properties::{Properties, PropertiesRefactor},
+            properties::{Properties, PropertiesRefactor, ANGLE_LABEL, HEIGHT_LABEL},
             OutOfBounds
         },
         utils::{
@@ -229,25 +225,36 @@ pub mod ui_mod
     pub(in crate::map) struct ThingInstanceData
     {
         /// The [`ThingId`] of the [`Thing`] it represents.
-        thing:       ThingId,
+        thing:      ThingId,
         /// The position on the map.
-        pos:         Vec2,
-        /// The spawn angle of the [`Thing`] in the map.
-        angle:       i16,
-        /// The height its preview should be drawn.
-        draw_height: i8,
+        pos:        Vec2,
         /// The bounding box.
-        hull:        Hull,
+        hull:       Hull,
         /// The path describing the [`ThingInstance`] movement, if any.
-        path:        Option<Path>,
+        path:       Option<Path>,
         /// The associated properties.
-        properties:  Properties
+        properties: Properties
     }
 
     impl EntityHull for ThingInstanceData
     {
         #[inline]
         fn hull(&self) -> Hull { self.hull }
+    }
+
+    impl ThingInterface for ThingInstanceData
+    {
+        #[inline]
+        fn thing(&self) -> ThingId { self.thing }
+
+        #[inline]
+        fn pos(&self) -> Vec2 { self.pos }
+
+        #[inline]
+        fn draw_height_f32(&self) -> f32 { f32::from(self.draw_height()) }
+
+        #[inline]
+        fn angle_f32(&self) -> f32 { f32::from(self.angle()) }
     }
 
     impl ThingInstanceData
@@ -276,6 +283,21 @@ pub mod ui_mod
         pub fn path_hull(&self) -> Option<Hull>
         {
             self.path.as_ref().map(|path| path.hull() + self.pos)
+        }
+
+        #[inline]
+        #[must_use]
+        pub fn angle(&self) -> i16
+        {
+            match_or_panic!(self.properties.get(ANGLE_LABEL), Value::I16(value), *value)
+        }
+
+        /// Returns the draw height.
+        #[inline]
+        #[must_use]
+        pub fn draw_height(&self) -> i8
+        {
+            match_or_panic!(self.properties.get(HEIGHT_LABEL), Value::I8(value), *value)
         }
 
         /// Sets the [`Thing`] represented by `self` to `thing`.
@@ -324,40 +346,40 @@ pub mod ui_mod
         data: ThingInstanceData
     }
 
-    impl From<super::compatibility::ThingInstance> for ThingInstance
-    {
-        #[allow(clippy::cast_possible_truncation)]
-        #[inline]
-        fn from(value: super::compatibility::ThingInstance) -> Self
-        {
-            let super::compatibility::ThingInstance {
-                id,
-                data:
-                    super::compatibility::ThingInstanceData {
-                        thing,
-                        pos,
-                        angle,
-                        draw_height,
-                        hull,
-                        path,
-                        properties
-                    }
-            } = value;
+    // impl From<super::compatibility::ThingInstance> for ThingInstance
+    // {
+    //     #[allow(clippy::cast_possible_truncation)]
+    //     #[inline]
+    //     fn from(value: super::compatibility::ThingInstance) -> Self
+    //     {
+    //         let super::compatibility::ThingInstance {
+    //             id,
+    //             data:
+    //                 super::compatibility::ThingInstanceData {
+    //                     thing,
+    //                     pos,
+    //                     angle,
+    //                     draw_height,
+    //                     hull,
+    //                     path,
+    //                     properties
+    //                 }
+    //         } = value;
 
-            Self {
-                id,
-                data: ThingInstanceData {
-                    thing,
-                    pos,
-                    angle: angle as i16,
-                    draw_height,
-                    hull,
-                    path,
-                    properties
-                }
-            }
-        }
-    }
+    //         Self {
+    //             id,
+    //             data: ThingInstanceData {
+    //                 thing,
+    //                 pos,
+    //                 angle: angle as i16,
+    //                 draw_height,
+    //                 hull,
+    //                 path,
+    //                 properties
+    //             }
+    //         }
+    //     }
+    // }
 
     impl ThingInterface for ThingInstance
     {
@@ -368,10 +390,10 @@ pub mod ui_mod
         fn pos(&self) -> Vec2 { self.data.pos }
 
         #[inline]
-        fn draw_height_f32(&self) -> f32 { f32::from(self.data.draw_height) }
+        fn draw_height_f32(&self) -> f32 { self.data.draw_height_f32() }
 
         #[inline]
-        fn angle_f32(&self) -> f32 { f32::from(self.data.angle) }
+        fn angle_f32(&self) -> f32 { self.data.angle_f32() }
     }
 
     impl<'a> From<(ThingViewer, &'a ThingsCatalog)> for ThingInstance
@@ -385,8 +407,6 @@ pub mod ui_mod
                     id,
                     thing_id,
                     pos,
-                    angle,
-                    draw_height,
                     path,
                     properties
                 },
@@ -399,8 +419,6 @@ pub mod ui_mod
                 pos,
                 Properties::from_parts(properties)
             );
-            thing.data.angle = angle as i16;
-            thing.data.draw_height = draw_height as i8;
             thing.data.path = path.map(Into::into);
 
             thing
@@ -591,8 +609,6 @@ pub mod ui_mod
                 data: ThingInstanceData {
                     thing: thing.id,
                     pos,
-                    draw_height: 0,
-                    angle: 0,
                     hull,
                     path: None,
                     properties: default_properties
@@ -614,12 +630,18 @@ pub mod ui_mod
 
         #[inline]
         #[must_use]
-        pub const fn angle(&self) -> i16 { self.data.angle }
+        pub fn angle(&self) -> i16
+        {
+            match_or_panic!(self.data.properties.get(ANGLE_LABEL), Value::I16(value), *value)
+        }
 
         /// Returns the draw height.
         #[inline]
         #[must_use]
-        pub const fn draw_height(&self) -> i8 { self.data.draw_height }
+        pub fn draw_height(&self) -> i8
+        {
+            match_or_panic!(self.data.properties.get(HEIGHT_LABEL), Value::I8(value), *value)
+        }
 
         /// Returns a reference to the associated [`Properties`].
         #[inline]
@@ -666,36 +688,6 @@ pub mod ui_mod
         {
             self.data.hull += delta;
             self.data.pos += delta;
-        }
-
-        /// Sets the draw height to `height`.
-        #[inline]
-        #[must_use]
-        pub fn set_draw_height(&mut self, height: i8) -> Option<i8>
-        {
-            let height = height.clamp(*TEXTURE_HEIGHT_RANGE.start(), *TEXTURE_HEIGHT_RANGE.end());
-
-            if height == self.data.draw_height
-            {
-                return None;
-            }
-
-            self.data.draw_height.replace_value(height).into()
-        }
-
-        /// Sets the angle of `self`.
-        #[inline]
-        #[must_use]
-        pub fn set_angle(&mut self, angle: i16) -> Option<i16>
-        {
-            let angle = angle % 360;
-
-            if angle == self.data.angle
-            {
-                return None;
-            }
-
-            self.data.angle.replace_value(angle).into()
         }
 
         /// Snaps `self` to the grid. Returns how much `self` was moved, if it was.
@@ -847,8 +839,6 @@ pub mod ui_mod
         pub(in crate::map) fn new(thing: ThingInstance) -> Self
         {
             let id = thing.id;
-            let draw_height = thing.draw_height_f32();
-            let angle = thing.angle_f32();
             let ThingInstanceData {
                 thing,
                 pos,
@@ -861,8 +851,6 @@ pub mod ui_mod
                 id,
                 thing_id: thing,
                 pos,
-                angle,
-                draw_height,
                 path: path.map(Path::take_nodes),
                 properties: properties.take()
             }
@@ -889,16 +877,16 @@ pub mod ui_mod
     impl<'a> ThingInterface for MovedThingInstance<'a>
     {
         #[inline]
-        fn thing(&self) -> ThingId { self.thing.thing }
+        fn thing(&self) -> ThingId { self.thing.thing() }
 
         #[inline]
-        fn pos(&self) -> Vec2 { self.thing.pos + self.delta }
+        fn pos(&self) -> Vec2 { self.thing.pos() + self.delta }
 
         #[inline]
-        fn draw_height_f32(&self) -> f32 { f32::from(self.thing.draw_height) }
+        fn draw_height_f32(&self) -> f32 { self.thing.draw_height_f32() }
 
         #[inline]
-        fn angle_f32(&self) -> f32 { f32::from(self.thing.angle) }
+        fn angle_f32(&self) -> f32 { self.thing.angle_f32() }
     }
 
     //=======================================================================//

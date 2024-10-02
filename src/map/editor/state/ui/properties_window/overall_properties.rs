@@ -188,8 +188,8 @@ impl UiOverallProperties
                 if let Some(value) =
                     CheckBox::show(ui, &o.value, |v| match_or_panic!(v, Value::Bool(value), *value))
                 {
-                    let value = Value::Bool(value);
-                    value_setter.set_property(drawing_resources, grid, k, &value);
+                    let mut value = Value::Bool(value);
+                    value_setter.set_property(drawing_resources, grid, k, &mut value);
                     o.value = value.into();
                     o.ui = o.value.clone().ui();
                 }
@@ -202,8 +202,8 @@ impl UiOverallProperties
                     inputs,
                     &mut o.ui,
                     |new_value| {
-                        let new_value = d_v.parse(&new_value)?;
-                        value_setter.set_property(drawing_resources, grid, k, &new_value);
+                        let mut new_value = d_v.parse(&new_value)?;
+                        value_setter.set_property(drawing_resources, grid, k, &mut new_value);
                         new_value.into()
                     }
                 );

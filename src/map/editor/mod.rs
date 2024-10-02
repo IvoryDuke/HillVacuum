@@ -228,9 +228,9 @@ impl Placeholder for Editor
                 things_catalog: ThingsCatalog::default(),
                 drawing_resources: DrawingResources::placeholder(),
                 brushes_default_properties: DefaultProperties::default_brush(),
-                things_default_properties: DefaultProperties::default(),
+                things_default_properties: DefaultProperties::default_thing(),
                 map_brushes_default_properties: DefaultProperties::default_brush(),
-                map_things_default_properties: DefaultProperties::default(),
+                map_things_default_properties: DefaultProperties::default_thing(),
                 manager: EntitiesManager::new(),
                 clipboard: Clipboard::new(),
                 edits_history: EditsHistory::default(),
@@ -281,8 +281,8 @@ impl Editor
                 DefaultProperties::brush(d_p.0.take_value())
             });
         let things_default_properties = thing_properties
-            .map_or(DefaultProperties::default(), |mut d_p| {
-                DefaultProperties::new(d_p.0.take_value())
+            .map_or(DefaultProperties::default_thing(), |mut d_p| {
+                DefaultProperties::thing(d_p.0.take_value())
             });
         let mut map_brushes_default_properties = brushes_default_properties.clone();
         let mut map_things_default_properties = things_default_properties.clone();
