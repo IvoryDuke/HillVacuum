@@ -72,15 +72,6 @@ macro_rules! to_value {
 }
 
 //=======================================================================//
-// CONSTANTS
-//
-//=======================================================================//
-
-pub(crate) const COLLISION_LABEL: &str = "collision";
-pub(crate) const ANGLE_LABEL: &str = "angle";
-pub(crate) const HEIGHT_LABEL: &str = "height";
-
-//=======================================================================//
 // TRAITS
 //
 //=======================================================================//
@@ -208,7 +199,7 @@ pub(in crate::map) mod ui_mod
     use bevy::prelude::Resource;
     use hill_vacuum_shared::{match_or_panic, return_if_none, NextValue};
 
-    use super::{DefaultProperties, Properties, ANGLE_LABEL, COLLISION_LABEL, HEIGHT_LABEL};
+    use super::{DefaultProperties, Properties};
     use crate::{
         map::{
             drawer::drawing_resources::DrawingResources,
@@ -285,6 +276,15 @@ pub(in crate::map) mod ui_mod
             }
         )+}};
     }
+
+    //=======================================================================//
+    // CONSTANTS
+    //
+    //=======================================================================//
+
+    pub(in crate::map) const COLLISION_LABEL: &str = "collision";
+    pub(in crate::map) const ANGLE_LABEL: &str = "angle";
+    pub(in crate::map) const HEIGHT_LABEL: &str = "height";
 
     //=======================================================================//
     // TRAITS
