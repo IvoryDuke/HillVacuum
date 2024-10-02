@@ -386,7 +386,7 @@ impl RotateTool
                 {
                     bundle
                         .edits_history
-                        .polygon_edit_cluster(backup_polygons.take_value().into_iter());
+                        .polygon_edit_cluster(backup_polygons.take_value());
 
                     if settings.entity_editing()
                     {
@@ -453,7 +453,7 @@ impl RotateTool
                 {
                     bundle
                         .edits_history
-                        .polygon_edit_cluster(backup_polygons.take_value().into_iter());
+                        .polygon_edit_cluster(backup_polygons.take_value());
                     bundle.edits_history.override_edit_tag("Brushes rotation");
                 }
             },

@@ -619,7 +619,7 @@ impl FreeDrawCursorPolygon
                     let center = vxs_center(triangle.iter().copied());
                     triangle.sort_by(|a, b| sort_vxs_ccw(*a, *b, center));
 
-                    self.0 = Status::Polygon(ConvexPolygon::new(triangle.into_iter()));
+                    self.0 = Status::Polygon(ConvexPolygon::new(triangle));
                 },
                 Status::Polygon(poly) =>
                 {

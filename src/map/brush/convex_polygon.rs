@@ -995,7 +995,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         fn from(value: (HvVec<SelectableVector>, Option<&TextureSettings>)) -> Self
         {
-            let mut poly = Self::from(hv_vec![collect; value.0.into_iter()]);
+            let mut poly = Self::from(hv_vec![collect; value.0]);
 
             if let Some(tex) = value.1
             {
@@ -1068,9 +1068,9 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        fn new_cleaned_up<T: Iterator<Item = Vec2>>(vxs: T) -> Option<Self>
+        fn new_cleaned_up<T: IntoIterator<Item = Vec2>>(vxs: T) -> Option<Self>
         {
-            let vertexes = hv_vec![collect; vxs.map(SelectableVector::new)];
+            let vertexes = hv_vec![collect; vxs.into_iter().map(SelectableVector::new)];
             let center = vxs_center(vertexes.iter().map(|svx| svx.vec));
             let hull = Hull::from_points(vertexes.iter().map(|svx| svx.vec));
             let mut cp = ConvexPolygon {
@@ -3621,7 +3621,7 @@ pub(in crate::map) mod ui_mod
                 ];
             }
 
-            let mut poly = Self::new_cleaned_up(polygon.into_iter()).unwrap();
+            let mut poly = Self::new_cleaned_up(polygon).unwrap();
 
             if self.texture.is_some() && self.texture == other.texture
             {
@@ -4109,7 +4109,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub(in crate::map::brush) fn set_coordinates(&mut self, vxs: impl Iterator<Item = Vec2>)
+        pub(in crate::map::brush) fn set_coordinates(&mut self, vxs: impl IntoIterator<Item = Vec2>)
         {
             for (vx, svx) in vxs.into_iter().zip(self.vertexes.iter_mut())
             {

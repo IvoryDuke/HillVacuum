@@ -71,9 +71,9 @@ macro_rules! push_edit {
 macro_rules! push_cluster {
     ($(($func:ident, $t:ty)),+) => { paste::paste! { $(
         #[inline]
-        pub(in crate::map::editor::state) fn [< $func _cluster >](&mut self, iter: impl Iterator<Item = (Id, $t)>)
+        pub(in crate::map::editor::state) fn [< $func _cluster >](&mut self, iter: impl IntoIterator<Item = (Id, $t)>)
         {
-            for item in iter
+            for item in iter.into_iter()
             {
                 self.[< $func >](item.0, item.1);
             }
@@ -87,9 +87,9 @@ macro_rules! push_cluster {
 macro_rules! push_cluster_if_not_empty {
     ($(($func:ident, $ed_type:ident)),+) => { paste::paste! { $(
         #[inline]
-        pub(in crate::map::editor::state) fn [< $func _cluster >]<'a>(&mut self, iter: impl Iterator<Item = &'a Id>)
+        pub(in crate::map::editor::state) fn [< $func _cluster >]<'a>(&mut self, iter: impl IntoIterator<Item = &'a Id>)
         {
-            self.push_if_not_empty(iter, EditType::$ed_type);
+            self.push_if_not_empty(iter.into_iter(), EditType::$ed_type);
         }
 	)+}};
 }
@@ -101,9 +101,9 @@ macro_rules! push_cluster_if_not_empty {
 macro_rules! push_with_amount_assertion {
     ($(($func:ident, ($($arg:ident: $t:ty),+), $edit:expr)),+) => { paste::paste! { $(
         #[inline]
-        pub(in crate::map::editor::state) fn [< $func >](&mut self, iter: impl Iterator<Item = Id>, $($arg: $t, )+)
+        pub(in crate::map::editor::state) fn [< $func >](&mut self, iter: impl IntoIterator<Item = Id>, $($arg: $t, )+)
         {
-            self.push_with_amount_assertion(iter, $edit);
+            self.push_with_amount_assertion(iter.into_iter(), $edit);
         }
 	)+}};
 }
@@ -388,7 +388,7 @@ impl EditsHistory
     #[inline]
     fn push_with_amount_assertion(
         &mut self,
-        identifiers: impl Iterator<Item = Id>,
+        identifiers: impl IntoIterator<Item = Id>,
         edit_type: EditType
     )
     {
@@ -401,11 +401,11 @@ impl EditsHistory
     #[inline]
     fn push_if_not_empty<'a>(
         &mut self,
-        identifiers: impl Iterator<Item = &'a Id>,
+        identifiers: impl IntoIterator<Item = &'a Id>,
         edit_type: EditType
     )
     {
-        let identifiers = hv_vec![collect; identifiers.copied()];
+        let identifiers = hv_vec![collect; identifiers.into_iter().copied()];
 
         if identifiers.is_empty()
         {
@@ -521,10 +521,10 @@ impl EditsHistory
     #[must_use]
     pub(in crate::map::editor::state) fn path_nodes_selection_cluster(
         &mut self,
-        iter: impl Iterator<Item = (Id, HvVec<u8>)>
+        iter: impl IntoIterator<Item = (Id, HvVec<u8>)>
     ) -> bool
     {
-        iter.fold(false, |_, item| {
+        iter.into_iter().fold(false, |_, item| {
             self.path_nodes_selection(item.0, item.1);
             true
         })
@@ -535,7 +535,7 @@ impl EditsHistory
     pub(in crate::map::editor::state) fn property(
         &mut self,
         key: &str,
-        iter: impl Iterator<Item = (Id, Value)>
+        iter: impl IntoIterator<Item = (Id, Value)>
     )
     {
         if self.selections_only_edit_halted

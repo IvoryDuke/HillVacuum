@@ -72,8 +72,9 @@ macro_rules! unskewed_funcs {
     ($(($(^ $unskewed:ident,)? $positions:ident $(, $grid:ident)?)),+) => { paste::paste! {$(
         /// Draws the sides of a polygon.
         #[inline]
-        pub fn [< $($unskewed _)? sides >](&mut self, mut vertexes: impl Iterator<Item = Vec2>, color: Color)
+        pub fn [< $($unskewed _)? sides >](&mut self, vertexes: impl IntoIterator<Item = Vec2>, color: Color)
         {
+            let mut vertexes = vertexes.into_iter();
             let mut mesh = self.resources.mesh_generator();
 
             let vx_0 = vertexes.next_value();

@@ -207,7 +207,7 @@ impl Edit
 
     /// Pushes a property sub-edit.
     #[inline]
-    pub fn push_property(&mut self, key: &str, iter: impl Iterator<Item = (Id, Value)>)
+    pub fn push_property(&mut self, key: &str, iter: impl IntoIterator<Item = (Id, Value)>)
     {
         assert!(
             self.property.replace_value(key.to_owned().into()).is_none(),

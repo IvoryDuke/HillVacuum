@@ -855,7 +855,7 @@ impl VertexTool
 
         bundle
             .edits_history
-            .vertexes_selection_cluster(selections.into_iter());
+            .vertexes_selection_cluster(selections);
 
         true
     }

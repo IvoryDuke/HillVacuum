@@ -341,7 +341,7 @@ pub(in crate::map) mod ui_mod
             #[inline]
             fn remove_path_node_at_index(&mut self, index: usize)
             {
-                self.path_mut().remove_nodes_at_indexes(Some(index).into_iter());
+                self.path_mut().remove_nodes_at_indexes(Some(index));
             }
 
             #[inline]
@@ -2085,7 +2085,7 @@ pub(in crate::map) mod ui_mod
         /// # Panic
         /// Panics if the resulting path is invalid.
         #[inline]
-        pub(in crate::map) fn remove_nodes_at_indexes(&mut self, idxs: impl Iterator<Item = usize>)
+        pub(in crate::map) fn remove_nodes_at_indexes(&mut self, idxs: impl IntoIterator<Item = usize>)
         {
             for idx in idxs
             {

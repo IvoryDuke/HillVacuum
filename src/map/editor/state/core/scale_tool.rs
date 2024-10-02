@@ -320,7 +320,7 @@ impl ScaleTool
                 {
                     bundle
                         .edits_history
-                        .polygon_edit_cluster(backup_polygons.take_value().into_iter());
+                        .polygon_edit_cluster(backup_polygons.take_value());
 
                     if settings.entity_editing()
                     {

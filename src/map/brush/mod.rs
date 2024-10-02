@@ -335,7 +335,7 @@ pub(in crate::map) mod ui_mod
                 #[inline]
                 pub fn new<T>(vxs: T) -> Self
                 where
-                    T: Iterator<Item = Vec2>
+                    T: IntoIterator<Item = Vec2>
                 {
                     crate::utils::collections::hv_vec![collect; vxs].into()
                 }
@@ -2714,7 +2714,7 @@ pub(in crate::map) mod ui_mod
         pub fn scale(&mut self, payload: ScalePayload)
         {
             assert!(payload.id() == self.id, "ScalePayload's ID is not equal to the Brush's ID.");
-            self.data.polygon.set_coordinates(payload.1.into_iter());
+            self.data.polygon.set_coordinates(payload.1);
             self.data.polygon.scale_texture(&mut return_if_none!(payload.2));
         }
 
@@ -2850,7 +2850,7 @@ pub(in crate::map) mod ui_mod
         pub fn set_rotation_coordinates(&mut self, mut payload: RotatePayload)
         {
             assert!(payload.id() == self.id, "RotatePayload's ID is not equal to the Brush's ID.");
-            self.data.polygon.set_coordinates(payload.1.into_iter());
+            self.data.polygon.set_coordinates(payload.1);
             self.rotate_texture(return_if_none!(&mut payload.2));
         }
 
