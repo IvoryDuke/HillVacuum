@@ -399,12 +399,6 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    impl Default for DefaultProperties
-    {
-        #[inline]
-        fn default() -> Self { Self::new(Vec::<(&'static str, _)>::new()) }
-    }
-
     impl std::fmt::Display for DefaultProperties
     {
         #[inline]
@@ -452,9 +446,12 @@ pub(in crate::map) mod ui_mod
 
     impl DefaultProperties
     {
+        #[inline]
+        pub fn default_brush() -> Self { Self::brush(Vec::<(&'static str, _)>::new()) }
+
         /// Returns a new [`DefaultProperties`] generated for the values contained in `values`.
         #[inline]
-        pub fn new<T: ToString>(values: Vec<(T, Value)>) -> Self
+        pub fn brush<T: ToString>(values: Vec<(T, Value)>) -> Self
         {
             let mut properties = hv_hash_map![];
 
@@ -482,7 +479,7 @@ pub(in crate::map) mod ui_mod
         pub fn insert_collision_property(&mut self)
         {
             *self =
-                Self::new(self.0.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>());
+                Self::brush(self.0.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>());
         }
 
         /// Returns the amount of contained values.

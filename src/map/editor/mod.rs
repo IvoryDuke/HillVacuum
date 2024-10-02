@@ -227,9 +227,9 @@ impl Placeholder for Editor
                 cursor: Cursor::default(),
                 things_catalog: ThingsCatalog::default(),
                 drawing_resources: DrawingResources::placeholder(),
-                brushes_default_properties: DefaultProperties::default(),
+                brushes_default_properties: DefaultProperties::default_brush(),
                 things_default_properties: DefaultProperties::default(),
-                map_brushes_default_properties: DefaultProperties::default(),
+                map_brushes_default_properties: DefaultProperties::default_brush(),
                 map_things_default_properties: DefaultProperties::default(),
                 manager: EntitiesManager::new(),
                 clipboard: Clipboard::new(),
@@ -277,8 +277,8 @@ impl Editor
         };
 
         let brushes_default_properties = brush_properties
-            .map_or(DefaultProperties::default(), |mut d_p| {
-                DefaultProperties::new(d_p.0.take_value())
+            .map_or(DefaultProperties::default_brush(), |mut d_p| {
+                DefaultProperties::brush(d_p.0.take_value())
             });
         let things_default_properties = thing_properties
             .map_or(DefaultProperties::default(), |mut d_p| {
