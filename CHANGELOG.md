@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1
+
+### Fixes
+Fixed brush texture settings not being appropriately converted to the new format to be drawn the same way as in previous versions.
+
 ## 0.8.0
 
 ### Changes
