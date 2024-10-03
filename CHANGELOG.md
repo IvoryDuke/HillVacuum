@@ -3,7 +3,7 @@
 ## 0.8.0
 
 ### Changes
-- Revamped texture scale and rotation;
+- Revamped texture scale and rotation for better texture rotation;
 - improved texture editor;
 - added "Reset" button in the texture editor;
 - scroll and parallax direction are now always perpendicular to the x and y axis regardless of the texture angle. Scroll values from older map files are automatically converted to the new system, unfortunately parallax is a breaking change;
@@ -13,7 +13,7 @@
 - grid skew and angle changes now mark the map as having unsaved changes;
 - improved the way the camera position is capped to the map size;
 - improved the reliability of the selection of map items;
-- merged the brush and thing hardcoded properties in their respective `properties` hash maps.
+- merged the brush and thing hardcoded properties in their respective `properties` hashmaps.
 
 ### Fixes
 - Fixed overlapping actions in rotate tool;
@@ -24,6 +24,9 @@
 - fixed one of the brushes created from a subtraction having no texture;
 - fixed incorrect sprite hull drawing when using isometric grid;
 - fixed broken sprite selection when using isometric grid.
+
+### !!!
+Due to the unwieldy size that the code that ensure compatibility with previous map versions was reaching, this version on HillVacuum only successfully imports map files created with versions 0.7.0->0.7.2.
 
 ## 0.7.2
 
