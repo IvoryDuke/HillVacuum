@@ -3,7 +3,7 @@
 ## 0.8.0
 
 ### Changes
-- Revamped texture scale and rotation for better texture rotation;
+- Revamped texture scale and rotation for better texture editing;
 - improved texture editor;
 - added "Reset" button in the texture editor;
 - scroll and parallax direction are now always perpendicular to the x and y axis regardless of the texture angle. Scroll values from older map files are automatically converted to the new system, unfortunately parallax is a breaking change;
