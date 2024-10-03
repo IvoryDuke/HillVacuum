@@ -6,7 +6,16 @@
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{map::drawer::texture::sprite_values, Animation, Group, HvHashMap, HvVec, Id, Value};
+use crate::{
+    map::drawer::texture::sprite_values,
+    utils::math::points::rotate_point_around_origin,
+    Animation,
+    Group,
+    HvHashMap,
+    HvVec,
+    Id,
+    Value
+};
 
 //=======================================================================//
 // ENUMS
@@ -96,7 +105,7 @@ impl TextureSettings
     pub const fn offset_x(&self) -> f32 { self.offset_x }
 
     #[inline]
-    pub const fn offset_y(&self) -> f32 { self.offset_y }
+    pub fn offset_y(&self) -> f32 { -self.offset_y }
 
     #[inline]
     pub const fn scale_x(&self) -> f32 { self.scale_x }
@@ -106,16 +115,24 @@ impl TextureSettings
     pub const fn scale_y(&self) -> f32 { self.scale_y }
 
     #[inline]
-    pub const fn scroll_x(&self) -> f32 { self.sprite.scroll_x() }
+    pub fn scroll_x(&self) -> f32
+    {
+        let s = Vec2::new(self.sprite.scroll_x(), -self.sprite.scroll_y());
+        rotate_point_around_origin(s, -self.angle.to_radians()).x
+    }
 
     #[inline]
-    pub const fn scroll_y(&self) -> f32 { self.sprite.scroll_y() }
+    pub fn scroll_y(&self) -> f32
+    {
+        let s = Vec2::new(self.sprite.scroll_x(), -self.sprite.scroll_y());
+        rotate_point_around_origin(s, -self.angle.to_radians()).y
+    }
 
     #[inline]
     pub const fn parallax_x(&self) -> f32 { self.sprite.parallax_x() }
 
     #[inline]
-    pub const fn parallax_y(&self) -> f32 { self.sprite.parallax_y() }
+    pub fn parallax_y(&self) -> f32 { -self.sprite.parallax_y() }
 
     #[inline]
     pub const fn height(&self) -> i8 { self.height }
