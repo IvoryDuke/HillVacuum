@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.2
+
+### Fixes
+- Fixed Windows compilation;
+- fixed wrong texture offset on moving brushes;
+- fixed missing and incorrect vertex tooltips in the side tool.
+
 ## 0.8.1
 
 ### Fixes
