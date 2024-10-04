@@ -1093,10 +1093,10 @@ pub(in crate::map) mod ui_mod
         fn offset_x(&self) -> f32 { self.texture.offset_x() - self.delta.x }
 
         #[inline]
-        fn offset_y(&self) -> f32 { self.texture.offset_y() + self.delta.y }
+        fn offset_y(&self) -> f32 { self.texture.offset_y() - self.delta.y }
 
         #[inline]
-        fn draw_offset(&self) -> Vec2 { self.texture.draw_offset() + self.delta }
+        fn draw_offset(&self) -> Vec2 { self.texture.draw_offset() - self.delta }
 
         #[inline]
         fn draw_offset_with_parallax_and_scroll(
@@ -1112,7 +1112,7 @@ pub(in crate::map) mod ui_mod
                 elapsed_time,
                 center,
                 parallax_enabled
-            ) + self.delta
+            ) - self.delta
         }
 
         #[inline]
