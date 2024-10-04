@@ -342,7 +342,11 @@ pub(in crate::map) mod ui_mod
     use glam::Vec2;
     use hill_vacuum_shared::{continue_if_no_match, return_if_err, return_if_none, NextValue};
 
-    use super::{editor::state::grid::Grid, thing::HardcodedThings, GridSettings};
+    use super::{
+        editor::state::{grid::Grid, ui::UiFocus},
+        thing::HardcodedThings,
+        GridSettings
+    };
     use crate::{
         config::Config,
         map::{
@@ -858,7 +862,9 @@ pub(in crate::map) mod ui_mod
 
         // If F4 is pressed to close an egui window add an artificial escape press to surrender
         // focus of the text editor being used (if any) before the window is closed.
-        if add_escape && editor.is_window_focused()
+        let ui_focus = editor.is_ui_focused();
+
+        if add_escape && matches!(ui_focus, UiFocus::Window)
         {
             events.push(egui::Event::Key {
                 key:          egui::Key::Escape,
@@ -869,7 +875,10 @@ pub(in crate::map) mod ui_mod
             });
         }
 
-        events.swap_remove(return_if_none!(index));
+        if matches!(ui_focus, UiFocus::None)
+        {
+            events.swap_remove(return_if_none!(index));
+        }
     }
 
     //=======================================================================//

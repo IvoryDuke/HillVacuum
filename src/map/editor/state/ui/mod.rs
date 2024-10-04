@@ -14,7 +14,7 @@ mod window;
 //
 //=======================================================================//
 
-use std::ops::Range;
+use std::ops::{BitOrAssign, Range};
 
 use arrayvec::ArrayVec;
 use bevy::{
@@ -411,6 +411,46 @@ impl WindowCloser
 }
 
 //=======================================================================//
+
+#[must_use]
+#[derive(Default, Clone, Copy)]
+pub(in crate::map) enum UiFocus
+{
+    #[default]
+    None,
+    Element,
+    Window
+}
+
+impl BitOrAssign<bool> for UiFocus
+{
+    #[inline]
+    fn bitor_assign(&mut self, rhs: bool)
+    {
+        if rhs
+        {
+            *self = Self::Window;
+        }
+    }
+}
+
+impl From<bool> for UiFocus
+{
+    #[inline]
+    fn from(value: bool) -> Self
+    {
+        if value
+        {
+            Self::Window
+        }
+        else
+        {
+            Self::None
+        }
+    }
+}
+
+//=======================================================================//
 // STRUCTS
 //
 //=======================================================================//
@@ -552,7 +592,7 @@ pub(in crate::map::editor::state) struct Ui
     texture_editor:       TextureEditor,
     /// The manual.
     manual:               Manual,
-    window_focused:       bool
+    focus:                UiFocus
 }
 
 impl Placeholder for Ui
@@ -572,7 +612,7 @@ impl Placeholder for Ui
             edits_history_window: EditsHistoryWindow::default(),
             texture_editor:       TextureEditor::default(),
             manual:               Manual::default(),
-            window_focused:       false
+            focus:                UiFocus::default()
         }
     }
 }
@@ -593,21 +633,21 @@ impl Ui
             tools_buttons:        ToolsButtons::new(asset_server, user_textures),
             left_panel_layer_id:  egui::LayerId::background(),
             right_panel_layer_id: egui::LayerId::background(),
-            settings_window:      SettingsWindow::default(),
             properties_window:    PropertiesWindow::new(
                 brushes_default_properties,
                 things_default_properties
             ),
+            settings_window:      SettingsWindow::default(),
             edits_history_window: EditsHistoryWindow::default(),
             texture_editor:       TextureEditor::default(),
             manual:               Manual::default(),
-            window_focused:       false
+            focus:                UiFocus::default()
         }
     }
 
     #[inline]
     #[must_use]
-    pub const fn is_window_focused(&self) -> bool { self.window_focused }
+    pub const fn is_focused(&self) -> UiFocus { self.focus }
 
     /// Updates the UI.
     #[inline]
@@ -696,16 +736,17 @@ impl Ui
         self.manual.show(egui_context, bundle.key_inputs, &self.tools_buttons);
 
         // Floating windows.
-        self.window_focused = if core.map_preview()
+        self.focus = if core.map_preview()
         {
             false
         }
         else
         {
             show_and_clear_inputs(bundle, |bundle| self.texture_editor.show(egui_context, bundle))
-        };
+        }
+        .into();
 
-        self.window_focused |= show_and_clear_inputs(bundle, |bundle| {
+        self.focus |= show_and_clear_inputs(bundle, |bundle| {
             self.settings_window.show(egui_context, bundle)
         }) | show_and_clear_inputs(bundle, |bundle| {
             self.properties_window.show(egui_context, bundle)
@@ -803,6 +844,7 @@ impl Ui
         // If typing, clear stored inputs.
         if egui_context.is_focused()
         {
+            self.focus = UiFocus::Element;
             clear_inputs(bundle);
         }
 

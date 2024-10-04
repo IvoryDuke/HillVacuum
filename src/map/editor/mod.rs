@@ -34,7 +34,7 @@ use state::{
     grid::Grid,
     inputs_presses::InputsPresses,
     manager::EntitiesManager,
-    ui::ui_camera_displacement
+    ui::{ui_camera_displacement, UiFocus}
 };
 
 use self::state::clipboard::{PropCameras, PropCamerasMut};
@@ -332,7 +332,7 @@ impl Editor
     // Info
 
     #[inline]
-    pub const fn is_window_focused(&self) -> bool { self.state.is_window_focused() }
+    pub const fn is_ui_focused(&self) -> UiFocus { self.state.is_ui_focused() }
 
     //==============================================================
     // Update

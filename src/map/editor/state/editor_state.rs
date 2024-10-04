@@ -30,7 +30,7 @@ use super::{
     grid::Grid,
     inputs_presses::InputsPresses,
     manager::EntitiesManager,
-    ui::Interaction
+    ui::{Interaction, UiFocus}
 };
 use crate::{
     config::controls::{bind::Bind, BindsKeyCodes},
@@ -776,7 +776,7 @@ impl State
 
     #[inline]
     #[must_use]
-    pub const fn is_window_focused(&self) -> bool { self.ui.is_window_focused() }
+    pub const fn is_ui_focused(&self) -> UiFocus { self.ui.is_focused() }
 
     //==============================================================
     // File
