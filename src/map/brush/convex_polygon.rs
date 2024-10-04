@@ -4757,14 +4757,10 @@ pub(in crate::map) mod ui_mod
 
                     // Draws the tooltips showing the coordinates of the vertexes representing
                     // the extremities of the selected lines.
-                    for [svx_j, svx_i] in self.vertexes.pair_iter().unwrap()
+                    for [svx_j, svx_i] in
+                        self.vertexes.pair_iter().unwrap().filter(|[svx_j, _]| svx_j.selected)
                     {
-                        if !svx_j.selected
-                        {
-                            continue;
-                        }
-
-                        let label = return_if_none!(drawer.vx_tooltip_label(svx_i.vec));
+                        let label = return_if_none!(drawer.vx_tooltip_label(svx_j.vec));
 
                         vertex_tooltip(
                             window,
