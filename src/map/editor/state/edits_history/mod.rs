@@ -921,7 +921,7 @@ impl EditsHistory
         }
 
         // Clicked the first, no point in doing special handling.
-        if ui.add(egui::Button::new("Opened Map")).clicked()
+        if ui.add(egui::Button::new("Opened map")).clicked()
         {
             set_post_index_visuals(ui);
 
