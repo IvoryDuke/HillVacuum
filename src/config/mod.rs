@@ -251,9 +251,7 @@ fn create_default_config_file() -> std::io::Result<()>
 
     #[rustfmt::skip]
     let mut config = format!(
-        "[{WARNING_SECTION}]\n{WARNING_FIELD}
-        [{OPEN_FILE_SECTION}]\n{OPEN_FILE_FIELD}
-        [{EXPORTER_SECTION}]\n{EXPORTER_FIELD}\n"
+        "[{WARNING_SECTION}]\n{WARNING_FIELD}\n[{OPEN_FILE_SECTION}]\n{OPEN_FILE_FIELD}\n[{EXPORTER_SECTION}]\n{EXPORTER_FIELD}\n"
     );
     config.push_str(&Bind::default_binds());
     config.push_str(&Color::default_colors());
