@@ -1099,20 +1099,12 @@ pub(in crate::map) mod ui_mod
         fn draw_offset(&self) -> Vec2 { self.texture.draw_offset() - self.delta }
 
         #[inline]
-        fn draw_offset_with_parallax_and_scroll(
-            &self,
-            camera_pos: Vec2,
-            elapsed_time: f32,
-            center: Vec2,
-            parallax_enabled: bool
-        ) -> Vec2
+        fn draw_offset_with_parallax_and_scroll(&self, camera_pos: Vec2, elapsed_time: f32)
+            -> Vec2
         {
-            self.texture.draw_offset_with_parallax_and_scroll(
-                camera_pos,
-                elapsed_time,
-                center,
-                parallax_enabled
-            ) - self.delta
+            self.texture
+                .draw_offset_with_parallax_and_scroll(camera_pos, elapsed_time) -
+                self.delta
         }
 
         #[inline]
@@ -4606,7 +4598,6 @@ pub(in crate::map) mod ui_mod
             drawer.brush(
                 camera,
                 self.vertexes(),
-                self.center,
                 animator,
                 return_if_none!(self.texture_settings())
             );
@@ -4614,39 +4605,18 @@ pub(in crate::map) mod ui_mod
 
         /// Draws the polygon.
         #[inline]
-        pub fn draw(
-            &self,
-            camera: &Transform,
-            drawer: &mut EditDrawer,
-            collision: bool,
-            color: Color
-        )
+        pub fn draw(&self, drawer: &mut EditDrawer, collision: bool, color: Color)
         {
-            drawer.brush(
-                camera,
-                self.vertexes(),
-                self.center,
-                color,
-                self.texture.as_ref(),
-                collision
-            );
+            drawer.brush(self.vertexes(), color, self.texture.as_ref(), collision);
         }
 
         #[inline]
-        pub fn draw_prop(
-            &self,
-            camera: &Transform,
-            drawer: &mut EditDrawer,
-            color: Color,
-            delta: Vec2
-        )
+        pub fn draw_prop(&self, drawer: &mut EditDrawer, color: Color, delta: Vec2)
         {
             let center = self.center + delta;
 
             drawer.sideless_brush(
-                camera,
                 self.vertexes().map(|vx| vx + delta),
-                center,
                 color,
                 self.texture
                     .as_ref()
@@ -4682,7 +4652,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        fn draw_side_mode(&self, camera: &Transform, drawer: &mut EditDrawer, collision: bool)
+        fn draw_side_mode(&self, drawer: &mut EditDrawer, collision: bool)
         {
             let mut sides_colors = hv_vec![capacity; self.sides()];
 
@@ -4700,7 +4670,6 @@ pub(in crate::map) mod ui_mod
             }
 
             drawer.brush_with_sides_colors(
-                camera,
                 self.vertexes.pair_iter().unwrap().map(|[a, b]| {
                     (
                         a.vec,
@@ -4708,7 +4677,6 @@ pub(in crate::map) mod ui_mod
                         if a.selected { Color::SelectedVertex } else { Color::NonSelectedVertex }
                     )
                 }),
-                self.center,
                 Color::NonSelectedVertex,
                 self.texture.as_ref(),
                 collision
@@ -4751,7 +4719,7 @@ pub(in crate::map) mod ui_mod
             {
                 VertexHighlightMode::Side =>
                 {
-                    self.draw_side_mode(camera, drawer, collision);
+                    self.draw_side_mode(drawer, collision);
 
                     declare_tooltip_string!(vx_coordinates);
 
@@ -4788,7 +4756,7 @@ pub(in crate::map) mod ui_mod
                 },
                 VertexHighlightMode::Vertex =>
                 {
-                    self.draw(camera, drawer, collision, Color::SelectedEntity);
+                    self.draw(drawer, collision, Color::SelectedEntity);
 
                     for svx in &self.vertexes
                     {
@@ -4814,7 +4782,6 @@ pub(in crate::map) mod ui_mod
                 {
                     // Draw the shape including the new vertex.
                     self.draw_with_vertex_inserted_at_index(
-                        camera,
                         drawer,
                         collision,
                         Color::SelectedEntity,
@@ -4862,7 +4829,6 @@ pub(in crate::map) mod ui_mod
         #[inline]
         fn draw_with_vertex_inserted_at_index(
             &self,
-            camera: &Transform,
             drawer: &mut EditDrawer,
             collision: bool,
             color: Color,
@@ -4871,9 +4837,7 @@ pub(in crate::map) mod ui_mod
         )
         {
             drawer.brush(
-                camera,
                 NewVertexIterator::new(&self.vertexes, pos, index),
-                self.center,
                 color,
                 self.texture.as_ref(),
                 collision
@@ -4883,7 +4847,6 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn draw_movement_simulation(
             &self,
-            camera: &Transform,
             drawer: &mut EditDrawer,
             collision: bool,
             movement_vec: Vec2
@@ -4892,7 +4855,6 @@ pub(in crate::map) mod ui_mod
             #[inline]
             fn moving_brush<T: TextureInterface>(
                 polygon: &ConvexPolygon,
-                camera: &Transform,
                 drawer: &mut EditDrawer,
                 texture: Option<&T>,
                 collision: bool,
@@ -4900,9 +4862,7 @@ pub(in crate::map) mod ui_mod
             )
             {
                 drawer.brush(
-                    camera,
                     polygon.vertexes().map(|vx| vx + movement_vec),
-                    polygon.center,
                     Color::SelectedEntity,
                     texture,
                     collision
@@ -4918,26 +4878,19 @@ pub(in crate::map) mod ui_mod
 
                 if settings.sprite()
                 {
-                    moving_brush(
-                        self,
-                        camera,
-                        drawer,
-                        None::<&TextureSettings>,
-                        collision,
-                        movement_vec
-                    );
+                    moving_brush(self, drawer, None::<&TextureSettings>, collision, movement_vec);
                     drawer.sprite(self.center, &settings, Color::SelectedEntity, false);
                     self.sprite_highlight(drawer, self.center + movement_vec, &settings);
                 }
                 else
                 {
-                    moving_brush(self, camera, drawer, Some(&settings), collision, movement_vec);
+                    moving_brush(self, drawer, Some(&settings), collision, movement_vec);
                 }
 
                 return;
             }
 
-            moving_brush(self, camera, drawer, None::<&TextureSettings>, collision, movement_vec);
+            moving_brush(self, drawer, None::<&TextureSettings>, collision, movement_vec);
         }
 
         #[inline]
@@ -4960,13 +4913,7 @@ pub(in crate::map) mod ui_mod
                 return;
             }
 
-            drawer.brush(
-                camera,
-                self.vertexes().map(|vx| vx + movement_vec),
-                self.center,
-                animator,
-                &settings
-            );
+            drawer.brush(camera, self.vertexes().map(|vx| vx + movement_vec), animator, &settings);
         }
 
         #[inline]

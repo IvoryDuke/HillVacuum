@@ -169,7 +169,7 @@ impl ShatterTool
 
         if let Some(hgl_e) = self.0
         {
-            manager.brush(hgl_e).draw_highlighted_selected(camera, drawer);
+            manager.brush(hgl_e).draw_highlighted_selected(drawer);
 
             for brush in manager
                 .visible_brushes(window, camera, drawer.grid())
@@ -178,11 +178,11 @@ impl ShatterTool
             {
                 if manager.is_selected(brush.id())
                 {
-                    brush.draw_selected(camera, drawer);
+                    brush.draw_selected(drawer);
                 }
                 else
                 {
-                    brush.draw_non_selected(camera, drawer);
+                    brush.draw_non_selected(drawer);
                 }
             }
         }

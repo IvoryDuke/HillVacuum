@@ -529,7 +529,7 @@ impl Prop
 
         for item in &self.data
         {
-            item.draw(bundle, delta, camera_id);
+            item.draw(bundle, delta);
         }
 
         bundle

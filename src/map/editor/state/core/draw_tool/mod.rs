@@ -287,11 +287,11 @@ impl DrawTool
 
                 if !bundle.manager.is_selected(id)
                 {
-                    brush.draw_non_selected(bundle.camera, bundle.drawer);
+                    brush.draw_non_selected(bundle.drawer);
                 }
                 else if self.drawn_brushes.contains(&id)
                 {
-                    brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
+                    brush.draw_highlighted_selected(bundle.drawer);
                     drawn_iterated += 1;
 
                     if drawn_iterated == drawn_len
@@ -301,7 +301,7 @@ impl DrawTool
                 }
                 else
                 {
-                    brush.draw_selected(bundle.camera, bundle.drawer);
+                    brush.draw_selected(bundle.drawer);
                 }
             }
 
@@ -311,11 +311,11 @@ impl DrawTool
 
                 if bundle.manager.is_selected(id)
                 {
-                    brush.draw_selected(bundle.camera, bundle.drawer);
+                    brush.draw_selected(bundle.drawer);
                 }
                 else
                 {
-                    brush.draw_non_selected(bundle.camera, bundle.drawer);
+                    brush.draw_non_selected(bundle.drawer);
                 }
             }
         }

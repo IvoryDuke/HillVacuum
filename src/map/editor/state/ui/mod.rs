@@ -646,7 +646,6 @@ impl Ui
     }
 
     #[inline]
-    #[must_use]
     pub const fn is_focused(&self) -> UiFocus { self.focus }
 
     /// Updates the UI.

@@ -722,6 +722,7 @@ impl Editor
             delta_time: time.delta_seconds(),
             drawer: &mut EditDrawer::new(
                 commands,
+                camera,
                 prop_cameras,
                 meshes,
                 meshes_query,
@@ -731,7 +732,6 @@ impl Editor
                 self.state.tools_settings(),
                 &self.grid,
                 elapsed_time,
-                camera.scale(),
                 paint_tool_camera.scale(),
                 self.state.show_collision_overlay(),
                 self.state.show_tooltips()

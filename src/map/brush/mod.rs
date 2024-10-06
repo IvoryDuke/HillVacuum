@@ -676,15 +676,9 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn draw_prop(
-            &self,
-            camera: &Transform,
-            drawer: &mut EditDrawer,
-            color: Color,
-            delta: Vec2
-        )
+        pub fn draw_prop(&self, drawer: &mut EditDrawer, color: Color, delta: Vec2)
         {
-            self.polygon.draw_prop(camera, drawer, color, delta);
+            self.polygon.draw_prop(drawer, color, delta);
 
             return_if_no_match!(&self.group, Group::Path { path, .. }, path)
                 .draw_prop(drawer, self.polygon.center() + delta);
@@ -792,9 +786,9 @@ pub(in crate::map) mod ui_mod
             drawer: &mut EditDrawer
         )
         {
-            self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
+            self.draw_with_color(drawer, Color::HighlightedSelectedEntity);
             self.path().unwrap().draw(window, camera, drawer, self.center());
-            self.draw_attached_brushes(camera, brushes, drawer, Self::draw_highlighted_selected);
+            self.draw_attached_brushes(brushes, drawer, Self::draw_highlighted_selected);
         }
 
         #[inline]
@@ -808,7 +802,7 @@ pub(in crate::map) mod ui_mod
             highlighted_node: usize
         )
         {
-            self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
+            self.draw_with_color(drawer, Color::HighlightedSelectedEntity);
             self.path().unwrap().draw_with_highlighted_path_node(
                 window,
                 camera,
@@ -816,7 +810,7 @@ pub(in crate::map) mod ui_mod
                 self.center(),
                 highlighted_node
             );
-            self.draw_attached_brushes(camera, brushes, drawer, Self::draw_selected);
+            self.draw_attached_brushes(brushes, drawer, Self::draw_selected);
         }
 
         #[inline]
@@ -831,7 +825,7 @@ pub(in crate::map) mod ui_mod
             index: usize
         )
         {
-            self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
+            self.draw_with_color(drawer, Color::HighlightedSelectedEntity);
             self.path().unwrap().draw_with_node_insertion(
                 window,
                 camera,
@@ -840,7 +834,7 @@ pub(in crate::map) mod ui_mod
                 index,
                 self.center()
             );
-            self.draw_attached_brushes(camera, brushes, drawer, Self::draw_selected);
+            self.draw_attached_brushes(brushes, drawer, Self::draw_selected);
         }
 
         #[inline]
@@ -862,7 +856,7 @@ pub(in crate::map) mod ui_mod
 
             self.data
                 .polygon
-                .draw_movement_simulation(camera, drawer, collision, movement_vec);
+                .draw_movement_simulation(drawer, collision, movement_vec);
             self.path().unwrap().draw_movement_simulation(
                 window,
                 camera,
@@ -881,7 +875,6 @@ pub(in crate::map) mod ui_mod
                 drawer.line(a_center, center, Color::BrushAnchor);
 
                 brushes.get(*id).data.polygon.draw_movement_simulation(
-                    camera,
                     drawer,
                     collision,
                     movement_vec
@@ -2528,44 +2521,44 @@ pub(in crate::map) mod ui_mod
 
         /// Draws the polygon with the desired `color`.
         #[inline]
-        pub fn draw_with_color(&self, camera: &Transform, drawer: &mut EditDrawer, color: Color)
+        pub fn draw_with_color(&self, drawer: &mut EditDrawer, color: Color)
         {
-            self.data.polygon.draw(camera, drawer, self.collision(), color);
+            self.data.polygon.draw(drawer, self.collision(), color);
         }
 
         /// Draws the polygon not-selected.
         #[inline]
-        pub fn draw_non_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
+        pub fn draw_non_selected(&self, drawer: &mut EditDrawer)
         {
-            self.draw_with_color(camera, drawer, Color::NonSelectedEntity);
+            self.draw_with_color(drawer, Color::NonSelectedEntity);
         }
 
         /// Draws the polygon selected.
         #[inline]
-        pub fn draw_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
+        pub fn draw_selected(&self, drawer: &mut EditDrawer)
         {
-            self.draw_with_color(camera, drawer, Color::SelectedEntity);
+            self.draw_with_color(drawer, Color::SelectedEntity);
         }
 
         /// Draws the polygon highlighted selected.
         #[inline]
-        pub fn draw_highlighted_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
+        pub fn draw_highlighted_selected(&self, drawer: &mut EditDrawer)
         {
-            self.draw_with_color(camera, drawer, Color::HighlightedSelectedEntity);
+            self.draw_with_color(drawer, Color::HighlightedSelectedEntity);
         }
 
         /// Draws the polygon highlighted non selected.
         #[inline]
-        pub fn draw_highlighted_non_selected(&self, camera: &Transform, drawer: &mut EditDrawer)
+        pub fn draw_highlighted_non_selected(&self, drawer: &mut EditDrawer)
         {
-            self.draw_with_color(camera, drawer, Color::HighlightedNonSelectedEntity);
+            self.draw_with_color(drawer, Color::HighlightedNonSelectedEntity);
         }
 
         /// Draws the polygon opaque.
         #[inline]
-        pub fn draw_opaque(&self, camera: &Transform, drawer: &mut EditDrawer)
+        pub fn draw_opaque(&self, drawer: &mut EditDrawer)
         {
-            self.draw_with_color(camera, drawer, Color::OpaqueEntity);
+            self.draw_with_color(drawer, Color::OpaqueEntity);
         }
 
         /// Draws the line passing through the side at `index`.
@@ -2622,18 +2615,13 @@ pub(in crate::map) mod ui_mod
 
         /// Draws the attached brushes based on `f`.
         #[inline]
-        fn draw_attached_brushes<F>(
-            &self,
-            camera: &Transform,
-            brushes: Brushes,
-            drawer: &mut EditDrawer,
-            f: F
-        ) where
-            F: Fn(&Self, &Transform, &mut EditDrawer)
+        fn draw_attached_brushes<F>(&self, brushes: Brushes, drawer: &mut EditDrawer, f: F)
+        where
+            F: Fn(&Self, &mut EditDrawer)
         {
             for brush in self.data.group.attachments_iter().unwrap().map(|id| brushes.get(*id))
             {
-                f(brush, camera, drawer);
+                f(brush, drawer);
             }
         }
 

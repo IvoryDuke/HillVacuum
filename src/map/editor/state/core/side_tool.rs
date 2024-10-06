@@ -1248,7 +1248,7 @@ impl SideTool
                         {
                             for p in polys
                             {
-                                p.draw(bundle.camera, bundle.drawer, false, Color::SelectedEntity);
+                                p.draw(bundle.drawer, false, Color::SelectedEntity);
                             }
                         }
                     },
@@ -1258,7 +1258,7 @@ impl SideTool
 
                         for (_, _, cp) in polygons
                         {
-                            cp.draw(bundle.camera, bundle.drawer, false, Color::SelectedEntity);
+                            cp.draw(bundle.drawer, false, Color::SelectedEntity);
                         }
                     }
                 }

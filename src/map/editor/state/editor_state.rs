@@ -775,7 +775,6 @@ impl State
     }
 
     #[inline]
-    #[must_use]
     pub const fn is_ui_focused(&self) -> UiFocus { self.ui.is_focused() }
 
     //==============================================================

@@ -914,7 +914,7 @@ impl EntityTool
                     draw_selected_and_non_selected!(bundle, [*id, hgl_e]);
 
                     let brush = bundle.manager.brush(hgl_e);
-                    brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
+                    brush.draw_highlighted_selected(bundle.drawer);
 
                     if brush.has_sprite()
                     {
@@ -934,7 +934,7 @@ impl EntityTool
                 };
 
                 let brush = bundle.manager.brush(*id);
-                brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
+                brush.draw_highlighted_selected(bundle.drawer);
 
                 if brush.has_sprite()
                 {
@@ -996,12 +996,12 @@ impl EntityTool
 
                 if bundle.manager.is_selected(id)
                 {
-                    brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
+                    brush.draw_highlighted_selected(bundle.drawer);
                     brush.hull().into()
                 }
                 else
                 {
-                    brush.draw_highlighted_non_selected(bundle.camera, bundle.drawer);
+                    brush.draw_highlighted_non_selected(bundle.drawer);
                     None
                 }
             },
@@ -1011,7 +1011,7 @@ impl EntityTool
 
                 if bundle.manager.is_selected(id)
                 {
-                    brush.draw_highlighted_selected(bundle.camera, bundle.drawer);
+                    brush.draw_highlighted_selected(bundle.drawer);
 
                     if !bundle.drawer.show_tooltips()
                     {
@@ -1030,7 +1030,7 @@ impl EntityTool
                 }
                 else
                 {
-                    brush.draw_highlighted_non_selected(bundle.camera, bundle.drawer);
+                    brush.draw_highlighted_non_selected(bundle.drawer);
                 }
 
                 return;

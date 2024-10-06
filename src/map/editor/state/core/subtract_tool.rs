@@ -341,7 +341,7 @@ impl SubtractTool
 
         let sel_id = *manager.selected_brushes_ids().next_value();
         let brush = manager.brush(sel_id);
-        brush.draw_with_color(camera, drawer, Color::SubtractorBrush);
+        brush.draw_with_color(drawer, Color::SubtractorBrush);
 
         if let Some(hull) = self.drag_selection.hull()
         {
@@ -353,7 +353,6 @@ impl SubtractTool
             let brush = manager.brush(hgl_s);
 
             brush.draw_with_color(
-                camera,
                 drawer,
                 if self.subtractees.contains(&hgl_s)
                 {
@@ -372,11 +371,11 @@ impl SubtractTool
             {
                 if self.subtractees.contains(&brush.id())
                 {
-                    brush.draw_with_color(camera, drawer, Color::SubtracteeBrush);
+                    brush.draw_with_color(drawer, Color::SubtracteeBrush);
                 }
                 else
                 {
-                    brush.draw_non_selected(camera, drawer);
+                    brush.draw_non_selected(drawer);
                 }
             }
 
@@ -390,11 +389,11 @@ impl SubtractTool
         {
             if self.subtractees.contains(&brush.id())
             {
-                brush.draw_with_color(camera, drawer, Color::SubtracteeBrush);
+                brush.draw_with_color(drawer, Color::SubtracteeBrush);
             }
             else
             {
-                brush.draw_non_selected(camera, drawer);
+                brush.draw_non_selected(drawer);
             }
         }
     }

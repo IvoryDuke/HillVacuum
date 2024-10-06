@@ -181,8 +181,7 @@ pub(in crate::map) struct EditDrawer<'w, 's, 'a>
     elapsed_time:           f32,
     /// Whether the collision overlay of the brushes should be shown.
     show_collision_overlay: bool,
-    /// Whether parallax is enabled.
-    parallax_enabled:       bool,
+    parallax_camera_pos:    Vec2,
     show_tooltips:          bool
 }
 
@@ -221,6 +220,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     #[must_use]
     pub fn new(
         commands: &'a mut Commands<'w, 's>,
+        camera: &Transform,
         prop_cameras: &PropCameras,
         meshes: &'a mut Assets<Mesh>,
         meshes_query: &Query<Entity, With<Mesh2dHandle>>,
@@ -230,12 +230,13 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         settings: &ToolsSettings,
         grid: &'a Grid,
         mut elapsed_time: f32,
-        camera_scale: f32,
         paint_tool_camera_scale: f32,
         show_collision_overlay: bool,
         show_tooltips: bool
     ) -> Self
     {
+        let camera_scale = camera.scale();
+
         resources.setup_frame(
             commands,
             prop_cameras,
@@ -250,6 +251,13 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             elapsed_time = 0f32;
         }
 
+        #[allow(clippy::match_bool)]
+        let parallax_camera_pos = match settings.parallax_enabled
+        {
+            true => camera.pos(),
+            false => Vec2::ZERO
+        };
+
         Self {
             commands,
             meshes,
@@ -259,8 +267,8 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             grid,
             camera_scale,
             elapsed_time,
-            parallax_enabled: settings.parallax_enabled,
             show_collision_overlay,
+            parallax_camera_pos,
             show_tooltips
         }
     }
@@ -719,9 +727,8 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     #[inline]
     fn polygon_texture<T: TextureInterface>(
         &mut self,
-        camera: &Transform,
+        camera_pos: Vec2,
         vertexes: impl ExactSizeIterator<Item = Vec2> + Clone,
-        center: Vec2,
         color: Color,
         settings: &T
     )
@@ -729,13 +736,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         let mut mesh_generator = self.resources.mesh_generator();
         mesh_generator.set_indexes(vertexes.len());
         mesh_generator.push_positions_skewed(self.grid, vertexes);
-        mesh_generator.set_texture_uv(
-            camera,
-            settings,
-            self.grid.transform_point(center),
-            self.elapsed_time,
-            self.parallax_enabled
-        );
+        mesh_generator.set_texture_uv(camera_pos, settings, self.elapsed_time);
         let mesh = mesh_generator.mesh(PrimitiveTopology::TriangleList);
 
         self.resources
@@ -746,9 +747,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     #[inline]
     pub fn sideless_brush<T: TextureInterface>(
         &mut self,
-        camera: &Transform,
         vertexes: impl ExactSizeIterator<Item = Vec2> + Clone,
-        center: Vec2,
         color: Color,
         texture: Option<&T>,
         collision: bool
@@ -763,13 +762,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         {
             if !texture.sprite()
             {
-                self.polygon_texture(
-                    camera,
-                    vertexes.clone(),
-                    self.grid.transform_point(center),
-                    color,
-                    texture
-                );
+                self.polygon_texture(self.parallax_camera_pos, vertexes.clone(), color, texture);
             }
         }
 
@@ -781,16 +774,14 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     #[inline]
     pub fn brush<T: TextureInterface>(
         &mut self,
-        camera: &Transform,
         vertexes: impl ExactSizeIterator<Item = Vec2> + Clone,
-        center: Vec2,
         color: Color,
         texture: Option<&T>,
         collision: bool
     )
     {
         self.sides(vertexes.clone(), color);
-        self.sideless_brush(camera, vertexes, center, color, texture, collision);
+        self.sideless_brush(vertexes, color, texture, collision);
     }
 
     /// Draws a polygon filled with a solid color.
@@ -809,23 +800,14 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     #[inline]
     pub fn brush_with_sides_colors<T: TextureInterface>(
         &mut self,
-        camera: &Transform,
         sides: impl ExactSizeIterator<Item = (Vec2, Vec2, Color)> + Clone,
-        center: Vec2,
         body_color: Color,
         texture: Option<&T>,
         collision: bool
     )
     {
         self.lines(sides.clone());
-        self.sideless_brush(
-            camera,
-            sides.map(|(vx, ..)| vx),
-            center,
-            body_color,
-            texture,
-            collision
-        );
+        self.sideless_brush(sides.map(|(vx, ..)| vx), body_color, texture, collision);
     }
 
     /// Draws `settings` as a sprite.
@@ -1299,13 +1281,11 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
         &mut self,
         camera: &Transform,
         vertexes: impl ExactSizeIterator<Item = Vec2> + Clone,
-        center: Vec2,
         animator: Option<&Animator>,
         settings: &T
     )
     {
         let resources = unsafe { std::ptr::from_mut(self.resources).as_mut().unwrap() };
-        let center = self.grid.transform_point(center);
 
         let mut mesh_generator = resources.mesh_generator();
         mesh_generator.set_indexes(vertexes.len());
@@ -1323,25 +1303,17 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
                             self.resources,
                             settings.overall_animation(self.resources).get_list_animation()
                         );
-                        mesh_generator.set_texture_uv(
-                            camera,
-                            settings,
-                            center,
-                            self.elapsed_time,
-                            true
-                        );
+                        mesh_generator.set_texture_uv(camera.pos(), settings, self.elapsed_time);
 
                         materials
                     },
                     Animator::Atlas(animator) =>
                     {
                         mesh_generator.set_animated_texture_uv(
-                            camera,
+                            camera.pos(),
                             settings,
                             animator,
-                            center,
-                            self.elapsed_time,
-                            true
+                            self.elapsed_time
                         );
 
                         self.resources.texture_materials(settings.name())
@@ -1351,7 +1323,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
             None =>
             {
                 let texture = self.resources.texture_or_error(settings.name());
-                mesh_generator.set_texture_uv(camera, settings, center, self.elapsed_time, true);
+                mesh_generator.set_texture_uv(camera.pos(), settings, self.elapsed_time);
                 self.resources.texture_materials(texture.name())
             }
         };

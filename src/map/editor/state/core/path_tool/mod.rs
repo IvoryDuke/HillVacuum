@@ -1079,15 +1079,15 @@ impl PathTool
 
                     if manager.is_selected_moving(id) || is_attached_to_selected_moving(manager, id)
                     {
-                        brush.draw_selected(camera, drawer);
+                        brush.draw_selected(drawer);
                     }
                     else if manager.is_selected(id) && brush.no_path_nor_attached()
                     {
-                        brush.draw_non_selected(camera, drawer);
+                        brush.draw_non_selected(drawer);
                     }
                     else
                     {
-                        brush.draw_opaque(camera, drawer);
+                        brush.draw_opaque(drawer);
                     }
                 }
 
@@ -1163,7 +1163,7 @@ impl PathTool
                             }
                             else
                             {
-                                manager.brush(id).draw_highlighted_non_selected(camera, drawer);
+                                manager.brush(id).draw_highlighted_non_selected(drawer);
                             }
                         },
                         ItemBeneathCursor::PathNode(id, idx) =>
@@ -1219,7 +1219,7 @@ impl PathTool
                         else
                         {
                             let brush = manager.brush(*id);
-                            brush.draw_highlighted_selected(camera, drawer);
+                            brush.draw_highlighted_selected(drawer);
                             brush.center()
                         };
 
@@ -1268,7 +1268,7 @@ impl PathTool
                     .iter()
                     .filter(|brush| !is_moving(manager, brush.id()))
                 {
-                    brush.draw_opaque(camera, drawer);
+                    brush.draw_opaque(drawer);
                 }
 
                 for brush in manager
@@ -1310,7 +1310,7 @@ impl PathTool
                     }
                     else
                     {
-                        manager.brush(*hgl_e).draw_highlighted_non_selected(camera, drawer);
+                        manager.brush(*hgl_e).draw_highlighted_non_selected(drawer);
                     }
 
                     draw_entities!(*hgl_e);

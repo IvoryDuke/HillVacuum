@@ -75,13 +75,7 @@ pub trait TextureInterface
     /// for scroll and parallax.  
     /// !! If the texture is rendered as a sprite, scroll and parallax are both always 0.
     #[must_use]
-    fn draw_offset_with_parallax_and_scroll(
-        &self,
-        camera_pos: Vec2,
-        elapsed_time: f32,
-        brush_center: Vec2,
-        parallax_enabled: bool
-    ) -> Vec2;
+    fn draw_offset_with_parallax_and_scroll(&self, camera_pos: Vec2, elapsed_time: f32) -> Vec2;
 
     /// Returns the horizontal scale of the texture.
     #[must_use]
@@ -210,20 +204,11 @@ impl TextureInterface for TextureSettings
     }
 
     #[inline]
-    fn draw_offset_with_parallax_and_scroll(
-        &self,
-        camera_pos: Vec2,
-        elapsed_time: f32,
-        brush_center: Vec2,
-        parallax_enabled: bool
-    ) -> Vec2
+    fn draw_offset_with_parallax_and_scroll(&self, camera_pos: Vec2, elapsed_time: f32) -> Vec2
     {
         #[allow(clippy::match_bool)]
-        let p_s = match parallax_enabled
-        {
-            true => -(brush_center - camera_pos) * Vec2::new(self.parallax_x(), self.parallax_y()),
-            false => Vec2::ZERO
-        } + Vec2::new(self.scroll_x(), self.scroll_y()) * elapsed_time;
+        let p_s = camera_pos * Vec2::new(self.parallax_x(), self.parallax_y()) +
+            Vec2::new(self.scroll_x(), self.scroll_y()) * elapsed_time;
 
         if self.angle == 0f32
         {

@@ -192,18 +192,13 @@ impl ClipboardData
 
     /// Draws the [`ClipboardData`] at its position moved by `delta`
     #[inline]
-    fn draw(&self, bundle: &mut DrawBundle, delta: Vec2, camera_id: Option<Entity>)
+    fn draw(&self, bundle: &mut DrawBundle, delta: Vec2)
     {
         match self
         {
             ClipboardData::Brush(data, _) =>
             {
-                data.draw_prop(
-                    draw_camera!(bundle, camera_id),
-                    bundle.drawer,
-                    Color::NonSelectedEntity,
-                    delta
-                );
+                data.draw_prop(bundle.drawer, Color::NonSelectedEntity, delta);
             },
             ClipboardData::Thing(data, _) =>
             {

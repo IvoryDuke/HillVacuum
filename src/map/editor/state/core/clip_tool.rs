@@ -466,11 +466,11 @@ impl ClipTool
 
                     if manager.is_selected(id)
                     {
-                        brush.draw_selected(camera, drawer);
+                        brush.draw_selected(drawer);
                     }
                     else
                     {
-                        brush.draw_non_selected(camera, drawer);
+                        brush.draw_non_selected(drawer);
                     }
                 }
 
@@ -482,18 +482,8 @@ impl ClipTool
                         {
                             let collision = manager.brush(result.id).collision();
 
-                            result.left.draw(
-                                camera,
-                                drawer,
-                                collision,
-                                Color::ClippedPolygonsToSpawn
-                            );
-                            result.right.draw(
-                                camera,
-                                drawer,
-                                collision,
-                                Color::ClippedPolygonsToSpawn
-                            );
+                            result.left.draw(drawer, collision, Color::ClippedPolygonsToSpawn);
+                            result.right.draw(drawer, collision, Color::ClippedPolygonsToSpawn);
 
                             draw_sprite_with_highlight(
                                 &result.right,
@@ -508,19 +498,14 @@ impl ClipTool
                         {
                             let collision = manager.brush(result.id).collision();
 
-                            result.left.draw(
-                                camera,
-                                drawer,
-                                collision,
-                                Color::ClippedPolygonsToSpawn
-                            );
+                            result.left.draw(drawer, collision, Color::ClippedPolygonsToSpawn);
                             draw_sprite_with_highlight(
                                 &result.left,
                                 drawer,
                                 Color::ClippedPolygonsToSpawn
                             );
 
-                            result.right.draw(camera, drawer, collision, Color::OpaqueEntity);
+                            result.right.draw(drawer, collision, Color::OpaqueEntity);
                         }
                     },
                     PickedPolygons::Right =>
@@ -529,19 +514,14 @@ impl ClipTool
                         {
                             let collision = manager.brush(result.id).collision();
 
-                            result.right.draw(
-                                camera,
-                                drawer,
-                                collision,
-                                Color::ClippedPolygonsToSpawn
-                            );
+                            result.right.draw(drawer, collision, Color::ClippedPolygonsToSpawn);
                             draw_sprite_with_highlight(
                                 &result.right,
                                 drawer,
                                 Color::ClippedPolygonsToSpawn
                             );
 
-                            result.left.draw(camera, drawer, collision, Color::OpaqueEntity);
+                            result.left.draw(drawer, collision, Color::OpaqueEntity);
                         }
                     }
                 };

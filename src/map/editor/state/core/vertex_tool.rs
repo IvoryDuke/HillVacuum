@@ -1020,7 +1020,7 @@ impl VertexTool
 
                 for brush in bundle.manager.selected_brushes()
                 {
-                    brush.draw_selected(bundle.camera, bundle.drawer);
+                    brush.draw_selected(bundle.drawer);
 
                     for vx in brush.vertexes()
                     {

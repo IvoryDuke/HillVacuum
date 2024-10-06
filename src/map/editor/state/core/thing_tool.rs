@@ -225,7 +225,7 @@ impl ThingTool
 
         for brush in manager.visible_brushes(window, camera, drawer.grid()).iter()
         {
-            brush.draw_opaque(camera, drawer);
+            brush.draw_opaque(drawer);
         }
     }
 

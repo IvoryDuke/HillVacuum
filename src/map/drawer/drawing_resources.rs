@@ -1470,21 +1470,14 @@ impl<'a> MeshGenerator<'a>
     #[inline]
     fn texture_uv<T: TextureInterface, F>(
         &mut self,
-        camera: &Transform,
+        camera_pos: Vec2,
         settings: &T,
-        center: Vec2,
         elapsed_time: f32,
-        parallax_enabled: bool,
         f: F
     ) where
         F: Fn([f32; 2], Vec2, Vec2) -> Uv
     {
-        let offset = settings.draw_offset_with_parallax_and_scroll(
-            camera.pos(),
-            elapsed_time,
-            center,
-            parallax_enabled
-        );
+        let offset = settings.draw_offset_with_parallax_and_scroll(camera_pos, elapsed_time);
         let size_scale_mod = self.4.texture_or_error(settings.name()).size().as_vec2() *
             Vec2::new(settings.scale_x(), settings.scale_y());
         let angle = settings.angle();
@@ -1522,33 +1515,22 @@ impl<'a> MeshGenerator<'a>
     #[inline]
     pub fn set_texture_uv<T: TextureInterface>(
         &mut self,
-        camera: &Transform,
+        camera_pos: Vec2,
         settings: &T,
-        center: Vec2,
-        elapsed_time: f32,
-        parallax_enabled: bool
+        elapsed_time: f32
     )
     {
-        self.texture_uv(
-            camera,
-            settings,
-            center,
-            elapsed_time,
-            parallax_enabled,
-            Self::common_texture_uv_coordinate
-        );
+        self.texture_uv(camera_pos, settings, elapsed_time, Self::common_texture_uv_coordinate);
     }
 
     /// Sets the UV to the one of an animated texture.
     #[inline]
     pub fn set_animated_texture_uv<T: TextureInterface>(
         &mut self,
-        camera: &Transform,
+        camera_pos: Vec2,
         settings: &T,
         animator: &AtlasAnimator,
-        center: Vec2,
-        elapsed_time: f32,
-        parallax_enabled: bool
+        elapsed_time: f32
     )
     {
         /// Returns the UV coordinates of a vertex.
@@ -1563,14 +1545,9 @@ impl<'a> MeshGenerator<'a>
 
         let pivot = animator.pivot();
 
-        self.texture_uv(
-            camera,
-            settings,
-            center,
-            elapsed_time,
-            parallax_enabled,
-            |vx, offset, size_scale_mod| uv_coordinate(vx, offset, size_scale_mod, pivot)
-        );
+        self.texture_uv(camera_pos, settings, elapsed_time, |vx, offset, size_scale_mod| {
+            uv_coordinate(vx, offset, size_scale_mod, pivot)
+        });
     }
 
     /// Sets the UV to the one of the clip texture.

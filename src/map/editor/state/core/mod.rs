@@ -85,8 +85,8 @@ macro_rules! draw_selected_and_non_selected_brushes {
         crate::map::editor::state::core::draw_selected_and_non_selected!(
             brushes,
             $bundle,
-            |brush, camera, drawer, color, _| {
-                crate::map::brush::Brush::draw_with_color(brush, camera, drawer, color);
+            |brush, _: &bevy::transform::components::Transform, drawer, color, _| {
+                crate::map::brush::Brush::draw_with_color(brush, drawer, color);
             }
             $(, $filters)?
         );
@@ -1120,12 +1120,12 @@ fn draw_non_selected_brushes(bundle: &mut DrawBundle)
             continue;
         }
 
-        brush.draw_non_selected(camera, drawer);
+        brush.draw_non_selected(drawer);
     }
 
     for brush in brushes
     {
-        brush.draw_non_selected(camera, drawer);
+        brush.draw_non_selected(drawer);
     }
 }
 
