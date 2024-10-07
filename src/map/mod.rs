@@ -812,52 +812,32 @@ pub(in crate::map) mod ui_mod
         let events = &mut return_if_err!(input.get_single_mut()).0.events;
         let mut iter = events.iter_mut().enumerate();
         let mut index = None;
+        let mut checked = false;
         let mut add_escape = false;
 
         for (i, ev) in &mut iter
         {
-            let (key, modifiers) = continue_if_no_match!(
+            match continue_if_no_match!(
                 ev,
                 egui::Event::Key {
                     key,
-                    modifiers,
                     pressed: true,
                     ..
                 },
-                (key, modifiers)
-            );
-            *modifiers = egui::Modifiers::NONE;
-
-            match key
+                key
+            )
             {
-                egui::Key::Tab =>
-                {
-                    index = i.into();
-                    break;
-                },
+                egui::Key::Tab => index = i.into(),
                 egui::Key::F4 => add_escape = true,
-                _ => ()
+                _ => continue
             };
-        }
 
-        for (_, ev) in iter
-        {
-            let (key, modifiers) = continue_if_no_match!(
-                ev,
-                egui::Event::Key {
-                    key,
-                    modifiers,
-                    pressed: true,
-                    ..
-                },
-                (key, modifiers)
-            );
-            *modifiers = egui::Modifiers::NONE;
-
-            if *key == egui::Key::F4
+            if checked
             {
-                add_escape = true;
+                break;
             }
+
+            checked = true;
         }
 
         // If F4 is pressed to close an egui window add an artificial escape press to surrender
