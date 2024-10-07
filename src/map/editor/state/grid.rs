@@ -222,6 +222,9 @@ impl Grid
     //==============================================================
     // Size
 
+    #[inline]
+    pub(in crate::map::editor::state) fn set_size(&mut self, size: i16) { self.size = size; }
+
     /// Increases the grid size to the next power of two.
     /// Capped at 256 units.
     #[inline]

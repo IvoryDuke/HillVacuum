@@ -1,6 +1,4 @@
 #[cfg(feature = "ui")]
-pub(in crate::map) mod compatibility;
-#[cfg(feature = "ui")]
 pub(in crate::map) mod convex_polygon;
 pub mod group;
 
@@ -127,7 +125,6 @@ pub(in crate::map) mod ui_mod
         TextureInterface,
         TextureSettings,
         Timing,
-        ToValue,
         Value
     };
 
@@ -925,32 +922,6 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         fn take_path(&mut self) -> Path { self.data.group.take_path() }
-    }
-
-    impl From<crate::map::brush::compatibility::BrushViewer> for Brush
-    {
-        #[inline]
-        fn from(value: crate::map::brush::compatibility::BrushViewer) -> Self
-        {
-            let crate::map::brush::compatibility::BrushViewer {
-                id,
-                vertexes,
-                texture,
-                group,
-                collision,
-                mut properties
-            } = value;
-
-            properties.insert(COLLISION_LABEL.to_string(), collision.to_value());
-
-            Brush::from(BrushViewer {
-                id,
-                vertexes,
-                texture: texture.map(TextureSettings::from),
-                group,
-                properties
-            })
-        }
     }
 
     impl Brush

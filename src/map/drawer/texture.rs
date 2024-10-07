@@ -1001,40 +1001,6 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    impl From<crate::map::brush::compatibility::TextureSettings> for TextureSettings
-    {
-        #[inline]
-        fn from(value: crate::map::brush::compatibility::TextureSettings) -> Self
-        {
-            let sprite = if value.sprite()
-            {
-                Sprite::True
-            }
-            else
-            {
-                Sprite::False {
-                    parallax_x:       value.parallax_x(),
-                    parallax_y:       value.parallax_y(),
-                    scroll_x:         value.scroll_x(),
-                    scroll_y:         value.scroll_y(),
-                    offset_auxiliary: OffsetAuxiliary::default()
-                }
-            };
-
-            Self {
-                texture: value.name().to_string(),
-                scale_x: value.scale_x(),
-                scale_y: value.scale_y(),
-                offset_x: value.offset_x(),
-                offset_y: value.offset_y(),
-                angle: value.angle(),
-                height: value.height(),
-                sprite,
-                animation: value.animation().clone()
-            }
-        }
-    }
-
     impl From<&Texture> for TextureSettings
     {
         #[inline]

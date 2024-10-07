@@ -1,7 +1,5 @@
 #[cfg(feature = "ui")]
 pub(in crate::map) mod catalog;
-#[cfg(feature = "ui")]
-pub(in crate::map) mod compatibility;
 
 //=======================================================================//
 // IMPORTS
@@ -210,7 +208,6 @@ pub mod ui_mod
         },
         Id,
         ThingId,
-        ToValue,
         Value
     };
 
@@ -345,41 +342,6 @@ pub mod ui_mod
         id:   Id,
         /// All entity data.
         data: ThingInstanceData
-    }
-
-    impl<'a> From<(crate::map::thing::compatibility::ThingViewer, &'a ThingsCatalog)> for ThingInstance
-    {
-        #[allow(clippy::cast_possible_truncation)]
-        #[inline]
-        fn from(value: (crate::map::thing::compatibility::ThingViewer, &'a ThingsCatalog)) -> Self
-        {
-            let (
-                crate::map::thing::compatibility::ThingViewer {
-                    id,
-                    thing_id,
-                    pos,
-                    angle,
-                    draw_height,
-                    path,
-                    mut properties
-                },
-                catalog
-            ) = value;
-
-            properties.insert(ANGLE_LABEL.to_string(), angle.to_value());
-            properties.insert(HEIGHT_LABEL.to_string(), draw_height.to_value());
-
-            Self::from((
-                ThingViewer {
-                    id,
-                    thing_id,
-                    pos,
-                    path,
-                    properties
-                },
-                catalog
-            ))
-        }
     }
 
     impl ThingInterface for ThingInstance

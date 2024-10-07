@@ -45,7 +45,7 @@ use crate::{Brush, ThingInstance};
 //=======================================================================//
 
 /// The version of the saved files.
-const FILE_VERSION_NUMBER: &str = "0.8";
+const FILE_VERSION_NUMBER: &str = "0.9";
 
 //=======================================================================//
 // ENUMS
@@ -636,7 +636,7 @@ pub(in crate::map) mod ui_mod
             app
             // UI
             .add_plugins(EguiPlugin)
-            .add_systems(PreUpdate, process_egui_inputs.after(EguiSet::ProcessInput).before(EguiSet::BeginFrame))
+            .add_systems(PreUpdate, process_egui_inputs.after(EguiSet::ProcessInput).before(EguiSet::BeginPass))
             // Init resources
             .insert_non_send_resource(unsafe { Editor::placeholder() })
             .init_state::<TextureLoadingProgress>()

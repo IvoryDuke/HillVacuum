@@ -1120,7 +1120,7 @@ impl State
         }
 
         #[inline]
-        fn convert_07(
+        fn convert_08(
             mut reader: BufReader<File>,
             things_catalog: &ThingsCatalog
         ) -> Result<OldFileRead, &'static str>
@@ -1147,10 +1147,8 @@ impl State
             for _ in 0..header.brushes
             {
                 brushes.push(Brush::from(
-                    ciborium::from_reader::<crate::map::brush::compatibility::BrushViewer, _>(
-                        &mut reader
-                    )
-                    .map_err(|_| "Error reading brushes for conversion.")?
+                    ciborium::from_reader::<crate::map::brush::BrushViewer, _>(&mut reader)
+                        .map_err(|_| "Error reading brushes for conversion.")?
                 ));
             }
 
@@ -1160,10 +1158,8 @@ impl State
             for _ in 0..header.things
             {
                 things.push(ThingInstance::from((
-                    ciborium::from_reader::<crate::map::thing::compatibility::ThingViewer, _>(
-                        &mut reader
-                    )
-                    .map_err(|_| "Error reading things for conversion.")?,
+                    ciborium::from_reader::<crate::map::thing::ThingViewer, _>(&mut reader)
+                        .map_err(|_| "Error reading things for conversion.")?,
                     things_catalog
                 )));
             }
@@ -1173,10 +1169,13 @@ impl State
 
             for _ in 0..header.props
             {
-                props.push(
-                    ciborium::from_reader::<Prop, _>(&mut reader)
-                        .map_err(|_| "Error reading props for conversion.")?
-                );
+                props.push(Prop::from(
+                    ciborium::from_reader::<
+                        crate::map::editor::state::clipboard::compatibility::Prop,
+                        _
+                    >(&mut reader)
+                    .map_err(|_| "Error reading props for conversion.")?
+                ));
             }
 
             Ok(OldFileRead {
@@ -1200,7 +1199,7 @@ impl State
         ) -> Result<BufReader<File>, &'static str>
         {
             let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
-            file_name.push_str("_08.hv");
+            file_name.push_str("_09.hv");
 
             warning_message(&format!(
                 "This file appears to use the old file structure {version}, if it is valid it \
@@ -1286,7 +1285,7 @@ impl State
                     },
                     FileStructure::Props =>
                     {
-                        for prop in &props
+                        for prop in props.iter().map(Prop::data)
                         {
                             test_writer!(prop, &mut writer, "Error converting props.");
                         }
@@ -1327,13 +1326,13 @@ impl State
 
         let mut file = match version_number
         {
-            "0.7" => convert(version_number, &mut path, reader, things_catalog, convert_07)?,
+            "0.8" => convert(version_number, &mut path, reader, things_catalog, convert_08)?,
             FILE_VERSION_NUMBER => reader,
             _ =>
             {
                 return Err("This file appears to use a no longer supported format, only files \
-                            from version from 0.7 to 0.7.2 are supported to be upgraded to \
-                            version 0.8.\nTo upgrade the file you will need to open it with the \
+                            from version from 0.8 to 0.8.2 are supported to be upgraded to \
+                            version 0.9.\nTo upgrade the file you will need to open it with the \
                             previous HillVacuum version and then open the generated file with \
                             this version.\nI apologize for the inconvenience.");
             }

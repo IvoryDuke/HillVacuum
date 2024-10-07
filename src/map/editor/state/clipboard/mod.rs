@@ -1,3 +1,4 @@
+pub(in crate::map::editor::state) mod compatibility;
 pub(in crate::map) mod prop;
 
 //=======================================================================//
@@ -37,7 +38,7 @@ use bevy_egui::{
 };
 use glam::{UVec2, Vec2};
 use hill_vacuum_shared::{return_if_none, NextValue};
-use prop::{Prop, PropScreenshotTimer};
+use prop::{Prop, PropData, PropScreenshotTimer};
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -122,6 +123,11 @@ pub(in crate::map) enum ClipboardData
     Brush(BrushData, Id),
     /// A [`ThingInstance`].
     Thing(ThingInstanceData, Id)
+}
+
+impl CopyToClipboard for ClipboardData
+{
+    fn copy_to_clipboard(&self) -> ClipboardData { todo!() }
 }
 
 impl EntityId for ClipboardData
@@ -381,8 +387,12 @@ impl Clipboard
 
         for _ in 0..props_amount
         {
-            let mut prop =
-                ciborium::from_reader::<Prop, _>(&mut *file).map_err(|_| "Error loading props")?;
+            let mut prop = Prop::from_data(
+                drawing_resources,
+                grid,
+                ciborium::from_reader::<PropData, _>(&mut *file)
+                    .map_err(|_| "Error loading props")?
+            );
             _ = prop.reload_things(drawing_resources, catalog, grid);
             props.push(prop);
         }
@@ -635,7 +645,7 @@ impl Clipboard
         writer: &mut BufWriter<&mut Vec<u8>>
     ) -> Result<(), &'static str>
     {
-        for prop in &self.props
+        for prop in self.props.iter().map(Prop::data)
         {
             ciborium::ser::into_writer(prop, &mut *writer).map_err(|_| "Error saving prop")?;
         }
@@ -740,7 +750,8 @@ impl Clipboard
     ) where
         D: CopyToClipboard + ?Sized + 'a
     {
-        self.copy_paste.fill(drawing_resources, grid, iter);
+        self.copy_paste
+            .fill(drawing_resources, grid, iter.map(CopyToClipboard::copy_to_clipboard));
     }
 
     /// Pastes the copied entities.
@@ -768,8 +779,11 @@ impl Clipboard
         delta: Vec2
     )
     {
-        self.duplicate
-            .fill(drawing_resources, grid, manager.selected_entities());
+        self.duplicate.fill(
+            drawing_resources,
+            grid,
+            manager.selected_entities().map(CopyToClipboard::copy_to_clipboard)
+        );
         manager.deselect_selected_entities(edits_history);
         self.duplicate
             .spawn(drawing_resources, manager, edits_history, grid, delta);
