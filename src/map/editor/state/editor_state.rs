@@ -1511,9 +1511,12 @@ impl State
         );
 
         // Update inputs.
-        bundle
-            .inputs
-            .update(bundle.key_inputs, bundle.mouse_buttons, bundle.config);
+        bundle.inputs.update(
+            bundle.key_inputs,
+            bundle.mouse_buttons,
+            bundle.config,
+            bundle.grid.size()
+        );
 
         // Create UI.
         let tool_change_conditions = ChangeConditions::new(

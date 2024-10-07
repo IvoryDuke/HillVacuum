@@ -538,13 +538,7 @@ impl EntityTool
                     return;
                 }
 
-                if bundle.inputs.ctrl_pressed()
-                {
-                    return;
-                }
-
-                let delta =
-                    return_if_none!(bundle.inputs.directional_keys_vector(bundle.grid.size()));
+                let delta = return_if_none!(bundle.inputs.directional_keys_delta());
 
                 if bundle.inputs.alt_pressed()
                 {
@@ -675,7 +669,7 @@ impl EntityTool
             },
             Status::DragSpawnUi(hgl_e) =>
             {
-                if let Some(delta) = bundle.inputs.directional_keys_vector(bundle.grid.size())
+                if let Some(delta) = bundle.inputs.directional_keys_delta()
                 {
                     _ = bundle.manager.duplicate_selected_entities(
                         bundle.drawing_resources,

@@ -543,14 +543,8 @@ impl SideTool
                     return;
                 }
 
-                if bundle.inputs.ctrl_pressed()
-                {
-                    return;
-                }
-
                 // Moving vertex with directional keys.
-                let dir =
-                    return_if_none!(bundle.inputs.directional_keys_vector(bundle.grid.size()));
+                let dir = return_if_none!(bundle.inputs.directional_keys_delta());
                 let mut vxs_move = hv_vec![];
 
                 if self.selected_sides.selected_sides.any_selected_vx() &&

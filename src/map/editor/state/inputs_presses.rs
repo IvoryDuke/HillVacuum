@@ -32,6 +32,8 @@ macro_rules! input_presses {
 		pub(in crate::map::editor) struct InputsPresses
 		{
 			$(pub(in crate::map::editor::state) $name: $input_type,)+
+            directional_keys_vector: Option<Vec2>,
+            view_directional_keys_vector: Option<Vec2>
 		}
 
         impl Default for InputsPresses
@@ -41,6 +43,8 @@ macro_rules! input_presses {
 			{
 				Self {
 					$($name: <$input_type>::new($key),)+
+                    directional_keys_vector: None,
+                    view_directional_keys_vector: None
 				}
 			}
         }
@@ -53,10 +57,53 @@ macro_rules! input_presses {
                 &mut self,
                 $key_inputs:    &ButtonInput<KeyCode>,
                 $mouse_buttons: &ButtonInput<MouseButton>,
-                config:        &mut crate::map::editor::Config
+                config:         &mut crate::map::editor::Config,
+                grid_size:      i16
             )
 			{
+                #[inline]
+                #[must_use]
+                pub fn directional_keys_vector(inputs: &InputsPresses, grid_size: i16) -> Option<Vec2>
+                {
+                    let mut dir = Vec2::ZERO;
+
+                    if inputs.right.just_pressed()
+                    {
+                        dir.x += 1f32;
+                    }
+
+                    if inputs.left.just_pressed()
+                    {
+                        dir.x -= 1f32;
+                    }
+
+                    if inputs.up.just_pressed()
+                    {
+                        dir.y += 1f32;
+                    }
+
+                    if inputs.down.just_pressed()
+                    {
+                        dir.y -= 1f32;
+                    }
+
+                    (dir != Vec2::ZERO).then(|| dir * f32::from(grid_size))
+                }
+
 				$(self.$name.update($source $(, &config.$binds)?);)+
+
+                let dir = directional_keys_vector(self, grid_size);
+
+                if self.ctrl_pressed()
+                {
+                    self.directional_keys_vector = None;
+                    self.view_directional_keys_vector = dir;
+                }
+                else
+                {
+                    self.view_directional_keys_vector = None;
+                    self.directional_keys_vector = dir;
+                }
 			}
 
             /// Forcefully resets the input presses to not pressed.
@@ -180,34 +227,15 @@ impl InputsPresses
     #[must_use]
     pub const fn cut_just_pressed(&self) -> bool { self.ctrl_pressed() && self.cut.just_pressed() }
 
-    /// Returns a vector representing the direction of the pressed arrow keys, if any.
     #[inline]
     #[must_use]
-    pub fn directional_keys_vector(&self, grid_size: i16) -> Option<Vec2>
+    pub const fn directional_keys_delta(&self) -> Option<Vec2> { self.directional_keys_vector }
+
+    #[inline]
+    #[must_use]
+    pub const fn directional_keys_view_delta(&self) -> Option<Vec2>
     {
-        let mut dir = Vec2::ZERO;
-
-        if self.right.just_pressed()
-        {
-            dir.x += 1f32;
-        }
-
-        if self.left.just_pressed()
-        {
-            dir.x -= 1f32;
-        }
-
-        if self.up.just_pressed()
-        {
-            dir.y += 1f32;
-        }
-
-        if self.down.just_pressed()
-        {
-            dir.y -= 1f32;
-        }
-
-        (dir != Vec2::ZERO).then(|| dir * f32::from(grid_size))
+        self.view_directional_keys_vector
     }
 }
 

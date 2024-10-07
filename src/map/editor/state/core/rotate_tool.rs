@@ -317,7 +317,7 @@ impl RotateTool
             {
                 if bundle.inputs.alt_pressed()
                 {
-                    if let Some(dir) = bundle.inputs.directional_keys_vector(bundle.grid.size())
+                    if let Some(dir) = bundle.inputs.directional_keys_delta()
                     {
                         self.pivot += dir;
                     }
@@ -330,13 +330,13 @@ impl RotateTool
                 {
                     self.status = Status::Drag(cursor_pos, hv_vec![], 0f32);
                 }
-                else if !bundle.inputs.ctrl_pressed()
+                else if let Some(dir) = bundle.inputs.directional_keys_delta()
                 {
-                    if bundle.inputs.right.just_pressed()
+                    if dir.x > 0f32
                     {
                         self.rotate_brushes_cw(bundle, settings);
                     }
-                    else if bundle.inputs.left.just_pressed()
+                    else if dir.x < 0f32
                     {
                         self.rotate_brushes_ccw(bundle, settings);
                     }
@@ -354,7 +354,7 @@ impl RotateTool
             },
             Status::MovePivotUi =>
             {
-                if let Some(dir) = bundle.inputs.directional_keys_vector(bundle.grid.size())
+                if let Some(dir) = bundle.inputs.directional_keys_delta()
                 {
                     self.pivot += dir;
                 }

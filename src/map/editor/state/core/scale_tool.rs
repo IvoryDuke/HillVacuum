@@ -243,12 +243,9 @@ impl ScaleTool
                         .nearby_corner(cursor_pos, bundle.camera.scale()));
                     self.status = Status::Drag(hv_vec![], cursor_pos, self.outline);
                 }
-                else if !bundle.inputs.ctrl_pressed()
+                else if let Some(dir) = bundle.inputs.directional_keys_delta()
                 {
-                    if let Some(dir) = bundle.inputs.directional_keys_vector(bundle.grid.size())
-                    {
-                        self.keyboard_scale(bundle, settings, dir);
-                    }
+                    self.keyboard_scale(bundle, settings, dir);
                 }
             },
             Status::Drag(backup_polygons, start_pos, hull) =>

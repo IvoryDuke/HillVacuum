@@ -488,16 +488,8 @@ impl VertexTool
                     return None;
                 }
 
-                if bundle.inputs.ctrl_pressed()
-                {
-                    return None;
-                }
-
                 // Moving vertex with directional keys.
-                let dir = return_if_none!(
-                    bundle.inputs.directional_keys_vector(bundle.grid.size()),
-                    None
-                );
+                let dir = return_if_none!(bundle.inputs.directional_keys_delta(), None);
                 let mut vxs_move = hv_vec![];
 
                 if self.1.selected_vxs.any_selected_vx() &&

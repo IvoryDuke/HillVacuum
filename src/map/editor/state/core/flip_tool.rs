@@ -50,7 +50,7 @@ impl FlipTool
     #[inline]
     pub fn update(&mut self, bundle: &mut ToolUpdateBundle, settings: &ToolsSettings)
     {
-        let dir = return_if_none!(bundle.inputs.directional_keys_vector(bundle.grid.size()));
+        let dir = return_if_none!(bundle.inputs.directional_keys_delta());
 
         edit_target!(
             settings.target_switch(),

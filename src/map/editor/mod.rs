@@ -503,7 +503,7 @@ impl Editor
 
         if self.inputs.ctrl_pressed()
         {
-            if let Some(delta) = self.inputs.directional_keys_vector(self.grid.size())
+            if let Some(delta) = self.inputs.directional_keys_view_delta()
             {
                 camera.translate(delta);
                 return true;

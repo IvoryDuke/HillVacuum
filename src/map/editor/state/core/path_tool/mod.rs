@@ -567,14 +567,8 @@ impl PathTool
                     return;
                 }
 
-                if bundle.inputs.ctrl_pressed()
-                {
-                    return;
-                }
-
                 // Moving vertex with directional keys.
-                let dir =
-                    return_if_none!(bundle.inputs.directional_keys_vector(bundle.grid.size()));
+                let dir = return_if_none!(bundle.inputs.directional_keys_delta());
                 let mut nodes_move = hv_vec![];
                 Self::move_nodes(bundle, dir, &mut nodes_move);
                 bundle.edits_history.path_nodes_move(nodes_move);

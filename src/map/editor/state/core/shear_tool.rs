@@ -120,7 +120,7 @@ impl ShearTool
                     }
                 }
 
-                if let Some(delta) = inputs.directional_keys_vector(grid.size())
+                if let Some(delta) = inputs.directional_keys_delta()
                 {
                     let mut backup_polygons = hv_vec![];
 
