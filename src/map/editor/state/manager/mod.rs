@@ -2067,8 +2067,6 @@ impl EntitiesManager
         edits_history: &mut EditsHistory
     )
     {
-        assert!(!self.is_selected(identifier), "Entity is already selected.");
-
         let thing = self.insert_entity_selection(identifier);
         edits_history.entity_selection(identifier);
 
@@ -2143,11 +2141,6 @@ impl EntitiesManager
                 .iter()
                 .chain(&self.innards.selected_things)
         );
-
-        if self.auxiliary.0.is_empty()
-        {
-            return;
-        }
 
         for id in &self.auxiliary
         {

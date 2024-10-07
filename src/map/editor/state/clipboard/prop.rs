@@ -358,8 +358,7 @@ impl Prop
     #[inline]
     fn reset_center(&mut self, drawing_resources: &DrawingResources, grid: &Grid)
     {
-        let mut grid = *grid;
-        grid.set_size(2);
+        let grid = grid.with_size(2);
 
         self.center = Hull::from_hulls_iter(
             self.data

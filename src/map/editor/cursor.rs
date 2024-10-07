@@ -159,7 +159,7 @@ impl Cursor
         self.previous_world = self.world;
         self.previous_world_snapped = self.world_grid_snapped;
         self.world = camera.to_world_coordinates(window, grid, ui).bound();
-        self.world_no_grid = camera.to_world_coordinates(window, &Grid::absolute(grid), ui).bound();
+        self.world_no_grid = camera.to_world_coordinates(window, &grid.absolute(), ui).bound();
 
         self.grid_square = grid.square(self.world.clamp(-SQUARE_BOUND, SQUARE_BOUND));
         self.world_grid_snapped = self.grid_square.nearest_corner_to_point(self.world);

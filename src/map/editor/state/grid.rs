@@ -104,11 +104,19 @@ impl Grid
     }
 
     #[inline]
-    pub(in crate::map::editor) fn absolute(other: &Self) -> Self
+    pub(in crate::map::editor) fn absolute(&self) -> Self
     {
-        let mut grid = *other;
+        let mut grid = *self;
         grid.set_angle(0);
         grid.set_skew(0);
+        grid
+    }
+
+    #[inline]
+    pub(in crate::map::editor::state) fn with_size(&self, size: i16) -> Self
+    {
+        let mut grid = *self;
+        grid.size = size;
         grid
     }
 
@@ -221,9 +229,6 @@ impl Grid
 
     //==============================================================
     // Size
-
-    #[inline]
-    pub(in crate::map::editor::state) fn set_size(&mut self, size: i16) { self.size = size; }
 
     /// Increases the grid size to the next power of two.
     /// Capped at 256 units.
