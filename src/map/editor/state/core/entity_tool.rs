@@ -479,11 +479,16 @@ impl EntityTool
                                 }
                                 else
                                 {
-                                    if !bundle.manager.is_selected(id) ||
-                                        (bundle.inputs.ctrl_pressed() &&
-                                            matches!(item, ItemBeneathCursor::Polygon(_)))
+                                    if !bundle.manager.is_selected(id)
                                     {
                                         Self::exclusively_select_entity(bundle, id);
+                                    }
+                                    else if bundle.inputs.ctrl_pressed() &&
+                                        matches!(item, ItemBeneathCursor::Polygon(_))
+                                    {
+                                        bundle
+                                            .manager
+                                            .select_attached_brushes(id, bundle.edits_history);
                                     }
 
                                     self.0 = Status::PreDrag(cursor_pos, item, false);

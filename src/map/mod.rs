@@ -809,6 +809,7 @@ pub(in crate::map) mod ui_mod
     #[inline]
     fn process_egui_inputs(mut input: Query<&mut EguiInput>, editor: NonSend<Editor>)
     {
+        let ui_focus = editor.is_ui_focused();
         let events = &mut return_if_err!(input.get_single_mut()).0.events;
         let mut iter = events.iter_mut().enumerate();
         let mut index = None;
@@ -827,8 +828,8 @@ pub(in crate::map) mod ui_mod
                 key
             )
             {
-                egui::Key::Tab => index = i.into(),
-                egui::Key::F4 => add_escape = true,
+                egui::Key::Tab => index = matches!(ui_focus, UiFocus::None).then_some(i),
+                egui::Key::F4 => add_escape = matches!(ui_focus, UiFocus::Window),
                 _ => continue
             };
 
@@ -842,9 +843,7 @@ pub(in crate::map) mod ui_mod
 
         // If F4 is pressed to close an egui window add an artificial escape press to surrender
         // focus of the text editor being used (if any) before the window is closed.
-        let ui_focus = editor.is_ui_focused();
-
-        if add_escape && matches!(ui_focus, UiFocus::Window)
+        if add_escape
         {
             events.push(egui::Event::Key {
                 key:          egui::Key::Escape,
@@ -855,10 +854,7 @@ pub(in crate::map) mod ui_mod
             });
         }
 
-        if matches!(ui_focus, UiFocus::None)
-        {
-            events.swap_remove(return_if_none!(index));
-        }
+        events.swap_remove(return_if_none!(index));
     }
 
     //=======================================================================//

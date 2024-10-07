@@ -2067,6 +2067,8 @@ impl EntitiesManager
         edits_history: &mut EditsHistory
     )
     {
+        assert!(!self.is_selected(identifier), "Entity is already selected.");
+
         let thing = self.insert_entity_selection(identifier);
         edits_history.entity_selection(identifier);
 
@@ -2075,6 +2077,17 @@ impl EntitiesManager
             return;
         }
 
+        self.select_attached_brushes(identifier, edits_history);
+    }
+
+    #[inline]
+    pub(in crate::map::editor::state) fn select_attached_brushes(
+        &mut self,
+        identifier: Id,
+        edits_history: &mut EditsHistory
+    )
+    {
+        assert!(self.is_selected(identifier), "Brush is not selected.");
         self.innards
             .select_attached_brushes(edits_history, &mut self.auxiliary, Some(identifier));
     }
@@ -2130,6 +2143,11 @@ impl EntitiesManager
                 .iter()
                 .chain(&self.innards.selected_things)
         );
+
+        if self.auxiliary.0.is_empty()
+        {
+            return;
+        }
 
         for id in &self.auxiliary
         {

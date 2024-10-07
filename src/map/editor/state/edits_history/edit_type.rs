@@ -284,10 +284,8 @@ impl EditType
         {
             Self::DrawnBrush(..) | Self::BrushSpawn(..) => "Brushes spawn",
             Self::DrawnBrushDespawn(..) | Self::BrushDespawn(..) => "Brushes despawn",
-            Self::EntitySelection => "Entities selection",
-            Self::EntityDeselection => "Entities deselection",
-            Self::SubtracteeSelection => "Subtractees selection",
-            Self::SubtracteeDeselection => "Subtractees deselection",
+            Self::EntitySelection | Self::EntityDeselection => "Entities selection",
+            Self::SubtracteeSelection | Self::SubtracteeDeselection => "Subtractees selection",
             Self::PolygonEdit(..) => "Polygon edit",
             Self::BrushMove(..) => "Brushes move",
             Self::FreeDrawPointInsertion(..) => "Free draw point insertion",
