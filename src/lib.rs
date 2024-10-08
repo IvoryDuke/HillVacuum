@@ -312,11 +312,16 @@ pub(crate) mod ui_mod
                     .write_all(std::backtrace::Backtrace::force_capture().to_string().as_bytes())
                     .ok();
 
-                let message = match panic_info.payload().downcast_ref::<&str>()
-                {
-                    Some(msg) => msg,
-                    None => "A fatal error has occurred."
-                };
+                let message = panic_info.payload();
+                let message = message.downcast_ref::<String>().map_or_else(
+                    || {
+                        message
+                            .downcast_ref::<&str>()
+                            .copied()
+                            .unwrap_or("A fatal error has occurred.")
+                    },
+                    String::as_str
+                );
 
                 rfd::MessageDialog::new()
                     .set_title("FATAL ERROR")
