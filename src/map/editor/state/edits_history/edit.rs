@@ -21,7 +21,6 @@ use crate::{
 //=======================================================================//
 
 /// A map edit which can be undone and redone, and be made of multiple sub-edits.
-#[derive(Debug)]
 pub(in crate::map::editor::state::edits_history) struct Edit
 {
     edits:    HvVec<(HvVec<Id>, EditType)>,

@@ -153,7 +153,6 @@ macro_rules! common_scale_textures {
 //=======================================================================//
 
 /// The state of the tool.
-#[derive(Debug)]
 enum Status
 {
     /// Scaling with the keyboard.
@@ -168,7 +167,6 @@ enum Status
 //=======================================================================//
 
 /// The scale tool.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct ScaleTool
 {
     /// The state of the tool.

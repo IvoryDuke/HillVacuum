@@ -34,7 +34,6 @@ use crate::{
 //=======================================================================//
 
 /// The flip tool.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct FlipTool(Hull);
 
 impl FlipTool

@@ -19,7 +19,7 @@ use crate::{
 
 /// The overall [`Timing`].
 #[must_use]
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub(in crate::map) enum OverallTiming
 {
     /// No entities.
@@ -150,7 +150,7 @@ impl From<OverallTiming> for UiOverallTiming
 
 /// The overall [`Animation`].
 #[must_use]
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub(in crate::map) enum OverallAnimation
 {
     /// No selected entities.
@@ -255,7 +255,6 @@ impl OverallValueInterface<Animation> for OverallAnimation
 
 /// The overall [`Atlas`] animation.
 #[must_use]
-#[derive(Debug)]
 pub(in crate::map) struct OverallAtlasAnimation
 {
     /// Overall x partitioning.

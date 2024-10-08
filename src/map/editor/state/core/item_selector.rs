@@ -4,7 +4,7 @@
 //=======================================================================//
 
 use core::panic;
-use std::{cmp::Ordering, fmt::Debug, ops::Index};
+use std::{cmp::Ordering, ops::Index};
 
 use crate::{
     map::{
@@ -25,7 +25,7 @@ use crate::{
 
 /// The position of the item.
 #[allow(clippy::missing_docs_in_private_items)]
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Default, Clone, Copy)]
 enum Position
 {
     #[default]
@@ -46,7 +46,6 @@ type SelectorFunc<T> =
 //=======================================================================//
 
 /// The items beneath the cursor.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct ItemsBeneathCursor<T>
 where
     T: EntityId + Copy + PartialEq
@@ -162,7 +161,6 @@ where
 //=======================================================================//
 
 /// The selector of map items.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct ItemSelector<T>
 where
     T: EntityId + Copy + PartialEq

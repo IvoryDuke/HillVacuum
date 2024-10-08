@@ -71,7 +71,7 @@ macro_rules! clip_brushes {
 //=======================================================================//
 
 /// The polygons to use to spawn the new brushes.
-#[derive(Clone, Copy, Debug, Default, EnumSize, EnumFromUsize)]
+#[derive(Clone, Copy, Default, EnumSize, EnumFromUsize)]
 enum PickedPolygons
 {
     /// Both left and right of the clip line.
@@ -97,7 +97,6 @@ impl PickedPolygons
 //=======================================================================//
 
 /// The state of the clip tool.
-#[derive(Debug)]
 enum Status
 {
     /// Inactive.
@@ -143,7 +142,7 @@ impl EnabledTool for Status
 //=======================================================================//
 
 /// The side used to clip the brushes.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 struct ClipSide
 {
     /// The [`Id`] of the brush with the chosen side.
@@ -156,7 +155,6 @@ struct ClipSide
 
 //=======================================================================//
 
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct ClipTool(Status);
 
 impl DisableSubtool for ClipTool

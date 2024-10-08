@@ -393,7 +393,6 @@ impl Trees
 //=======================================================================//
 
 /// A container of [`Id`]s of entities at a certain pos with a dirty flag.
-#[derive(Debug)]
 struct QuadTreeIdsNearPos
 {
     /// The [`Id`]s.
@@ -453,7 +452,6 @@ impl QuadTreeIdsNearPos
 //=======================================================================//
 
 /// A container of [`Id`]s of visible entities with a dirty flag.
-#[derive(Debug)]
 struct VisibleQuadTreeIds
 {
     /// The [`Id`]s.

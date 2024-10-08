@@ -56,7 +56,6 @@ use crate::{
 //=======================================================================//
 
 /// The state of the tool.
-#[derive(Debug)]
 enum Status
 {
     /// Inactive.
@@ -94,7 +93,7 @@ impl EnabledTool for Status
 //=======================================================================//
 
 /// The rotation angle.
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub(in crate::map::editor::state) enum RotateAngle
 {
     /// Free.
@@ -225,7 +224,6 @@ impl RotateAngle
 //=======================================================================//
 
 /// The rotate tool.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct RotateTool
 {
     /// The state of the tool.

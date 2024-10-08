@@ -249,7 +249,6 @@ pub(in crate::map) mod ui_mod
     }
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct SplitPayload(Id, ArrayVec<u8, 2>);
 
     impl From<(convex_polygon::SplitResult, Id)> for SplitResult
@@ -271,7 +270,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) enum XtrusionResult
     {
         None,
@@ -296,7 +294,7 @@ pub(in crate::map) mod ui_mod
     }
 
     #[must_use]
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     pub(in crate::map) struct XtrusionPayload(Id, XtrusionInfo);
 
     impl XtrusionPayload
@@ -309,7 +307,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) enum SidesDeletionResult
     {
         None,
@@ -337,13 +334,11 @@ pub(in crate::map) mod ui_mod
     }
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct SidesDeletionPayload(Id, HvVec<(Vec2, u8, bool)>);
 
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) enum ScaleResult
     {
         Invalid,
@@ -378,13 +373,11 @@ pub(in crate::map) mod ui_mod
     }
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct ScalePayload(Id, HvVec<Vec2>, Option<TextureScale>);
 
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) enum TextureScaleResult
     {
         Invalid,
@@ -405,13 +398,11 @@ pub(in crate::map) mod ui_mod
     }
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct TextureScalePayload(Id, TextureScale);
 
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) enum ShearResult
     {
         Invalid,
@@ -440,13 +431,11 @@ pub(in crate::map) mod ui_mod
     }
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct ShearPayload(Id, HvVec<f32>);
 
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) enum RotateResult
     {
         Invalid,
@@ -483,7 +472,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) enum TextureRotationResult
     {
         Invalid,
@@ -504,7 +492,6 @@ pub(in crate::map) mod ui_mod
     }
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct TextureRotationPayload(Id, TextureRotation);
 
     //=======================================================================//
@@ -513,7 +500,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct ClipResult
     {
         pub id:    Id,
@@ -543,7 +529,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct RotatePayload(Id, HvVec<Vec2>, Option<TextureRotation>);
 
     //=======================================================================//
@@ -579,7 +564,7 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Clone, Serialize, Deserialize)]
     pub(in crate::map) struct BrushData
     {
         /// The polygon of the brush.
@@ -745,7 +730,7 @@ pub(in crate::map) mod ui_mod
 
     /// The entity representing one of the shapes that make the maps, as saved in the .hv files.
     #[must_use]
-    #[derive(Clone, Debug)]
+    #[derive(Clone)]
     pub(in crate::map) struct Brush
     {
         // The id of the brush.

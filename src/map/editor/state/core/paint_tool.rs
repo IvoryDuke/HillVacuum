@@ -46,7 +46,6 @@ use crate::{
 //=======================================================================//
 
 /// The state of the tool.
-#[derive(Debug)]
 enum Status
 {
     /// Inactive.
@@ -91,7 +90,7 @@ impl EnabledTool for Status
 //=======================================================================//
 
 /// The source of the [`Prop`] to draw.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 enum PaintingProp
 {
     /// Quick [`Prop`].
@@ -125,7 +124,6 @@ impl PaintingProp
 //=======================================================================//
 
 /// The paint tool.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct PaintTool
 {
     /// The slot where to store the created [`Prop`].

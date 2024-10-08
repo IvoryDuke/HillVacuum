@@ -27,7 +27,7 @@ use crate::{
 //=======================================================================//
 
 /// An enum to create a new [`Path`].
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub(in crate::map::editor::state::core) enum PathCreation
 {
     /// No [`Node`]s.

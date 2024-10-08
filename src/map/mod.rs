@@ -53,7 +53,7 @@ const FILE_VERSION_NUMBER: &str = "0.9";
 //=======================================================================//
 
 #[must_use]
-#[derive(Clone, Copy, Debug, EnumIter, PartialEq)]
+#[derive(Debug, Clone, Copy, EnumIter, PartialEq)]
 enum FileStructure
 {
     Version,
@@ -82,7 +82,7 @@ impl FileStructure
 
 /// The settings of the map grid saved into the map files.
 #[must_use]
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize)]
 enum GridSettings
 {
     #[default]

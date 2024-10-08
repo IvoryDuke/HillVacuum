@@ -88,7 +88,7 @@ impl Rgb for BevyColor
 //=======================================================================//
 
 /// The colors used by the map editor.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, EnumIter, EnumSize, EnumFromUsize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, EnumIter, EnumSize, EnumFromUsize)]
 pub(crate) enum Color
 {
     /// The background color.

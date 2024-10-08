@@ -171,7 +171,7 @@ impl std::fmt::Display for Value
 /// Key-value pairs associated to an entity.
 #[must_use]
 #[allow(clippy::unsafe_derive_deserialize)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(in crate::map) struct Properties(HvHashMap<String, Value>);
 
 //=======================================================================//

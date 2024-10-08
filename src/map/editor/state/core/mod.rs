@@ -277,7 +277,6 @@ macro_rules! selected_vertexes {
     ($count:ident) => {
         /// A record of the selected brushes selected vertexes.
         #[must_use]
-        #[derive(Debug)]
         struct SelectedVertexes(crate::utils::collections::HvHashMap<Id, u8>, usize);
 
         impl Default for SelectedVertexes

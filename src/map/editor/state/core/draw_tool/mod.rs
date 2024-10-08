@@ -75,7 +75,6 @@ macro_rules! draw_tools {
 //=======================================================================//
 
 /// The shape to draw with [`DrawTool`].
-#[derive(Debug)]
 enum Shape
 {
     /// A square,
@@ -91,7 +90,6 @@ enum Shape
 //=======================================================================//
 
 /// The draw tool.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct DrawTool
 {
     /// The [`Id`]s of the drawn brushes.

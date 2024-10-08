@@ -103,7 +103,6 @@ impl BrushType
 //=======================================================================//
 
 /// The type of the [`Edit`] stored in the [`EditsHistory`].
-#[derive(Debug)]
 pub(in crate::map::editor::state::edits_history) enum EditType
 {
     /// Drawn brush.
@@ -272,6 +271,101 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     TAtlasAnimationFrameTime(String, usize, f32),
     /// Entity property change.
     PropertyChange(Value)
+}
+
+impl std::fmt::Debug for EditType
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        let str = match self
+        {
+            Self::DrawnBrush(_) => "DrawnBrush",
+            Self::DrawnBrushDespawn(_) => "DrawnBrushDespawn",
+            Self::BrushSpawn(..) => "BrushSpawn",
+            Self::BrushDespawn(..) => "BrushDespawn",
+            Self::EntitySelection => "EntitySelection",
+            Self::EntityDeselection => "EntityDeselection",
+            Self::SubtracteeSelection => "SubtracteeSelection",
+            Self::SubtracteeDeselection => "SubtracteeDeselection",
+            Self::PolygonEdit(_) => "PolygonEdit",
+            Self::BrushMove(..) => "BrushMove",
+            Self::FreeDrawPointInsertion(..) => "FreeDrawPointInsertion",
+            Self::FreeDrawPointDeletion(..) => "FreeDrawPointDeletion",
+            Self::VertexInsertion(_) => "VertexInsertion",
+            Self::VertexesDeletion(_) => "VertexesDeletion",
+            Self::VertexesMove(_) => "VertexesMove",
+            Self::SidesDeletion(_) => "SidesDeletion",
+            Self::VertexesSelection(_) => "VertexesSelection",
+            Self::VertexesSnap(_) => "VertexesSnap",
+            Self::BrushFlip(..) => "BrushFlip",
+            Self::PathCreation(_) => "PathCreation",
+            Self::PathDeletion(_) => "PathDeletion",
+            Self::PathNodesSelection(_) => "PathNodesSelection",
+            Self::PathNodeInsertion(_) => "PathNodeInsertion",
+            Self::PathNodesMove(_) => "PathNodesMove",
+            Self::PathNodesDeletion(_) => "PathNodesDeletion",
+            Self::PathNodesSnap(_) => "PathNodesSnap",
+            Self::PathNodeStandby(_) => "PathNodeStandby",
+            Self::PathNodeAcceleration(_) => "PathNodeAcceleration",
+            Self::PathNodeDeceleration(_) => "PathNodeDeceleration",
+            Self::PathNodeMaxSpeed(_) => "PathNodeMaxSpeed",
+            Self::PathNodeMinSpeed(_) => "PathNodeMinSpeed",
+            Self::BrushAttachment(_) => "BrushAttachment",
+            Self::BrushDetachment(_) => "BrushDetachment",
+            Self::DrawnThing(_) => "DrawnThing",
+            Self::DrawnThingDespawn(_) => "DrawnThingDespawn",
+            Self::ThingSpawn(_) => "ThingSpawn",
+            Self::ThingDespawn(_) => "ThingDespawn",
+            Self::ThingMove(_) => "ThingMove",
+            Self::ThingChange(_) => "ThingChange",
+            Self::TextureChange(_) => "TextureChange",
+            Self::TextureRemoval(_) => "TextureRemoval",
+            Self::SpriteToggle(_) => "SpriteToggle",
+            Self::TextureFlip(_) => "TextureFlip",
+            Self::TextureScale(_) => "TextureScale",
+            Self::TextureScaleX(_) => "TextureScaleX",
+            Self::TextureScaleY(_) => "TextureScaleY",
+            Self::TextureOffsetX(_) => "TextureOffsetX",
+            Self::TextureOffsetY(_) => "TextureOffsetY",
+            Self::TextureScrollX(_) => "TextureScrollX",
+            Self::TextureScrollY(_) => "TextureScrollY",
+            Self::TextureParallaxX(_) => "TextureParallaxX",
+            Self::TextureParallaxY(_) => "TextureParallaxY",
+            Self::TextureMove(_) => "TextureMove",
+            Self::TextureRotation(_) => "TextureRotation",
+            Self::TextureHeight(_) => "TextureHeight",
+            Self::AnimationChange(_) => "AnimationChange",
+            Self::TextureReset(_) => "TextureReset",
+            Self::ListAnimationFrameMoveUp(..) => "ListAnimationFrameMoveUp",
+            Self::ListAnimationFrameMoveDown(..) => "ListAnimationFrameMoveDown",
+            Self::ListAnimationNewFrame(_) => "ListAnimationNewFrame",
+            Self::ListAnimationTexture(..) => "ListAnimationTexture",
+            Self::ListAnimationTime(..) => "ListAnimationTime",
+            Self::ListAnimationFrameRemoval(..) => "ListAnimationFrameRemoval",
+            Self::AtlasAnimationColumns(_) => "AtlasAnimationColumns",
+            Self::AtlasAnimationRows(_) => "AtlasAnimationRows",
+            Self::AtlasAnimationLen(_) => "AtlasAnimationLen",
+            Self::AtlasAnimationTiming(_) => "AtlasAnimationTiming",
+            Self::AtlasAnimationUniformTime(_) => "AtlasAnimationUniformTime",
+            Self::AtlasAnimationFrameTime(..) => "AtlasAnimationFrameTime",
+            Self::TAnimation(..) => "TAnimation",
+            Self::TAnimationMoveUp(..) => "TAnimationMoveUp",
+            Self::TAnimationMoveDown(..) => "TAnimationMoveDown",
+            Self::TListAnimationNewFrame(..) => "TListAnimationNewFrame",
+            Self::TListAnimationTexture(..) => "TListAnimationTexture",
+            Self::TListAnimationTime(..) => "TListAnimationTime",
+            Self::TListAnimationFrameRemoval(..) => "TListAnimationFrameRemoval",
+            Self::TAtlasAnimationX(..) => "TAtlasAnimationX",
+            Self::TAtlasAnimationY(..) => "TAtlasAnimationY",
+            Self::TAtlasAnimationLen(..) => "TAtlasAnimationLen",
+            Self::TAtlasAnimationTiming(..) => "TAtlasAnimationTiming",
+            Self::TAtlasAnimationUniformTime(..) => "TAtlasAnimationUniformTime",
+            Self::TAtlasAnimationFrameTime(..) => "TAtlasAnimationFrameTime",
+            Self::PropertyChange(_) => "PropertyChange"
+        };
+
+        write!(f, "{str}")
+    }
 }
 
 impl EditType

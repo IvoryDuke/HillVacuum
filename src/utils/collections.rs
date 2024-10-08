@@ -129,13 +129,13 @@ pub(crate) use hv_hash_set;
 #[cfg(feature = "arena_alloc")]
 /// [`Vec`] wrapper.
 #[must_use]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HvVec<T>(Vec<T, &'static BlinkAlloc>);
 
 #[cfg(not(feature = "arena_alloc"))]
 /// [`SmallVec`] wrapper.
 #[must_use]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HvVec<T>(SmallVec<[T; 1]>);
 
 impl<T> Default for HvVec<T>
@@ -301,12 +301,12 @@ impl<T> HvVec<T>
 
 #[cfg(feature = "arena_alloc")]
 /// [`hashbrown::HashMap`] wrapper.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct HvHashMap<K, V>(hashbrown::HashMap<K, V, DefaultHashBuilder, &'static BlinkAlloc>);
 
 #[cfg(not(feature = "arena_alloc"))]
 /// [`hashbrown::HashMap`] wrapper.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct HvHashMap<K, V>(hashbrown::HashMap<K, V, DefaultHashBuilder>);
 
 impl<K, V> Default for HvHashMap<K, V>
@@ -485,12 +485,12 @@ impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
 
 #[cfg(feature = "arena_alloc")]
 /// [`hashbrown::HashSet`] wrapper.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct HvHashSet<T>(hashbrown::HashSet<T, DefaultHashBuilder, &'static BlinkAlloc>);
 
 #[cfg(not(feature = "arena_alloc"))]
 /// [`hashbrown::HashSet`] wrapper.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct HvHashSet<T>(hashbrown::HashSet<T, DefaultHashBuilder>);
 
 impl<T: Hash + Eq> Default for HvHashSet<T>

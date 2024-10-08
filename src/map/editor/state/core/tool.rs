@@ -311,7 +311,6 @@ impl EditingTarget
 /// The currently active tool.
 #[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) enum ActiveTool
 {
     Draw(DrawTool),
@@ -1533,7 +1532,7 @@ impl ActiveTool
 //=======================================================================//
 
 #[allow(clippy::missing_docs_in_private_items)]
-#[derive(ToolEnum, Clone, Copy, PartialEq, EnumIter, EnumSize, EnumFromUsize, Debug)]
+#[derive(ToolEnum, Debug, Clone, Copy, PartialEq, EnumIter, EnumSize, EnumFromUsize)]
 pub(in crate::map::editor::state) enum Tool
 {
     Square,

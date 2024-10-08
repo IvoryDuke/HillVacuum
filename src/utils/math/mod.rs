@@ -142,7 +142,7 @@ pub(crate) mod ui_mod
     //=======================================================================//
 
     /// A hashable [`Vec2`]. Only to be used in contexts where the x and y coordinates are finite.
-    #[derive(Debug, PartialEq, Clone, Copy)]
+    #[derive(PartialEq, Clone, Copy)]
     pub(crate) struct HashVec2(pub Vec2);
 
     impl Eq for HashVec2 {}

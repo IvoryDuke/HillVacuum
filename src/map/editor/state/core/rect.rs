@@ -108,7 +108,7 @@ pub(crate) trait RectTrait
 //=======================================================================//
 
 /// The core of a [`Rect`].
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Default)]
 enum RectCore
 {
     /// No area.
@@ -127,7 +127,7 @@ enum RectCore
 
 /// A rectangular area generated from two points that can be empty.
 #[must_use]
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Default)]
 pub(in crate::map::editor::state::core) struct Rect(RectCore);
 
 impl RectTrait for Rect
@@ -209,7 +209,7 @@ impl RectTrait for Rect
 
 /// A [`Rect`] that can store an [`Id`] that represents an entity to highlight.
 #[must_use]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub(in crate::map::editor::state::core) struct RectHighlightedEntity<T>(Rect, Option<T>)
 where
     T: EntityId + Clone + Copy;

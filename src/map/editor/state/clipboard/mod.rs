@@ -141,7 +141,7 @@ impl From<ClipboardData> for ClipboardDataViewer
 
 /// The data that can be stored in the Clipboard.
 #[must_use]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(in crate::map) enum ClipboardData
 {
     /// A brush.

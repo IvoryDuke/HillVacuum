@@ -13,7 +13,7 @@ use crate::utils::overall_value::{OverallValue, OverallValueInterface, UiOverall
 
 /// The overall movement properties of the selected [`Node`]s.
 #[must_use]
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub(in crate::map) struct OverallMovement
 {
     /// The overall maximum speed.
@@ -98,7 +98,7 @@ impl OverallMovement
 
 /// A UI friendly representation of [`UiOverallMovement`].
 #[must_use]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub(in crate::map) struct UiOverallMovement
 {
     /// The overall maximum speed.

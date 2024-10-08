@@ -840,7 +840,6 @@ pub(in crate::map) mod ui_mod
 
     /// The data concerning the move of the selected path [`Node`]s.
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct NodesMove
     {
         /// The indexes of the moved nodes.
@@ -878,7 +877,6 @@ pub(in crate::map) mod ui_mod
 
     /// The result of the [`Node`]s selection process.
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) enum NodeSelectionResult
     {
         /// The node beneath the cursor was already selected.
@@ -906,7 +904,6 @@ pub(in crate::map) mod ui_mod
 
     /// The result of the deletion of the selected [`Node`]s of the [`Path`] with its associated id.
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) enum IdNodesDeletionResult
     {
         /// No nodes deleted.
@@ -936,7 +933,6 @@ pub(in crate::map) mod ui_mod
 
     /// The struct describing which nodes of the [`Path`] of an entity should be removed.
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct NodesDeletionPayload(Id, HvVec<(Vec2, u8)>);
 
     impl EntityId for NodesDeletionPayload
@@ -975,7 +971,7 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     /// An hashable [`f32`].
-    #[derive(PartialEq, Debug)]
+    #[derive(PartialEq)]
     struct HashF32(f32);
 
     impl Eq for HashF32 {}
@@ -991,7 +987,6 @@ pub(in crate::map) mod ui_mod
     /// A struct containing the values of the standby time of the selected [`Node`]s of a [`Path`]
     /// before they were changed.
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct StandbyValueEdit(HvHashMap<HashF32, HvHashSet<usize>>);
 
     impl NoneIfEmpty for StandbyValueEdit
@@ -1030,7 +1025,6 @@ pub(in crate::map) mod ui_mod
     /// A struct containing the values of the edited movement value and its opposite of the selected
     /// [`Node`]s of a [`Path`] before they were changed.
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct MovementValueEdit(HvHashMap<HashVec2, HvHashSet<usize>>);
 
     impl NoneIfEmpty for MovementValueEdit
@@ -1068,7 +1062,7 @@ pub(in crate::map) mod ui_mod
 
     /// The information required for the acceleration phase of the travel.
     #[must_use]
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     struct AccelerationInfo
     {
         /// The acceleration.
@@ -1081,7 +1075,7 @@ pub(in crate::map) mod ui_mod
 
     /// The information required for the deceleration phase of the travel.
     #[must_use]
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     struct DecelerationInfo
     {
         /// The deceleration.
@@ -1137,7 +1131,7 @@ pub(in crate::map) mod ui_mod
     /// A struct that allows the path tool to simulate the movement of an entity that owns a
     /// [`Path`].
     #[must_use]
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub(in crate::map) struct MovementSimulator
     {
         /// The [`Id`] of the entity.
@@ -1578,7 +1572,7 @@ pub(in crate::map) mod ui_mod
     /// A path describing how an entity moves in space over time.
     #[allow(dead_code)]
     #[must_use]
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     pub struct Path
     {
         /// The [`Node`]s describing the travel.
@@ -3030,7 +3024,7 @@ pub(in crate::map) mod ui_mod
 
     /// A struct sorting the [`Node`]s of a [`Path`] in buckets based on their position.
     #[must_use]
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     struct Buckets(HvHashMap<HashVec2, HvVec<usize>>);
 
     impl Buckets

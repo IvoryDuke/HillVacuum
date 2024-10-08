@@ -51,7 +51,6 @@ impl InsertResult
 //=======================================================================//
 
 /// The outcome of an [`Id`] removal.
-#[derive(Debug)]
 enum RemoveResult
 {
     /// Nothing.
@@ -70,7 +69,6 @@ enum RemoveResult
 //=======================================================================//
 
 /// A struct that may or may not contain a [`Node`].
-#[derive(Debug)]
 struct MaybeNode(Option<Node>);
 
 impl Default for MaybeNode
@@ -106,7 +104,6 @@ impl MaybeNode
 /// A quad tree that stores bidimensional entities. It stores the vertexes of the non-rotated
 /// rectangle encompassing the entity and the intersections of its sides with the segments
 /// partitioning the space into nodes.
-#[derive(Debug)]
 pub(in crate::map::editor::state::manager) struct QuadTree
 {
     size:                  f32,
@@ -350,7 +347,6 @@ impl QuadTree
 //=======================================================================//
 
 /// A struct to store the [`Id`]s collected from a [`QuadTree`].
-#[derive(Debug)]
 pub(in crate::map::editor::state::manager) struct QuadTreeIds(HvHashMap<Id, Hull>);
 
 impl<'a> IntoIterator for &'a QuadTreeIds

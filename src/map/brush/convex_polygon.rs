@@ -23,7 +23,7 @@ use crate::{
 
 #[allow(dead_code)]
 #[must_use]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(in crate::map) struct ConvexPolygon
 {
     vertexes:          HvVec<SelectableVector>,
@@ -187,7 +187,7 @@ impl From<crate::HvVec<crate::map::selectable_vector::SelectableVector>> for Con
             texture_edited: false
         };
 
-        assert!(cp.valid(), "Invalid vertexes.\n{cp:?}");
+        assert!(cp.valid(), "Invalid polygon.");
 
         cp
     }
@@ -228,7 +228,13 @@ impl ConvexPolygon
             return false;
         }
 
-        self.vxs_valid()
+        if !self.vxs_valid()
+        {
+            eprintln!("Invalid vertexes: {:?}.", self.vertexes);
+            return false;
+        }
+
+        true
     }
 
     #[inline]
@@ -393,7 +399,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) enum FreeDrawVertexDeletionResult
     {
         None,
@@ -414,7 +419,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct VertexesMove
     {
         merged: MergedVertexes,
@@ -450,7 +454,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) enum MergedVertexes
     {
         None,
@@ -581,7 +584,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(PartialEq, Eq)]
     pub(in crate::map) enum VertexesDeletionResult
     {
         None,
@@ -707,7 +709,7 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
-    #[derive(Copy, Clone, Debug)]
+    #[derive(Copy, Clone)]
     pub(in crate::map) struct XtrusionInfo
     {
         prev_side: [Vec2; 2],
@@ -928,7 +930,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct ScaleInfo
     {
         pivot:        Vec2,
@@ -1031,7 +1032,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct ShearInfo
     {
         delta:              f32,
@@ -3867,7 +3867,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         pub(in crate::map::brush) fn subtract(&self, other: &Self) -> SubtractResult
         {
-            #[derive(Clone, Copy, Debug, PartialEq)]
+            #[derive(Clone, Copy, PartialEq)]
             enum VertexTag
             {
                 This,

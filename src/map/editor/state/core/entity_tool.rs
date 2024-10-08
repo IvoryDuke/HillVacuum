@@ -47,7 +47,6 @@ use crate::{
 //=======================================================================//
 
 /// The status of the entity drag.
-#[derive(Debug)]
 enum Status
 {
     /// Inactive.
@@ -90,7 +89,7 @@ impl EnabledTool for Status
 //=======================================================================//
 
 /// The item beneath the cursor.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 enum ItemBeneathCursor
 {
     /// A polygon.
@@ -127,7 +126,6 @@ impl ItemBeneathCursor
 
 /// The entity selector.
 #[must_use]
-#[derive(Debug)]
 struct Selector
 {
     /// Selector of brushes and [`ThingInstance`]s.
@@ -359,7 +357,6 @@ impl Selector
 //=======================================================================//
 
 /// The entity tool.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct EntityTool(Status, Selector);
 
 impl Default for EntityTool

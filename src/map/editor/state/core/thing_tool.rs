@@ -39,7 +39,6 @@ use crate::{
 //=======================================================================//
 
 /// The state of the tool.
-#[derive(Debug)]
 enum Status
 {
     /// Inactive.
@@ -75,7 +74,6 @@ impl EnabledTool for Status
 //=======================================================================//
 
 /// The thing tool.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct ThingTool
 {
     /// The [`Id`]s of the drawn things.

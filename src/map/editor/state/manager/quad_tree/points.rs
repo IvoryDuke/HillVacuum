@@ -28,7 +28,7 @@ use crate::{
 
 /// A corner of a non-rotated rectangle. It contains its position and the length of the horizontal
 /// and vertical sides.
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Clone, Copy)]
 pub(in crate::map::editor::state::manager::quad_tree) enum Corner
 {
     /// Top right.
@@ -183,7 +183,6 @@ impl Sides
 
 /// A vertex stored in a [`QuadTree`]. It can be associated to multiple [`Id`]s.
 #[must_use]
-#[derive(Debug)]
 pub(in crate::map::editor::state::manager::quad_tree) struct Vertex
 {
     /// The position.
@@ -274,7 +273,7 @@ impl Vertex
 
 /// A group of [`Vertex`]es, at most four.
 #[must_use]
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub(in crate::map::editor::state::manager::quad_tree) struct Vertexes(ArrayVec<Vertex, 4>);
 
 impl IntoIterator for Vertexes
@@ -373,7 +372,7 @@ impl Vertexes
 //=======================================================================//
 
 /// An intersection between the sides of a [`Corner`] and the [`QuadTree`] itself.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(in crate::map::editor::state::manager::quad_tree) struct Intersection
 {
     /// The position.
@@ -444,7 +443,6 @@ impl Intersection
 /// The [`Intersection`]s between the entities stored in a [`QuadTree`] and the outline of one of
 /// its [`Node`]s.
 #[must_use]
-#[derive(Debug)]
 pub(in crate::map::editor::state::manager::quad_tree) struct Intersections(HvVec<Intersection>);
 
 impl Default for Intersections

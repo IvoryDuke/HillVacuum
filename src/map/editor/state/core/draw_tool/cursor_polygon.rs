@@ -155,7 +155,6 @@ pub(in crate::map::editor::state) trait DrawCursorPolygon
 //=======================================================================//
 
 /// The state of the spawn variant of [`DrawMode`].
-#[derive(Debug)]
 enum SpawnStatus
 {
     /// Mouse has not been pressed.
@@ -167,7 +166,6 @@ enum SpawnStatus
 //=======================================================================//
 
 /// The drawig mode of a shaped cursor polygon.
-#[derive(Debug)]
 enum DrawMode
 {
     /// Spawn on click.
@@ -305,7 +303,7 @@ impl DrawMode
 
 /// A superficial description of the state of the free draw tool.
 #[must_use]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub(in crate::map) enum FreeDrawStatus
 {
     /// Inactive.
@@ -319,7 +317,7 @@ pub(in crate::map) enum FreeDrawStatus
 //=======================================================================//
 
 /// The state of the [`FreeDrawCursorPolygon`].
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default)]
 enum Status
 {
     /// Nothing drawn.
@@ -341,7 +339,7 @@ enum Status
 shape_cursor_brush!((Square), (Triangle, orientation), (Circle | settings));
 
 /// A cursor to draw a square.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub(in crate::map::editor::state) struct SquareCursorPolygon(DrawMode);
 
 impl SquareCursorPolygon
@@ -364,7 +362,6 @@ impl SquareCursorPolygon
 //=======================================================================//
 
 /// A cursor to draw rectangle triangle.
-#[derive(Debug)]
 pub(in crate::map::editor::state) struct TriangleCursorPolygon(DrawMode, TriangleOrientation);
 
 impl Default for TriangleCursorPolygon
@@ -459,7 +456,6 @@ impl TriangleCursorPolygon
 //=======================================================================//
 
 /// The cursor to draw a "circle".
-#[derive(Debug)]
 pub(in crate::map::editor::state) struct CircleCursorPolygon(DrawMode);
 
 impl Default for CircleCursorPolygon
@@ -538,7 +534,7 @@ impl CircleCursorPolygon
 //=======================================================================//
 
 /// The cursor to freely draw a generic polygon.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub(in crate::map::editor::state) struct FreeDrawCursorPolygon(Status);
 
 impl DisableSubtool for FreeDrawCursorPolygon

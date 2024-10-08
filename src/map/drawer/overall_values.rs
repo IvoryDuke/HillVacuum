@@ -19,7 +19,7 @@ use crate::{
 //=======================================================================//
 
 /// The overall sprite value of the selected brushes' textures.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub(in crate::map) enum OverallSprite
 {
     /// Nothing selected.
@@ -120,7 +120,7 @@ impl OverallValueInterface<Sprite> for OverallSprite
 
 /// The overall settings of the textures of the selected brushes.
 #[allow(clippy::missing_docs_in_private_items)]
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub(in crate::map) struct OverallTextureSettings
 {
     name:      OverallValue<String>,

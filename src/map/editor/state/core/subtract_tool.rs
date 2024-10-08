@@ -41,7 +41,6 @@ use crate::{
 //=======================================================================//
 
 /// The brush selector.
-#[derive(Debug)]
 struct Selector(ItemSelector<Id>);
 
 impl Selector
@@ -98,7 +97,6 @@ impl Selector
 //=======================================================================//
 
 /// The subtract tool.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct SubtractTool
 {
     /// The drag selection.

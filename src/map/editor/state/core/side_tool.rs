@@ -73,7 +73,6 @@ use crate::{
 //=======================================================================//
 
 /// The cursor drag of an xtrusion.
-#[derive(Debug)]
 struct XTrusionDrag(Vec2);
 
 impl XTrusionDrag
@@ -120,7 +119,6 @@ impl XTrusionDrag
 //=======================================================================//
 
 /// The xtrusion mode.
-#[derive(Debug)]
 enum XtrusionMode
 {
     /// Started.
@@ -140,7 +138,6 @@ enum XtrusionMode
 //=======================================================================//
 
 /// The state of the tool.
-#[derive(Debug)]
 enum Status
 {
     /// Inactive.
@@ -198,7 +195,6 @@ selected_vertexes!(selected_sides_amount);
 
 /// An extended record of the selected brushes' selected sides.
 #[must_use]
-#[derive(Debug)]
 struct BrushesWithSelectedSides
 {
     /// The [`Id`]s of the brushes with selected sides.
@@ -373,7 +369,6 @@ impl BrushesWithSelectedSides
 //=======================================================================//
 
 /// The side tool.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct SideTool
 {
     status:         Status,

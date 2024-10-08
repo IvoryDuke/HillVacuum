@@ -17,7 +17,7 @@ use crate::map::selectable_vector::SelectableVector;
 
 /// The data concerning the travel of an entity from one [`Node`] to the next one.
 #[must_use]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Movement
 {
     /// The maximum speed an entity is going to travel from this [`Node`] to the next one.
@@ -85,7 +85,7 @@ impl Movement
 
 /// A node of the travel path of a moving entity.
 /// The position of the node is relative to the center of the entity.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Node
 {
     /// The position in 2D space with respect to the center of the entity.
@@ -339,7 +339,7 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     /// A [`Node`] of a [`Path`] expressed in world coordinates.
-    #[derive(Debug, Clone, Copy, PartialEq)]
+    #[derive(Clone, Copy, PartialEq)]
     pub(in crate::map) struct NodeWorld(pub Vec2, pub bool);
 
     impl NodeWorld
@@ -362,7 +362,6 @@ pub(in crate::map) mod ui_mod
 
     /// A [`Node`] of a [`Path`] expressed in world coordinates that can mutate the selection status
     /// of the aforementioned [`Node`].
-    #[derive(Debug)]
     pub(in crate::map) struct NodeWorldMut<'a>(pub Vec2, pub &'a mut bool);
 
     impl<'a> NodeWorldMut<'a>

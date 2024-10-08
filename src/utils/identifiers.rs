@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 //=======================================================================//
 
 /// An unique identifier assigned to each map entity to identify and distinguish them.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Id(usize);
 
 impl Id

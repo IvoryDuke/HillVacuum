@@ -173,7 +173,6 @@ pub(in crate::map) mod ui_mod
 
     /// The result of the selection process of one [`SelectableVector`].
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) enum VectorSelectionResult
     {
         /// The vector has been or was already selected.

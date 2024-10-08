@@ -74,7 +74,6 @@ use crate::{
 
 /// The state of the tool.
 #[must_use]
-#[derive(Debug)]
 enum Status
 {
     /// Inactive.
@@ -133,7 +132,6 @@ selected_vertexes!(selected_vertexes_amount);
 
 /// An extended record of the selected brushes' selected vertexes.
 #[must_use]
-#[derive(Debug)]
 struct BrushesWithSelectedVertexes
 {
     /// The [`Id`]s of the brushes with selected vertexes.
@@ -306,7 +304,6 @@ impl BrushesWithSelectedVertexes
 //=======================================================================//
 
 /// The vertex tool.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct VertexTool(Status, BrushesWithSelectedVertexes);
 
 impl DisableSubtool for VertexTool
@@ -858,8 +855,10 @@ impl VertexTool
             manager
                 .selected_brushes_ids()
                 .find(|id| {
-                    manager.brush(**id).check_selected_vertexes_deletion() ==
+                    matches!(
+                        manager.brush(**id).check_selected_vertexes_deletion(),
                         VertexesDeletionResult::Invalid
+                    )
                 })
                 .copied()
         });

@@ -21,7 +21,7 @@ use crate::{
 //=======================================================================//
 
 /// The distance between a set origin and the cursor position.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub(in crate::map) struct CursorDelta
 {
     /// The point by which the distance to the cursor is measured.

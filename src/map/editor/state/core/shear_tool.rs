@@ -42,7 +42,6 @@ use crate::{
 //=======================================================================//
 
 /// The state of the tool.
-#[derive(Debug)]
 enum Status
 {
     /// Shearing by keyboard.
@@ -57,7 +56,6 @@ enum Status
 //=======================================================================//
 
 /// The shear tool.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct ShearTool
 {
     /// The state.

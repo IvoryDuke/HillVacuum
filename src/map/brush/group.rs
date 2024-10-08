@@ -15,11 +15,10 @@ use crate::{utils::identifiers::Id, HvHashSet, HvVec, Node};
 //=======================================================================//
 
 /// Information concerning a set of [`Brush`]es grouped together.
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub enum GroupViewer
 {
     /// No group.
-    #[default]
     None,
     /// Has some attached [`Brush`]es.
     Attachments(HvHashSet<Id>),
@@ -68,7 +67,7 @@ pub(in crate::map) mod ui_mod
 
     /// Information concerning a set of [`Brush`]es grouped together.
     #[must_use]
-    #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+    #[derive(Clone, Default, Serialize, Deserialize)]
     pub enum Group
     {
         /// None.
@@ -208,7 +207,7 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map::brush) fn take_path(&mut self) -> Path
         {
             let (path, attachments) = match_or_panic!(
-                std::mem::take(self),
+                self.take_value(),
                 Self::Path {
                     path,
                     attached_brushes

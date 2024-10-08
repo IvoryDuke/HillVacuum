@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 /// The duration of the frames of an [`Atlas`] animation.
 #[must_use]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum Timing
 {
     /// Same duration for all frames.
@@ -48,7 +48,7 @@ impl Timing
 /// The animation of a texture.
 #[allow(clippy::missing_docs_in_private_items)]
 #[must_use]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Animation
 {
     /// None.
@@ -64,7 +64,7 @@ pub enum Animation
 
 /// The partitioning of a texture into sub-textures.
 #[must_use]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct Atlas
 {
     /// The columns.
@@ -112,7 +112,7 @@ impl Atlas
 
 /// A list of textures and the amount of time they should be drawn on screen.
 #[must_use]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct List(HvVec<(String, f32)>);
 
 impl List
@@ -223,7 +223,6 @@ pub(in crate::map) mod ui_mod
 
     /// A struct that updates that animation of a texture.
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) enum Animator
     {
         /// Animates a [`List`] animation.
@@ -602,7 +601,6 @@ pub(in crate::map) mod ui_mod
 
     /// The updater of a list [`Animation`].
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct ListAnimator
     {
         /// The index of the texture to draw.
@@ -657,7 +655,6 @@ pub(in crate::map) mod ui_mod
 
     /// The updater of an atlas [`Animation`].
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct AtlasAnimator
     {
         /// The frame of the atlas to draw.

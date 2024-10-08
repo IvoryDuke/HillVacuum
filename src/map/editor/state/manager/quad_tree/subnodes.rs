@@ -14,7 +14,7 @@ use super::{node::Square, QuadTree};
 //=======================================================================//
 
 /// The cardinality of a subnode.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub(in crate::map::editor::state::manager::quad_tree) enum Cardinality
 {
     /// North-West.
@@ -66,7 +66,6 @@ impl Cardinality
 //=======================================================================//
 
 /// The indexes of the subnodes of a partitioned [`Node`].
-#[derive(Debug)]
 pub(in crate::map::editor::state::manager::quad_tree) struct Subnodes([Cardinality; 4]);
 
 impl<'a> IntoIterator for &'a Subnodes

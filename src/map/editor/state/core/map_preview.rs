@@ -27,7 +27,6 @@ use crate::{
 //=======================================================================//
 
 /// The map preview tool.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct MapPreviewTool
 {
     /// The previously active tool.

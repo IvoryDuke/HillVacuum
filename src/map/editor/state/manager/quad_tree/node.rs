@@ -40,7 +40,6 @@ macro_rules! insert_hulls {
 
 /// The content of a [`Node`].
 #[must_use]
-#[derive(Debug)]
 enum Content
 {
     /// Empty.
@@ -63,7 +62,7 @@ impl Default for Content
 //=======================================================================//
 
 /// The area of a [`Node`].
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub(in crate::map::editor::state::manager::quad_tree) struct Square
 {
     /// The position of the top left corner.
@@ -147,7 +146,6 @@ pub(in crate::map::editor::state::manager::quad_tree) struct SplitSegments
 //=======================================================================//
 
 /// A node of a [`QuadTree`].
-#[derive(Debug)]
 pub(in crate::map::editor::state::manager::quad_tree) struct Node
 {
     /// The area covered.

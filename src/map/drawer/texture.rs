@@ -128,7 +128,7 @@ pub trait TextureInterface
 
 /// Whether the texture should be rendered as a sprite.
 #[must_use]
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub(in crate::map::drawer) enum Sprite
 {
     /// Yes.
@@ -169,7 +169,7 @@ impl Sprite
 #[allow(clippy::missing_docs_in_private_items)]
 #[allow(clippy::unsafe_derive_deserialize)]
 #[must_use]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct TextureSettings
 {
     texture:   String,
@@ -266,7 +266,7 @@ impl TextureSettings
 //=======================================================================//
 
 #[must_use]
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 pub(in crate::map::drawer) struct OffsetAuxiliary
 {
     scale:    ScaleOffset,
@@ -275,7 +275,7 @@ pub(in crate::map::drawer) struct OffsetAuxiliary
 
 //=======================================================================//
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 struct ScaleOffset
 {
     offset_x: f32,
@@ -284,7 +284,7 @@ struct ScaleOffset
 
 //=======================================================================//
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 struct RotationOffset
 {
     offset_x:   f32,
@@ -297,7 +297,7 @@ struct RotationOffset
 
 /// The animation associated to a texture.
 #[must_use]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub(in crate::map) struct DefaultAnimation
 {
     /// The texture.
@@ -679,7 +679,7 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Clone, Copy)]
     enum RotationAuxiliary
     {
         Texture(RotationOffset),
@@ -688,7 +688,7 @@ pub(in crate::map) mod ui_mod
 
     // //=======================================================================//
 
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Clone, Copy)]
     enum ScaleOffset
     {
         Texture(f32, f32),
@@ -702,7 +702,7 @@ pub(in crate::map) mod ui_mod
 
     /// The outcome of a valid texture rotation.
     #[must_use]
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Clone, Copy)]
     pub(in crate::map) struct TextureRotation
     {
         auxiliary: RotationAuxiliary,
@@ -713,7 +713,6 @@ pub(in crate::map) mod ui_mod
 
     /// The outcome of a valid texture scale.
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct TextureScale
     {
         offset:  ScaleOffset,
@@ -725,7 +724,6 @@ pub(in crate::map) mod ui_mod
 
     /// The outcome of a valid texture scale.
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct TextureSpriteSet
     {
         sprite:   Sprite,
@@ -743,7 +741,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct TextureReset
     {
         scale_x:  f32,
@@ -808,7 +805,6 @@ pub(in crate::map) mod ui_mod
     /// A texture which can be rendered on screen and its metadata.
     #[allow(clippy::missing_docs_in_private_items)]
     #[must_use]
-    #[derive(Debug)]
     pub(in crate::map) struct Texture
     {
         name:      String,

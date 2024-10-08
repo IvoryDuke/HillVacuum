@@ -77,7 +77,7 @@ impl From<Prop> for PropViewer
 
 /// An agglomeration of entities that can be spawned around the map.
 #[must_use]
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(in crate::map) struct Prop
 {
     /// The entities in their [`ClipboardData`] representation.
@@ -622,7 +622,7 @@ impl Prop
 /// A timer that disables the camera assigned to a [`Prop`] to take its screenshot once the time has
 /// finished.
 #[must_use]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub(in crate::map::editor::state) struct PropScreenshotTimer(usize, Option<Entity>);
 
 impl PropScreenshotTimer

@@ -407,7 +407,6 @@ impl ErrorHighlight
 
 /// A collection of [`Animator`] that animate the textures on screen during the map preview.
 #[must_use]
-#[derive(Debug)]
 pub(in crate::map) struct Animators
 {
     brushes: HvHashMap<Id, Animator>,

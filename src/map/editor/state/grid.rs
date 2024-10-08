@@ -23,7 +23,7 @@ use crate::{
 //
 //=======================================================================//
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 enum Change
 {
     False,
@@ -38,7 +38,7 @@ enum Change
 
 /// The grid of the map.
 #[must_use]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub(crate) struct Grid
 {
     /// The size of the grid's squares.

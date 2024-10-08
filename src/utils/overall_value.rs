@@ -54,7 +54,7 @@ impl<T, U: OverallValueInterface<T>, V: From<U>> OverallValueToUi<T, V> for U {}
 
 /// The overall value of elements in a list.
 #[must_use]
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub(crate) enum OverallValue<T>
 where
     T: PartialEq + Clone
@@ -138,7 +138,7 @@ impl<T: PartialEq + Clone> OverallValue<T>
 //=======================================================================//
 
 #[must_use]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 /// An UI friendly representation of an [`OverallValue`].
 enum UiValueEnum<T: ToString + FromStr>
 {
@@ -172,7 +172,7 @@ impl<T: ToString + FromStr> Default for UiValueEnum<T>
 /// A UI-friendly representation of an overall value, useful to show information for selected
 /// elements.
 #[must_use]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub(crate) struct UiOverallValue<T: ToString + FromStr + PartialEq>(UiValueEnum<T>);
 
 impl<T: ToString + FromStr + PartialEq + Clone> From<OverallValue<T>> for UiOverallValue<T>

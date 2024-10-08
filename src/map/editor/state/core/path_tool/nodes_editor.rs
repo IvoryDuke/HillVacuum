@@ -102,7 +102,7 @@ macro_rules! movement_values {
 //=======================================================================//
 
 /// The [`Node`]s editor.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub(in crate::map::editor::state::core) struct NodesEditor
 {
     /// The overall [`Node`]s movement parameters.

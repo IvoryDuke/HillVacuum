@@ -65,7 +65,7 @@ pub(in crate::map) trait ThingInterface
 //=======================================================================//
 
 /// The identifier of a [`Thing`].
-#[derive(Clone, Copy, Debug, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Hash, Serialize, Deserialize)]
 pub struct ThingId(u16);
 
 impl Eq for ThingId {}
@@ -255,7 +255,7 @@ pub mod ui_mod
 
     /// The data of [`ThingInstance`].
     #[must_use]
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Clone, Serialize, Deserialize)]
     pub(in crate::map) struct ThingInstanceData
     {
         /// The [`ThingId`] of the [`Thing`] it represents.

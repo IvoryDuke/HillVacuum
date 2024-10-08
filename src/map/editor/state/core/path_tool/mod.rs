@@ -67,7 +67,6 @@ use crate::{
 //=======================================================================//
 
 /// The state of the tool.
-#[derive(Debug)]
 enum Status
 {
     /// Inactive.
@@ -115,7 +114,6 @@ impl EnabledTool for Status
 //=======================================================================/
 
 /// The edits that can be done to a [`Path`].
-#[derive(Debug)]
 enum PathEditing
 {
     /// Creating a new [`Path`].
@@ -133,7 +131,7 @@ enum PathEditing
 //=======================================================================//
 
 /// The items that can be selected.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 enum ItemBeneathCursor
 {
     /// A selected moving entity.
@@ -160,7 +158,6 @@ impl EntityId for ItemBeneathCursor
 //=======================================================================//
 
 /// The items selector.
-#[derive(Debug)]
 struct Selector(ItemSelector<ItemBeneathCursor>);
 
 impl Selector
@@ -252,7 +249,6 @@ impl Selector
 //=======================================================================//
 
 /// The path tool.
-#[derive(Debug)]
 pub(in crate::map::editor::state::core) struct PathTool
 {
     /// The state of the tool.
