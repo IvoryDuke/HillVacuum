@@ -48,7 +48,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     use hill_vacuum_shared::{match_or_panic, return_if_no_match};
-    use serde::{Deserialize, Serialize};
 
     use super::GroupViewer;
     use crate::{
@@ -67,7 +66,7 @@ pub(in crate::map) mod ui_mod
 
     /// Information concerning a set of [`Brush`]es grouped together.
     #[must_use]
-    #[derive(Clone, Default, Serialize, Deserialize)]
+    #[derive(Clone, Default)]
     pub enum Group
     {
         /// None.

@@ -12,7 +12,6 @@ use std::{
 use arrayvec::ArrayVec;
 use glam::Vec2;
 use hill_vacuum_proc_macros::{EnumFromUsize, EnumIter, EnumSize};
-use serde::{Deserialize, Serialize};
 
 use crate::utils::{
     math::{
@@ -227,7 +226,7 @@ pub enum ScaleResult
 
 /// A rectangle with sides parallel to the x and y axis encompassing a region of bidimensional
 /// space.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Hull
 {
     /// The y coordinate of the top side.

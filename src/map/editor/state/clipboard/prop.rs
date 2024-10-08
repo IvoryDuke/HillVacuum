@@ -125,7 +125,7 @@ impl From<crate::map::editor::state::clipboard::compatibility::Prop> for Prop
         } = value;
 
         Self {
-            entities: data,
+            entities: unsafe { std::mem::transmute(data) },
             pivot,
             center: data_center,
             attachments_owners,

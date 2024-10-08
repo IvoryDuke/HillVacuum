@@ -255,7 +255,7 @@ pub mod ui_mod
 
     /// The data of [`ThingInstance`].
     #[must_use]
-    #[derive(Clone, Serialize, Deserialize)]
+    #[derive(Clone)]
     pub(in crate::map) struct ThingInstanceData
     {
         /// The [`ThingId`] of the [`Thing`] it represents.

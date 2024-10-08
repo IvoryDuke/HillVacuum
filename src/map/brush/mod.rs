@@ -564,7 +564,7 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    #[derive(Clone, Serialize, Deserialize)]
+    #[derive(Clone)]
     pub(in crate::map) struct BrushData
     {
         /// The polygon of the brush.
