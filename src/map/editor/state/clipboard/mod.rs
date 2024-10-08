@@ -947,6 +947,7 @@ impl Clipboard
 
     /// Spawns the quick [`Prop`] on the map.
     #[inline]
+    #[must_use]
     pub(in crate::map::editor::state) fn spawn_quick_prop(
         &mut self,
         drawing_resources: &DrawingResources,
@@ -954,14 +955,21 @@ impl Clipboard
         edits_history: &mut EditsHistory,
         grid: &Grid,
         cursor_pos: Vec2
-    )
+    ) -> bool
     {
-        self.quick_prop
-            .paint_copy(drawing_resources, manager, edits_history, grid, cursor_pos);
+        if self.has_quick_prop()
+        {
+            self.quick_prop
+                .paint_copy(drawing_resources, manager, edits_history, grid, cursor_pos);
+            return true;
+        }
+
+        false
     }
 
     /// Spawns the selected [`Prop`] on the map.
     #[inline]
+    #[must_use]
     pub(in crate::map::editor::state) fn spawn_selected_prop(
         &mut self,
         drawing_resources: &DrawingResources,
@@ -969,15 +977,17 @@ impl Clipboard
         edits_history: &mut EditsHistory,
         grid: &Grid,
         cursor_pos: Vec2
-    )
+    ) -> bool
     {
-        self.props[self.selected_prop.unwrap()].paint_copy(
+        self.props[return_if_none!(self.selected_prop, false)].paint_copy(
             drawing_resources,
             manager,
             edits_history,
             grid,
             cursor_pos
         );
+
+        true
     }
 
     //==============================================================

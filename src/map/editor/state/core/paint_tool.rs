@@ -100,8 +100,14 @@ enum PaintingProp
 }
 
 #[allow(clippy::missing_docs_in_private_items)]
-type PropSpawnFunc =
-    fn(&mut Clipboard, &DrawingResources, &mut EntitiesManager, &mut EditsHistory, &Grid, Vec2);
+type PropSpawnFunc = fn(
+    &mut Clipboard,
+    &DrawingResources,
+    &mut EntitiesManager,
+    &mut EditsHistory,
+    &Grid,
+    Vec2
+) -> bool;
 
 impl PaintingProp
 {
@@ -171,6 +177,7 @@ impl PaintTool
     const fn cursor_pos(cursor: &Cursor) -> Vec2 { cursor.world_snapped() }
 
     #[inline]
+    #[must_use]
     fn quick_spawn(
         &mut self,
         drawing_resources: &DrawingResources,
@@ -179,10 +186,15 @@ impl PaintTool
         edits_history: &mut EditsHistory,
         grid: &Grid,
         cursor_pos: Vec2
-    )
+    ) -> bool
     {
-        clipboard.spawn_quick_prop(drawing_resources, manager, edits_history, grid, cursor_pos);
-        self.status = Status::Paint(PaintingProp::Quick, CursorDelta::new(cursor_pos));
+        if clipboard.spawn_quick_prop(drawing_resources, manager, edits_history, grid, cursor_pos)
+        {
+            self.status = Status::Paint(PaintingProp::Quick, CursorDelta::new(cursor_pos));
+            return true;
+        }
+
+        false
     }
 
     /// Updates the tool.
@@ -226,8 +238,7 @@ impl PaintTool
                     return;
                 }
 
-                if inputs.alt_pressed() && clipboard.has_quick_prop()
-                {
+                if inputs.alt_pressed() &&
                     self.quick_spawn(
                         drawing_resources,
                         manager,
@@ -235,18 +246,22 @@ impl PaintTool
                         edits_history,
                         grid,
                         cursor_pos
-                    );
+                    )
+                {
                     return;
                 }
 
-                clipboard.spawn_selected_prop(
+                if clipboard.spawn_selected_prop(
                     drawing_resources,
                     manager,
                     edits_history,
                     grid,
                     cursor_pos
-                );
-                self.status = Status::Paint(PaintingProp::Slotted, CursorDelta::new(cursor_pos));
+                )
+                {
+                    self.status =
+                        Status::Paint(PaintingProp::Slotted, CursorDelta::new(cursor_pos));
+                }
             },
             Status::SetPivot(hull) =>
             {
@@ -310,7 +325,7 @@ impl PaintTool
                     return;
                 }
 
-                self.quick_spawn(
+                _ = self.quick_spawn(
                     drawing_resources,
                     manager,
                     clipboard,
