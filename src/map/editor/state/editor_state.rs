@@ -65,7 +65,9 @@ use crate::{
         FileStructure,
         GridSettings,
         MapHeader,
-        FILE_VERSION_NUMBER
+        CONVERTED_FILE_APPENDIX,
+        FILE_VERSION_NUMBER,
+        UPGRADE_WARNING
     },
     utils::{
         collections::hv_vec,
@@ -1199,7 +1201,7 @@ impl State
         ) -> Result<BufReader<File>, &'static str>
         {
             let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
-            file_name.push_str("_09.hv");
+            file_name.push_str(CONVERTED_FILE_APPENDIX);
 
             warning_message(&format!(
                 "This file appears to use the old file structure {version}, if it is valid it \
@@ -1328,14 +1330,7 @@ impl State
         {
             "0.8" => convert(version_number, &mut path, reader, things_catalog, convert_08)?,
             FILE_VERSION_NUMBER => reader,
-            _ =>
-            {
-                return Err("This file appears to use a no longer supported format, only files \
-                            from version from 0.8 to 0.8.2 are supported to be upgraded to \
-                            version 0.9.\nTo upgrade the file you will need to open it with the \
-                            previous HillVacuum version and then open the generated file with \
-                            this version.\nI apologize for the inconvenience.");
-            }
+            _ => return Err(UPGRADE_WARNING)
         };
 
         steps.next_value().assert(FileStructure::Header);

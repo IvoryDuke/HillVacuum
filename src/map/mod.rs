@@ -46,6 +46,14 @@ use crate::{Brush, ThingInstance};
 
 /// The version of the saved files.
 const FILE_VERSION_NUMBER: &str = "0.9";
+/// The string that is appended to the name of a converted `.hv` file.
+const CONVERTED_FILE_APPENDIX: &str = "_09.hv";
+/// The warning that is displayed when trying to convert a no longer supported `.hv` file.
+const UPGRADE_WARNING: &str = "This file appears to use a no longer supported format, only files \
+                               from version from 0.8 to 0.8.2 are supported to be upgraded to \
+                               version 0.9.\nTo upgrade the file you will need to open it with \
+                               the previous HillVacuum version and then open the generated file \
+                               with this version.\nI apologize for the inconvenience.";
 
 //=======================================================================//
 // ENUMS
