@@ -23,7 +23,13 @@ use glam::Vec2;
 use hill_vacuum_shared::{continue_if_no_match, continue_if_none, match_or_panic, return_if_none};
 use serde::{Deserialize, Serialize};
 
-use super::{ClipboardData, CopyToClipboard, PropCamerasMut, PROP_SCREENSHOT_SIZE};
+use super::{
+    ClipboardData,
+    ClipboardDataViewer,
+    CopyToClipboard,
+    PropCamerasMut,
+    PROP_SCREENSHOT_SIZE
+};
 use crate::{
     error_message,
     map::{
@@ -44,23 +50,25 @@ use crate::{
 //=======================================================================//
 
 #[must_use]
-#[derive(Debug, Serialize, Deserialize)]
-pub(in crate::map::editor::state) struct PropData
+#[derive(Serialize, Deserialize)]
+pub(in crate::map::editor::state) struct PropViewer
 {
-    /// The entities in their [`ClipboardData`] representation.
-    entities: HvVec<ClipboardData>,
-    /// The point used as reference for the spawn process.
+    entities: HvVec<ClipboardDataViewer>,
     pivot:    Vec2
 }
 
-impl Default for PropData
+impl From<Prop> for PropViewer
 {
     #[inline]
-    fn default() -> Self
+    fn from(value: Prop) -> Self
     {
+        let Prop {
+            entities, pivot, ..
+        } = value;
+
         Self {
-            entities: hv_vec![],
-            pivot:    Vec2::ZERO
+            entities: hv_vec![collect; entities.into_iter().map(ClipboardDataViewer::from)],
+            pivot
         }
     }
 }
@@ -69,10 +77,13 @@ impl Default for PropData
 
 /// An agglomeration of entities that can be spawned around the map.
 #[must_use]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(in crate::map) struct Prop
 {
-    data: PropData,
+    /// The entities in their [`ClipboardData`] representation.
+    entities: HvVec<ClipboardData>,
+    /// The point used as reference for the spawn process.
+    pivot: Vec2,
     /// The center of the area covered by the entities.
     center: Vec2,
     /// The amount of [`ClipboardData`] that owns attached brushes.
@@ -89,7 +100,8 @@ impl Default for Prop
     fn default() -> Self
     {
         Self {
-            data:               PropData::default(),
+            entities:           hv_vec![],
+            pivot:              Vec2::ZERO,
             center:             Vec2::ZERO,
             attachments_owners: 0,
             attached_range:     0..0,
@@ -113,10 +125,8 @@ impl From<crate::map::editor::state::clipboard::compatibility::Prop> for Prop
         } = value;
 
         Self {
-            data: PropData {
-                entities: data,
-                pivot
-            },
+            entities: data,
+            pivot,
             center: data_center,
             attachments_owners,
             attached_range,
@@ -145,23 +155,28 @@ impl Prop
     {
         let mut new = Self::default();
         new.fill(drawing_resources, grid, iter.map(CopyToClipboard::copy_to_clipboard));
-        new.data.pivot = new.center - cursor_pos;
+        new.pivot = new.center - cursor_pos;
         new.screenshot = screenshot;
         new
     }
 
     #[inline]
-    pub(in crate::map::editor::state::clipboard) fn from_data(
+    pub(in crate::map::editor::state::clipboard) fn from_viewer(
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
-        data: PropData
+        data: PropViewer
     ) -> Self
     {
-        let PropData { entities, pivot } = data;
+        let PropViewer { entities, pivot } = data;
 
         let mut new = Self::default();
-        new.fill(drawing_resources, grid, entities);
-        new.data.pivot = pivot;
+        new.fill(
+            drawing_resources,
+            grid,
+            hv_vec![collect; entities.into_iter().map(|viewer| ClipboardData::from((viewer, things_catalog)))]
+        );
+        new.pivot = pivot;
         new
     }
 
@@ -206,22 +221,14 @@ impl Prop
     // Info
 
     #[inline]
-    pub(in crate::map::editor::state) const fn data(&self) -> &PropData { &self.data }
-
-    #[inline]
     pub(in crate::map::editor::state::clipboard) fn hull(
         &self,
         drawing_resources: &DrawingResources,
         grid: &Grid
     ) -> Hull
     {
-        Hull::from_hulls_iter(
-            self.data
-                .entities
-                .iter()
-                .map(|data| data.hull(drawing_resources, grid))
-        )
-        .unwrap()
+        Hull::from_hulls_iter(self.entities.iter().map(|data| data.hull(drawing_resources, grid)))
+            .unwrap()
     }
 
     /// Whether `self` contains copied entities.
@@ -229,7 +236,7 @@ impl Prop
     #[must_use]
     pub(in crate::map::editor::state::clipboard) fn has_data(&self) -> bool
     {
-        !self.data.entities.is_empty()
+        !self.entities.is_empty()
     }
 
     /// Returns a reference to the screenshot image id.
@@ -246,7 +253,7 @@ impl Prop
     /// with the pivot placed at `cursor_pos`.
     #[inline]
     #[must_use]
-    fn spawn_delta(&self, cursor_pos: Vec2) -> Vec2 { cursor_pos - self.center + self.data.pivot }
+    fn spawn_delta(&self, cursor_pos: Vec2) -> Vec2 { cursor_pos - self.center + self.pivot }
 
     //==============================================================
     // Update
@@ -260,7 +267,7 @@ impl Prop
         iter: impl IntoIterator<Item = ClipboardData>
     )
     {
-        self.data.entities.clear();
+        self.entities.clear();
         self.attachments_owners = 0;
         self.attached_range = 0..0;
 
@@ -271,7 +278,7 @@ impl Prop
         {
             let index = match &item
             {
-                ClipboardData::Thing(..) => self.data.entities.len(),
+                ClipboardData::Thing(..) => self.entities.len(),
                 ClipboardData::Brush(data, _) =>
                 {
                     if data.is_attached()
@@ -286,15 +293,15 @@ impl Prop
                     }
                     else
                     {
-                        self.data.entities.len()
+                        self.entities.len()
                     }
                 }
             };
 
-            self.data.entities.insert(index, item);
+            self.entities.insert(index, item);
         }
 
-        let (owner_brushes, attached_brushes) = self.data.entities.split_at_mut(attachments);
+        let (owner_brushes, attached_brushes) = self.entities.split_at_mut(attachments);
         let attached_brushes = &mut attached_brushes[..attached];
         self.attached_range = attachments..attachments + attached;
 
@@ -361,10 +368,7 @@ impl Prop
         let grid = grid.with_size(2);
 
         self.center = Hull::from_hulls_iter(
-            self.data
-                .entities
-                .iter()
-                .map(|data| data.hull(drawing_resources, &grid))
+            self.entities.iter().map(|data| data.hull(drawing_resources, &grid))
         )
         .unwrap()
         .center();
@@ -383,7 +387,7 @@ impl Prop
     {
         let mut changed = false;
 
-        for data in &mut self.data.entities
+        for data in &mut self.entities
         {
             let data = continue_if_no_match!(data, ClipboardData::Thing(data, _), data);
             _ = data.set_thing(catalog.thing_or_error(data.thing()));
@@ -411,7 +415,7 @@ impl Prop
     {
         let mut changed = false;
 
-        for data in &mut self.data.entities
+        for data in &mut self.entities
         {
             if let ClipboardData::Brush(data, _) = data
             {
@@ -468,7 +472,7 @@ impl Prop
         {
             for i in range
             {
-                let item = &mut prop.data.entities[i];
+                let item = &mut prop.entities[i];
                 let new_id = manager.spawn_pasted_entity(
                     drawing_resources,
                     edits_history,
@@ -487,7 +491,6 @@ impl Prop
         assert!(self.has_data(), "Prop contains no entities.");
 
         if self
-            .data
             .entities
             .iter()
             .any(|item| item.out_of_bounds_moved(drawing_resources, grid, delta))
@@ -502,13 +505,13 @@ impl Prop
             manager,
             edits_history,
             grid,
-            (self.attached_range.end..self.data.entities.len()).rev(),
+            (self.attached_range.end..self.entities.len()).rev(),
             delta
         );
 
         for i in self.attached_range.clone().rev()
         {
-            let item = &mut self.data.entities[i];
+            let item = &mut self.entities[i];
             let old_id = item.id();
             let new_id = manager.spawn_pasted_entity(
                 drawing_resources,
@@ -523,7 +526,7 @@ impl Prop
                 ClipboardData::Brush(_, id) | ClipboardData::Thing(_, id) => *id = new_id
             };
 
-            let data = continue_if_none!(self.data.entities[0..self.attachments_owners]
+            let data = continue_if_none!(self.entities[0..self.attachments_owners]
                 .iter_mut()
                 .find_map(|item| {
                     let data = match_or_panic!(item, ClipboardData::Brush(data, _), data);
@@ -559,9 +562,9 @@ impl Prop
         let mut delta = self.spawn_delta(cursor_pos);
 
         // If the pasted and the original overlap pull them apart.
-        if self.data.entities.len() == 1 && manager.entity_exists(self.data.entities[0].id())
+        if self.entities.len() == 1 && manager.entity_exists(self.entities[0].id())
         {
-            let hull = self.data.entities[0].hull(drawing_resources, grid);
+            let hull = self.entities[0].hull(drawing_resources, grid);
 
             if let Some(overlap_vector) = hull.overlap_vector(&(hull + delta))
             {
@@ -603,14 +606,14 @@ impl Prop
                 .truncate()
         ) - self.center;
 
-        for item in &self.data.entities
+        for item in &self.entities
         {
             item.draw(bundle, delta);
         }
 
         bundle
             .drawer
-            .prop_pivot(self.center + delta - self.data.pivot, Color::Hull, camera_id);
+            .prop_pivot(self.center + delta - self.pivot, Color::Hull, camera_id);
     }
 }
 

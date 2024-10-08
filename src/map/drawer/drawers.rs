@@ -1020,7 +1020,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         self.push_mesh(mesh, self.color_resources.polygon_material(color), color.entity_height());
 
         // Angle indicator.
-        let preview = catalog.thing_or_error(thing.thing()).preview();
+        let preview = catalog.thing_or_error(thing.thing_id()).preview();
         let angle = thing.angle_f32().to_radians();
         let hull = thing.hull();
         let half_side = (hull.width().min(hull.height()) / 2f32).min(64f32);
@@ -1394,7 +1394,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
         animators: &Animators
     )
     {
-        let texture = catalog.texture(thing.thing());
+        let texture = catalog.texture(thing.thing_id());
         let resources = unsafe { std::ptr::from_mut(self.resources).as_mut().unwrap() };
         let mut mesh_generator = resources.mesh_generator();
 
@@ -1447,7 +1447,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
                         self.resources,
                         self.grid,
                         thing,
-                        catalog.texture(thing.thing())
+                        catalog.texture(thing.thing_id())
                     )
                     .vertexes()
                 );

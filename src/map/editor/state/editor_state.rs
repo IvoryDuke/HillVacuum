@@ -46,7 +46,7 @@ use crate::{
         },
         editor::{
             state::{
-                clipboard::prop::Prop,
+                clipboard::prop::{Prop, PropViewer},
                 core::{tool::ToolInterface, Core},
                 read_default_properties,
                 test_writer,
@@ -1024,7 +1024,7 @@ impl State
                     for brush in bundle.manager.brushes().iter()
                     {
                         test_writer!(
-                            &BrushViewer::new(brush.clone()),
+                            &BrushViewer::from(brush.clone()),
                             &mut writer,
                             "Error saving brushes."
                         );
@@ -1035,7 +1035,7 @@ impl State
                     for thing in bundle.manager.things()
                     {
                         test_writer!(
-                            &ThingViewer::new(thing.clone()),
+                            &ThingViewer::from(thing.clone()),
                             &mut writer,
                             "Error saving things."
                         );
@@ -1268,7 +1268,7 @@ impl State
                         for brush in brushes
                             .take_value()
                             .into_iter()
-                            .map(crate::map::brush::BrushViewer::new)
+                            .map(crate::map::brush::BrushViewer::from)
                         {
                             test_writer!(&brush, &mut writer, "Error converting brushes.");
                         }
@@ -1278,16 +1278,16 @@ impl State
                         for thing in things
                             .take_value()
                             .into_iter()
-                            .map(crate::map::thing::ThingViewer::new)
+                            .map(crate::map::thing::ThingViewer::from)
                         {
                             test_writer!(&thing, &mut writer, "Error converting things.");
                         }
                     },
                     FileStructure::Props =>
                     {
-                        for prop in props.iter().map(Prop::data)
+                        for prop in props.iter().cloned().map(PropViewer::from)
                         {
-                            test_writer!(prop, &mut writer, "Error converting props.");
+                            test_writer!(&prop, &mut writer, "Error converting props.");
                         }
                     }
                 };

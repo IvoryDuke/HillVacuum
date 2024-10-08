@@ -85,7 +85,7 @@ pub(in crate::map) mod ui_mod
                     VertexesMove,
                     XtrusionInfo
                 },
-                group::Group,
+                group::{Group, GroupViewer},
                 BrushViewer
             },
             drawer::{
@@ -120,6 +120,7 @@ pub(in crate::map) mod ui_mod
             misc::TakeValue
         },
         Animation,
+        HvHashMap,
         HvVec,
         Id,
         TextureInterface,
@@ -547,6 +548,37 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
+    #[derive(Serialize, Deserialize)]
+    pub(in crate::map) struct BrushDataViewer
+    {
+        vertexes:   HvVec<Vec2>,
+        texture:    Option<TextureSettings>,
+        group:      GroupViewer,
+        properties: HvHashMap<String, Value>
+    }
+
+    impl From<BrushData> for BrushDataViewer
+    {
+        #[inline]
+        fn from(value: BrushData) -> Self
+        {
+            let BrushData {
+                polygon,
+                group,
+                properties
+            } = value;
+
+            Self {
+                vertexes:   hv_vec![collect; polygon.vertexes()],
+                texture:    polygon.take_texture_settings(),
+                group:      group.into(),
+                properties: properties.take()
+            }
+        }
+    }
+
+    //=======================================================================//
+
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub(in crate::map) struct BrushData
     {
@@ -556,6 +588,33 @@ pub(in crate::map) mod ui_mod
         group:      Group,
         /// The properties of the brush.
         properties: Properties
+    }
+
+    impl From<BrushDataViewer> for BrushData
+    {
+        #[inline]
+        fn from(value: BrushDataViewer) -> Self
+        {
+            let BrushDataViewer {
+                vertexes,
+                texture,
+                group,
+                properties
+            } = value;
+
+            let mut polygon = ConvexPolygon::from(vertexes);
+
+            if let Some(tex) = texture
+            {
+                polygon.set_texture_settings(tex);
+            }
+
+            Self {
+                polygon,
+                group: group.into(),
+                properties: Properties::from_parts(properties)
+            }
+        }
     }
 
     impl BrushData
@@ -686,15 +745,13 @@ pub(in crate::map) mod ui_mod
 
     /// The entity representing one of the shapes that make the maps, as saved in the .hv files.
     #[must_use]
-    #[derive(Clone, Debug, Serialize, Deserialize)]
+    #[derive(Clone, Debug)]
     pub(in crate::map) struct Brush
     {
         // The id of the brush.
         id:   Id,
         data: BrushData
     }
-
-    // from_compat!(_03, _04, _06);
 
     impl From<BrushViewer> for Brush
     {
@@ -709,20 +766,14 @@ pub(in crate::map) mod ui_mod
                 properties
             } = value;
 
-            let mut polygon = ConvexPolygon::from(vertexes);
-
-            if let Some(tex) = texture
-            {
-                polygon.set_texture_settings(tex);
-            }
-
             Self {
                 id,
-                data: BrushData {
-                    polygon,
-                    group: group.into(),
-                    properties: Properties::from_parts(properties)
-                }
+                data: BrushData::from(BrushDataViewer {
+                    vertexes,
+                    texture,
+                    group,
+                    properties
+                })
             }
         }
     }
@@ -2618,28 +2669,25 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    impl BrushViewer
+    impl From<Brush> for BrushViewer
     {
-        /// Returns a new [`crate::Brush`].
         #[inline]
-        pub(in crate::map) fn new(brush: Brush) -> Self
+        fn from(value: Brush) -> Self
         {
-            let Brush {
-                data:
-                    BrushData {
-                        polygon,
-                        group,
-                        properties
-                    },
-                id
-            } = brush;
+            let Brush { data, id } = value;
+            let BrushDataViewer {
+                vertexes,
+                texture,
+                group,
+                properties
+            } = BrushDataViewer::from(data);
 
             Self {
                 id,
-                vertexes: hv_vec![collect; polygon.vertexes()],
-                texture: polygon.take_texture_settings(),
-                group: group.into(),
-                properties: properties.take()
+                vertexes,
+                texture,
+                group,
+                properties
             }
         }
     }

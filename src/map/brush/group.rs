@@ -88,27 +88,6 @@ pub(in crate::map) mod ui_mod
         Attached(Id)
     }
 
-    // impl From<Mover> for Group
-    // {
-    //     #[inline]
-    //     fn from(value: Mover) -> Self
-    //     {
-    //         match value
-    //         {
-    //             Mover::None => Self::None,
-    //             Mover::Anchors(ids) => Self::Attachments(ids),
-    //             Mover::Motor(path) =>
-    //             {
-    //                 Self::Path {
-    //                     path:             path.path,
-    //                     attached_brushes: path.anchored_brushes
-    //                 }
-    //             },
-    //             Mover::Anchored(id) => Self::Attached(id)
-    //         }
-    //     }
-    // }
-
     impl From<GroupViewer> for Group
     {
         #[inline]

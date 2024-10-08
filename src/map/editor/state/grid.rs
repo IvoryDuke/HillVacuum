@@ -113,7 +113,7 @@ impl Grid
     }
 
     #[inline]
-    pub(in crate::map::editor::state) fn with_size(&self, size: i16) -> Self
+    pub(in crate::map::editor::state) const fn with_size(&self, size: i16) -> Self
     {
         let mut grid = *self;
         grid.size = size;

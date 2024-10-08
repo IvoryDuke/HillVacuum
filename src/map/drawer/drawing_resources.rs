@@ -859,7 +859,7 @@ impl DrawingResources
     {
         self.push_mesh(
             mesh,
-            self.texture_materials(self.texture_or_error(catalog.texture(thing.thing())).name())
+            self.texture_materials(self.texture_or_error(catalog.texture(thing.thing_id())).name())
                 .clamp_material(color),
             color.entity_height() + thing.draw_height_f32()
         );

@@ -430,7 +430,7 @@ impl Animators
         } = bundle;
 
         let previews = hv_hash_set![collect; manager.things().filter_map(|thing| {
-            let texture = things_catalog.texture(thing.thing());
+            let texture = things_catalog.texture(thing.thing_id());
             drawing_resources.is_animated(texture).then_some(texture)
         })];
 
@@ -3783,7 +3783,7 @@ impl EntitiesManager
         for id in &self.auxiliary
         {
             let mut instance = self.innards.thing_mut(&mut self.quad_trees, *id);
-            let thing = continue_if_none!(things_catalog.thing(instance.thing()));
+            let thing = continue_if_none!(things_catalog.thing(instance.thing_id()));
 
             if !instance.check_thing_change(thing)
             {

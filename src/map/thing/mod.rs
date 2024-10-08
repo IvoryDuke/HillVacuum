@@ -44,7 +44,7 @@ pub(in crate::map) trait ThingInterface
 {
     /// Returns the [`ThingId`].
     #[must_use]
-    fn thing(&self) -> ThingId;
+    fn thing_id(&self) -> ThingId;
 
     /// Returns the position it is placed on the map.
     #[must_use]
@@ -206,7 +206,10 @@ pub mod ui_mod
             math::AroundEqual,
             misc::{Camera, ReplaceValue, TakeValue}
         },
+        HvHashMap,
+        HvVec,
         Id,
+        Node,
         ThingId,
         Value
     };
@@ -216,14 +219,47 @@ pub mod ui_mod
     //
     //=======================================================================//
 
+    #[must_use]
+    #[derive(Serialize, Deserialize)]
+    pub(in crate::map) struct ThingInstanceDataViewer
+    {
+        pub thing_id:   ThingId,
+        pub pos:        Vec2,
+        pub path:       Option<HvVec<Node>>,
+        pub properties: HvHashMap<String, Value>
+    }
+
+    impl From<ThingInstanceData> for ThingInstanceDataViewer
+    {
+        #[inline]
+        fn from(value: ThingInstanceData) -> Self
+        {
+            let ThingInstanceData {
+                thing_id: thing,
+                pos,
+                path,
+                properties,
+                ..
+            } = value;
+
+            Self {
+                thing_id: thing,
+                pos,
+                path: path.map(Path::take_nodes),
+                properties: properties.take()
+            }
+        }
+    }
+
+    //=======================================================================//
+
     /// The data of [`ThingInstance`].
     #[must_use]
     #[derive(Debug, Clone, Serialize, Deserialize)]
-
     pub(in crate::map) struct ThingInstanceData
     {
         /// The [`ThingId`] of the [`Thing`] it represents.
-        thing:      ThingId,
+        thing_id:   ThingId,
         /// The position on the map.
         pos:        Vec2,
         /// The bounding box.
@@ -232,6 +268,31 @@ pub mod ui_mod
         path:       Option<Path>,
         /// The associated properties.
         properties: Properties
+    }
+
+    impl<'a> From<(ThingInstanceDataViewer, &'a ThingsCatalog)> for ThingInstanceData
+    {
+        #[inline]
+        fn from(value: (ThingInstanceDataViewer, &'a ThingsCatalog)) -> Self
+        {
+            let (
+                ThingInstanceDataViewer {
+                    thing_id,
+                    pos,
+                    path,
+                    properties
+                },
+                catalog
+            ) = value;
+
+            Self {
+                thing_id,
+                pos,
+                hull: ThingInstanceData::create_hull(pos, catalog.thing_or_error(thing_id)),
+                path: path.map(Into::into),
+                properties: Properties::from_parts(properties)
+            }
+        }
     }
 
     impl EntityHull for ThingInstanceData
@@ -243,7 +304,7 @@ pub mod ui_mod
     impl ThingInterface for ThingInstanceData
     {
         #[inline]
-        fn thing(&self) -> ThingId { self.thing }
+        fn thing_id(&self) -> ThingId { self.thing_id }
 
         #[inline]
         fn pos(&self) -> Vec2 { self.pos }
@@ -259,7 +320,7 @@ pub mod ui_mod
     {
         /// Returns the [`ThingId`] of the [`Thing`] represented by `self`.
         #[inline]
-        pub const fn thing(&self) -> ThingId { self.thing }
+        pub const fn thing(&self) -> ThingId { self.thing_id }
 
         /// Returns the [`Hull`] of [`Thing`] with center at `pos`.
         #[inline]
@@ -310,12 +371,12 @@ pub mod ui_mod
                 self.hull = ThingInstanceData::create_hull(self.pos, thing);
             }
 
-            if thing.id == self.thing
+            if thing.id == self.thing_id
             {
                 return None;
             }
 
-            self.thing.replace_value(thing.id).into()
+            self.thing_id.replace_value(thing.id).into()
         }
 
         /// Draw `self` displaced by `delta` for a prop screenshot.
@@ -347,7 +408,7 @@ pub mod ui_mod
     impl ThingInterface for ThingInstance
     {
         #[inline]
-        fn thing(&self) -> ThingId { self.data.thing }
+        fn thing_id(&self) -> ThingId { self.data.thing_id }
 
         #[inline]
         fn pos(&self) -> Vec2 { self.data.pos }
@@ -376,15 +437,18 @@ pub mod ui_mod
                 catalog
             ) = value;
 
-            let mut thing = ThingInstance::new(
+            Self {
                 id,
-                catalog.thing_or_error(thing_id),
-                pos,
-                Properties::from_parts(properties)
-            );
-            thing.data.path = path.map(Into::into);
-
-            thing
+                data: ThingInstanceData::from((
+                    ThingInstanceDataViewer {
+                        thing_id,
+                        pos,
+                        path,
+                        properties
+                    },
+                    catalog
+                ))
+            }
         }
     }
 
@@ -570,7 +634,7 @@ pub mod ui_mod
             Self {
                 id,
                 data: ThingInstanceData {
-                    thing: thing.id,
+                    thing_id: thing.id,
                     pos,
                     hull,
                     path: None,
@@ -768,7 +832,7 @@ pub mod ui_mod
         )
         {
             let label = return_if_none!(drawer.tooltip_label());
-            let thing = catalog.thing_or_error(self.data.thing);
+            let thing = catalog.thing_or_error(self.data.thing_id);
             let grid = drawer.grid();
 
             let offset = if grid.isometric()
@@ -795,27 +859,25 @@ pub mod ui_mod
 
     //=======================================================================//
 
-    impl ThingViewer
+    impl From<ThingInstance> for ThingViewer
     {
-        /// Creates a new [`ThingViewer`].
         #[inline]
-        pub(in crate::map) fn new(thing: ThingInstance) -> Self
+        fn from(value: ThingInstance) -> Self
         {
-            let id = thing.id;
-            let ThingInstanceData {
-                thing,
+            let id = value.id;
+            let ThingInstanceDataViewer {
+                thing_id,
                 pos,
                 path,
-                properties,
-                ..
-            } = thing.data;
+                properties
+            } = ThingInstanceDataViewer::from(value.data);
 
             Self {
                 id,
-                thing_id: thing,
+                thing_id,
                 pos,
-                path: path.map(Path::take_nodes),
-                properties: properties.take()
+                path,
+                properties
             }
         }
     }
@@ -840,7 +902,7 @@ pub mod ui_mod
     impl<'a> ThingInterface for MovedThingInstance<'a>
     {
         #[inline]
-        fn thing(&self) -> ThingId { self.thing.thing() }
+        fn thing_id(&self) -> ThingId { self.thing.thing() }
 
         #[inline]
         fn pos(&self) -> Vec2 { self.thing.pos() + self.delta }

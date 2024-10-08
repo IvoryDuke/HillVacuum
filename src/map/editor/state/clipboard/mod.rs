@@ -38,7 +38,7 @@ use bevy_egui::{
 };
 use glam::{UVec2, Vec2};
 use hill_vacuum_shared::{return_if_none, NextValue};
-use prop::{Prop, PropData, PropScreenshotTimer};
+use prop::{Prop, PropScreenshotTimer, PropViewer};
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -50,13 +50,13 @@ use super::{
 };
 use crate::{
     map::{
-        brush::BrushData,
+        brush::{BrushData, BrushDataViewer},
         camera::scale_viewport,
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::DrawBundle,
         hv_vec,
         path::Path,
-        thing::{catalog::ThingsCatalog, ThingInstanceData},
+        thing::{catalog::ThingsCatalog, ThingInstanceData, ThingInstanceDataViewer},
         MapHeader,
         OutOfBounds,
         PROP_CAMERAS_AMOUNT
@@ -114,6 +114,31 @@ pub(in crate::map) trait CopyToClipboard
 //
 //=======================================================================//
 
+#[must_use]
+#[derive(Serialize, Deserialize)]
+pub(in crate::map) enum ClipboardDataViewer
+{
+    /// A brush.
+    Brush(BrushDataViewer, Id),
+    /// A [`ThingInstance`].
+    Thing(ThingInstanceDataViewer, Id)
+}
+
+impl From<ClipboardData> for ClipboardDataViewer
+{
+    #[inline]
+    fn from(value: ClipboardData) -> Self
+    {
+        match value
+        {
+            ClipboardData::Brush(data, id) => Self::Brush(data.into(), id),
+            ClipboardData::Thing(data, id) => Self::Thing(data.into(), id)
+        }
+    }
+}
+
+//=======================================================================//
+
 /// The data that can be stored in the Clipboard.
 #[must_use]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,8 +150,27 @@ pub(in crate::map) enum ClipboardData
     Thing(ThingInstanceData, Id)
 }
 
+impl<'a> From<(ClipboardDataViewer, &'a ThingsCatalog)> for ClipboardData
+{
+    #[inline]
+    fn from(value: (ClipboardDataViewer, &'a ThingsCatalog)) -> Self
+    {
+        let (data, catalog) = value;
+
+        match data
+        {
+            ClipboardDataViewer::Brush(data, id) => Self::Brush(data.into(), id),
+            ClipboardDataViewer::Thing(data, id) =>
+            {
+                Self::Thing(ThingInstanceData::from((data, catalog)), id)
+            },
+        }
+    }
+}
+
 impl CopyToClipboard for ClipboardData
 {
+    #[inline]
     fn copy_to_clipboard(&self) -> ClipboardData { todo!() }
 }
 
@@ -387,10 +431,11 @@ impl Clipboard
 
         for _ in 0..props_amount
         {
-            let mut prop = Prop::from_data(
+            let mut prop = Prop::from_viewer(
                 drawing_resources,
+                catalog,
                 grid,
-                ciborium::from_reader::<PropData, _>(&mut *file)
+                ciborium::from_reader::<PropViewer, _>(&mut *file)
                     .map_err(|_| "Error loading props")?
             );
             _ = prop.reload_things(drawing_resources, catalog, grid);
@@ -645,9 +690,9 @@ impl Clipboard
         writer: &mut BufWriter<&mut Vec<u8>>
     ) -> Result<(), &'static str>
     {
-        for prop in self.props.iter().map(Prop::data)
+        for prop in self.props.iter().map(|prop| PropViewer::from(prop.clone()))
         {
-            ciborium::ser::into_writer(prop, &mut *writer).map_err(|_| "Error saving prop")?;
+            ciborium::ser::into_writer(&prop, &mut *writer).map_err(|_| "Error saving prop")?;
         }
 
         Ok(())
