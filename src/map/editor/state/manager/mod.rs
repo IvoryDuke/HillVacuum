@@ -654,24 +654,21 @@ impl Innards
                  {engine_default_properties}\n\nMAP: {file_default_properties}"
             );
 
-            match native_dialog::MessageDialog::new()
+            if native_dialog::MessageDialog::new()
                 .set_title("WARNING")
                 .set_text(&description)
                 .set_type(native_dialog::MessageType::Info)
                 .show_confirm()
                 .unwrap()
             {
-                true =>
-                {
-                    let refactor = file_default_properties.refactor(engine_default_properties);
-                    *map_default_properties = engine_default_properties.clone();
-                    refactor.into()
-                },
-                false =>
-                {
-                    *map_default_properties = file_default_properties;
-                    None
-                }
+                let refactor = file_default_properties.refactor(engine_default_properties);
+                *map_default_properties = engine_default_properties.clone();
+                refactor.into()
+            }
+            else
+            {
+                *map_default_properties = file_default_properties;
+                None
             }
         }
 

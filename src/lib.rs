@@ -323,7 +323,7 @@ pub(crate) mod ui_mod
                     String::as_str
                 );
 
-                _ = native_dialog::MessageDialog::new()
+                () = native_dialog::MessageDialog::new()
                     .set_title("FATAL ERROR")
                     .set_text(&format!(
                         "{message}\nThe backtrace has been logged to the file backtrace.log."
@@ -388,7 +388,7 @@ pub(crate) mod ui_mod
     #[inline]
     pub(crate) fn error_message(error: &str)
     {
-        _ = native_dialog::MessageDialog::new()
+        () = native_dialog::MessageDialog::new()
             .set_type(native_dialog::MessageType::Error)
             .set_title("ERROR")
             .set_text(error)
@@ -401,7 +401,7 @@ pub(crate) mod ui_mod
     #[inline]
     pub(crate) fn warning_message(message: &str)
     {
-        _ = native_dialog::MessageDialog::new()
+        () = native_dialog::MessageDialog::new()
             .set_type(native_dialog::MessageType::Warning)
             .set_title("WARNING")
             .set_text(message)

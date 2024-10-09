@@ -793,22 +793,22 @@ impl State
             return Ok(false);
         }
 
-        match native_dialog::MessageDialog::new()
+        if native_dialog::MessageDialog::new()
             .set_title(NAME)
             .set_text("There are unsaved changes, do you wish to save?")
             .set_type(native_dialog::MessageType::Info)
             .show_confirm()
             .unwrap()
         {
-            true =>
+            match Self::save(bundle, None)
             {
-                match Self::save(bundle, None)
-                {
-                    Err(err) => Err(err),
-                    Ok(()) => Ok(true)
-                }
-            },
-            false => Ok(false)
+                Err(err) => Err(err),
+                Ok(()) => Ok(true)
+            }
+        }
+        else
+        {
+            Ok(false)
         }
     }
 
@@ -930,7 +930,7 @@ impl State
                 SaveTarget::None
             );
 
-            SaveTarget::New(check_path_extension(path.into(), FILE_EXTENSION))
+            SaveTarget::New(check_path_extension(path, FILE_EXTENSION))
         }
 
         let target = match save_as
@@ -1372,12 +1372,12 @@ impl State
             return;
         }
 
-        let file_to_open = PathBuf::from(return_if_none!(native_dialog::FileDialog::new()
+        let file_to_open = return_if_none!(native_dialog::FileDialog::new()
             .set_location(&std::env::current_dir().unwrap())
             .set_title("Open")
             .add_filter(HV_FILTER_NAME, &[FILE_EXTENSION])
             .show_open_single_file()
-            .unwrap()));
+            .unwrap());
 
         match Self::process_map_file(
             bundle.images,
@@ -1473,7 +1473,7 @@ impl State
     {
         if HardcodedActions::Quit.pressed(bundle.key_inputs)
         {
-            _ = Self::quit(bundle);
+            Self::quit(bundle);
         }
 
         // Reactive update to previous frame's changes.
@@ -1753,7 +1753,7 @@ impl State
             Command::QuickSnap => self.quick_snap(bundle),
             Command::Quit =>
             {
-                _ = Self::quit(bundle);
+                Self::quit(bundle);
                 return true;
             }
         };
