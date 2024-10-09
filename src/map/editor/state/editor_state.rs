@@ -783,31 +783,24 @@ impl State
     // File
 
     /// Executes the file save file routine if there are unsaved changes and the user decides to
-    /// save.
-    ///
-    /// `Ok(true)` -> properly saved or decided not to.
-    ///
-    /// `Ok(false)` -> user decided to cancel operation.
-    ///
-    /// `Err` -> error during save procedure.
+    /// save.  
+    /// Returns whever the file was actually saved.
     #[inline]
-    fn unsaved_changes(
-        bundle: &mut StateUpdateBundle,
-        buttons: rfd::MessageButtons
-    ) -> Result<bool, &'static str>
+    fn unsaved_changes(bundle: &mut StateUpdateBundle) -> Result<bool, &'static str>
     {
         if Self::no_edits(bundle)
         {
-            return Ok(true);
+            return Ok(false);
         }
 
-        match rfd::MessageDialog::new()
-            .set_buttons(buttons)
+        match native_dialog::MessageDialog::new()
             .set_title(NAME)
-            .set_description("There are unsaved changes, do you wish to save?")
-            .show()
+            .set_text("There are unsaved changes, do you wish to save?")
+            .set_type(native_dialog::MessageType::Info)
+            .show_confirm()
+            .unwrap()
         {
-            rfd::MessageDialogResult::Yes =>
+            true =>
             {
                 match Self::save(bundle, None)
                 {
@@ -815,9 +808,7 @@ impl State
                     Ok(()) => Ok(true)
                 }
             },
-            rfd::MessageDialogResult::No => Ok(true),
-            rfd::MessageDialogResult::Cancel => Ok(false),
-            _ => unreachable!()
+            false => Ok(false)
         }
     }
 
@@ -826,10 +817,7 @@ impl State
     #[inline]
     fn new_file(&mut self, bundle: &mut StateUpdateBundle) -> Result<(), &'static str>
     {
-        if !Self::unsaved_changes(bundle, rfd::MessageButtons::YesNoCancel)?
-        {
-            return Ok(());
-        }
+        _ = Self::unsaved_changes(bundle)?;
 
         self.core = Core::default();
         *bundle.manager = EntitiesManager::new();
@@ -933,15 +921,16 @@ impl State
         fn save_as_dialog(title: &'static str) -> SaveTarget
         {
             let path = return_if_none!(
-                rfd::FileDialog::new()
+                native_dialog::FileDialog::new()
+                    .set_location(&std::env::current_dir().unwrap())
                     .set_title(title)
                     .add_filter(HV_FILTER_NAME, &[FILE_EXTENSION])
-                    .set_directory(std::env::current_dir().unwrap())
-                    .save_file(),
+                    .show_save_single_file()
+                    .unwrap(),
                 SaveTarget::None
             );
 
-            SaveTarget::New(check_path_extension(path, FILE_EXTENSION))
+            SaveTarget::New(check_path_extension(path.into(), FILE_EXTENSION))
         }
 
         let target = match save_as
@@ -1377,22 +1366,18 @@ impl State
     #[inline]
     fn open(&mut self, bundle: &mut StateUpdateBundle)
     {
-        match Self::unsaved_changes(bundle, rfd::MessageButtons::YesNoCancel)
+        if let Err(err) = Self::unsaved_changes(bundle)
         {
-            Ok(false) => return,
-            Err(err) =>
-            {
-                error_message(err);
-                return;
-            },
-            _ => ()
-        };
+            error_message(err);
+            return;
+        }
 
-        let file_to_open = return_if_none!(rfd::FileDialog::new()
+        let file_to_open = PathBuf::from(return_if_none!(native_dialog::FileDialog::new()
+            .set_location(&std::env::current_dir().unwrap())
             .set_title("Open")
             .add_filter(HV_FILTER_NAME, &[FILE_EXTENSION])
-            .set_directory(std::env::current_dir().unwrap())
-            .pick_file());
+            .show_open_single_file()
+            .unwrap()));
 
         match Self::process_map_file(
             bundle.images,
@@ -1431,17 +1416,13 @@ impl State
     #[inline]
     fn export(bundle: &mut StateUpdateBundle)
     {
-        let file = match Self::unsaved_changes(bundle, rfd::MessageButtons::YesNoCancel)
+        if let Err(err) = Self::unsaved_changes(bundle)
         {
-            Ok(false) => return,
-            Err(err) =>
-            {
-                error_message(err);
-                return;
-            },
-            Ok(true) => return_if_none!(bundle.config.open_file.path())
-        };
+            error_message(err);
+            return;
+        }
 
+        let file = return_if_none!(bundle.config.open_file.path());
         let exporter = return_if_none!(bundle.config.exporter.as_ref());
 
         if !exporter.exists() || !exporter.is_executable()
@@ -1492,7 +1473,7 @@ impl State
     {
         if HardcodedActions::Quit.pressed(bundle.key_inputs)
         {
-            Self::quit(bundle, rfd::MessageButtons::YesNoCancel);
+            _ = Self::quit(bundle);
         }
 
         // Reactive update to previous frame's changes.
@@ -1560,115 +1541,120 @@ impl State
     {
         /// Generates the procedure to read an export type file.
         macro_rules! import {
-            ($extension:ident, $label:literal, $importer:expr) => {{ paste::paste! {
-                let mut file = BufReader::new(
-                    File::open(return_if_none!(
-                        rfd::FileDialog::new()
-                        .set_title(concat!("Export ", $label))
-                        .add_filter([< $extension _FILTER_NAME >], &[[< $extension _EXTENSION >]])
-                        .set_directory(std::env::current_dir().unwrap())
-                        .pick_file(),
+            ($extension:ident, $label:literal, $importer:expr) => {{
+                paste::paste! {
+                    let path = PathBuf::from(return_if_none!(
+                        native_dialog::FileDialog::new()
+                            .set_location(&std::env::current_dir().unwrap())
+                            .set_title(concat!("Import ", $label))
+                            .add_filter([< $extension _FILTER_NAME >], &[[< $extension _EXTENSION >]])
+                            .show_open_single_file()
+                            .unwrap(),
                         false
-                    ))
-                    .unwrap()
-                );
+                    ));
 
-                // Right now has no actual purpose.
-                _ = version_number(&mut file);
+                    let mut file = BufReader::new(File::open(path).unwrap());
 
-                let len = match ciborium::from_reader(&mut file)
-                {
-                    Ok(len) => len,
-                    Err(_) =>
+                    // Right now has no actual purpose.
+                    _ = version_number(&mut file);
+
+                    let len = match ciborium::from_reader(&mut file)
                     {
-                        error_message(concat!("Error reading ", $label, " file."));
-                        return false;
-                    }
-                };
+                        Ok(len) => len,
+                        Err(_) =>
+                        {
+                            error_message(concat!("Error reading ", $label, " file."));
+                            return false;
+                        }
+                    };
 
-                if let Err(err) = ($importer)(&mut file, len)
-                {
-                    error_message(err);
+                    if let Err(err) = ($importer)(&mut file, len)
+                    {
+                        error_message(err);
+                    }
                 }
-            }}};
+            }};
         }
 
         /// Generates the procedure to save an export type file.
         macro_rules! export {
-            ($extension:ident, $label:literal, $argument:ident, $source:expr) => {{ paste::paste! {
-                let path = return_if_none!(
-                    rfd::FileDialog::new()
-                        .set_title(concat!("Export ", $label))
-                        .add_filter([< $extension _FILTER_NAME >], &[[< $extension _EXTENSION >]])
-                        .set_directory(std::env::current_dir().unwrap())
-                        .save_file(),
-                    false
-                );
+            ($extension:ident, $label:literal, $argument:ident, $source:expr) => {{
+                paste::paste! {
+                    let path = PathBuf::from(return_if_none!(
+                        native_dialog::FileDialog::new()
+                            .set_location(&std::env::current_dir().unwrap())
+                            .set_title(concat!("Export ", $label))
+                            .add_filter([< $extension _FILTER_NAME >], &[[< $extension _EXTENSION >]])
+                            .show_save_single_file()
+                            .unwrap(),
+                        false
+                    ));
 
-                let path = check_path_extension(path, [< $extension _EXTENSION >]);
+                    let path = check_path_extension(path, [< $extension _EXTENSION >]);
 
-                let mut data = Vec::<u8>::new();
-                let mut writer = BufWriter::new(&mut data);
+                    let mut data = Vec::<u8>::new();
+                    let mut writer = BufWriter::new(&mut data);
 
-                if ciborium::ser::into_writer(
-                    FILE_VERSION_NUMBER,
-                    &mut writer
-                ).is_err()
-                {
-                    error_message("Error writing version number.");
-                    return false;
-                }
-
-                if ciborium::ser::into_writer(
-                    &$source.[< $argument _amount >](),
-                    &mut writer
-                ).is_err()
-                {
-                    error_message(concat!("Error writing ", $label, " amount."));
-                    return false;
-                }
-
-                if let Err(err) = $source.[< export_ $argument >](&mut writer)
-                {
-                    error_message(err);
-                    return false;
-                }
-
-                drop(writer);
-                let new_file = !path.exists();
-
-                if new_file && File::create(&path).is_err()
-                {
-                    error_message(concat!("Error creating ", $label, " file."));
-                    return false;
-                }
-
-                let mut file = match OpenOptions::new().write(true).open(&path)
-                {
-                    Ok(file) => BufWriter::new(file),
-                    Err(_) =>
+                    if ciborium::ser::into_writer(
+                        FILE_VERSION_NUMBER,
+                        &mut writer
+                    ).is_err()
                     {
-                        error_message(concat!("Error opening ", $label, " file."));
-
-                        if new_file
-                        {
-                            _ = std::fs::remove_file(path);
-                        }
-
+                        error_message("Error writing version number.");
                         return false;
                     }
-                };
 
-                if file.write_all(&data).is_err()
-                {
-                    if new_file
+                    if ciborium::ser::into_writer(
+                        &$source.[< $argument _amount >](),
+                        &mut writer
+                    ).is_err()
                     {
-                        _ = std::fs::remove_file(&path);
+                        error_message(concat!("Error writing ", $label, " amount."));
+                        return false;
                     }
 
-                    error_message(concat!("Error writing ", $label, " file."));
+                    if let Err(err) = $source.[< export_ $argument >](&mut writer)
+                    {
+                        error_message(err);
+                        return false;
+                    }
+
+                    drop(writer);
+                    let new_file = !path.exists();
+
+                    if new_file && File::create(&path).is_err()
+                    {
+                        error_message(concat!("Error creating ", $label, " file."));
+                        return false;
+                    }
+
+                    let mut file = match OpenOptions::new().write(true).open(&path)
+                    {
+                        Ok(file) => BufWriter::new(file),
+                        Err(_) =>
+                        {
+                            error_message(concat!("Error opening ", $label, " file."));
+
+                            if new_file
+                            {
+                                _ = std::fs::remove_file(path);
+                            }
+
+                            return false;
+                        }
+                    };
+
+                    if file.write_all(&data).is_err()
+                    {
+                        if new_file
+                        {
+                            _ = std::fs::remove_file(&path);
+                        }
+
+                        error_message(concat!("Error writing ", $label, " file."));
+                    }
                 }
-            }}};
+            }};
         }
 
         bundle.clipboard.update(
@@ -1767,7 +1753,7 @@ impl State
             Command::QuickSnap => self.quick_snap(bundle),
             Command::Quit =>
             {
-                Self::quit(bundle, rfd::MessageButtons::YesNoCancel);
+                _ = Self::quit(bundle);
                 return true;
             }
         };
@@ -1875,11 +1861,7 @@ impl State
         {
             Command::ToggleMapPreview => self.toggle_map_preview(bundle),
             Command::ReloadTextures => self.start_texture_reload(bundle),
-            Command::Quit =>
-            {
-                Self::quit(bundle, rfd::MessageButtons::YesNoCancel);
-                return true;
-            },
+            Command::Quit => Self::quit(bundle),
             _ => ()
         };
 
@@ -1963,18 +1945,25 @@ impl State
     #[inline]
     fn toggle_collision(&mut self) { self.show_collision.toggle(); }
 
+    #[inline]
+    fn reload_warning(message: &str) -> bool
+    {
+        native_dialog::MessageDialog::new()
+            .set_title("WARNING")
+            .set_text(message)
+            .set_type(native_dialog::MessageType::Warning)
+            .show_confirm()
+            .unwrap()
+    }
+
     /// Reloads the things.
     #[inline]
     fn reload_things(bundle: &mut StateUpdateBundle)
     {
-        if let rfd::MessageDialogResult::No = rfd::MessageDialog::new()
-            .set_buttons(rfd::MessageButtons::YesNo)
-            .set_title("WARNING")
-            .set_description(
-                "Reloading the things will erase the history of all things edits and will set all \
-                 things that will result out of bound to errors. Are you sure you wish to proceed?"
-            )
-            .show()
+        if !Self::reload_warning(
+            "Reloading the things will erase the history of all things edits and will set all \
+             things that will result out of bound to errors. Are you sure you wish to proceed?"
+        )
         {
             return;
         }
@@ -1992,17 +1981,17 @@ impl State
         bundle.manager.finish_things_reload(bundle.things_catalog);
     }
 
-    /// Starts the application shutdown procedure.
+    /// Starts the application shutdown procedure.  
+    /// Returns whever the application should actually be closed.
     #[inline]
-    pub fn quit(bundle: &mut StateUpdateBundle, buttons: rfd::MessageButtons) -> bool
+    pub fn quit(bundle: &mut StateUpdateBundle)
     {
-        if let Ok(false) = Self::unsaved_changes(bundle, buttons)
+        if let Err(err) = Self::unsaved_changes(bundle)
         {
-            return false;
+            error_message(err);
         }
 
         bundle.next_editor_state.set(EditorState::ShutDown);
-        true
     }
 
     /// Returns the [`Hull`] representing the rectangle encompassing all the selected entities if
@@ -2042,15 +2031,11 @@ impl State
             return;
         }
 
-        if let rfd::MessageDialogResult::No = rfd::MessageDialog::new()
-            .set_buttons(rfd::MessageButtons::YesNo)
-            .set_title("WARNING")
-            .set_description(
-                "Reloading the textures will erase the history of all texture edits and will set \
-                 all the textures of brushes with associated sprites that will result out of \
-                 bound to errors. Are you sure you wish to proceed?"
-            )
-            .show()
+        if !Self::reload_warning(
+            "Reloading the textures will erase the history of all texture edits and will set all \
+             the textures of brushes with associated sprites that will result out of bound to \
+             errors. Are you sure you wish to proceed?"
+        )
         {
             return;
         }

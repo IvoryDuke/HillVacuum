@@ -955,7 +955,8 @@ pub(in crate::map) mod ui_mod
         let egui_context = egui_context.get_mut();
         let mut camera = camera.single_mut();
 
-        if close_events.read().next().is_some() &&
+        if close_events.read().next().is_some()
+        {
             editor.quit(
                 &mut window,
                 &mut images,
@@ -970,8 +971,8 @@ pub(in crate::map) mod ui_mod
                 &mut config,
                 &mut next_editor_state,
                 &mut next_tex_load
-            )
-        {
+            );
+
             return;
         }
 

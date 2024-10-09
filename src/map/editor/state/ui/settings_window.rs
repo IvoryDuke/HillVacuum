@@ -304,14 +304,15 @@ impl SettingsWindow
 
                         if ui.button("Pick exporter").clicked()
                         {
-                            match rfd::FileDialog::new()
+                            match native_dialog::FileDialog::new()
+                                .set_location(&std::env::current_dir().unwrap())
                                 .set_title("Pick exporter")
-                                .set_directory(std::env::current_dir().unwrap())
-                                .pick_file()
+                                .show_open_single_file()
+                                .unwrap()
                             {
                                 Some(file) if file.is_executable() => *exporter = file.into(),
                                 _ => ()
-                            };
+                            }
                         }
 
                         let label = match exporter

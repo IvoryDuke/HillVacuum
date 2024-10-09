@@ -633,15 +633,14 @@ impl Innards
         /// Stores in `map_default_properties` the desired properties and returns a
         /// [`PropertiesRefactor`] if the default and file properties do not match.
         #[inline]
-        #[must_use]
         fn mismatching_properties<'a>(
-            default_properties: &'a DefaultProperties,
-            map_default_properties: &mut DefaultProperties,
+            engine_default_properties: &'a DefaultProperties,
+            map_default_properties: &'a mut DefaultProperties,
             file_default_properties: DefaultProperties,
             entity: &str
         ) -> Option<PropertiesRefactor<'a>>
         {
-            if *default_properties == file_default_properties
+            if *engine_default_properties == file_default_properties
             {
                 return None;
             }
@@ -650,29 +649,29 @@ impl Innards
                 "The engine default {entity} properties are different from the ones stored in the \
                  map file.\nIf you decide to use the engine defined ones, all values currently \
                  contained in the {entity} that do not match will be removed, and the missing \
-                 ones will be inserted.\nPress OK to use the engine properties, press Cancel to \
-                 use the map properties.\n\nHere are the two property lists:\n\nENGINE: \
-                 {default_properties}\n\nMAP: {file_default_properties}"
+                 ones will be inserted.\nPress YES to use the engine properties, press NO to use \
+                 the map file properties.\n\nHere are the two property lists:\n\nENGINE: \
+                 {engine_default_properties}\n\nMAP: {file_default_properties}"
             );
 
-            match rfd::MessageDialog::new()
+            match native_dialog::MessageDialog::new()
                 .set_title("WARNING")
-                .set_description(description)
-                .set_buttons(rfd::MessageButtons::OkCancel)
-                .show()
+                .set_text(&description)
+                .set_type(native_dialog::MessageType::Info)
+                .show_confirm()
+                .unwrap()
             {
-                rfd::MessageDialogResult::Ok =>
+                true =>
                 {
-                    let refactor = file_default_properties.refactor(default_properties);
-                    *map_default_properties = default_properties.clone();
+                    let refactor = file_default_properties.refactor(engine_default_properties);
+                    *map_default_properties = engine_default_properties.clone();
                     refactor.into()
                 },
-                rfd::MessageDialogResult::Cancel =>
+                false =>
                 {
                     *map_default_properties = file_default_properties;
                     None
-                },
-                _ => unreachable!()
+                }
             }
         }
 

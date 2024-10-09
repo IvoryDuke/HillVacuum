@@ -22,7 +22,7 @@ ui = [
     "dep:egui_extras",
     "dep:is_executable",
     "dep:paste",
-    "dep:rfd",
+    "dep:native-dialog",
     "dep:threadpool"
 ]
 default = ["ui"]
@@ -91,8 +91,8 @@ optional = true
 version = "1.*"
 optional = true
 
-[dependencies.rfd]
-version = "0.15"
+[dependencies.native-dialog]
+version = "0.7"
 optional = true
 
 [dependencies.serde]

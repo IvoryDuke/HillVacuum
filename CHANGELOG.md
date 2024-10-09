@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.0
+
+### Changes
+- Simplified texture parallax calculations, changed signature of `draw_offset_with_parallax_and_scroll`;
+- `Tab` and `Alt+Tab` can now be used to scroll through the ui widgets;
+- decreased file size of `Prop`s;
+- replaced `rfd` with `native-dialog` to handle message dialogs due to the wider range of supported operating systems.
+
+### Fixes
+- Added missing collision overlay in clipped brushes;
+- fixed layout of default `.ini` settings;
+- fixed empty edit sometimes created by the selection of attached brushes;
+- fixed a paint tool crash occurring when no prop is selected.
+
 ## 0.8.2
 
 ### Fixes

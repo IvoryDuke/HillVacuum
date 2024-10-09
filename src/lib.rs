@@ -323,13 +323,13 @@ pub(crate) mod ui_mod
                     String::as_str
                 );
 
-                rfd::MessageDialog::new()
+                _ = native_dialog::MessageDialog::new()
                     .set_title("FATAL ERROR")
-                    .set_description(format!(
+                    .set_text(&format!(
                         "{message}\nThe backtrace has been logged to the file backtrace.log."
                     ))
-                    .set_buttons(rfd::MessageButtons::Ok)
-                    .show();
+                    .show_alert()
+                    .unwrap();
             }));
 
             let mut window = Window {
@@ -388,11 +388,12 @@ pub(crate) mod ui_mod
     #[inline]
     pub(crate) fn error_message(error: &str)
     {
-        rfd::MessageDialog::new()
+        _ = native_dialog::MessageDialog::new()
+            .set_type(native_dialog::MessageType::Error)
             .set_title("ERROR")
-            .set_description(error)
-            .set_buttons(rfd::MessageButtons::Ok)
-            .show();
+            .set_text(error)
+            .show_alert()
+            .unwrap();
     }
 
     //=======================================================================//
@@ -400,11 +401,12 @@ pub(crate) mod ui_mod
     #[inline]
     pub(crate) fn warning_message(message: &str)
     {
-        rfd::MessageDialog::new()
+        _ = native_dialog::MessageDialog::new()
+            .set_type(native_dialog::MessageType::Warning)
             .set_title("WARNING")
-            .set_description(message)
-            .set_buttons(rfd::MessageButtons::Ok)
-            .show();
+            .set_text(message)
+            .show_alert()
+            .unwrap();
     }
 }
 
