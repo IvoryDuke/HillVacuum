@@ -46,7 +46,14 @@ use crate::{
         },
         editor::{
             state::{
-                clipboard::prop::{Prop, PropViewer},
+                clipboard::{
+                    compatibility::{
+                        convert_08_props,
+                        convert_08_prps_file,
+                        save_imported_08_props
+                    },
+                    prop::Prop
+                },
                 core::{tool::ToolInterface, Core},
                 read_default_properties,
                 test_writer,
@@ -66,7 +73,8 @@ use crate::{
         GridSettings,
         MapHeader,
         CONVERTED_FILE_APPENDIX,
-        FILE_VERSION_NUMBER,
+        FILE_VERSION,
+        PREVIOUS_FILE_VERSION,
         UPGRADE_WARNING
     },
     utils::{
@@ -784,7 +792,7 @@ impl State
 
     /// Executes the file save file routine if there are unsaved changes and the user decides to
     /// save.  
-    /// Returns whever the file was actually saved.
+    /// Returns whether the file was actually saved.
     #[inline]
     fn unsaved_changes(bundle: &mut StateUpdateBundle) -> Result<bool, &'static str>
     {
@@ -970,7 +978,7 @@ impl State
             {
                 FileStructure::Version =>
                 {
-                    test_writer!(FILE_VERSION_NUMBER, &mut writer, "Error saving version number.");
+                    test_writer!(FILE_VERSION, &mut writer, "Error saving version number.");
                 },
                 FileStructure::Header =>
                 {
@@ -1155,20 +1163,6 @@ impl State
                 )));
             }
 
-            // Props.
-            let mut props = hv_vec![];
-
-            for _ in 0..header.props
-            {
-                props.push(Prop::from(
-                    ciborium::from_reader::<
-                        crate::map::editor::state::clipboard::compatibility::Prop,
-                        _
-                    >(&mut reader)
-                    .map_err(|_| "Error reading props for conversion.")?
-                ));
-            }
-
             Ok(OldFileRead {
                 header,
                 grid,
@@ -1176,7 +1170,7 @@ impl State
                 default_properties,
                 brushes,
                 things,
-                props
+                props: convert_08_props(&mut reader, header.props)?
             })
         }
 
@@ -1204,7 +1198,7 @@ impl State
                 default_properties: [default_brush_properties, default_thing_properties],
                 mut brushes,
                 mut things,
-                props
+                mut props
             } = f(reader, things_catalog)?;
 
             let default_brush_properties = default_brush_properties.with_brush_properties();
@@ -1220,11 +1214,7 @@ impl State
                 {
                     FileStructure::Version =>
                     {
-                        test_writer!(
-                            FILE_VERSION_NUMBER,
-                            &mut writer,
-                            "Error converting version number."
-                        );
+                        test_writer!(FILE_VERSION, &mut writer, "Error converting version number.");
                     },
                     FileStructure::Header =>
                     {
@@ -1274,13 +1264,7 @@ impl State
                             test_writer!(&thing, &mut writer, "Error converting things.");
                         }
                     },
-                    FileStructure::Props =>
-                    {
-                        for prop in props.iter().cloned().map(PropViewer::from)
-                        {
-                            test_writer!(&prop, &mut writer, "Error converting props.");
-                        }
-                    }
+                    FileStructure::Props => save_imported_08_props(&mut writer, props.take_value())?
                 };
             }
 
@@ -1317,8 +1301,11 @@ impl State
 
         let mut file = match version_number
         {
-            "0.8" => convert(version_number, &mut path, reader, things_catalog, convert_08)?,
-            FILE_VERSION_NUMBER => reader,
+            PREVIOUS_FILE_VERSION =>
+            {
+                convert(version_number, &mut path, reader, things_catalog, convert_08)?
+            },
+            FILE_VERSION => reader,
             _ => return Err(UPGRADE_WARNING)
         };
 
@@ -1539,43 +1526,6 @@ impl State
         ui_interaction: &Interaction
     ) -> bool
     {
-        /// Generates the procedure to read an export type file.
-        macro_rules! import {
-            ($extension:ident, $label:literal, $importer:expr) => {{
-                paste::paste! {
-                    let path = PathBuf::from(return_if_none!(
-                        native_dialog::FileDialog::new()
-                            .set_location(&std::env::current_dir().unwrap())
-                            .set_title(concat!("Import ", $label))
-                            .add_filter([< $extension _FILTER_NAME >], &[[< $extension _EXTENSION >]])
-                            .show_open_single_file()
-                            .unwrap(),
-                        false
-                    ));
-
-                    let mut file = BufReader::new(File::open(path).unwrap());
-
-                    // Right now has no actual purpose.
-                    _ = version_number(&mut file);
-
-                    let len = match ciborium::from_reader(&mut file)
-                    {
-                        Ok(len) => len,
-                        Err(_) =>
-                        {
-                            error_message(concat!("Error reading ", $label, " file."));
-                            return false;
-                        }
-                    };
-
-                    if let Err(err) = ($importer)(&mut file, len)
-                    {
-                        error_message(err);
-                    }
-                }
-            }};
-        }
-
         /// Generates the procedure to save an export type file.
         macro_rules! export {
             ($extension:ident, $label:literal, $argument:ident, $source:expr) => {{
@@ -1596,7 +1546,7 @@ impl State
                     let mut writer = BufWriter::new(&mut data);
 
                     if ciborium::ser::into_writer(
-                        FILE_VERSION_NUMBER,
+                        FILE_VERSION,
                         &mut writer
                     ).is_err()
                     {
@@ -1657,6 +1607,41 @@ impl State
             }};
         }
 
+        #[inline]
+        fn import<C, I>(
+            title: &str,
+            filter_description: &str,
+            extension: &str,
+            error: &'static str,
+            c: C,
+            i: I
+        ) -> Result<(), &'static str>
+        where
+            C: FnOnce(
+                &str,
+                BufReader<File>,
+                PathBuf,
+                usize
+            ) -> Result<BufReader<File>, &'static str>,
+            I: FnOnce(&mut BufReader<File>, usize) -> Result<(), &'static str>
+        {
+            let path = return_if_none!(
+                native_dialog::FileDialog::new()
+                    .set_location(&std::env::current_dir().unwrap())
+                    .set_title(title)
+                    .add_filter(filter_description, &[extension])
+                    .show_open_single_file()
+                    .unwrap(),
+                Ok(())
+            );
+
+            let mut reader = BufReader::new(File::open(&path).unwrap());
+            let version = version_number(&mut reader);
+            let len = ciborium::from_reader(&mut reader).map_err(|_| error)?;
+            let mut reader = c(version.as_str(), reader, path, len)?;
+            i(&mut reader, len)
+        }
+
         bundle.clipboard.update(
             bundle.images,
             bundle.prop_cameras,
@@ -1697,9 +1682,19 @@ impl State
             Command::Export => Self::export(bundle),
             Command::ImportAnimations =>
             {
-                import!(ANIMATIONS, "animations", |file, len| {
-                    bundle.drawing_resources.import_animations(len, file)
-                });
+                let res = import(
+                    "Import animations",
+                    ANIMATIONS_FILTER_NAME,
+                    ANIMATIONS_EXTENSION,
+                    "Error importing animations",
+                    |_, reader, _, _| Ok(reader),
+                    |file, len| bundle.drawing_resources.import_animations(len, file)
+                );
+
+                if let Err(err) = res
+                {
+                    error_message(err);
+                }
             },
             Command::ExportAnimations =>
             {
@@ -1707,18 +1702,37 @@ impl State
             },
             Command::ImportProps =>
             {
-                import!(PROPS, "props", |file, len| {
-                    bundle.clipboard.import_props(
-                        bundle.images,
-                        bundle.prop_cameras,
-                        bundle.user_textures,
-                        bundle.drawing_resources,
-                        bundle.things_catalog,
-                        bundle.grid,
-                        len,
-                        file
-                    )
-                });
+                let res = import(
+                    "Import props",
+                    PROPS_FILTER_NAME,
+                    PROPS_EXTENSION,
+                    "Error importing props",
+                    |version, reader, path, len| {
+                        match version
+                        {
+                            PREVIOUS_FILE_VERSION => convert_08_prps_file(path, len),
+                            FILE_VERSION => Ok(reader),
+                            _ => unreachable!()
+                        }
+                    },
+                    |file, len| {
+                        bundle.clipboard.import_props(
+                            bundle.images,
+                            bundle.prop_cameras,
+                            bundle.user_textures,
+                            bundle.drawing_resources,
+                            bundle.things_catalog,
+                            bundle.grid,
+                            len,
+                            file
+                        )
+                    }
+                );
+
+                if let Err(err) = res
+                {
+                    error_message(err);
+                }
             },
             Command::ExportProps => export!(PROPS, "props", props, bundle.clipboard),
             Command::SelectAll => self.select_all(bundle),
@@ -1982,7 +1996,7 @@ impl State
     }
 
     /// Starts the application shutdown procedure.  
-    /// Returns whever the application should actually be closed.
+    /// Returns whether the application should actually be closed.
     #[inline]
     pub fn quit(bundle: &mut StateUpdateBundle)
     {

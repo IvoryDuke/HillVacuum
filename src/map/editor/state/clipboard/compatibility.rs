@@ -5,21 +5,35 @@
 //
 //=======================================================================//
 
-use std::ops::Range;
+use std::{
+    fs::{File, OpenOptions},
+    io::{BufReader, BufWriter},
+    ops::Range,
+    path::PathBuf
+};
 
 use glam::Vec2;
 use serde::Deserialize;
 
+use super::prop::PropViewer;
 use crate::{
-    map::{path::Path, properties::Properties, selectable_vector::SelectableVector},
+    map::{
+        editor::state::test_writer,
+        path::Path,
+        properties::Properties,
+        selectable_vector::SelectableVector,
+        version_number,
+        FILE_VERSION
+    },
     utils::{
-        collections::Ids,
+        collections::{hv_vec, Ids},
         iterators::TripletIterator,
         math::{
             points::{are_vxs_ccw, vxs_center},
             AroundEqual
         }
     },
+    warning_message,
     HvVec,
     Id,
     TextureSettings,
@@ -388,4 +402,96 @@ pub(in crate::map::editor::state) struct ThingInstanceData
     hull:       Hull,
     path:       Option<Path>,
     properties: Properties
+}
+
+//=======================================================================//
+// FUNCTIONS
+//
+//=======================================================================//
+
+#[inline]
+pub(in crate::map::editor::state) fn convert_08_props(
+    reader: &mut BufReader<File>,
+    len: usize
+) -> Result<HvVec<crate::map::editor::state::clipboard::prop::Prop>, &'static str>
+{
+    let mut props = hv_vec![];
+
+    for _ in 0..len
+    {
+        props.push(crate::map::editor::state::clipboard::prop::Prop::from(
+            ciborium::from_reader::<Prop, _>(&mut *reader)
+                .map_err(|_| "Error reading props for conversion.")?
+        ));
+    }
+
+    Ok(props)
+}
+
+//=======================================================================//
+
+#[inline]
+pub(in crate::map::editor::state) fn save_imported_08_props(
+    writer: &mut BufWriter<&mut Vec<u8>>,
+    props: HvVec<crate::map::editor::state::clipboard::prop::Prop>
+) -> Result<(), &'static str>
+{
+    for prop in props.into_iter().map(PropViewer::from)
+    {
+        test_writer!(&prop, &mut *writer, "Error converting props.");
+    }
+
+    Ok(())
+}
+
+//=======================================================================//
+
+#[inline]
+pub(in crate::map::editor::state) fn convert_08_prps_file(
+    mut path: PathBuf,
+    len: usize
+) -> Result<BufReader<File>, &'static str>
+{
+    use std::io::Write;
+
+    let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
+    file_name.push_str("_09.prps");
+
+    warning_message(&format!(
+        "This file appears to use the old file structure 0.8, if it is valid it will now be \
+         converted to {file_name}."
+    ));
+
+    let mut reader = BufReader::new(File::open(&path).unwrap());
+    let props = convert_08_props(&mut reader, len)?;
+    drop(reader);
+
+    let mut data = Vec::<u8>::new();
+    let mut writer = BufWriter::new(&mut data);
+    test_writer!(FILE_VERSION, &mut writer, "Error converting props file version.");
+    test_writer!(&len, &mut writer, "Error converting props amount.");
+    save_imported_08_props(&mut writer, props)?;
+    drop(writer);
+
+    test_writer!(
+        BufWriter::new(
+            OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(&*path)
+                .unwrap()
+        )
+        .write_all(&data),
+        "Error saving converted props file."
+    );
+
+    path.pop();
+    path.push(file_name);
+
+    let mut reader = BufReader::new(File::open(&path).unwrap());
+    let _ = version_number(&mut reader);
+    let _ = ciborium::from_reader::<usize, _>(&mut reader)
+        .map_err(|_| "Error reading converted props length.")?;
+    Ok(reader)
 }

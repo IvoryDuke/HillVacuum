@@ -45,7 +45,7 @@ use crate::{Brush, ThingInstance};
 //=======================================================================//
 
 /// The version of the saved files.
-const FILE_VERSION_NUMBER: &str = "0.9";
+const FILE_VERSION: &str = "0.9";
 
 //=======================================================================//
 // ENUMS
@@ -181,7 +181,7 @@ impl Exporter
         // Version.
         steps.next_value().assert(FileStructure::Version);
 
-        if version_number(&mut file) != FILE_VERSION_NUMBER
+        if version_number(&mut file) != FILE_VERSION
         {
             return Err("Cannot export previous map versions, save the file to upgrade it to the \
                         latest version.");
@@ -401,6 +401,7 @@ pub(in crate::map) mod ui_mod
     /// The amount of prop screenshot taking cameras placed around the map.
     pub(in crate::map) const PROP_CAMERAS_AMOUNT: usize =
         8 * (PROP_CAMERAS_ROWS * (PROP_CAMERAS_ROWS + 1)) / 2;
+    pub(in crate::map) const PREVIOUS_FILE_VERSION: &str = "0.8";
     /// The string that is appended to the name of a converted `.hv` file.
     pub(in crate::map) const CONVERTED_FILE_APPENDIX: &str = "_09.hv";
     /// The warning that is displayed when trying to convert a no longer supported `.hv` file.
