@@ -198,7 +198,8 @@ pub mod ui_mod
             },
             path::{common_edit_path, EditPath, MovementSimulator, Moving, Path},
             properties::{Properties, PropertiesRefactor, ANGLE_LABEL, HEIGHT_LABEL},
-            OutOfBounds
+            OutOfBounds,
+            TOOLTIP_OFFSET
         },
         utils::{
             hull::{EntityHull, Hull},
@@ -850,7 +851,7 @@ pub mod ui_mod
                 label,
                 thing.name(),
                 self.data.hull.center(),
-                Vec2::new(0f32, -(offset / camera.scale() + 8f32)),
+                Vec2::new(0f32, -offset / camera.scale() + TOOLTIP_OFFSET.y),
                 drawer.tooltip_text_color(),
                 egui::Color32::WHITE
             );
