@@ -301,12 +301,12 @@ impl<T> HvVec<T>
 
 #[cfg(feature = "arena_alloc")]
 /// [`hashbrown::HashMap`] wrapper.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct HvHashMap<K, V>(hashbrown::HashMap<K, V, DefaultHashBuilder, &'static BlinkAlloc>);
 
 #[cfg(not(feature = "arena_alloc"))]
 /// [`hashbrown::HashMap`] wrapper.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct HvHashMap<K, V>(hashbrown::HashMap<K, V, DefaultHashBuilder>);
 
 impl<K, V> Default for HvHashMap<K, V>
@@ -485,12 +485,12 @@ impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
 
 #[cfg(feature = "arena_alloc")]
 /// [`hashbrown::HashSet`] wrapper.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct HvHashSet<T>(hashbrown::HashSet<T, DefaultHashBuilder, &'static BlinkAlloc>);
 
 #[cfg(not(feature = "arena_alloc"))]
 /// [`hashbrown::HashSet`] wrapper.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct HvHashSet<T>(hashbrown::HashSet<T, DefaultHashBuilder>);
 
 impl<T: Hash + Eq> Default for HvHashSet<T>
@@ -621,7 +621,10 @@ impl<T> HvHashSet<T>
 /// Returns a static reference to the arena allocator.
 #[inline]
 #[must_use]
-pub(crate) fn blink_alloc() -> &'static BlinkAlloc { unsafe { core::ptr::addr_of!(ALLOCATOR).as_ref().unwrap() } }
+pub(crate) fn blink_alloc() -> &'static BlinkAlloc
+{
+    unsafe { core::ptr::addr_of!(ALLOCATOR).as_ref().unwrap() }
+}
 
 //=======================================================================//
 // UI

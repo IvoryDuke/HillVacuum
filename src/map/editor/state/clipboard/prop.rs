@@ -3,7 +3,7 @@
 //
 //=======================================================================//
 
-use std::{cmp::Ordering, iter::Rev, ops::Range};
+use std::{iter::Rev, ops::Range};
 
 use bevy::{
     ecs::entity::Entity,
@@ -40,12 +40,7 @@ use crate::{
         },
         thing::catalog::ThingsCatalog
     },
-    utils::{
-        collections::{hv_hash_map, hv_vec},
-        hull::Hull,
-        identifiers::EntityId,
-        misc::AssertedInsertRemove
-    },
+    utils::{collections::hv_vec, hull::Hull, identifiers::EntityId},
     HvVec
 };
 
@@ -58,8 +53,9 @@ use crate::{
 #[derive(Serialize, Deserialize)]
 pub(in crate::map::editor::state) struct PropViewer
 {
-    entities: HvVec<ClipboardDataViewer>,
-    pivot:    Vec2
+    entities:         HvVec<ClipboardDataViewer>,
+    attached_brushes: Range<usize>,
+    pivot:            Vec2
 }
 
 impl From<Prop> for PropViewer
@@ -68,11 +64,15 @@ impl From<Prop> for PropViewer
     fn from(value: Prop) -> Self
     {
         let Prop {
-            entities, pivot, ..
+            entities,
+            attached_brushes,
+            pivot,
+            ..
         } = value;
 
         Self {
             entities: hv_vec![collect; entities.into_iter().map(ClipboardDataViewer::from)],
+            attached_brushes,
             pivot
         }
     }
@@ -91,10 +91,8 @@ pub(in crate::map) struct Prop
     pivot: Vec2,
     /// The center of the area covered by the entities.
     center: Vec2,
-    /// The amount of [`ClipboardData`] that owns attached brushes.
-    attachments_owners: usize,
     /// The range of indexes of `data` in which attached brushes are stored.
-    attached_range: Range<usize>,
+    attached_brushes: Range<usize>,
     /// The optional texture screenshot.
     pub(in crate::map::editor::state::clipboard) screenshot: Option<egui::TextureId>
 }
@@ -105,12 +103,11 @@ impl Default for Prop
     fn default() -> Self
     {
         Self {
-            entities:           hv_vec![],
-            pivot:              Vec2::ZERO,
-            center:             Vec2::ZERO,
-            attachments_owners: 0,
-            attached_range:     0..0,
-            screenshot:         None
+            entities:         hv_vec![],
+            pivot:            Vec2::ZERO,
+            center:           Vec2::ZERO,
+            attached_brushes: 0..0,
+            screenshot:       None
         }
     }
 }
@@ -124,7 +121,6 @@ impl From<crate::map::editor::state::clipboard::compatibility::Prop> for Prop
             data,
             data_center,
             pivot,
-            attachments_owners,
             attached_range,
             ..
         } = value;
@@ -133,8 +129,7 @@ impl From<crate::map::editor::state::clipboard::compatibility::Prop> for Prop
             entities: unsafe { std::mem::transmute(data) },
             pivot,
             center: data_center,
-            attachments_owners,
-            attached_range,
+            attached_brushes: attached_range,
             screenshot: None
         }
     }
@@ -173,44 +168,30 @@ impl Prop
         data: PropViewer
     ) -> Self
     {
-        let PropViewer { entities, pivot } = data;
+        let PropViewer {
+            entities,
+            attached_brushes,
+            pivot
+        } = data;
         let mut entities = hv_vec![collect; entities.into_iter().map(|viewer| ClipboardData::from((viewer, things_catalog)))];
-        let mut with_attachments = 0;
-        let mut attachments_candidates = hv_hash_map![];
+        let (owners, attachments) = entities.split_at_mut(attached_brushes.start);
+        let attachments = &mut attachments[..attached_brushes.len()];
 
-        for (i, e) in entities.iter().enumerate()
+        for (owner, id) in owners
+            .iter()
+            .map(|e| match_or_panic!(e, ClipboardData::Brush(data, id), (data, *id)))
         {
-            let (data, id) = match e
+            for id_0 in owner.attachments().unwrap()
             {
-                ClipboardData::Brush(brush_data, id) => (brush_data, id),
-                ClipboardData::Thing(..) => break
-            };
-
-            if data.has_attachments()
-            {
-                with_attachments += 1;
-            }
-            else if !data.has_path()
-            {
-                attachments_candidates.asserted_insert((*id, i));
-            }
-        }
-
-        for i in 0..with_attachments
-        {
-            let (owner, id) = match_or_panic!(
-                unsafe { std::ptr::addr_of!(entities[i]).as_ref().unwrap() },
-                ClipboardData::Brush(data, id),
-                (data, *id)
-            );
-
-            for idx in owner
-                .attachments()
-                .unwrap()
-                .iter()
-                .map(|id| *attachments_candidates.get(id).unwrap())
-            {
-                match_or_panic!(&mut entities[idx], ClipboardData::Brush(data, _), data).attach(id);
+                attachments
+                    .iter_mut()
+                    .find_map(|e| {
+                        let (data, id_1) =
+                            match_or_panic!(e, ClipboardData::Brush(data, id_1), (data, id_1));
+                        (*id_0 == *id_1).then_some(data)
+                    })
+                    .unwrap()
+                    .attach_to(id);
             }
         }
 
@@ -308,10 +289,8 @@ impl Prop
     )
     {
         self.entities.clear();
-        self.attachments_owners = 0;
-        self.attached_range = 0..0;
 
-        let mut attachments = 0;
+        let mut with_attachments = 0;
         let mut attached = 0;
 
         for item in iter
@@ -324,11 +303,11 @@ impl Prop
                     if data.is_attached()
                     {
                         attached += 1;
-                        attachments
+                        with_attachments
                     }
                     else if data.has_attachments()
                     {
-                        attachments += 1;
+                        with_attachments += 1;
                         0
                     }
                     else
@@ -341,26 +320,27 @@ impl Prop
             self.entities.insert(index, item);
         }
 
-        let (owner_brushes, attached_brushes) = self.entities.split_at_mut(attachments);
+        // Clean the groups that contain attached brushes that have not been been added.
+        let (owner_brushes, attached_brushes) = self.entities.split_at_mut(with_attachments);
         let attached_brushes = &mut attached_brushes[..attached];
-        self.attached_range = attachments..attachments + attached;
+        let mut attached = 0;
 
         for data in owner_brushes
             .iter_mut()
             .map(|item| match_or_panic!(item, ClipboardData::Brush(data, _), data))
         {
-            assert!(data.has_attachments(), "Mover has no attachments.");
-            let mut to_remove = hv_vec![];
+            let attachments = data.attachments().unwrap();
+            let attachments_len = attachments.len();
+            assert!(attachments_len != 0, "Brush has no attachments.");
 
-            for id in data.attachments().unwrap().iter().copied()
-            {
-                if attached_brushes.iter().any(|item| item.id() == id)
-                {
-                    continue;
-                }
-
-                to_remove.push(id);
-            }
+            let to_remove = hv_vec![
+                collect;
+                attachments
+                    .iter()
+                    .copied()
+                    .filter(|id| !attached_brushes.iter().any(|item| item.id() == *id))
+            ];
+            attached += attachments_len - to_remove.len();
 
             for id in to_remove
             {
@@ -375,29 +355,25 @@ impl Prop
             data.detach();
         }
 
-        owner_brushes.sort_by(|a, b| {
-            match (a, b)
-            {
-                (ClipboardData::Brush(a, _), ClipboardData::Brush(b, _)) =>
-                {
-                    a.has_attachments().cmp(&b.has_attachments()).reverse()
-                },
-                (ClipboardData::Brush(..), ClipboardData::Thing(..)) => Ordering::Less,
-                (ClipboardData::Thing(..), ClipboardData::Brush(..)) => Ordering::Greater,
-                (ClipboardData::Thing(..), ClipboardData::Thing(..)) => Ordering::Equal
-            }
-        });
+        // Define the actual range of attached brushes after all the detachments.
+        let owner_brushes = owner_brushes.len();
+        let mut actual_owner_brushes = 0;
 
-        for item in owner_brushes
+        for i in 0..owner_brushes
         {
-            if !match_or_panic!(item, ClipboardData::Brush(data, _), data).has_attachments()
+            if match_or_panic!(&self.entities[i], ClipboardData::Brush(data, _), data)
+                .has_attachments()
             {
-                break;
+                actual_owner_brushes += 1;
             }
-
-            self.attachments_owners += 1;
+            else
+            {
+                let brush = self.entities.remove(i);
+                self.entities.push(brush);
+            }
         }
 
+        self.attached_brushes = actual_owner_brushes..actual_owner_brushes + attached;
         self.reset_center(drawing_resources, grid);
     }
 
@@ -545,11 +521,11 @@ impl Prop
             manager,
             edits_history,
             grid,
-            (self.attached_range.end..self.entities.len()).rev(),
+            (self.attached_brushes.end..self.entities.len()).rev(),
             delta
         );
 
-        for i in self.attached_range.clone().rev()
+        for i in self.attached_brushes.clone().rev()
         {
             let item = &mut self.entities[i];
             let old_id = item.id();
@@ -566,7 +542,7 @@ impl Prop
                 ClipboardData::Brush(_, id) | ClipboardData::Thing(_, id) => *id = new_id
             };
 
-            let data = continue_if_none!(self.entities[0..self.attachments_owners]
+            let data = continue_if_none!(self.entities[0..self.attached_brushes.start]
                 .iter_mut()
                 .find_map(|item| {
                     let data = match_or_panic!(item, ClipboardData::Brush(data, _), data);
@@ -583,7 +559,7 @@ impl Prop
             manager,
             edits_history,
             grid,
-            (0..self.attached_range.start).rev(),
+            (0..self.attached_brushes.start).rev(),
             delta
         );
     }

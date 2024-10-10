@@ -326,7 +326,7 @@ pub(crate) mod ui_mod
                 () = native_dialog::MessageDialog::new()
                     .set_title("FATAL ERROR")
                     .set_text(&format!(
-                        "{message}\nThe backtrace has been logged to the file backtrace.log."
+                        "{message}\nThe backtrace has been logged to backtrace.log."
                     ))
                     .show_alert()
                     .unwrap();
