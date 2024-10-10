@@ -677,6 +677,13 @@ pub(in crate::map) mod ui_mod
         pub const fn attachments(&self) -> Option<&Ids> { self.group.attachments() }
 
         #[inline]
+        pub fn attach(&mut self, identifier: Id)
+        {
+            assert!(matches!(self.group, Group::None), "Brush Mover is not None");
+            self.group = Group::Attached(identifier);
+        }
+
+        #[inline]
         #[must_use]
         pub const fn has_texture(&self) -> bool { self.polygon.has_texture() }
 

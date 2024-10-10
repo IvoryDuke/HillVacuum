@@ -159,7 +159,7 @@ pub(in crate::map) mod ui_only
         pub fn iter_mut(&mut self) -> impl Iterator<Item = (&K, &mut T)>
         {
             self.map.iter().map(|(k, i)| {
-                (k, &mut unsafe { std::ptr::addr_of_mut!(self.vec).as_mut().unwrap() }[*i])
+                (k, unsafe { std::ptr::addr_of_mut!(self.vec[*i]).as_mut().unwrap() })
             })
         }
 

@@ -40,7 +40,12 @@ use crate::{
         },
         thing::catalog::ThingsCatalog
     },
-    utils::{collections::hv_vec, hull::Hull, identifiers::EntityId},
+    utils::{
+        collections::{hv_hash_map, hv_vec},
+        hull::Hull,
+        identifiers::EntityId,
+        misc::AssertedInsertRemove
+    },
     HvVec
 };
 
@@ -169,13 +174,48 @@ impl Prop
     ) -> Self
     {
         let PropViewer { entities, pivot } = data;
+        let mut entities = hv_vec![collect; entities.into_iter().map(|viewer| ClipboardData::from((viewer, things_catalog)))];
+        let mut with_attachments = 0;
+        let mut attachments_candidates = hv_hash_map![];
+
+        for (i, e) in entities.iter().enumerate()
+        {
+            let (data, id) = match e
+            {
+                ClipboardData::Brush(brush_data, id) => (brush_data, id),
+                ClipboardData::Thing(..) => break
+            };
+
+            if data.has_attachments()
+            {
+                with_attachments += 1;
+            }
+            else if !data.has_path()
+            {
+                attachments_candidates.asserted_insert((*id, i));
+            }
+        }
+
+        for i in 0..with_attachments
+        {
+            let (owner, id) = match_or_panic!(
+                unsafe { std::ptr::addr_of!(entities[i]).as_ref().unwrap() },
+                ClipboardData::Brush(data, id),
+                (data, *id)
+            );
+
+            for idx in owner
+                .attachments()
+                .unwrap()
+                .iter()
+                .map(|id| *attachments_candidates.get(id).unwrap())
+            {
+                match_or_panic!(&mut entities[idx], ClipboardData::Brush(data, _), data).attach(id);
+            }
+        }
 
         let mut new = Self::default();
-        new.fill(
-            drawing_resources,
-            grid,
-            hv_vec![collect; entities.into_iter().map(|viewer| ClipboardData::from((viewer, things_catalog)))]
-        );
+        new.fill(drawing_resources, grid, entities);
         new.pivot = pivot;
         new
     }

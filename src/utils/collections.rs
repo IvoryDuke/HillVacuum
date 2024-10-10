@@ -621,7 +621,7 @@ impl<T> HvHashSet<T>
 /// Returns a static reference to the arena allocator.
 #[inline]
 #[must_use]
-pub(crate) fn blink_alloc() -> &'static BlinkAlloc { unsafe { &*core::ptr::addr_of!(ALLOCATOR) } }
+pub(crate) fn blink_alloc() -> &'static BlinkAlloc { unsafe { core::ptr::addr_of!(ALLOCATOR).as_ref().unwrap() } }
 
 //=======================================================================//
 // UI
