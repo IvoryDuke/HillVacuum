@@ -492,7 +492,13 @@ impl EntityTool
                             );
                             let id = item.id();
 
-                            if !shift_pressed
+                            macro_rules! pre_drag {
+                                () => {
+                                    Status::PreDrag(cursor_pos, item, false)
+                                };
+                            }
+
+                            return if !shift_pressed
                             {
                                 if !bundle.manager.is_selected(id)
                                 {
@@ -506,11 +512,16 @@ impl EntityTool
                                         .select_attached_brushes(id, bundle.edits_history);
                                 }
 
-                                return LeftMouse::Value(Status::PreDrag(cursor_pos, item, false));
+                                LeftMouse::Value(pre_drag!())
                             }
-
-                            Self::toggle_entity_selection(bundle, id);
-                            return LeftMouse::NotPressed;
+                            else if Self::toggle_entity_selection(bundle, id)
+                            {
+                                LeftMouse::Value(pre_drag!())
+                            }
+                            else
+                            {
+                                LeftMouse::NotPressed
+                            };
                         }
 
                         if bundle.inputs.back.just_pressed()
@@ -764,19 +775,21 @@ impl EntityTool
 
     /// Toggles the selection of the entity with [`Id`] `identifier`.
     #[inline]
-    fn toggle_entity_selection(bundle: &mut ToolUpdateBundle, identifier: Id)
+    #[must_use]
+    fn toggle_entity_selection(bundle: &mut ToolUpdateBundle, identifier: Id) -> bool
     {
         if bundle.manager.is_selected(identifier)
         {
             bundle
                 .manager
                 .deselect_entity(identifier, bundle.inputs, bundle.edits_history);
-            return;
+            return false;
         }
 
         bundle
             .manager
             .select_entity(identifier, bundle.inputs, bundle.edits_history);
+        true
     }
 
     /// Exclusively selects the entity with [`Id`] `identifier`.
