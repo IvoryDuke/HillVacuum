@@ -7,7 +7,7 @@
 
 use std::{
     fs::{File, OpenOptions},
-    io::{BufReader, BufWriter},
+    io::{BufReader, BufWriter, Write},
     ops::Range,
     path::PathBuf
 };
@@ -452,8 +452,6 @@ pub(in crate::map::editor::state) fn convert_08_prps_file(
     len: usize
 ) -> Result<BufReader<File>, &'static str>
 {
-    use std::io::Write;
-
     let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
     file_name.push_str("_09.prps");
 

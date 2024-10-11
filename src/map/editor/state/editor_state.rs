@@ -55,6 +55,7 @@ use crate::{
                     prop::Prop
                 },
                 core::{tool::ToolInterface, Core},
+                dialog_if_error,
                 read_default_properties,
                 test_writer,
                 ui::{Command, Ui}
@@ -681,11 +682,7 @@ impl State
                 return false;
             }
 
-            if let Err(err) = self.new_file(bundle)
-            {
-                error_message(err);
-            }
-
+            dialog_if_error!(self.new_file(bundle));
             return true;
         }
 
@@ -696,11 +693,10 @@ impl State
                 return false;
             }
 
-            if let Err(err) = Self::save(bundle, bundle.inputs.shift_pressed().then_some("Save as"))
-            {
-                error_message(err);
-            }
-
+            dialog_if_error!(Self::save(
+                bundle,
+                bundle.inputs.shift_pressed().then_some("Save as")
+            ));
             return true;
         }
 
@@ -1353,11 +1349,7 @@ impl State
     #[inline]
     fn open(&mut self, bundle: &mut StateUpdateBundle)
     {
-        if let Err(err) = Self::unsaved_changes(bundle)
-        {
-            error_message(err);
-            return;
-        }
+        dialog_if_error!(ret; Self::unsaved_changes(bundle));
 
         let file_to_open = return_if_none!(native_dialog::FileDialog::new()
             .set_location(&std::env::current_dir().unwrap())
@@ -1403,11 +1395,7 @@ impl State
     #[inline]
     fn export(bundle: &mut StateUpdateBundle)
     {
-        if let Err(err) = Self::unsaved_changes(bundle)
-        {
-            error_message(err);
-            return;
-        }
+        dialog_if_error!(Self::unsaved_changes(bundle));
 
         let file = return_if_none!(bundle.config.open_file.path());
         let exporter = return_if_none!(bundle.config.exporter.as_ref());
@@ -1419,10 +1407,10 @@ impl State
             return;
         }
 
-        if std::process::Command::new(exporter).arg(file).output().is_err()
-        {
-            error_message("Error exporting map.");
-        }
+        dialog_if_error!(
+            std::process::Command::new(exporter).arg(file).output(),
+            "Error exporting map"
+        );
     }
 
     //==============================================================
@@ -1526,96 +1514,76 @@ impl State
         ui_interaction: &Interaction
     ) -> bool
     {
-        /// Generates the procedure to save an export type file.
-        macro_rules! export {
-            ($extension:ident, $label:literal, $argument:ident, $source:expr) => {{
-                paste::paste! {
-                    let path = PathBuf::from(return_if_none!(
-                        native_dialog::FileDialog::new()
-                            .set_location(&std::env::current_dir().unwrap())
-                            .set_title(concat!("Export ", $label))
-                            .add_filter([< $extension _FILTER_NAME >], &[[< $extension _EXTENSION >]])
-                            .show_save_single_file()
-                            .unwrap(),
-                        false
-                    ));
+        #[inline]
+        fn export<E>(
+            items: &str,
+            filter_description: &str,
+            extension: &'static str,
+            len: usize,
+            e: E
+        ) where
+            E: FnOnce(&mut BufWriter<&mut Vec<u8>>) -> Result<(), &'static str>
+        {
+            let path = return_if_none!(native_dialog::FileDialog::new()
+                .set_location(&std::env::current_dir().unwrap())
+                .set_title(&format!("Export {items}"))
+                .add_filter(filter_description, &[extension])
+                .show_save_single_file()
+                .unwrap());
+            let path = check_path_extension(path, extension);
 
-                    let path = check_path_extension(path, [< $extension _EXTENSION >]);
+            let mut data = Vec::<u8>::new();
+            let mut writer = BufWriter::new(&mut data);
 
-                    let mut data = Vec::<u8>::new();
-                    let mut writer = BufWriter::new(&mut data);
+            dialog_if_error!(ret; ciborium::ser::into_writer(
+                FILE_VERSION,
+                &mut writer
+            ), "Error writing version number.");
+            dialog_if_error!(
+                ciborium::ser::into_writer(&len, &mut writer),
+                &format!("Error writing {items} amount.")
+            );
+            dialog_if_error!(e(&mut writer));
 
-                    if ciborium::ser::into_writer(
-                        FILE_VERSION,
-                        &mut writer
-                    ).is_err()
+            drop(writer);
+
+            let new_file = !path.exists();
+
+            if new_file && File::create(&path).is_err()
+            {
+                error_message(&format!("Error creating {items} file."));
+                return;
+            }
+
+            let mut file = match OpenOptions::new().write(true).open(&path)
+            {
+                Ok(file) => BufWriter::new(file),
+                Err(_) =>
+                {
+                    error_message(&format!("Error opening {items} file."));
+
+                    if new_file
                     {
-                        error_message("Error writing version number.");
-                        return false;
+                        _ = std::fs::remove_file(path);
                     }
 
-                    if ciborium::ser::into_writer(
-                        &$source.[< $argument _amount >](),
-                        &mut writer
-                    ).is_err()
-                    {
-                        error_message(concat!("Error writing ", $label, " amount."));
-                        return false;
-                    }
-
-                    if let Err(err) = $source.[< export_ $argument >](&mut writer)
-                    {
-                        error_message(err);
-                        return false;
-                    }
-
-                    drop(writer);
-                    let new_file = !path.exists();
-
-                    if new_file && File::create(&path).is_err()
-                    {
-                        error_message(concat!("Error creating ", $label, " file."));
-                        return false;
-                    }
-
-                    let mut file = match OpenOptions::new().write(true).open(&path)
-                    {
-                        Ok(file) => BufWriter::new(file),
-                        Err(_) =>
-                        {
-                            error_message(concat!("Error opening ", $label, " file."));
-
-                            if new_file
-                            {
-                                _ = std::fs::remove_file(path);
-                            }
-
-                            return false;
-                        }
-                    };
-
-                    if file.write_all(&data).is_err()
-                    {
-                        if new_file
-                        {
-                            _ = std::fs::remove_file(&path);
-                        }
-
-                        error_message(concat!("Error writing ", $label, " file."));
-                    }
+                    return;
                 }
-            }};
+            };
+
+            if file.write_all(&data).is_err()
+            {
+                if new_file
+                {
+                    _ = std::fs::remove_file(&path);
+                }
+
+                error_message(&format!("Error writing {items} file."));
+            }
         }
 
         #[inline]
-        fn import<C, I>(
-            title: &str,
-            filter_description: &str,
-            extension: &str,
-            error: &'static str,
-            c: C,
-            i: I
-        ) -> Result<(), &'static str>
+        fn import<C, I>(items: &str, filter_description: &str, extension: &str, c: C, i: I)
         where
             C: FnOnce(
                 &str,
@@ -1625,21 +1593,21 @@ impl State
             ) -> Result<BufReader<File>, &'static str>,
             I: FnOnce(&mut BufReader<File>, usize) -> Result<(), &'static str>
         {
-            let path = return_if_none!(
-                native_dialog::FileDialog::new()
-                    .set_location(&std::env::current_dir().unwrap())
-                    .set_title(title)
-                    .add_filter(filter_description, &[extension])
-                    .show_open_single_file()
-                    .unwrap(),
-                Ok(())
-            );
+            let path = return_if_none!(native_dialog::FileDialog::new()
+                .set_location(&std::env::current_dir().unwrap())
+                .set_title(&format!("Import {items}"))
+                .add_filter(filter_description, &[extension])
+                .show_open_single_file()
+                .unwrap());
 
             let mut reader = BufReader::new(File::open(&path).unwrap());
             let version = version_number(&mut reader);
-            let len = ciborium::from_reader(&mut reader).map_err(|_| error)?;
-            let mut reader = c(version.as_str(), reader, path, len)?;
-            i(&mut reader, len)
+            let len = dialog_if_error!(
+                ciborium::de::from_reader(&mut reader),
+                &format!("Error reading {items} length")
+            );
+            let mut reader = dialog_if_error!(ret; c(version.as_str(), reader, path, len));
+            dialog_if_error!(i(&mut reader, len));
         }
 
         bundle.clipboard.update(
@@ -1657,56 +1625,37 @@ impl State
             {
                 self.change_tool(tool, bundle, tool_change_conditions);
             },
-            Command::New =>
-            {
-                if let Err(err) = self.new_file(bundle)
-                {
-                    error_message(err);
-                }
-            },
-            Command::Save =>
-            {
-                if let Err(err) = Self::save(bundle, None)
-                {
-                    error_message(err);
-                }
-            },
-            Command::SaveAs =>
-            {
-                if let Err(err) = Self::save(bundle, "Save as".into())
-                {
-                    error_message(err);
-                }
-            },
+            Command::New => dialog_if_error!(self.new_file(bundle)),
+            Command::Save => dialog_if_error!(Self::save(bundle, None)),
+            Command::SaveAs => dialog_if_error!(Self::save(bundle, "Save as".into())),
             Command::Open => self.open(bundle),
             Command::Export => Self::export(bundle),
             Command::ImportAnimations =>
             {
-                let res = import(
+                import(
                     "Import animations",
                     ANIMATIONS_FILTER_NAME,
                     ANIMATIONS_EXTENSION,
-                    "Error importing animations",
                     |_, reader, _, _| Ok(reader),
                     |file, len| bundle.drawing_resources.import_animations(len, file)
                 );
-
-                if let Err(err) = res
-                {
-                    error_message(err);
-                }
             },
             Command::ExportAnimations =>
             {
-                export!(ANIMATIONS, "animations", animations, bundle.drawing_resources);
+                export(
+                    "animations",
+                    ANIMATIONS_FILTER_NAME,
+                    ANIMATIONS_EXTENSION,
+                    bundle.drawing_resources.animations_amount(),
+                    |writer| bundle.drawing_resources.export_animations(writer)
+                );
             },
             Command::ImportProps =>
             {
-                let res = import(
+                import(
                     "Import props",
                     PROPS_FILTER_NAME,
                     PROPS_EXTENSION,
-                    "Error importing props",
                     |version, reader, path, len| {
                         match version
                         {
@@ -1728,13 +1677,17 @@ impl State
                         )
                     }
                 );
-
-                if let Err(err) = res
-                {
-                    error_message(err);
-                }
             },
-            Command::ExportProps => export!(PROPS, "props", props, bundle.clipboard),
+            Command::ExportProps =>
+            {
+                export(
+                    "animations",
+                    ANIMATIONS_FILTER_NAME,
+                    ANIMATIONS_EXTENSION,
+                    bundle.clipboard.props_amount(),
+                    |writer| bundle.clipboard.export_props(writer)
+                );
+            },
             Command::SelectAll => self.select_all(bundle),
             Command::Copy => self.core.copy(bundle),
             Command::Paste => self.core.paste(bundle),
@@ -2000,11 +1953,7 @@ impl State
     #[inline]
     pub fn quit(bundle: &mut StateUpdateBundle)
     {
-        if let Err(err) = Self::unsaved_changes(bundle)
-        {
-            error_message(err);
-        }
-
+        dialog_if_error!(Self::unsaved_changes(bundle));
         bundle.next_editor_state.set(EditorState::ShutDown);
     }
 

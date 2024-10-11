@@ -82,6 +82,55 @@ macro_rules! test_writer {
 use test_writer;
 
 //=======================================================================//
+
+macro_rules! dialog_if_error {
+    ($value:expr) => {
+        if let Err(err) = $value
+        {
+            crate::error_message(err);
+        }
+    };
+
+    ($value:expr, $err:expr) => {
+        match $value
+        {
+            Ok(value) => value,
+            Err(_) =>
+            {
+                crate::error_message($err);
+                return;
+            }
+        }
+    };
+
+    (ret; $value:expr) => {
+        match $value
+        {
+            Ok(value) => value,
+            Err(err) =>
+            {
+                crate::error_message(err);
+                return;
+            }
+        }
+    };
+
+    (ret; $value:expr, $err:expr) => {
+        match $value
+        {
+            Ok(value) => value,
+            Err(_) =>
+            {
+                crate::error_message($err);
+                return;
+            }
+        }
+    };
+}
+
+use dialog_if_error;
+
+//=======================================================================//
 // FUNCTIONS
 //
 //=======================================================================//
