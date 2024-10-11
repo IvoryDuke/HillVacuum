@@ -6,10 +6,11 @@ pub(in crate::map) mod catalog;
 //
 //=======================================================================//
 
+use catalog::ThingsCatalog;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{HvHashMap, HvVec, Id, Node, Value};
+use crate::{utils::hull::Hull, HvHashMap, HvVec, Id, Node, Value};
 
 //=======================================================================//
 // TRAITS
@@ -57,6 +58,8 @@ pub(in crate::map) trait ThingInterface
     /// The angle of `self`.
     #[must_use]
     fn angle_f32(&self) -> f32;
+
+    fn thing_hull(&self, things_catalog: &ThingsCatalog) -> Hull;
 }
 
 //=======================================================================//
@@ -197,14 +200,19 @@ pub mod ui_mod
                 manager::{Animators, Brushes}
             },
             path::{common_edit_path, EditPath, MovementSimulator, Moving, Path},
-            properties::{Properties, PropertiesRefactor, ANGLE_LABEL, HEIGHT_LABEL},
+            properties::{
+                DefaultProperties,
+                Properties,
+                PropertiesRefactor,
+                ANGLE_LABEL,
+                HEIGHT_LABEL
+            },
             OutOfBounds,
             TOOLTIP_OFFSET
         },
         utils::{
-            hull::{EntityHull, Hull},
+            hull::Hull,
             identifiers::{EntityCenter, EntityId},
-            math::AroundEqual,
             misc::{Camera, ReplaceValue, TakeValue}
         },
         HvHashMap,
@@ -263,43 +271,31 @@ pub mod ui_mod
         thing_id:   ThingId,
         /// The position on the map.
         pos:        Vec2,
-        /// The bounding box.
-        hull:       Hull,
         /// The path describing the [`ThingInstance`] movement, if any.
         path:       Option<Path>,
         /// The associated properties.
         properties: Properties
     }
 
-    impl<'a> From<(ThingInstanceDataViewer, &'a ThingsCatalog)> for ThingInstanceData
+    impl From<ThingInstanceDataViewer> for ThingInstanceData
     {
         #[inline]
-        fn from(value: (ThingInstanceDataViewer, &'a ThingsCatalog)) -> Self
+        fn from(value: ThingInstanceDataViewer) -> Self
         {
-            let (
-                ThingInstanceDataViewer {
-                    thing_id,
-                    pos,
-                    path,
-                    properties
-                },
-                catalog
-            ) = value;
+            let ThingInstanceDataViewer {
+                thing_id,
+                pos,
+                path,
+                properties
+            } = value;
 
             Self {
                 thing_id,
                 pos,
-                hull: ThingInstanceData::create_hull(pos, catalog.thing_or_error(thing_id)),
                 path: path.map(Into::into),
                 properties: Properties::from_parts(properties)
             }
         }
-    }
-
-    impl EntityHull for ThingInstanceData
-    {
-        #[inline]
-        fn hull(&self) -> Hull { self.hull }
     }
 
     impl ThingInterface for ThingInstanceData
@@ -315,19 +311,20 @@ pub mod ui_mod
 
         #[inline]
         fn angle_f32(&self) -> f32 { f32::from(self.angle()) }
+
+        #[inline]
+        fn thing_hull(&self, things_catalog: &ThingsCatalog) -> Hull
+        {
+            Self::new_thing_hull(things_catalog, self.thing_id, self.pos)
+        }
     }
 
     impl ThingInstanceData
     {
-        /// Returns the [`ThingId`] of the [`Thing`] represented by `self`.
         #[inline]
-        pub const fn thing(&self) -> ThingId { self.thing_id }
-
-        /// Returns the [`Hull`] of [`Thing`] with center at `pos`.
-        #[inline]
-        #[must_use]
-        fn create_hull(pos: Vec2, thing: &Thing) -> Hull
+        fn new_thing_hull(things_catalog: &ThingsCatalog, thing_id: ThingId, pos: Vec2) -> Hull
         {
+            let thing = things_catalog.thing_or_error(thing_id);
             let half_width = thing.width / 2f32;
             let half_height = thing.height / 2f32;
 
@@ -339,10 +336,21 @@ pub mod ui_mod
 
         /// Return the [`Hull`] of the associated [`Path`], if any.
         #[inline]
-        #[must_use]
         pub fn path_hull(&self) -> Option<Hull>
         {
             self.path.as_ref().map(|path| path.hull() + self.pos)
+        }
+
+        #[inline]
+        pub fn hull(&self, things_catalog: &ThingsCatalog) -> Hull
+        {
+            let hull = self.thing_hull(things_catalog);
+
+            match self.path_hull()
+            {
+                Some(h) => hull.merged(&h),
+                None => hull
+            }
         }
 
         #[inline]
@@ -364,20 +372,14 @@ pub mod ui_mod
         /// Returns the [`ThingId`] of the previous [`Thing`] if different.
         #[inline]
         #[must_use]
-        pub fn set_thing(&mut self, thing: &Thing) -> Option<ThingId>
+        pub fn set_thing(&mut self, thing_id: ThingId) -> Option<ThingId>
         {
-            if thing.width.around_equal_narrow(&self.hull.width()) &&
-                thing.height.around_equal_narrow(&self.hull.height())
-            {
-                self.hull = ThingInstanceData::create_hull(self.pos, thing);
-            }
-
-            if thing.id == self.thing_id
+            if thing_id == self.thing_id
             {
                 return None;
             }
 
-            self.thing_id.replace_value(thing.id).into()
+            self.thing_id.replace_value(thing_id).into()
         }
 
         /// Draw `self` displaced by `delta` for a prop screenshot.
@@ -419,44 +421,37 @@ pub mod ui_mod
 
         #[inline]
         fn angle_f32(&self) -> f32 { self.data.angle_f32() }
+
+        #[inline]
+        fn thing_hull(&self, things_catalog: &ThingsCatalog) -> Hull
+        {
+            self.data.thing_hull(things_catalog)
+        }
     }
 
-    impl<'a> From<(ThingViewer, &'a ThingsCatalog)> for ThingInstance
+    impl From<ThingViewer> for ThingInstance
     {
-        #[allow(clippy::cast_possible_truncation)]
         #[inline]
-        fn from(value: (ThingViewer, &'a ThingsCatalog)) -> Self
+        fn from(value: ThingViewer) -> Self
         {
-            let (
-                ThingViewer {
-                    id,
+            let ThingViewer {
+                id,
+                thing_id,
+                pos,
+                path,
+                properties
+            } = value;
+
+            Self {
+                id,
+                data: ThingInstanceData::from(ThingInstanceDataViewer {
                     thing_id,
                     pos,
                     path,
                     properties
-                },
-                catalog
-            ) = value;
-
-            Self {
-                id,
-                data: ThingInstanceData::from((
-                    ThingInstanceDataViewer {
-                        thing_id,
-                        pos,
-                        path,
-                        properties
-                    },
-                    catalog
-                ))
+                })
             }
         }
-    }
-
-    impl EntityHull for ThingInstance
-    {
-        #[inline]
-        fn hull(&self) -> Hull { self.data.hull }
     }
 
     impl EntityId for ThingInstance
@@ -628,18 +623,20 @@ pub mod ui_mod
     {
         /// Returns a new [`ThingInstance`].
         #[inline]
-        pub fn new(id: Id, thing: &Thing, pos: Vec2, default_properties: Properties) -> Self
+        pub fn new(
+            id: Id,
+            thing_id: ThingId,
+            pos: Vec2,
+            default_properties: &DefaultProperties
+        ) -> Self
         {
-            let hull = ThingInstanceData::create_hull(pos, thing);
-
             Self {
                 id,
                 data: ThingInstanceData {
-                    thing_id: thing.id,
+                    thing_id,
                     pos,
-                    hull,
                     path: None,
-                    properties: default_properties
+                    properties: default_properties.instance()
                 }
             }
         }
@@ -675,10 +672,20 @@ pub mod ui_mod
         #[inline]
         pub const fn properties(&self) -> &Properties { &self.data.properties }
 
+        /// Returns the overall [`Hull`] of both the thing and the [`Path`].
+        #[inline]
+        pub fn hull(&self, things_catalog: &ThingsCatalog) -> Hull
+        {
+            self.data.hull(things_catalog)
+        }
+
         /// Whether the bounding box contains the point `p`.
         #[inline]
         #[must_use]
-        pub fn contains_point(&self, p: Vec2) -> bool { self.data.hull.contains_point(p) }
+        pub fn contains_point(&self, things_catalog: &ThingsCatalog, p: Vec2) -> bool
+        {
+            self.data.thing_hull(things_catalog).contains_point(p)
+        }
 
         /// Returns a mutable reference to the thing's [`Path`].
         /// # Panics
@@ -690,40 +697,39 @@ pub mod ui_mod
         /// bounding box.
         #[inline]
         #[must_use]
-        pub fn check_thing_change(&self, thing: &Thing) -> bool
+        pub fn check_thing_change(&self, things_catalog: &ThingsCatalog, thing_id: ThingId)
+            -> bool
         {
-            let hull = ThingInstanceData::create_hull(self.data.pos, thing);
-            !hull.out_of_bounds() && !self.path_hull_out_of_bounds(hull.center())
+            !ThingInstanceData::new_thing_hull(things_catalog, thing_id, self.data.pos)
+                .out_of_bounds()
         }
 
         /// Sets `self` to represent an instance of another [`Thing`].
         #[inline]
         #[must_use]
-        pub fn set_thing(&mut self, thing: &Thing) -> Option<ThingId> { self.data.set_thing(thing) }
+        pub fn set_thing(&mut self, thing_id: ThingId) -> Option<ThingId>
+        {
+            self.data.set_thing(thing_id)
+        }
 
         /// Check whether `self` can be moved without being out of bounds.
         #[inline]
         #[must_use]
-        pub fn check_move(&self, delta: Vec2) -> bool
+        pub fn check_move(&self, things_catalog: &ThingsCatalog, delta: Vec2) -> bool
         {
-            !(self.data.hull + delta).out_of_bounds() &&
-                !self.path_hull_out_of_bounds(self.data.pos + delta)
+            !(self.hull(things_catalog) + delta).out_of_bounds()
         }
 
         /// Moves `self` by the vector `delta`.
         #[inline]
-        pub fn move_by_delta(&mut self, delta: Vec2)
-        {
-            self.data.hull += delta;
-            self.data.pos += delta;
-        }
+        pub fn move_by_delta(&mut self, delta: Vec2) { self.data.pos += delta; }
 
         /// Snaps `self` to the grid. Returns how much `self` was moved, if it was.
         #[inline]
-        pub fn snap(&mut self, grid: &Grid) -> Option<Vec2>
+        pub fn snap(&mut self, things_catalog: &ThingsCatalog, grid: &Grid) -> Option<Vec2>
         {
             let delta = grid.snap_point(self.center())?;
-            self.check_move(delta).then_some(delta)
+            self.check_move(things_catalog, delta).then_some(delta)
         }
 
         /// Sets the property `key` to `value`. Returns the previous value if different.
@@ -842,7 +848,7 @@ pub mod ui_mod
             }
             else
             {
-                self.data.hull.half_height()
+                self.thing_hull(catalog).half_height()
             };
 
             drawer.draw_tooltip_x_centered_above_pos(
@@ -850,7 +856,7 @@ pub mod ui_mod
                 camera,
                 label,
                 thing.name(),
-                self.data.hull.center(),
+                self.center(),
                 Vec2::new(0f32, -offset / camera.scale() + TOOLTIP_OFFSET.y),
                 drawer.tooltip_text_color(),
                 egui::Color32::WHITE
@@ -894,16 +900,10 @@ pub mod ui_mod
         delta: Vec2
     }
 
-    impl<'a> EntityHull for MovedThingInstance<'a>
-    {
-        #[inline]
-        fn hull(&self) -> Hull { self.thing.hull() + self.delta }
-    }
-
     impl<'a> ThingInterface for MovedThingInstance<'a>
     {
         #[inline]
-        fn thing_id(&self) -> ThingId { self.thing.thing() }
+        fn thing_id(&self) -> ThingId { self.thing.thing_id() }
 
         #[inline]
         fn pos(&self) -> Vec2 { self.thing.pos() + self.delta }
@@ -913,6 +913,12 @@ pub mod ui_mod
 
         #[inline]
         fn angle_f32(&self) -> f32 { self.thing.angle_f32() }
+
+        #[inline]
+        fn thing_hull(&self, things_catalog: &ThingsCatalog) -> Hull
+        {
+            self.thing.thing_hull(things_catalog)
+        }
     }
 
     //=======================================================================//

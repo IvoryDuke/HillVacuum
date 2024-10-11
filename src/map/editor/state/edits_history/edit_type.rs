@@ -28,7 +28,7 @@ use crate::{
         editor::state::{core::UndoRedoInterface, grid::Grid, ui::Ui},
         path::{MovementValueEdit, NodesMove, Path, StandbyValueEdit},
         properties::Value,
-        thing::{ThingId, ThingInstanceData}
+        thing::{catalog::ThingsCatalog, ThingId, ThingInstanceData}
     },
     utils::{hull::Flip, identifiers::Id},
     HvVec
@@ -787,8 +787,12 @@ impl EditType
 
     #[inline]
     #[must_use]
-    fn things_common(&mut self, interface: &mut UndoRedoInterface, identifiers: &HvVec<Id>)
-        -> bool
+    fn things_common(
+        &mut self,
+        things_catalog: &ThingsCatalog,
+        interface: &mut UndoRedoInterface,
+        identifiers: &HvVec<Id>
+    ) -> bool
     {
         match self
         {
@@ -798,7 +802,7 @@ impl EditType
 
                 for id in identifiers
                 {
-                    interface.thing_mut(*id).move_by_delta(*d);
+                    interface.thing_mut(things_catalog, *id).move_by_delta(*d);
                 }
             },
             _ => return false
@@ -811,11 +815,16 @@ impl EditType
     /// Returns whether the edit was undone/redone.
     #[inline]
     #[must_use]
-    fn thing_common(&mut self, interface: &mut UndoRedoInterface, identifier: Id) -> bool
+    fn thing_common(
+        &mut self,
+        things_catalog: &ThingsCatalog,
+        interface: &mut UndoRedoInterface,
+        identifier: Id
+    ) -> bool
     {
         match self
         {
-            Self::ThingChange(id) => *id = interface.set_thing(identifier, *id),
+            Self::ThingChange(id) => *id = interface.set_thing(things_catalog, identifier, *id),
             _ => return false
         };
 
@@ -827,6 +836,7 @@ impl EditType
     fn moving_common(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         interface: &mut UndoRedoInterface,
         identifier: Id
@@ -842,7 +852,7 @@ impl EditType
                 }
 
                 interface
-                    .moving_mut(drawing_resources, grid, identifier)
+                    .moving_mut(drawing_resources, things_catalog, grid, identifier)
                     .move_path_nodes_at_indexes(snap);
             },
             _ => return false
@@ -945,6 +955,7 @@ impl EditType
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         identifiers: &HvVec<Id>,
         key: Option<&String>
@@ -954,6 +965,7 @@ impl EditType
         {
             *value = interface.set_property(
                 drawing_resources,
+                things_catalog,
                 grid,
                 identifiers[0],
                 key.unwrap(),
@@ -974,6 +986,7 @@ impl EditType
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         ui: &mut Ui,
         identifiers: &HvVec<Id>,
@@ -990,7 +1003,7 @@ impl EditType
         /// Returns the [`MovingMut`] of the entity with the [`Id`] returned by `single`.
         macro_rules! moving_mut {
             () => {
-                interface.moving_mut(drawing_resources, grid, single!())
+                interface.moving_mut(drawing_resources, things_catalog, grid, single!())
             };
         }
 
@@ -1021,13 +1034,13 @@ impl EditType
             return;
         }
 
-        if self.property(interface, drawing_resources, grid, identifiers, property)
+        if self.property(interface, drawing_resources, things_catalog, grid, identifiers, property)
         {
             return;
         }
 
         if self.brushes_common(drawing_resources, grid, interface, identifiers) ||
-            self.things_common(interface, identifiers)
+            self.things_common(things_catalog, interface, identifiers)
         {
             return;
         }
@@ -1065,7 +1078,7 @@ impl EditType
             Self::PathDeletion(path) =>
             {
                 interface.schedule_overall_node_update();
-                interface.set_path(drawing_resources, grid, single!(), std::mem::take(path).unwrap());
+                interface.set_path(drawing_resources, things_catalog, grid, single!(), std::mem::take(path).unwrap());
             },
             Self::EntitySelection =>
             {
@@ -1116,7 +1129,7 @@ impl EditType
                     );
                 }
             },
-            Self::PathCreation(path) => *path = interface.remove_path(drawing_resources, grid, single!()).into(),
+            Self::PathCreation(path) => *path = interface.remove_path(drawing_resources, things_catalog, grid, single!()).into(),
             Self::BrushAttachment(attachment) => interface.detach(single!(), *attachment),
             Self::BrushDetachment(attachment) => interface.attach(single!(), *attachment),
             Self::PathNodesSelection(idxs) =>
@@ -1174,9 +1187,9 @@ impl EditType
                 moving_mut!().undo_path_nodes_decel_travel_percentage_edit(edit);
             },
             Self::DrawnThing(thing) => *thing = interface.despawn_thing(single!(), true).into(),
-            Self::DrawnThingDespawn(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), true),
+            Self::DrawnThingDespawn(thing) => interface.spawn_thing(things_catalog, single!(), std::mem::take(thing).unwrap(), true),
             Self::ThingSpawn(thing) => *thing = interface.despawn_thing(single!(), false).into(),
-            Self::ThingDespawn(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), false),
+            Self::ThingDespawn(thing) => interface.spawn_thing(things_catalog, single!(), std::mem::take(thing).unwrap(), false),
             Self::TextureChange(texture) =>
             {
                 match texture
@@ -1223,9 +1236,9 @@ impl EditType
 
         let id = single!();
 
-        if self.thing_common(interface, id) ||
+        if self.thing_common(things_catalog, interface, id) ||
             self.brush_common(drawing_resources, grid, interface, id) ||
-            self.moving_common(drawing_resources, grid, interface, id)
+            self.moving_common(drawing_resources, things_catalog, grid, interface, id)
         {
             return;
         }
@@ -1272,6 +1285,7 @@ impl EditType
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         ui: &mut Ui,
         identifiers: &HvVec<Id>,
@@ -1288,7 +1302,7 @@ impl EditType
         /// Returns the [`MovingMut`] of the entity with the [`Id`] returned by `single`.
         macro_rules! moving_mut {
             () => {
-                interface.moving_mut(drawing_resources, grid, single!())
+                interface.moving_mut(drawing_resources, things_catalog, grid, single!())
             };
         }
 
@@ -1319,13 +1333,13 @@ impl EditType
             return;
         }
 
-        if self.property(interface, drawing_resources, grid, identifiers, property)
+        if self.property(interface, drawing_resources, things_catalog, grid, identifiers, property)
         {
             return;
         }
 
         if self.brushes_common(drawing_resources, grid, interface, identifiers) ||
-            self.things_common(interface, identifiers)
+            self.things_common(things_catalog, interface, identifiers)
         {
             return;
         }
@@ -1409,11 +1423,11 @@ impl EditType
                     );
                 }
             },
-            Self::PathCreation(path) => interface.set_path(drawing_resources, grid, single!(), std::mem::take(path).unwrap()),
+            Self::PathCreation(path) => interface.set_path(drawing_resources, things_catalog, grid, single!(), std::mem::take(path).unwrap()),
             Self::PathDeletion(path) =>
             {
                 interface.schedule_overall_node_update();
-                *path = interface.remove_path(drawing_resources, grid, single!()).into();
+                *path = interface.remove_path(drawing_resources, things_catalog, grid, single!()).into();
             },
             Self::BrushAttachment(attachment) => interface.attach(single!(), *attachment),
             Self::BrushDetachment(attachment) => interface.detach(single!(), *attachment),
@@ -1471,9 +1485,9 @@ impl EditType
                 interface.schedule_overall_node_update();
                 moving_mut!().redo_path_nodes_decel_travel_percentage_edit(edit);
             },
-            Self::DrawnThing(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), true),
+            Self::DrawnThing(thing) => interface.spawn_thing(things_catalog, single!(), std::mem::take(thing).unwrap(), true),
             Self::DrawnThingDespawn(thing) => *thing = interface.despawn_thing(single!(), true).into(),
-            Self::ThingSpawn(thing) => interface.spawn_thing(single!(), std::mem::take(thing).unwrap(), false),
+            Self::ThingSpawn(thing) => interface.spawn_thing(things_catalog, single!(), std::mem::take(thing).unwrap(), false),
             Self::ThingDespawn(thing) => *thing = interface.despawn_thing(single!(), false).into(),
             Self::TextureChange(texture) =>
             {
@@ -1508,9 +1522,9 @@ impl EditType
 
         let id = single!();
 
-        if self.thing_common(interface, id) ||
+        if self.thing_common(things_catalog, interface, id) ||
             self.brush_common(drawing_resources, grid, interface, id) ||
-            self.moving_common(drawing_resources, grid, interface, id)
+            self.moving_common(drawing_resources, things_catalog, grid, interface, id)
         {
             return;
         }

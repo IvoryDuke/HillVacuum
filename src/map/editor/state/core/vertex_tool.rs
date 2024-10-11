@@ -57,7 +57,7 @@ use crate::{
     },
     utils::{
         collections::{hv_hash_map, hv_hash_set, hv_vec, Ids},
-        hull::{EntityHull, Hull},
+        hull::Hull,
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::HashVec2,
@@ -695,7 +695,7 @@ impl VertexTool
                     let mut brush =
                         bundle.manager.brush_mut(bundle.drawing_resources, bundle.grid, *id);
 
-                    (!brush.hull().contains_point(vx))
+                    (!brush.polygon_hull().contains_point(vx))
                         .then(|| brush.deselect_vertexes().map(|idxs| (brush.id(), idxs)).unwrap())
                 })
         );

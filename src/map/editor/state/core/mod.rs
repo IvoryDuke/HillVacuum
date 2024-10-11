@@ -390,9 +390,8 @@ type PreviousActiveTool = HvBox<ActiveTool>;
 #[allow(clippy::missing_docs_in_private_items)]
 pub(in crate::map::editor::state) struct UndoRedoInterface<'a>
 {
-    things_catalog: &'a ThingsCatalog,
-    manager:        &'a mut EntitiesManager,
-    active_tool:    &'a mut ActiveTool
+    manager:     &'a mut EntitiesManager,
+    active_tool: &'a mut ActiveTool
 }
 
 impl<'a> UndoRedoInterface<'a>
@@ -400,14 +399,9 @@ impl<'a> UndoRedoInterface<'a>
     /// Returns a new [`UndoRedoInterface`].
     #[inline]
     #[must_use]
-    fn new(
-        core: &'a mut Core,
-        things_catalog: &'a ThingsCatalog,
-        manager: &'a mut EntitiesManager
-    ) -> Self
+    fn new(core: &'a mut Core, manager: &'a mut EntitiesManager) -> Self
     {
         Self {
-            things_catalog,
             manager,
             active_tool: if let ActiveTool::Zoom(..) = core.active_tool
             {
@@ -521,11 +515,13 @@ impl<'a> UndoRedoInterface<'a>
     pub fn moving_mut<'b>(
         &'b mut self,
         drawing_resources: &'b DrawingResources,
+        things_catalog: &'b ThingsCatalog,
         grid: &'b Grid,
         identifier: Id
     ) -> MovingMut<'b>
     {
-        self.manager.moving_mut(drawing_resources, grid, identifier)
+        self.manager
+            .moving_mut(drawing_resources, things_catalog, grid, identifier)
     }
 
     /// Gives the brush with [`Id`] `identifier` a [`Path`].
@@ -533,12 +529,14 @@ impl<'a> UndoRedoInterface<'a>
     pub fn set_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         identifier: Id,
         path: Path
     )
     {
-        self.manager.set_path(drawing_resources, grid, identifier, path);
+        self.manager
+            .set_path(drawing_resources, things_catalog, grid, identifier, path);
     }
 
     /// Removes the [`Path`] from the entity with [`Id`] `identifier`.
@@ -546,11 +544,14 @@ impl<'a> UndoRedoInterface<'a>
     pub fn remove_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         identifier: Id
     ) -> Path
     {
-        let path = self.manager.remove_path(drawing_resources, grid, identifier);
+        let path = self
+            .manager
+            .remove_path(drawing_resources, things_catalog, grid, identifier);
 
         if self.manager.is_selected(identifier)
         {
@@ -675,23 +676,40 @@ impl<'a> UndoRedoInterface<'a>
 
     /// Sets the [`ThingId`] of the [`ThingInstance`] with [`Id`] `identifier`.
     #[inline]
-    pub fn set_thing(&mut self, identifier: Id, thing: ThingId) -> ThingId
+    pub fn set_thing(
+        &mut self,
+        things_catalog: &ThingsCatalog,
+        identifier: Id,
+        thing_id: ThingId
+    ) -> ThingId
     {
-        let catalog = unsafe { std::ptr::from_ref(self.things_catalog).as_ref() }.unwrap();
-        self.thing_mut(identifier)
-            .set_thing(catalog.thing(thing).unwrap())
+        self.thing_mut(things_catalog, identifier)
+            .set_thing(thing_id)
             .unwrap()
     }
 
     /// Returns the [`ThingMut`] with [`Id`] `identifier`.
     #[inline]
-    pub fn thing_mut(&mut self, identifier: Id) -> ThingMut { self.manager.thing_mut(identifier) }
+    pub fn thing_mut<'b>(
+        &'b mut self,
+        things_catalog: &'b ThingsCatalog,
+        identifier: Id
+    ) -> ThingMut
+    {
+        self.manager.thing_mut(things_catalog, identifier)
+    }
 
     /// Spawns a new [`ThingInstance`].
     #[inline]
-    pub fn spawn_thing(&mut self, identifier: Id, data: ThingInstanceData, drawn: bool)
+    pub fn spawn_thing(
+        &mut self,
+        things_catalog: &ThingsCatalog,
+        identifier: Id,
+        data: ThingInstanceData,
+        drawn: bool
+    )
     {
-        self.manager.spawn_thing_from_parts(identifier, data);
+        self.manager.spawn_thing_from_parts(things_catalog, identifier, data);
 
         if drawn
         {
@@ -726,6 +744,7 @@ impl<'a> UndoRedoInterface<'a>
     pub fn set_property(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         identifier: Id,
         k: &str,
@@ -735,7 +754,10 @@ impl<'a> UndoRedoInterface<'a>
         if self.manager.is_thing(identifier)
         {
             self.manager.schedule_overall_things_property_update(k);
-            self.manager.thing_mut(identifier).set_property(k, value).unwrap()
+            self.manager
+                .thing_mut(things_catalog, identifier)
+                .set_property(k, value)
+                .unwrap()
         }
         else
         {
@@ -841,8 +863,9 @@ impl Core
     {
         assert!(self.undo_redo_available(), "Undo redo is not available.");
         edits_history.undo(
-            &mut UndoRedoInterface::new(self, things_catalog, manager),
+            &mut UndoRedoInterface::new(self, manager),
             drawing_resources,
+            things_catalog,
             grid,
             ui
         );
@@ -862,8 +885,9 @@ impl Core
     {
         assert!(self.undo_redo_available(), "Undo redo is not available.");
         edits_history.redo(
-            &mut UndoRedoInterface::new(self, things_catalog, manager),
+            &mut UndoRedoInterface::new(self, manager),
             drawing_resources,
+            things_catalog,
             grid,
             ui
         );
@@ -914,13 +938,14 @@ impl Core
     pub fn update_outline(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &EntitiesManager,
         grid: &Grid,
         settings: &mut ToolsSettings
     )
     {
         self.active_tool
-            .update_outline(drawing_resources, manager, grid, settings);
+            .update_outline(drawing_resources, things_catalog, manager, grid, settings);
     }
 
     /// Updates the data stored concerning the selected vertexes.
@@ -987,9 +1012,11 @@ impl Core
                 },
                 EditingTarget::Path =>
                 {
-                    for mut brush in bundle
-                        .manager
-                        .selected_movings_mut(bundle.drawing_resources, bundle.grid)
+                    for mut brush in bundle.manager.selected_movings_mut(
+                        bundle.drawing_resources,
+                        bundle.things_catalog,
+                        bundle.grid
+                    )
                     {
                         brush.deselect_path_nodes_no_indexes();
                     }
@@ -1011,6 +1038,7 @@ impl Core
     {
         self.active_tool.snap_tool(
             bundle.drawing_resources,
+            bundle.things_catalog,
             bundle.manager,
             bundle.edits_history,
             &Grid::quick_snap(bundle.grid.shifted),

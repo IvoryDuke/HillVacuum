@@ -80,7 +80,7 @@ use crate::{
     },
     utils::{
         collections::{hv_hash_map, hv_hash_set, Ids},
-        hull::{EntityHull, Hull},
+        hull::Hull,
         identifiers::{EntityCenter, EntityId, Id, IdGenerator},
         math::AroundEqual,
         misc::{Blinker, ReplaceValues, TakeValue}
@@ -118,17 +118,6 @@ impl DrawHeight for ThingInstance
 }
 
 //=======================================================================//
-
-/// A trait that defines properties common to all entities.
-pub(in crate::map::editor::state) trait Entity:
-    EntityHull + EntityId + DrawHeight + CopyToClipboard
-{
-}
-
-impl Entity for Brush {}
-impl Entity for ThingInstance {}
-
-//=======================================================================//
 // ENUMS
 //
 //=======================================================================//
@@ -142,6 +131,74 @@ pub(in crate::map::editor::state) enum TextureResult
     Valid,
     /// The texture was changed and the tool outline must be refreshed.
     ValidRefreshOutline
+}
+
+//=======================================================================//
+
+pub(in crate::map::editor::state) enum Entity<'a>
+{
+    Brush(&'a Brush),
+    Thing(&'a ThingInstance)
+}
+
+impl<'a> EntityId for Entity<'a>
+{
+    #[inline]
+    fn id(&self) -> Id { *self.id_as_ref() }
+
+    #[inline]
+    fn id_as_ref(&self) -> &Id
+    {
+        match self
+        {
+            Entity::Brush(brush) => brush.id_as_ref(),
+            Entity::Thing(thing) => thing.id_as_ref()
+        }
+    }
+}
+
+impl<'a> DrawHeight for Entity<'a>
+{
+    #[inline]
+    fn draw_height(&self) -> Option<f32>
+    {
+        match self
+        {
+            Entity::Brush(brush) => brush.draw_height(),
+            Entity::Thing(thing) => DrawHeight::draw_height(*thing)
+        }
+    }
+}
+
+impl<'a> CopyToClipboard for Entity<'a>
+{
+    #[inline]
+    fn copy_to_clipboard(&self) -> ClipboardData
+    {
+        match self
+        {
+            Entity::Brush(brush) => brush.copy_to_clipboard(),
+            Entity::Thing(thing) => thing.copy_to_clipboard()
+        }
+    }
+}
+
+impl<'a> Entity<'a>
+{
+    #[inline]
+    fn hull(
+        &self,
+        drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
+        grid: &Grid
+    ) -> Hull
+    {
+        match self
+        {
+            Entity::Brush(brush) => brush.hull(drawing_resources, grid),
+            Entity::Thing(thing) => thing.hull(things_catalog)
+        }
+    }
 }
 
 //=======================================================================//
@@ -708,7 +765,7 @@ impl Innards
 
                 _ = brush.set_texture(drawing_resources, texture);
             }
-            else if brush.out_of_bounds()
+            else if brush.hull(drawing_resources, grid).out_of_bounds()
             {
                 continue;
             }
@@ -748,13 +805,12 @@ impl Innards
 
         for _ in 0..header.things
         {
-            let thing = ThingInstance::from((
+            let thing = ThingInstance::from(
                 ciborium::from_reader::<ThingViewer, _>(&mut *file)
-                    .map_err(|_| "Error reading things")?,
-                things_catalog
-            ));
+                    .map_err(|_| "Error reading things")?
+            );
 
-            if thing.out_of_bounds()
+            if thing.hull(things_catalog).out_of_bounds()
             {
                 continue;
             }
@@ -783,7 +839,7 @@ impl Innards
 
         for thing in things
         {
-            self.insert_thing(thing, quad_trees, false);
+            self.insert_thing(things_catalog, thing, quad_trees, false);
         }
 
         self.id_generator.reset(max_id);
@@ -817,12 +873,12 @@ impl Innards
     /// Panics if `identifier` belongs to an entity that does not exist.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) fn entity(&self, identifier: Id) -> &dyn Entity
+    pub(in crate::map::editor::state) fn entity(&self, identifier: Id) -> Entity
     {
         self.brushes
             .get(&identifier)
-            .map(|brush| brush as &dyn Entity)
-            .or(self.things.get(&identifier).map(|thing| thing as &dyn Entity))
+            .map(|brush| Entity::Brush(brush))
+            .or(self.things.get(&identifier).map(|thing| Entity::Thing(thing)))
             .unwrap()
     }
 
@@ -832,6 +888,7 @@ impl Innards
     pub(in crate::map::editor::state) fn spawn_pasted_entity(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         edits_history: &mut EditsHistory,
         grid: &Grid,
         quad_trees: &mut Trees,
@@ -854,7 +911,7 @@ impl Innards
             {
                 let mut thing = ThingInstance::from_parts(id, data);
                 thing.move_by_delta(delta);
-                self.spawn_thing(thing, quad_trees, edits_history);
+                self.spawn_thing(things_catalog, thing, quad_trees, edits_history);
             }
         };
 
@@ -1510,6 +1567,7 @@ impl Innards
     pub(in crate::map::editor::state) fn create_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         edits_history: &mut EditsHistory,
         grid: &Grid,
         quad_trees: &mut Trees,
@@ -1519,7 +1577,7 @@ impl Innards
     {
         assert!(self.is_selected(identifier), "Entity is not selected.");
 
-        self.set_path(drawing_resources, grid, quad_trees, identifier, path);
+        self.set_path(drawing_resources, things_catalog, grid, quad_trees, identifier, path);
         edits_history.path_creation(identifier);
     }
 
@@ -1528,13 +1586,14 @@ impl Innards
     pub(in crate::map::editor::state) fn set_path(
         &mut self,
         resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         quad_trees: &mut Trees,
         identifier: Id,
         path: Path
     )
     {
-        self.moving_mut(resources, grid, quad_trees, identifier)
+        self.moving_mut(resources, things_catalog, grid, quad_trees, identifier)
             .set_path(path);
 
         self.moving.asserted_insert(identifier);
@@ -1548,6 +1607,7 @@ impl Innards
     fn remove_selected_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         edits_history: &mut EditsHistory,
         grid: &Grid,
         quad_trees: &mut Trees,
@@ -1565,7 +1625,7 @@ impl Innards
 
         edits_history.path_deletion(
             identifier,
-            self.moving_mut(drawing_resources, grid, quad_trees, identifier)
+            self.moving_mut(drawing_resources, things_catalog, grid, quad_trees, identifier)
                 .take_path()
         );
     }
@@ -1575,6 +1635,7 @@ impl Innards
     fn replace_selected_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         edits_history: &mut EditsHistory,
         grid: &Grid,
         quad_trees: &mut Trees,
@@ -1582,8 +1643,23 @@ impl Innards
         path: Path
     )
     {
-        self.remove_selected_path(drawing_resources, edits_history, grid, quad_trees, identifier);
-        self.create_path(drawing_resources, edits_history, grid, quad_trees, identifier, path);
+        self.remove_selected_path(
+            drawing_resources,
+            things_catalog,
+            edits_history,
+            grid,
+            quad_trees,
+            identifier
+        );
+        self.create_path(
+            drawing_resources,
+            things_catalog,
+            edits_history,
+            grid,
+            quad_trees,
+            identifier,
+            path
+        );
     }
 
     /// Replaces in the quad trees the [`Hull`] of the attachments of the brush with [`Id`]
@@ -1622,7 +1698,7 @@ impl Innards
     #[must_use]
     fn remove_anchors_hull(&mut self, quad_trees: &mut Trees, owner: Id) -> bool
     {
-        return_if_none!(self.brushes_with_attachments.remove(&owner), false);
+        _ = return_if_none!(self.brushes_with_attachments.remove(&owner), false);
         assert!(
             quad_trees.remove_anchor_hull(self.brush(owner)),
             "Brush attachments hull was not in the quad tree."
@@ -1661,17 +1737,19 @@ impl Innards
     #[inline]
     pub(in crate::map::editor::state) fn thing_mut<'a>(
         &'a mut self,
+        things_catalog: &'a ThingsCatalog,
         quad_trees: &'a mut Trees,
         identifier: Id
     ) -> ThingMut<'a>
     {
-        ThingMut::new(self, quad_trees, identifier)
+        ThingMut::new(things_catalog, self, quad_trees, identifier)
     }
 
     /// Inserts a `thing` in the map.
     #[inline]
     pub(in crate::map::editor::state) fn insert_thing(
         &mut self,
+        things_catalog: &ThingsCatalog,
         thing: ThingInstance,
         quad_trees: &mut Trees,
         selected: bool
@@ -1683,7 +1761,7 @@ impl Innards
         let id = thing.id();
 
         assert!(
-            quad_trees.insert_thing_hull(&thing).inserted(),
+            quad_trees.insert_thing_hull(things_catalog, &thing).inserted(),
             "Thing hull was already in the quad tree."
         );
 
@@ -1759,26 +1837,28 @@ impl Innards
     #[inline]
     pub(in crate::map::editor::state) fn spawn_thing(
         &mut self,
+        things_catalog: &ThingsCatalog,
         thing: ThingInstance,
         quad_trees: &mut Trees,
         edits_history: &mut EditsHistory
     )
     {
         edits_history.thing_spawn(thing.id(), thing.data().clone());
-        self.insert_thing(thing, quad_trees, true);
+        self.insert_thing(things_catalog, thing, quad_trees, true);
     }
 
     /// Draws `thing` into the map.
     #[inline]
     pub(in crate::map::editor::state) fn draw_thing(
         &mut self,
+        things_catalog: &ThingsCatalog,
         thing: ThingInstance,
         quad_trees: &mut Trees,
         edits_history: &mut EditsHistory
     )
     {
         edits_history.thing_draw(thing.id(), thing.data().clone());
-        self.insert_thing(thing, quad_trees, true);
+        self.insert_thing(things_catalog, thing, quad_trees, true);
     }
 
     /// Despawns the [`ThingInstance`] with [`Id`] `identifier`.
@@ -1815,12 +1895,13 @@ impl Innards
     pub(in crate::map::editor::state) fn moving_mut<'a>(
         &'a mut self,
         resources: &'a DrawingResources,
+        things_catalog: &'a ThingsCatalog,
         grid: &'a Grid,
         quad_trees: &'a mut Trees,
         identifier: Id
     ) -> MovingMut<'a>
     {
-        MovingMut::new(resources, self, grid, quad_trees, identifier)
+        MovingMut::new(resources, things_catalog, self, grid, quad_trees, identifier)
     }
 }
 
@@ -1923,7 +2004,7 @@ impl EntitiesManager
     /// Returns a reference to the [`Entity`] trait object with [`Id`] `identifier`.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) fn entity(&self, identifier: Id) -> &dyn Entity
+    pub(in crate::map::editor::state) fn entity(&self, identifier: Id) -> Entity
     {
         self.innards.entity(identifier)
     }
@@ -1940,6 +2021,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn update_tool_and_overall_values(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         core: &mut Core,
         ui: &mut Ui,
         grid: &Grid,
@@ -1948,7 +2030,7 @@ impl EntitiesManager
     {
         if self.innards.outline_update.take_value()
         {
-            core.update_outline(drawing_resources, self, grid, settings);
+            core.update_outline(drawing_resources, things_catalog, self, grid, settings);
         }
 
         if !self.innards.selected_vertexes_update.is_empty()
@@ -2036,9 +2118,7 @@ impl EntitiesManager
 
     /// Returns an iterator to the [`Entity`] trait objects in the map.
     #[inline]
-    pub(in crate::map::editor::state) fn selected_entities(
-        &self
-    ) -> impl Iterator<Item = &dyn Entity>
+    pub(in crate::map::editor::state) fn selected_entities(&self) -> impl Iterator<Item = Entity>
     {
         self.selected_brushes_ids()
             .chain(self.selected_things_ids())
@@ -2567,21 +2647,9 @@ impl EntitiesManager
     /// Returns the [`Hull`] describing the rectangle encompassing all selected brushes, if any.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) fn selected_brushes_hull(&self) -> Option<Hull>
+    pub(in crate::map::editor::state) fn selected_brushes_polygon_hull(&self) -> Option<Hull>
     {
-        Hull::from_hulls_iter(self.selected_brushes_ids().map(|id| self.brush(*id).hull()))
-    }
-
-    /// Returns the [`Hull`] describing the rectangle encompassing all selected entities, if any.
-    #[inline]
-    #[must_use]
-    pub(in crate::map::editor::state) fn selected_entities_hull(&self) -> Option<Hull>
-    {
-        Hull::from_hulls_iter(
-            self.selected_brushes()
-                .map(Brush::global_hull)
-                .chain(self.selected_things().map(EntityHull::hull))
-        )
+        Hull::from_hulls_iter(self.selected_brushes_ids().map(|id| self.brush(*id).polygon_hull()))
     }
 
     /// Returns an iterator to all the selected brushes with sprites.
@@ -2719,6 +2787,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn spawn_pasted_entity(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         edits_history: &mut EditsHistory,
         grid: &Grid,
         data: ClipboardData,
@@ -2727,6 +2796,7 @@ impl EntitiesManager
     {
         self.innards.spawn_pasted_entity(
             drawing_resources,
+            things_catalog,
             edits_history,
             grid,
             &mut self.quad_trees,
@@ -3036,6 +3106,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn duplicate_selected_entities(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         clipboard: &mut Clipboard,
         edits_history: &mut EditsHistory,
         grid: &Grid,
@@ -3043,9 +3114,11 @@ impl EntitiesManager
     ) -> bool
     {
         let valid = self.test_operation_validity(|manager| {
-            manager
-                .selected_entities()
-                .find_map(|entity| (entity.hull() + delta).out_of_bounds().then_some(entity.id()))
+            manager.selected_entities().find_map(|entity| {
+                (entity.hull(drawing_resources, things_catalog, grid) + delta)
+                    .out_of_bounds()
+                    .then_some(entity.id())
+            })
         });
 
         if !valid
@@ -3053,7 +3126,7 @@ impl EntitiesManager
             return false;
         }
 
-        clipboard.duplicate(drawing_resources, self, edits_history, grid, delta);
+        clipboard.duplicate(drawing_resources, things_catalog, self, edits_history, grid, delta);
         true
     }
 
@@ -3062,6 +3135,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn create_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         edits_history: &mut EditsHistory,
         grid: &Grid,
         identifier: Id,
@@ -3070,6 +3144,7 @@ impl EntitiesManager
     {
         self.innards.create_path(
             drawing_resources,
+            things_catalog,
             edits_history,
             grid,
             &mut self.quad_trees,
@@ -3083,13 +3158,20 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn set_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         identifier: Id,
         path: Path
     )
     {
-        self.innards
-            .set_path(drawing_resources, grid, &mut self.quad_trees, identifier, path);
+        self.innards.set_path(
+            drawing_resources,
+            things_catalog,
+            grid,
+            &mut self.quad_trees,
+            identifier,
+            path
+        );
     }
 
     /// Removes the [`Path`] from the brush with [`Id`] `identifier`.
@@ -3097,6 +3179,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn remove_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         identifier: Id
     ) -> Path
@@ -3112,7 +3195,8 @@ impl EntitiesManager
             self.innards.selected_possible_moving.asserted_insert(identifier);
         }
 
-        self.moving_mut(drawing_resources, grid, identifier).take_path()
+        self.moving_mut(drawing_resources, things_catalog, grid, identifier)
+            .take_path()
     }
 
     /// Removes the [`Path`] from the selected brush with [`Id`] `identifier`.
@@ -3120,6 +3204,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn remove_selected_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         edits_history: &mut EditsHistory,
         grid: &Grid,
         identifier: Id
@@ -3127,6 +3212,7 @@ impl EntitiesManager
     {
         self.innards.remove_selected_path(
             drawing_resources,
+            things_catalog,
             edits_history,
             grid,
             &mut self.quad_trees,
@@ -3140,6 +3226,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn replace_selected_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         edits_history: &mut EditsHistory,
         grid: &Grid,
         identifier: Id,
@@ -3148,6 +3235,7 @@ impl EntitiesManager
     {
         self.innards.replace_selected_path(
             drawing_resources,
+            things_catalog,
             edits_history,
             grid,
             &mut self.quad_trees,
@@ -3161,6 +3249,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn remove_selected_paths(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         edits_history: &mut EditsHistory,
         grid: &Grid
     )
@@ -3171,6 +3260,7 @@ impl EntitiesManager
         {
             self.innards.remove_selected_path(
                 drawing_resources,
+                things_catalog,
                 edits_history,
                 grid,
                 &mut self.quad_trees,
@@ -3570,12 +3660,17 @@ impl EntitiesManager
                     continue;
                 }
 
-                continue_if_none!(drawing_resources.texture(settings.name())).name()
+                drawing_resources.texture_or_error(settings.name()).name()
             };
 
-            if !brush.check_texture_change(drawing_resources, grid, name)
+            let valid = brush.check_texture_change(drawing_resources, grid, name);
+            drop(brush);
+
+            if !valid
             {
-                _ = brush.set_texture(drawing_resources, "error");
+                _ = self
+                    .innards
+                    .remove_brush(drawing_resources, grid, &mut self.quad_trees, *id);
             }
         }
     }
@@ -3600,9 +3695,14 @@ impl EntitiesManager
 
     /// Returns a [`ThingMut`] wrapper to the [`ThingInstance`] with [`Id`] `identifier`.
     #[inline]
-    pub(in crate::map::editor::state) fn thing_mut(&mut self, identifier: Id) -> ThingMut<'_>
+    pub(in crate::map::editor::state) fn thing_mut<'a>(
+        &'a mut self,
+        things_catalog: &'a ThingsCatalog,
+        identifier: Id
+    ) -> ThingMut<'_>
     {
-        self.innards.thing_mut(&mut self.quad_trees, identifier)
+        self.innards
+            .thing_mut(things_catalog, &mut self.quad_trees, identifier)
     }
 
     /// Returns the amount of [`ThingInstance`] in the map.
@@ -3650,23 +3750,31 @@ impl EntitiesManager
 
     /// Returns an iterator to the [`ThingMut`]s wrapping the selected [`ThingInstance`]s.
     #[inline]
-    pub(in crate::map::editor::state) fn selected_things_mut(
-        &mut self
+    pub(in crate::map::editor::state) fn selected_things_mut<'a>(
+        &'a mut self,
+        things_catalog: &'a ThingsCatalog
     ) -> impl Iterator<Item = ThingMut<'_>>
     {
         self.auxiliary.replace_values(&self.innards.selected_things);
-        SelectedThingsMut::new(&mut self.innards, &mut self.quad_trees, &self.auxiliary)
+        SelectedThingsMut::new(
+            things_catalog,
+            &mut self.innards,
+            &mut self.quad_trees,
+            &self.auxiliary
+        )
     }
 
     /// Spawns a new [`ThingInstance`] with id [`identifier`].
     #[inline]
     pub(in crate::map::editor::state) fn spawn_thing_from_parts(
         &mut self,
+        things_catalog: &ThingsCatalog,
         identifier: Id,
         data: ThingInstanceData
     )
     {
         self.innards.insert_thing(
+            things_catalog,
             ThingInstance::from_parts(identifier, data),
             &mut self.quad_trees,
             true
@@ -3687,7 +3795,8 @@ impl EntitiesManager
         let id = self.innards.new_id();
 
         self.innards.draw_thing(
-            things_catalog.thing_instance(
+            things_catalog,
+            ThingInstance::new(
                 id,
                 things_catalog.selected_thing().id(),
                 settings
@@ -3773,16 +3882,19 @@ impl EntitiesManager
     )
     {
         self.auxiliary.replace_values(self.innards.things.keys());
-        let error = things_catalog.error();
 
         for id in &self.auxiliary
         {
-            let mut instance = self.innards.thing_mut(&mut self.quad_trees, *id);
-            let thing = continue_if_none!(things_catalog.thing(instance.thing_id()));
+            let instance = self.innards.thing(*id);
+            let valid = instance.check_thing_change(
+                things_catalog,
+                things_catalog.thing_or_error(instance.thing_id()).id()
+            );
 
-            if !instance.check_thing_change(thing)
+            if !valid
             {
-                _ = instance.set_thing(error);
+                _ = self.innards.remove_thing(&mut self.quad_trees, *id);
+                continue;
             }
         }
     }
@@ -3842,12 +3954,15 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn selected_movings_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
+        things_catalog: &'a ThingsCatalog,
         grid: &'a Grid
     ) -> impl Iterator<Item = MovingMut<'a>>
     {
         self.auxiliary.replace_values(&self.innards.selected_moving);
+
         SelectedMovingsMut::new(
             drawing_resources,
+            things_catalog,
             &mut self.innards,
             grid,
             &mut self.quad_trees,
@@ -3890,12 +4005,18 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn moving_mut<'a>(
         &'a mut self,
         drawing_resources: &'a DrawingResources,
+        things_catalog: &'a ThingsCatalog,
         grid: &'a Grid,
         identifier: Id
     ) -> MovingMut<'a>
     {
-        self.innards
-            .moving_mut(drawing_resources, grid, &mut self.quad_trees, identifier)
+        self.innards.moving_mut(
+            drawing_resources,
+            things_catalog,
+            grid,
+            &mut self.quad_trees,
+            identifier
+        )
     }
 
     /// Returns a [`SelectedMovingsIter`] returning an iterator to the selected entities with
@@ -3939,6 +4060,7 @@ impl EntitiesManager
     #[inline]
     pub(in crate::map::editor::state) fn draw_error_highlight(
         &mut self,
+        things_catalog: &ThingsCatalog,
         drawer: &mut EditDrawer,
         delta_time: f32
     )
@@ -3948,7 +4070,7 @@ impl EntitiesManager
         if self.innards.is_thing(error)
         {
             drawer.polygon_with_solid_color(
-                self.thing(error).hull().rectangle().into_iter(),
+                self.thing(error).thing_hull(things_catalog).rectangle().into_iter(),
                 Color::ErrorHighlight
             );
             return;
@@ -4123,12 +4245,13 @@ impl<'a> BrushMut<'a>
 #[must_use]
 pub(in crate::map) struct ThingMut<'a>
 {
+    things_catalog: &'a ThingsCatalog,
     /// A mutable reference to the core of the [`EntitiesManager`].
-    manager:    &'a mut Innards,
+    manager:        &'a mut Innards,
     /// A mutable reference to the [`QuadTree`]s.
-    quad_trees: &'a mut Trees,
+    quad_trees:     &'a mut Trees,
     /// The [`Id`] of the [`ThingInstance`].
-    id:         Id
+    id:             Id
 }
 
 impl<'a> Deref for ThingMut<'a>
@@ -4153,7 +4276,7 @@ impl<'a> Drop for ThingMut<'a>
     fn drop(&mut self)
     {
         let thing = self.manager.things.get_mut(&self.id).unwrap();
-        _ = self.quad_trees.insert_thing_hull(thing);
+        _ = self.quad_trees.insert_thing_hull(self.things_catalog, thing);
 
         if thing.has_path()
         {
@@ -4179,9 +4302,15 @@ impl<'a> ThingMut<'a>
 {
     /// Returns a new [`ThingMut`].
     #[inline]
-    fn new(manager: &'a mut Innards, quad_trees: &'a mut Trees, identifier: Id) -> Self
+    fn new(
+        things_catalog: &'a ThingsCatalog,
+        manager: &'a mut Innards,
+        quad_trees: &'a mut Trees,
+        identifier: Id
+    ) -> Self
     {
         Self {
+            things_catalog,
             manager,
             quad_trees,
             id: identifier
@@ -4266,6 +4395,7 @@ impl<'a> MovingMut<'a>
     #[inline]
     pub(in crate::map::editor::state::manager) fn new(
         resources: &'a DrawingResources,
+        things_catalog: &'a ThingsCatalog,
         manager: &'a mut Innards,
         grid: &'a Grid,
         quad_trees: &'a mut Trees,
@@ -4274,7 +4404,7 @@ impl<'a> MovingMut<'a>
     {
         if manager.is_thing(identifier)
         {
-            return Self::Thing(ThingMut::new(manager, quad_trees, identifier));
+            return Self::Thing(ThingMut::new(things_catalog, manager, quad_trees, identifier));
         }
 
         Self::Brush(BrushMut::new(resources, manager, grid, quad_trees, identifier))

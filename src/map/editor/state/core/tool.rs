@@ -535,6 +535,7 @@ impl ActiveTool
 
         bundle.clipboard.copy(
             bundle.drawing_resources,
+            bundle.things_catalog,
             bundle.grid,
             bundle.manager.selected_entities()
         );
@@ -552,6 +553,7 @@ impl ActiveTool
             {
                 bundle.clipboard.cut_platform_path(
                     bundle.drawing_resources,
+                    bundle.things_catalog,
                     bundle.manager,
                     bundle.edits_history,
                     bundle.grid,
@@ -566,6 +568,7 @@ impl ActiveTool
 
         bundle.clipboard.copy(
             bundle.drawing_resources,
+            bundle.things_catalog,
             bundle.grid,
             bundle.manager.selected_entities()
         );
@@ -587,6 +590,7 @@ impl ActiveTool
         {
             bundle.clipboard.paste_platform_path(
                 bundle.drawing_resources,
+                bundle.things_catalog,
                 bundle.manager,
                 bundle.edits_history,
                 bundle.grid,
@@ -614,6 +618,7 @@ impl ActiveTool
         bundle.manager.deselect_selected_entities(bundle.edits_history);
         bundle.clipboard.paste(
             bundle.drawing_resources,
+            bundle.things_catalog,
             bundle.manager,
             bundle.edits_history,
             bundle.grid,
@@ -639,6 +644,7 @@ impl ActiveTool
 
         bundle.clipboard.duplicate(
             bundle.drawing_resources,
+            bundle.things_catalog,
             bundle.manager,
             bundle.edits_history,
             bundle.grid,
@@ -652,6 +658,7 @@ impl ActiveTool
     pub fn update_outline(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &EntitiesManager,
         grid: &Grid,
         settings: &ToolsSettings
@@ -662,7 +669,7 @@ impl ActiveTool
             Self::Shear(t) => t.update_outline(manager, grid),
             Self::Scale(t) => t.update_outline(drawing_resources, manager, grid, settings),
             Self::Flip(t) => t.update_outline(manager, grid),
-            Self::Paint(t) => t.update_outline(manager, grid),
+            Self::Paint(t) => t.update_outline(things_catalog, manager, grid),
             _ => ()
         };
     }
@@ -738,7 +745,11 @@ impl ActiveTool
                 if bundle.edits_history.path_nodes_selection_cluster(
                     bundle
                         .manager
-                        .selected_movings_mut(bundle.drawing_resources, bundle.grid)
+                        .selected_movings_mut(
+                            bundle.drawing_resources,
+                            bundle.things_catalog,
+                            bundle.grid
+                        )
                         .filter_map(|mut brush| {
                             brush.select_all_path_nodes().map(|idxs| (brush.id(), idxs))
                         })
@@ -750,7 +761,13 @@ impl ActiveTool
             _ => bundle.manager.select_all_entities(bundle.edits_history)
         };
 
-        self.update_outline(bundle.drawing_resources, bundle.manager, bundle.grid, settings);
+        self.update_outline(
+            bundle.drawing_resources,
+            bundle.things_catalog,
+            bundle.manager,
+            bundle.grid,
+            settings
+        );
     }
 
     //==============================================================
@@ -853,6 +870,7 @@ impl ActiveTool
             {
                 self.snap_tool(
                     bundle.drawing_resources,
+                    bundle.things_catalog,
                     bundle.manager,
                     bundle.edits_history,
                     bundle.grid,
@@ -895,6 +913,7 @@ impl ActiveTool
     pub fn snap_tool(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         grid: &Grid,
@@ -925,16 +944,22 @@ impl ActiveTool
         #[inline]
         #[must_use]
         fn snap_things(
+            things_catalog: &ThingsCatalog,
             manager: &mut EntitiesManager,
             edits_history: &mut EditsHistory,
             grid: &Grid
         ) -> bool
         {
-            manager.selected_things_mut().fold(false, |acc, mut thing| {
-                edits_history.thing_move(thing.id(), return_if_none!(thing.snap(grid), acc));
+            manager
+                .selected_things_mut(things_catalog)
+                .fold(false, |acc, mut thing| {
+                    edits_history.thing_move(
+                        thing.id(),
+                        return_if_none!(thing.snap(things_catalog, grid), acc)
+                    );
 
-                true
-            })
+                    true
+                })
         }
 
         let snapped = match Snap::new(self, manager)
@@ -943,9 +968,9 @@ impl ActiveTool
             Snap::Entities =>
             {
                 snap_brushes(drawing_resources, manager, edits_history, grid) |
-                    snap_things(manager, edits_history, grid)
+                    snap_things(things_catalog, manager, edits_history, grid)
             },
-            Snap::Things => snap_things(manager, edits_history, grid),
+            Snap::Things => snap_things(things_catalog, manager, edits_history, grid),
             Snap::Brushes => snap_brushes(drawing_resources, manager, edits_history, grid),
             Snap::Vertexes =>
             {
@@ -977,23 +1002,22 @@ impl ActiveTool
             },
             Snap::PathNodes =>
             {
-                manager.selected_movings_mut(drawing_resources, grid).fold(
-                    false,
-                    |acc, mut moving| {
+                manager
+                    .selected_movings_mut(drawing_resources, things_catalog, grid)
+                    .fold(false, |acc, mut moving| {
                         edits_history.path_nodes_snap(
                             moving.id(),
                             return_if_none!(moving.snap_selected_path_nodes(grid), acc)
                         );
 
                         true
-                    }
-                )
+                    })
             },
         };
 
         if snapped
         {
-            self.update_outline(drawing_resources, manager, grid, settings);
+            self.update_outline(drawing_resources, things_catalog, manager, grid, settings);
         }
     }
 
@@ -1100,7 +1124,13 @@ impl ActiveTool
             }
         });
 
-        self.update_outline(bundle.drawing_resources, bundle.manager, bundle.grid, settings);
+        self.update_outline(
+            bundle.drawing_resources,
+            bundle.things_catalog,
+            bundle.manager,
+            bundle.grid,
+            settings
+        );
     }
 
     /// Merges all selected vertexes.

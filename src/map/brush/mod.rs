@@ -113,7 +113,7 @@ pub(in crate::map) mod ui_mod
         },
         utils::{
             collections::{hv_vec, Ids},
-            hull::{EntityHull, Hull},
+            hull::Hull,
             identifiers::{EntityCenter, EntityId},
             iterators::SlicePairIter,
             math::lines_and_segments::{line_equation, LineEquation},
@@ -123,7 +123,6 @@ pub(in crate::map) mod ui_mod
         HvHashMap,
         HvVec,
         Id,
-        TextureInterface,
         TextureSettings,
         Timing,
         Value
@@ -632,22 +631,23 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        #[must_use]
-        pub fn global_hull(&self) -> Hull
+        pub fn hull(&self, drawing_resources: &DrawingResources, grid: &Grid) -> Hull
         {
             let mut hull = self.polygon_hull();
 
-            if let Some(pivot) = self.sprite_pivot()
+            if let Some(h) = self.sprite_hull(drawing_resources, grid)
             {
-                hull = Hull::from_points([hull.top_right(), hull.bottom_left(), pivot]);
+                hull = hull.merged(&Hull::from_opposite_vertexes(
+                    grid.point_projection(h.top_right()),
+                    grid.point_projection(h.bottom_left())
+                ));
             }
 
-            if let Some(p_hull) = self.path_hull()
+            match self.path_hull()
             {
-                hull = hull.merged(&p_hull);
+                Some(h) => hull.merged(&h),
+                None => hull
             }
-
-            hull
         }
 
         #[inline]
@@ -686,12 +686,6 @@ pub(in crate::map) mod ui_mod
         #[inline]
         #[must_use]
         pub const fn has_texture(&self) -> bool { self.polygon.has_texture() }
-
-        #[inline]
-        pub fn texture_name(&self) -> Option<&str>
-        {
-            self.polygon.texture_settings().map(TextureInterface::name)
-        }
 
         #[inline]
         #[must_use]
@@ -779,12 +773,6 @@ pub(in crate::map) mod ui_mod
             data.polygon.deselect_vertexes_no_indexes();
             ClipboardData::Brush(data, self.id)
         }
-    }
-
-    impl EntityHull for Brush
-    {
-        #[inline]
-        fn hull(&self) -> Hull { self.data.polygon.hull() }
     }
 
     impl EntityId for Brush
@@ -1122,8 +1110,16 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        #[must_use]
-        pub fn global_hull(&self) -> Hull { self.data.global_hull() }
+        pub fn polygon_hull(&self) -> Hull { self.data.polygon_hull() }
+
+        #[inline]
+        pub fn path_hull(&self) -> Option<Hull> { self.data.path_hull() }
+
+        #[inline]
+        pub fn hull(&self, drawing_resources: &DrawingResources, grid: &Grid) -> Hull
+        {
+            self.data.hull(drawing_resources, grid)
+        }
 
         //==============================================================
         // General Editing
@@ -2222,7 +2218,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub fn clip(&self, clip_line: &[Vec2; 2]) -> Option<ClipResult>
         {
-            let hull = self.hull();
+            let hull = self.data.polygon_hull();
             let clip_line_equation = line_equation(clip_line);
 
             // Intersection check of the polygon's hull.

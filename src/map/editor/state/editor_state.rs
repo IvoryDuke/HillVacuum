@@ -1115,10 +1115,7 @@ impl State
         }
 
         #[inline]
-        fn convert_08(
-            mut reader: BufReader<File>,
-            things_catalog: &ThingsCatalog
-        ) -> Result<OldFileRead, &'static str>
+        fn convert_08(mut reader: BufReader<File>) -> Result<OldFileRead, &'static str>
         {
             // Header.
             let header = ciborium::from_reader::<MapHeader, _>(&mut reader)
@@ -1152,11 +1149,10 @@ impl State
 
             for _ in 0..header.things
             {
-                things.push(ThingInstance::from((
+                things.push(ThingInstance::from(
                     ciborium::from_reader::<crate::map::thing::ThingViewer, _>(&mut reader)
-                        .map_err(|_| "Error reading things for conversion.")?,
-                    things_catalog
-                )));
+                        .map_err(|_| "Error reading things for conversion.")?
+                ));
             }
 
             Ok(OldFileRead {
@@ -1175,8 +1171,7 @@ impl State
             version: &str,
             path: &mut PathBuf,
             reader: BufReader<File>,
-            things_catalog: &ThingsCatalog,
-            f: fn(BufReader<File>, &ThingsCatalog) -> Result<OldFileRead, &'static str>
+            f: fn(BufReader<File>) -> Result<OldFileRead, &'static str>
         ) -> Result<BufReader<File>, &'static str>
         {
             let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
@@ -1195,7 +1190,7 @@ impl State
                 mut brushes,
                 mut things,
                 mut props
-            } = f(reader, things_catalog)?;
+            } = f(reader)?;
 
             let default_brush_properties = default_brush_properties.with_brush_properties();
             let default_thing_properties = default_thing_properties.with_thing_properties();
@@ -1297,10 +1292,7 @@ impl State
 
         let mut file = match version_number
         {
-            PREVIOUS_FILE_VERSION =>
-            {
-                convert(version_number, &mut path, reader, things_catalog, convert_08)?
-            },
+            PREVIOUS_FILE_VERSION => convert(version_number, &mut path, reader, convert_08)?,
             FILE_VERSION => reader,
             _ => return Err(UPGRADE_WARNING)
         };
@@ -1454,6 +1446,7 @@ impl State
         // Reactive update to previous frame's changes.
         bundle.manager.update_tool_and_overall_values(
             bundle.drawing_resources,
+            bundle.things_catalog,
             &mut self.core,
             &mut self.ui,
             bundle.grid,
@@ -1615,6 +1608,7 @@ impl State
             bundle.prop_cameras,
             bundle.user_textures,
             bundle.drawing_resources,
+            bundle.things_catalog,
             bundle.grid
         );
 
@@ -1707,7 +1701,7 @@ impl State
             Command::ReloadThings => Self::reload_things(bundle),
             Command::QuickZoom =>
             {
-                if let Some(hull) = bundle.manager.selected_brushes_hull()
+                if let Some(hull) = bundle.manager.selected_brushes_polygon_hull()
                 {
                     bundle.camera.scale_viewport_to_hull(
                         bundle.window,
@@ -1962,14 +1956,23 @@ impl State
     #[inline]
     #[must_use]
     pub fn quick_zoom_hull(
+        &self,
         key_inputs: &ButtonInput<KeyCode>,
-        manager: &mut EntitiesManager,
+        drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
+        manager: &EntitiesManager,
+        grid: &Grid,
         binds: &BindsKeyCodes
     ) -> Option<Hull>
     {
         if Bind::Zoom.alt_just_pressed(key_inputs, binds)
         {
-            return manager.selected_entities_hull().unwrap().into();
+            return Hull::from_hulls_iter(
+                manager
+                    .selected_brushes()
+                    .map(|brush| brush.hull(drawing_resources, grid))
+                    .chain(manager.selected_things().map(|thing| thing.hull(things_catalog)))
+            );
         }
 
         None
@@ -2016,6 +2019,7 @@ impl State
         images: &mut Assets<Image>,
         user_textures: &mut EguiUserTextures,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         clipboard: &mut Clipboard,
         edits_history: &mut EditsHistory,
@@ -2025,7 +2029,14 @@ impl State
         assert!(self.reloading_textures.take_value(), "No ongoing texture reload.");
 
         edits_history.purge_texture_edits();
-        clipboard.reload_textures(images, user_textures, prop_cameras, drawing_resources, grid);
+        clipboard.reload_textures(
+            images,
+            user_textures,
+            prop_cameras,
+            drawing_resources,
+            things_catalog,
+            grid
+        );
         manager.finish_textures_reload(drawing_resources, grid);
         self.ui.update_overall_texture(drawing_resources, manager);
     }
@@ -2040,7 +2051,11 @@ impl State
         bundle.clipboard.draw_props_to_photograph(bundle);
         bundle.drawer.grid_lines(bundle.window, bundle.camera);
         self.core.draw_active_tool(bundle, &self.tools_settings);
-        bundle.manager.draw_error_highlight(bundle.drawer, bundle.delta_time);
+        bundle.manager.draw_error_highlight(
+            bundle.things_catalog,
+            bundle.drawer,
+            bundle.delta_time
+        );
 
         if self.show_cursor
         {

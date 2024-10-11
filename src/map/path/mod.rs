@@ -44,7 +44,7 @@ pub(in crate::map) mod ui_mod
         },
         utils::{
             collections::{hv_hash_map, hv_hash_set, hv_vec, HvHashMap, HvHashSet, HvVec},
-            hull::{EntityHull, Hull},
+            hull::Hull,
             identifiers::{EntityCenter, EntityId},
             iterators::{FilterSet, PairIterator, SkipIndexIterator, TripletIterator},
             math::{
@@ -1641,12 +1641,6 @@ pub(in crate::map) mod ui_mod
         }
     }
 
-    impl EntityHull for Path
-    {
-        #[inline]
-        fn hull(&self) -> Hull { self.hull }
-    }
-
     impl PartialEq for Path
     {
         #[inline]
@@ -1740,6 +1734,9 @@ pub(in crate::map) mod ui_mod
         {
             Hull::from_points(nodes.map(Node::pos))
         }
+
+        #[inline]
+        pub fn hull(&self) -> Hull { self.hull }
 
         /// Returns a reference to the vector containing the [`Node`]s of the path.
         #[inline]

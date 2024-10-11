@@ -62,7 +62,7 @@ use crate::{
         PROP_CAMERAS_AMOUNT
     },
     utils::{
-        hull::{EntityHull, Hull},
+        hull::Hull,
         identifiers::{EntityId, Id},
         misc::ReplaceValue
     },
@@ -150,20 +150,15 @@ pub(in crate::map) enum ClipboardData
     Thing(ThingInstanceData, Id)
 }
 
-impl<'a> From<(ClipboardDataViewer, &'a ThingsCatalog)> for ClipboardData
+impl<'a> From<ClipboardDataViewer> for ClipboardData
 {
     #[inline]
-    fn from(value: (ClipboardDataViewer, &'a ThingsCatalog)) -> Self
+    fn from(value: ClipboardDataViewer) -> Self
     {
-        let (data, catalog) = value;
-
-        match data
+        match value
         {
             ClipboardDataViewer::Brush(data, id) => Self::Brush(data.into(), id),
-            ClipboardDataViewer::Thing(data, id) =>
-            {
-                Self::Thing(ThingInstanceData::from((data, catalog)), id)
-            },
+            ClipboardDataViewer::Thing(data, id) => Self::Thing(ThingInstanceData::from(data), id)
         }
     }
 }
@@ -197,46 +192,26 @@ impl ClipboardData
     fn out_of_bounds_moved(
         &self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         delta: Vec2
     ) -> bool
     {
-        (self.hull(drawing_resources, grid) + delta).out_of_bounds()
+        (self.hull(drawing_resources, things_catalog, grid) + delta).out_of_bounds()
     }
 
     #[inline]
-    fn hull(&self, drawing_resources: &DrawingResources, grid: &Grid) -> Hull
+    fn hull(
+        &self,
+        drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
+        grid: &Grid
+    ) -> Hull
     {
         match self
         {
-            ClipboardData::Brush(data, _) =>
-            {
-                let mut hull = data.polygon_hull();
-
-                if let Some(h) = data.sprite_hull(drawing_resources, grid)
-                {
-                    hull = hull.merged(&Hull::from_opposite_vertexes(
-                        grid.point_projection(h.top_right()),
-                        grid.point_projection(h.bottom_left())
-                    ));
-                }
-
-                match data.path_hull()
-                {
-                    Some(h) => hull.merged(&h),
-                    None => hull
-                }
-            },
-            ClipboardData::Thing(data, _) =>
-            {
-                let hull = data.hull();
-
-                match data.path_hull()
-                {
-                    Some(h) => hull.merged(&h),
-                    None => hull
-                }
-            }
+            ClipboardData::Brush(data, _) => data.hull(drawing_resources, grid),
+            ClipboardData::Thing(data, _) => data.hull(things_catalog)
         }
     }
 
@@ -336,6 +311,7 @@ pub(in crate::map) struct Clipboard
         &mut PropCamerasMut,
         &mut EguiUserTextures,
         &DrawingResources,
+        &ThingsCatalog,
         &Grid
     )
 }
@@ -421,7 +397,7 @@ impl Clipboard
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
         drawing_resources: &DrawingResources,
-        catalog: &ThingsCatalog,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         props_amount: usize,
         file: &mut BufReader<File>
@@ -433,12 +409,12 @@ impl Clipboard
         {
             let mut prop = Prop::from_viewer(
                 drawing_resources,
-                catalog,
+                things_catalog,
                 grid,
                 ciborium::from_reader::<PropViewer, _>(&mut *file)
                     .map_err(|_| "Error loading props")?
             );
-            _ = prop.reload_things(drawing_resources, catalog, grid);
+            _ = prop.reload_things(drawing_resources, things_catalog, grid);
             props.push(prop);
         }
 
@@ -455,6 +431,7 @@ impl Clipboard
                 user_textures,
                 prop_cameras.next(),
                 drawing_resources,
+                things_catalog,
                 grid,
                 index
             );
@@ -471,6 +448,7 @@ impl Clipboard
         user_textures: &mut EguiUserTextures,
         camera: Option<(Entity, Mut<Camera>, Mut<Transform>)>,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         index: usize
     )
@@ -492,6 +470,7 @@ impl Clipboard
             &mut (&mut camera.1, &mut camera.2),
             user_textures,
             drawing_resources,
+            things_catalog,
             grid,
             &mut self.props[index]
         );
@@ -506,6 +485,7 @@ impl Clipboard
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid
     )
     {
@@ -518,6 +498,7 @@ impl Clipboard
                 user_textures,
                 prop_cameras.next(),
                 drawing_resources,
+                things_catalog,
                 grid,
                 i
             );
@@ -578,6 +559,7 @@ impl Clipboard
         _: &mut PropCamerasMut,
         _: &mut EguiUserTextures,
         _: &DrawingResources,
+        _: &ThingsCatalog,
         _: &Grid
     )
     {
@@ -598,6 +580,7 @@ impl Clipboard
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid
     )
     {
@@ -629,6 +612,7 @@ impl Clipboard
                 &mut (&mut camera.1, &mut camera.2),
                 user_textures,
                 drawing_resources,
+                things_catalog,
                 grid,
                 &mut self.props[index]
             );
@@ -646,10 +630,19 @@ impl Clipboard
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid
     )
     {
-        (self.update_func)(self, images, prop_cameras, user_textures, drawing_resources, grid);
+        (self.update_func)(
+            self,
+            images,
+            prop_cameras,
+            user_textures,
+            drawing_resources,
+            things_catalog,
+            grid
+        );
     }
 
     /// Assigns a camera to a [`Prop`] to take its screenshot.
@@ -660,6 +653,7 @@ impl Clipboard
         prop_camera: &mut (&mut Camera, &mut Transform),
         user_textures: &mut EguiUserTextures,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         prop: &mut Prop
     )
@@ -673,7 +667,7 @@ impl Clipboard
             prop_camera.1,
             (PROP_SCREENSHOT_SIZE.x as f32, PROP_SCREENSHOT_SIZE.y as f32),
             &prop
-                .hull(drawing_resources, grid)
+                .hull(drawing_resources, things_catalog, grid)
                 .transformed(|vx| grid.transform_point(vx)),
             32f32
         );
@@ -723,6 +717,7 @@ impl Clipboard
                     user_textures,
                     prop_cameras.next(),
                     drawing_resources,
+                    things_catalog,
                     grid,
                     i
                 );
@@ -738,6 +733,7 @@ impl Clipboard
         user_textures: &mut EguiUserTextures,
         prop_cameras: &mut PropCamerasMut,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid
     )
     {
@@ -747,13 +743,14 @@ impl Clipboard
         {
             let prop = &mut self.props[i];
 
-            if prop.reload_textures(drawing_resources, grid)
+            if prop.reload_textures(drawing_resources, things_catalog, grid)
             {
                 self.queue_prop_screenshot(
                     images,
                     user_textures,
                     prop_cameras.next(),
                     drawing_resources,
+                    things_catalog,
                     grid,
                     i
                 );
@@ -787,16 +784,21 @@ impl Clipboard
 
     /// Stores the entities in `iter` as a copy-paste [`Prop`].
     #[inline]
-    pub(in crate::map::editor::state) fn copy<'a, D>(
+    pub(in crate::map::editor::state) fn copy<'a, E>(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
-        iter: impl Iterator<Item = &'a D>
+        iter: impl Iterator<Item = E>
     ) where
-        D: CopyToClipboard + ?Sized + 'a
+        E: CopyToClipboard + 'a
     {
-        self.copy_paste
-            .fill(drawing_resources, grid, iter.map(CopyToClipboard::copy_to_clipboard));
+        self.copy_paste.fill(
+            drawing_resources,
+            things_catalog,
+            grid,
+            iter.map(|e| e.copy_to_clipboard())
+        );
     }
 
     /// Pastes the copied entities.
@@ -804,20 +806,28 @@ impl Clipboard
     pub(in crate::map::editor::state) fn paste(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         grid: &Grid,
         cursor_pos: Vec2
     )
     {
-        self.copy_paste
-            .spawn_copy(drawing_resources, manager, edits_history, grid, cursor_pos);
+        self.copy_paste.spawn_copy(
+            drawing_resources,
+            things_catalog,
+            manager,
+            edits_history,
+            grid,
+            cursor_pos
+        );
     }
 
     #[inline]
     pub(in crate::map::editor::state) fn duplicate(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         grid: &Grid,
@@ -826,12 +836,21 @@ impl Clipboard
     {
         self.duplicate.fill(
             drawing_resources,
+            things_catalog,
             grid,
-            manager.selected_entities().map(CopyToClipboard::copy_to_clipboard)
+            manager.selected_entities().map(|e| e.copy_to_clipboard())
         );
+
         manager.deselect_selected_entities(edits_history);
-        self.duplicate
-            .spawn(drawing_resources, manager, edits_history, grid, delta);
+
+        self.duplicate.spawn(
+            drawing_resources,
+            things_catalog,
+            manager,
+            edits_history,
+            grid,
+            delta
+        );
     }
 
     /// Stores `prop` as the quick [`Prop`].
@@ -951,6 +970,7 @@ impl Clipboard
     pub(in crate::map::editor::state) fn spawn_quick_prop(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         grid: &Grid,
@@ -959,8 +979,15 @@ impl Clipboard
     {
         if self.has_quick_prop()
         {
-            self.quick_prop
-                .paint_copy(drawing_resources, manager, edits_history, grid, cursor_pos);
+            self.quick_prop.paint_copy(
+                drawing_resources,
+                things_catalog,
+                manager,
+                edits_history,
+                grid,
+                cursor_pos
+            );
+
             return true;
         }
 
@@ -973,6 +1000,7 @@ impl Clipboard
     pub(in crate::map::editor::state) fn spawn_selected_prop(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         grid: &Grid,
@@ -981,6 +1009,7 @@ impl Clipboard
     {
         self.props[return_if_none!(self.selected_prop, false)].paint_copy(
             drawing_resources,
+            things_catalog,
             manager,
             edits_history,
             grid,
@@ -1125,6 +1154,7 @@ impl Clipboard
     pub(in crate::map::editor::state) fn paste_platform_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         grid: &Grid,
@@ -1142,6 +1172,7 @@ impl Clipboard
 
             manager.replace_selected_path(
                 drawing_resources,
+                things_catalog,
                 edits_history,
                 grid,
                 identifier,
@@ -1150,7 +1181,14 @@ impl Clipboard
             return;
         }
 
-        manager.create_path(drawing_resources, edits_history, grid, identifier, path.clone());
+        manager.create_path(
+            drawing_resources,
+            things_catalog,
+            edits_history,
+            grid,
+            identifier,
+            path.clone()
+        );
     }
 
     /// Cuts the [`Path`] of the brush with [`Id`] `identifier`.
@@ -1158,6 +1196,7 @@ impl Clipboard
     pub(in crate::map::editor::state) fn cut_platform_path(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         grid: &Grid,
@@ -1165,7 +1204,13 @@ impl Clipboard
     )
     {
         self.copy_platform_path(manager, identifier);
-        manager.remove_selected_path(drawing_resources, edits_history, grid, identifier);
+        manager.remove_selected_path(
+            drawing_resources,
+            things_catalog,
+            edits_history,
+            grid,
+            identifier
+        );
     }
 
     //==============================================================

@@ -50,7 +50,8 @@ use crate::{
             NodeSelectionResult,
             NodesMove,
             Path
-        }
+        },
+        thing::catalog::ThingsCatalog
     },
     utils::{
         hull::Hull,
@@ -171,6 +172,7 @@ impl Selector
         #[inline]
         fn selector(
             _: &DrawingResources,
+            things_catalog: &ThingsCatalog,
             manager: &EntitiesManager,
             cursor: &Cursor,
             _: &Grid,
@@ -210,7 +212,7 @@ impl Selector
             for thing in manager
                 .selected_things_at_pos(cursor_pos, None)
                 .iter()
-                .filter(|thing| thing.contains_point(cursor_pos))
+                .filter(|thing| thing.contains_point(things_catalog, cursor_pos))
             {
                 let id = thing.id();
 
@@ -234,6 +236,7 @@ impl Selector
     fn item_beneath_cursor(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &EntitiesManager,
         cursor: &Cursor,
         grid: &Grid,
@@ -241,8 +244,15 @@ impl Selector
         inputs: &InputsPresses
     ) -> Option<ItemBeneathCursor>
     {
-        self.0
-            .item_beneath_cursor(drawing_resources, manager, cursor, grid, camera_scale, inputs)
+        self.0.item_beneath_cursor(
+            drawing_resources,
+            things_catalog,
+            manager,
+            cursor,
+            grid,
+            camera_scale,
+            inputs
+        )
     }
 }
 
@@ -331,6 +341,7 @@ impl PathTool
         let mut tool = PathTool::new(Rect::default());
         let item_beneath_cursor = tool.selector.item_beneath_cursor(
             bundle.drawing_resources,
+            bundle.things_catalog,
             bundle.manager,
             bundle.cursor,
             bundle.grid,
@@ -392,6 +403,7 @@ impl PathTool
         self.selector
             .item_beneath_cursor(
                 bundle.drawing_resources,
+                bundle.things_catalog,
                 bundle.manager,
                 bundle.cursor,
                 bundle.grid,
@@ -415,6 +427,7 @@ impl PathTool
         self.selector
             .item_beneath_cursor(
                 bundle.drawing_resources,
+                bundle.things_catalog,
                 bundle.manager,
                 bundle.cursor,
                 bundle.grid,
@@ -446,6 +459,7 @@ impl PathTool
     {
         let item_beneath_cursor = self.selector.item_beneath_cursor(
             bundle.drawing_resources,
+            bundle.things_catalog,
             bundle.manager,
             bundle.cursor,
             bundle.grid,
@@ -522,7 +536,11 @@ impl PathTool
                         if bundle.edits_history.path_nodes_selection_cluster(
                             bundle
                                 .manager
-                                .selected_movings_mut(bundle.drawing_resources, bundle.grid)
+                                .selected_movings_mut(
+                                    bundle.drawing_resources,
+                                    bundle.things_catalog,
+                                    bundle.grid
+                                )
                                 .filter_map(|mut entity| {
                                     entity.deselect_path_nodes().map(|idxs| (entity.id(), idxs))
                                 })
@@ -552,6 +570,7 @@ impl PathTool
                     {
                         ds.set_highlighted_entity(self.selector.item_beneath_cursor(
                             bundle.drawing_resources,
+                            bundle.things_catalog,
                             bundle.manager,
                             bundle.cursor,
                             bundle.grid,
@@ -616,6 +635,7 @@ impl PathTool
                     self.selector
                         .item_beneath_cursor(
                             bundle.drawing_resources,
+                            bundle.things_catalog,
                             bundle.manager,
                             bundle.cursor,
                             bundle.grid,
@@ -704,6 +724,7 @@ impl PathTool
                     {
                         bundle.manager.replace_selected_path(
                             bundle.drawing_resources,
+                            bundle.things_catalog,
                             bundle.edits_history,
                             bundle.grid,
                             id,
@@ -714,6 +735,7 @@ impl PathTool
                     {
                         bundle.manager.create_path(
                             bundle.drawing_resources,
+                            bundle.things_catalog,
                             bundle.edits_history,
                             bundle.grid,
                             id,
@@ -766,7 +788,7 @@ impl PathTool
     {
         let selected = bundle
             .manager
-            .moving_mut(bundle.drawing_resources, bundle.grid, identifier)
+            .moving_mut(bundle.drawing_resources, bundle.things_catalog, bundle.grid, identifier)
             .toggle_path_node_at_index(usize::from(index));
         bundle.manager.schedule_overall_node_update();
         bundle.edits_history.path_nodes_selection(identifier, hv_vec![index]);
@@ -779,7 +801,7 @@ impl PathTool
     {
         match bundle
             .manager
-            .moving_mut(bundle.drawing_resources, bundle.grid, identifier)
+            .moving_mut(bundle.drawing_resources, bundle.things_catalog, bundle.grid, identifier)
             .exclusively_select_path_node_at_index(usize::from(index))
         {
             NodeSelectionResult::Selected => return,
@@ -808,7 +830,7 @@ impl PathTool
         if bundle.edits_history.path_nodes_selection_cluster(
             bundle
                 .manager
-                .selected_movings_mut(bundle.drawing_resources, bundle.grid)
+                .selected_movings_mut(bundle.drawing_resources, bundle.things_catalog, bundle.grid)
                 .filter_map(|mut entity| func(&mut *entity, range).map(|vxs| (entity.id(), vxs)))
         )
         {
@@ -841,7 +863,12 @@ impl PathTool
         for payload in move_payloads
         {
             let id = payload.id();
-            let mut moving = bundle.manager.moving_mut(bundle.drawing_resources, bundle.grid, id);
+            let mut moving = bundle.manager.moving_mut(
+                bundle.drawing_resources,
+                bundle.things_catalog,
+                bundle.grid,
+                id
+            );
             let nodes_move = moving.apply_selected_path_nodes_move(payload);
 
             let mov = cumulative_move
@@ -882,6 +909,7 @@ impl PathTool
                 {
                     bundle.manager.create_path(
                         bundle.drawing_resources,
+                        bundle.things_catalog,
                         bundle.edits_history,
                         bundle.grid,
                         id,
@@ -907,8 +935,12 @@ impl PathTool
             PathEditing::InsertNode { index, pos } =>
             {
                 *pos = cursor_pos;
-                let mut moving =
-                    bundle.manager.moving_mut(bundle.drawing_resources, bundle.grid, id);
+                let mut moving = bundle.manager.moving_mut(
+                    bundle.drawing_resources,
+                    bundle.things_catalog,
+                    bundle.grid,
+                    id
+                );
 
                 if bundle.inputs.left_mouse.pressed()
                 {
@@ -934,6 +966,7 @@ impl PathTool
     {
         let ToolUpdateBundle {
             drawing_resources,
+            things_catalog,
             manager,
             edits_history,
             inputs,
@@ -944,7 +977,7 @@ impl PathTool
         // Delete paths.
         if inputs.alt_pressed()
         {
-            manager.remove_selected_paths(drawing_resources, edits_history, grid);
+            manager.remove_selected_paths(drawing_resources, things_catalog, edits_history, grid);
             return true;
         }
 
@@ -970,7 +1003,7 @@ impl PathTool
             (
                 p.id(),
                 manager
-                    .moving_mut(drawing_resources, grid, p.id())
+                    .moving_mut(drawing_resources, things_catalog, grid, p.id())
                     .remove_selected_path_nodes(p)
             )
         }));

@@ -20,7 +20,8 @@ use crate::{
             },
             DrawBundle,
             ToolUpdateBundle
-        }
+        },
+        thing::catalog::ThingsCatalog
     },
     utils::{
         identifiers::{EntityId, Id},
@@ -48,6 +49,7 @@ impl Selector
         #[inline]
         fn selector(
             _: &DrawingResources,
+            _: &ThingsCatalog,
             manager: &EntitiesManager,
             cursor: &Cursor,
             _: &Grid,
@@ -76,6 +78,7 @@ impl Selector
     {
         self.0.item_beneath_cursor(
             bundle.drawing_resources,
+            bundle.things_catalog,
             bundle.manager,
             bundle.cursor,
             bundle.grid,

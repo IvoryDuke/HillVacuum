@@ -133,6 +133,7 @@ impl SettingsWindow
                     ..
                 },
             drawing_resources,
+            things_catalog,
             manager,
             clipboard,
             inputs,
@@ -149,6 +150,7 @@ impl SettingsWindow
                 prop_cameras,
                 user_textures,
                 drawing_resources,
+                things_catalog,
                 grid
             );
 

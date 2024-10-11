@@ -9,7 +9,8 @@ use crate::{
         drawer::drawing_resources::DrawingResources,
         editor::state::{core::UndoRedoInterface, grid::Grid, ui::Ui},
         hv_vec,
-        properties::Value
+        properties::Value,
+        thing::catalog::ThingsCatalog
     },
     utils::{identifiers::Id, misc::ReplaceValue},
     HvVec
@@ -325,13 +326,22 @@ impl Edit
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         ui: &mut Ui
     )
     {
         for (ids, ed_type) in self.edits.iter_mut().rev()
         {
-            ed_type.undo(interface, drawing_resources, grid, ui, ids, self.property.as_ref());
+            ed_type.undo(
+                interface,
+                drawing_resources,
+                things_catalog,
+                grid,
+                ui,
+                ids,
+                self.property.as_ref()
+            );
         }
     }
 
@@ -341,13 +351,22 @@ impl Edit
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         ui: &mut Ui
     )
     {
         for (ids, ed_type) in &mut self.edits
         {
-            ed_type.redo(interface, drawing_resources, grid, ui, ids, self.property.as_ref());
+            ed_type.redo(
+                interface,
+                drawing_resources,
+                things_catalog,
+                grid,
+                ui,
+                ids,
+                self.property.as_ref()
+            );
         }
     }
 }

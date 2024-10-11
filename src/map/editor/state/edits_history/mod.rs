@@ -39,7 +39,7 @@ use crate::{
         hv_vec,
         path::{MovementValueEdit, NodesMove, Path, StandbyValueEdit},
         properties::Value,
-        thing::{ThingId, ThingInstanceData}
+        thing::{catalog::ThingsCatalog, ThingId, ThingInstanceData}
     },
     utils::{
         hull::Flip,
@@ -827,6 +827,7 @@ impl EditsHistory
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         ui: &mut Ui
     )
@@ -845,7 +846,7 @@ impl EditsHistory
         self.index -= 1;
 
         let edit = &mut self.stack[self.index];
-        edit.undo(interface, drawing_resources, grid, ui);
+        edit.undo(interface, drawing_resources, things_catalog, grid, ui);
 
         if edit.only_contains_selection_edits()
         {
@@ -862,6 +863,7 @@ impl EditsHistory
         &mut self,
         interface: &mut UndoRedoInterface,
         drawing_resources: &mut DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         ui: &mut Ui
     )
@@ -873,13 +875,14 @@ impl EditsHistory
 
         if self.current_edit.only_contains_entity_selection_edits()
         {
-            self.current_edit.undo(interface, drawing_resources, grid, ui);
+            self.current_edit
+                .undo(interface, drawing_resources, things_catalog, grid, ui);
             self.current_edit.clear();
             self.selections_only_edit_halted = false;
         }
 
         let edit = &mut self.stack[self.index];
-        edit.redo(interface, drawing_resources, grid, ui);
+        edit.redo(interface, drawing_resources, things_catalog, grid, ui);
 
         if edit.only_contains_selection_edits()
         {

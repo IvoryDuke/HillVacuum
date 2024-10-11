@@ -343,7 +343,7 @@ pub(in crate::map) mod ui_mod
             OutOfBounds
         },
         utils::{
-            hull::{EntityHull, Hull},
+            hull::Hull,
             math::{
                 points::{rotate_point, rotate_point_around_origin},
                 AroundEqual
@@ -837,12 +837,6 @@ pub(in crate::map) mod ui_mod
         }
     }
 
-    impl EntityHull for Texture
-    {
-        #[inline]
-        fn hull(&self) -> Hull { self.hull }
-    }
-
     impl Placeholder for Texture
     {
         #[inline]
@@ -984,6 +978,9 @@ pub(in crate::map) mod ui_mod
             self.dirty = true;
             &mut self.animation
         }
+
+        #[inline]
+        pub fn hull(&self) -> Hull { self.hull }
 
         /// Whether the texture was edited.
         #[inline]

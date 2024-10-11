@@ -20,7 +20,7 @@ use crate::{
         drawer::drawing_resources::DrawingResources,
         editor::state::{grid::Grid, manager::quad_tree::QuadTreeIds},
         path::Moving,
-        thing::ThingInstance
+        thing::{catalog::ThingsCatalog, ThingInstance}
     },
     utils::{hull::Hull, identifiers::Id}
 };
@@ -240,11 +240,12 @@ impl<'a> SelectedThingsIter<'a>
 pub(in crate::map::editor::state::manager) struct SelectedThingsMut<'a>
 {
     /// The [`Id`]s iterator.
-    iter:       hashbrown::hash_set::Iter<'a, Id>,
+    iter:           hashbrown::hash_set::Iter<'a, Id>,
+    things_catalog: &'a ThingsCatalog,
     /// The manager.
-    manager:    &'a mut Innards,
+    manager:        &'a mut Innards,
     /// The [`QuadTree`]s.
-    quad_trees: &'a mut Trees
+    quad_trees:     &'a mut Trees
 }
 
 impl<'a> Iterator for SelectedThingsMut<'a>
@@ -257,6 +258,7 @@ impl<'a> Iterator for SelectedThingsMut<'a>
         unsafe {
             self.iter.next().map(|id| {
                 ThingMut::new(
+                    self.things_catalog,
                     std::ptr::from_mut(self.manager).as_mut().unwrap(),
                     std::ptr::from_mut(self.quad_trees).as_mut().unwrap(),
                     *id
@@ -271,6 +273,7 @@ impl<'a> SelectedThingsMut<'a>
     /// Returns a new [`SelectedThingsMut`].
     #[inline]
     pub fn new(
+        things_catalog: &'a ThingsCatalog,
         manager: &'a mut Innards,
         quad_trees: &'a mut Trees,
         selected_brushes: &'a AuxiliaryIds
@@ -278,6 +281,7 @@ impl<'a> SelectedThingsMut<'a>
     {
         Self {
             iter: selected_brushes.iter(),
+            things_catalog,
             manager,
             quad_trees
         }
@@ -364,13 +368,14 @@ impl<'a> MovingsIter<'a>
 pub(in crate::map::editor::state::manager) struct SelectedMovingsMut<'a>
 {
     /// The iterator of the [`Id`]s.
-    iter:       hashbrown::hash_set::Iter<'a, Id>,
-    resources:  &'a DrawingResources,
+    iter:           hashbrown::hash_set::Iter<'a, Id>,
+    things_catalog: &'a ThingsCatalog,
+    resources:      &'a DrawingResources,
     /// The entities manager.
-    manager:    &'a mut Innards,
-    grid:       &'a Grid,
+    manager:        &'a mut Innards,
+    grid:           &'a Grid,
     /// The [`QuadTree`]s.
-    quad_trees: &'a mut Trees
+    quad_trees:     &'a mut Trees
 }
 
 impl<'a> Iterator for SelectedMovingsMut<'a>
@@ -384,6 +389,7 @@ impl<'a> Iterator for SelectedMovingsMut<'a>
             self.iter.next().map(|id| {
                 std::ptr::from_mut(self.manager).as_mut().unwrap().moving_mut(
                     self.resources,
+                    self.things_catalog,
                     self.grid,
                     std::ptr::from_mut(self.quad_trees).as_mut().unwrap(),
                     *id
@@ -399,6 +405,7 @@ impl<'a> SelectedMovingsMut<'a>
     #[inline]
     pub fn new(
         resources: &'a DrawingResources,
+        things_catalog: &'a ThingsCatalog,
         manager: &'a mut Innards,
         grid: &'a Grid,
         quad_trees: &'a mut Trees,
@@ -408,6 +415,7 @@ impl<'a> SelectedMovingsMut<'a>
         Self {
             iter: selected_brushes.iter(),
             resources,
+            things_catalog,
             manager,
             grid,
             quad_trees

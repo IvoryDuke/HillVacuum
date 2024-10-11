@@ -20,7 +20,7 @@ use crate::{
             Placeholder
         },
         properties::{DefaultProperties, SetProperty, Value, ANGLE_LABEL, HEIGHT_LABEL},
-        thing::ThingInstance
+        thing::{catalog::ThingsCatalog, ThingInstance}
     },
     utils::{
         identifiers::EntityId,
@@ -180,8 +180,9 @@ impl Innards
         #[allow(clippy::missing_docs_in_private_items)]
         struct ThingsPropertySetter<'a>
         {
-            manager:       &'a mut EntitiesManager,
-            edits_history: &'a mut EditsHistory
+            things_catalog: &'a ThingsCatalog,
+            manager:        &'a mut EntitiesManager,
+            edits_history:  &'a mut EditsHistory
         }
 
         impl<'a> SetProperty for ThingsPropertySetter<'a>
@@ -195,7 +196,7 @@ impl Innards
 
                         self.edits_history.property(
                             key,
-                            self.manager.selected_things_mut().filter_map(|mut thing| {
+                            self.manager.selected_things_mut(self.things_catalog).filter_map(|mut thing| {
                                 thing.set_property(key, value).map(|value| (thing.id(), value))
                             })
                         );
@@ -216,6 +217,7 @@ impl Innards
 
         let UiBundle {
             drawing_resources,
+            things_catalog,
             brushes_default_properties,
             things_default_properties,
             manager,
@@ -260,6 +262,7 @@ impl Innards
                     inputs,
                     grid,
                     &mut ThingsPropertySetter {
+                        things_catalog,
                         manager,
                         edits_history
                     }

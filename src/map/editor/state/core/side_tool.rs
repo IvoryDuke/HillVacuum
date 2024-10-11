@@ -57,7 +57,7 @@ use crate::{
     },
     utils::{
         collections::{hv_hash_map, hv_hash_set, hv_vec, Ids},
-        hull::{EntityHull, Hull},
+        hull::Hull,
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::{lines_and_segments::closest_point_on_line, AroundEqual, HashVec2},
@@ -691,8 +691,9 @@ impl SideTool
                 .filter_set_with_predicate(id, |id| **id)
                 .filter_map(|id| {
                     let mut brush = manager.brush_mut(drawing_resources, grid, *id);
-                    (!brush.hull().contains_point(side[0]) || !brush.hull().contains_point(side[1]))
-                        .then(|| brush.deselect_vertexes().map(|idxs| (brush.id(), idxs)).unwrap())
+                    (!brush.polygon_hull().contains_point(side[0]) ||
+                        !brush.polygon_hull().contains_point(side[1]))
+                    .then(|| brush.deselect_vertexes().map(|idxs| (brush.id(), idxs)).unwrap())
                 })
         );
 

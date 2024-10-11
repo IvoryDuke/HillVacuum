@@ -23,19 +23,6 @@ use crate::utils::{
 };
 
 //=======================================================================//
-// TRAITS
-//
-//=======================================================================//
-
-/// A trait for entity which are characterized by a bidimensional size.
-pub trait EntityHull
-{
-    /// Returns the [`Hull`] representing the dimensions of the entity.
-    #[must_use]
-    fn hull(&self) -> Hull;
-}
-
-//=======================================================================//
 // ENUMS
 //
 //=======================================================================//
@@ -226,6 +213,7 @@ pub enum ScaleResult
 
 /// A rectangle with sides parallel to the x and y axis encompassing a region of bidimensional
 /// space.
+#[must_use]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Hull
 {

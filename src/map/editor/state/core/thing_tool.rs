@@ -308,11 +308,11 @@ impl ThingTool
 
         self.status = Status::Inactive(());
 
-        let clicked = things_catalog.thing_at_index(clicked);
+        let clicked = things_catalog.thing_at_index(clicked).id();
         let valid = manager.test_operation_validity(|manager| {
-            manager
-                .selected_things()
-                .find_map(|thing| (!thing.check_thing_change(clicked)).then_some(thing.id()))
+            manager.selected_things().find_map(|thing| {
+                (!thing.check_thing_change(things_catalog, clicked)).then_some(thing.id())
+            })
         });
 
         if !valid
@@ -322,7 +322,7 @@ impl ThingTool
 
         edits_history.thing_change_cluster(
             manager
-                .selected_things_mut()
+                .selected_things_mut(things_catalog)
                 .filter_map(|mut thing| thing.set_thing(clicked).map(|prev| (thing.id(), prev)))
         );
     }

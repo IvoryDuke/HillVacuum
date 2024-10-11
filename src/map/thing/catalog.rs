@@ -5,24 +5,16 @@
 
 use std::path::Path;
 
-use bevy::{
-    ecs::system::Res,
-    math::{UVec2, Vec2}
-};
+use bevy::{ecs::system::Res, math::UVec2};
 use bevy_egui::egui;
 use configparser::ini::Ini;
 use hill_vacuum_shared::{continue_if_err, continue_if_none};
 
-use super::{HardcodedThings, Thing, ThingId, ThingInstance};
+use super::{HardcodedThings, Thing, ThingId};
 use crate::{
-    map::{
-        drawer::drawing_resources::DrawingResources,
-        indexed_map::IndexedMap,
-        properties::DefaultProperties
-    },
+    map::{drawer::drawing_resources::DrawingResources, indexed_map::IndexedMap},
     utils::{
         collections::{hv_hash_map, hv_vec},
-        identifiers::Id,
         misc::AssertedInsertRemove
     },
     HvHashMap,
@@ -210,10 +202,6 @@ impl ThingsCatalog
     #[inline]
     pub fn thing(&self, thing: ThingId) -> Option<&Thing> { self.things.get(&thing) }
 
-    /// The [`Thing`] representing an error.
-    #[inline]
-    pub const fn error(&self) -> &Thing { &self.error }
-
     /// Returns a reference to the [`Thing`] with the associated [`ThingId`].
     /// # Panics
     /// Panics if there is no [`Thing`] with such id.
@@ -244,19 +232,6 @@ impl ThingsCatalog
 
     //==============================================================
     // Edit
-
-    /// Generates a [`ThingInstance`] from the provided values.
-    #[inline]
-    pub fn thing_instance(
-        &self,
-        id: Id,
-        thing: ThingId,
-        pos: Vec2,
-        default_properties: &DefaultProperties
-    ) -> ThingInstance
-    {
-        ThingInstance::new(id, self.thing_or_error(thing), pos, default_properties.instance())
-    }
 
     /// Sets the selected thing index.
     #[inline]

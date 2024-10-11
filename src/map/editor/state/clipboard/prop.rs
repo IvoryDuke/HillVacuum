@@ -20,7 +20,7 @@ use bevy::{
 };
 use bevy_egui::egui;
 use glam::Vec2;
-use hill_vacuum_shared::{continue_if_no_match, continue_if_none, match_or_panic, return_if_none};
+use hill_vacuum_shared::{continue_if_none, match_or_panic, return_if_none};
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -143,18 +143,19 @@ impl Prop
     /// Creates a new [`Prop`] with the entities contained in `iter`, pivot placed at
     /// `cursor_pos`, and `screenshot`.
     #[inline]
-    pub(in crate::map::editor::state) fn new<'a, D>(
+    pub(in crate::map::editor::state) fn new<'a, E>(
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
-        iter: impl Iterator<Item = &'a D>,
+        iter: impl Iterator<Item = E>,
         cursor_pos: Vec2,
         screenshot: Option<egui::TextureId>
     ) -> Self
     where
-        D: CopyToClipboard + ?Sized + 'a
+        E: CopyToClipboard + 'a
     {
         let mut new = Self::default();
-        new.fill(drawing_resources, grid, iter.map(CopyToClipboard::copy_to_clipboard));
+        new.fill(drawing_resources, things_catalog, grid, iter.map(|e| e.copy_to_clipboard()));
         new.pivot = new.center - cursor_pos;
         new.screenshot = screenshot;
         new
@@ -173,7 +174,8 @@ impl Prop
             attached_brushes,
             pivot
         } = data;
-        let mut entities = hv_vec![collect; entities.into_iter().map(|viewer| ClipboardData::from((viewer, things_catalog)))];
+        let mut entities =
+            hv_vec![collect; entities.into_iter().map(|viewer| ClipboardData::from(viewer))];
         let (owners, attachments) = entities.split_at_mut(attached_brushes.start);
         let attachments = &mut attachments[..attached_brushes.len()];
 
@@ -196,7 +198,7 @@ impl Prop
         }
 
         let mut new = Self::default();
-        new.fill(drawing_resources, grid, entities);
+        new.fill(drawing_resources, things_catalog, grid, entities);
         new.pivot = pivot;
         new
     }
@@ -245,11 +247,16 @@ impl Prop
     pub(in crate::map::editor::state::clipboard) fn hull(
         &self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid
     ) -> Hull
     {
-        Hull::from_hulls_iter(self.entities.iter().map(|data| data.hull(drawing_resources, grid)))
-            .unwrap()
+        Hull::from_hulls_iter(
+            self.entities
+                .iter()
+                .map(|data| data.hull(drawing_resources, things_catalog, grid))
+        )
+        .unwrap()
     }
 
     /// Whether `self` contains copied entities.
@@ -284,6 +291,7 @@ impl Prop
     pub(in crate::map::editor::state::clipboard) fn fill(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid,
         iter: impl IntoIterator<Item = ClipboardData>
     )
@@ -374,17 +382,24 @@ impl Prop
         }
 
         self.attached_brushes = actual_owner_brushes..actual_owner_brushes + attached;
-        self.reset_center(drawing_resources, grid);
+        self.reset_center(drawing_resources, things_catalog, grid);
     }
 
     /// Resets the center of `self`.
     #[inline]
-    fn reset_center(&mut self, drawing_resources: &DrawingResources, grid: &Grid)
+    fn reset_center(
+        &mut self,
+        drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
+        grid: &Grid
+    )
     {
         let grid = grid.with_size(2);
 
         self.center = Hull::from_hulls_iter(
-            self.entities.iter().map(|data| data.hull(drawing_resources, &grid))
+            self.entities
+                .iter()
+                .map(|data| data.hull(drawing_resources, things_catalog, &grid))
         )
         .unwrap()
         .center();
@@ -397,22 +412,16 @@ impl Prop
     pub(in crate::map::editor::state::clipboard) fn reload_things(
         &mut self,
         drawing_resources: &DrawingResources,
-        catalog: &ThingsCatalog,
+        things_catalog: &ThingsCatalog,
         grid: &Grid
     ) -> bool
     {
-        let mut changed = false;
-
-        for data in &mut self.entities
+        if self
+            .entities
+            .iter()
+            .any(|data| matches!(data, ClipboardData::Thing(..)))
         {
-            let data = continue_if_no_match!(data, ClipboardData::Thing(data, _), data);
-            _ = data.set_thing(catalog.thing_or_error(data.thing()));
-            changed = true;
-        }
-
-        if changed
-        {
-            self.reset_center(drawing_resources, grid);
+            self.reset_center(drawing_resources, things_catalog, grid);
             return true;
         }
 
@@ -426,34 +435,16 @@ impl Prop
     pub(in crate::map::editor::state::clipboard) fn reload_textures(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         grid: &Grid
     ) -> bool
     {
-        let mut changed = false;
-
-        for data in &mut self.entities
+        if self
+            .entities
+            .iter()
+            .any(|data| matches!(data, ClipboardData::Brush(..)))
         {
-            if let ClipboardData::Brush(data, _) = data
-            {
-                if !data.has_texture()
-                {
-                    continue;
-                }
-
-                _ = data.set_texture(
-                    drawing_resources,
-                    drawing_resources
-                        .texture_or_error(data.texture_name().unwrap())
-                        .name()
-                );
-            }
-
-            changed = true;
-        }
-
-        if changed
-        {
-            self.reset_center(drawing_resources, grid);
+            self.reset_center(drawing_resources, things_catalog, grid);
             return true;
         }
 
@@ -468,6 +459,7 @@ impl Prop
     pub(in crate::map::editor::state::clipboard) fn spawn(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         grid: &Grid,
@@ -479,6 +471,7 @@ impl Prop
         fn spawn_regular(
             prop: &mut Prop,
             drawing_resources: &DrawingResources,
+            things_catalog: &ThingsCatalog,
             manager: &mut EntitiesManager,
             edits_history: &mut EditsHistory,
             grid: &Grid,
@@ -491,6 +484,7 @@ impl Prop
                 let item = &mut prop.entities[i];
                 let new_id = manager.spawn_pasted_entity(
                     drawing_resources,
+                    things_catalog,
                     edits_history,
                     grid,
                     item.clone(),
@@ -509,7 +503,7 @@ impl Prop
         if self
             .entities
             .iter()
-            .any(|item| item.out_of_bounds_moved(drawing_resources, grid, delta))
+            .any(|item| item.out_of_bounds_moved(drawing_resources, things_catalog, grid, delta))
         {
             error_message("Cannot spawn copy: out of bounds");
             return;
@@ -518,6 +512,7 @@ impl Prop
         spawn_regular(
             self,
             drawing_resources,
+            things_catalog,
             manager,
             edits_history,
             grid,
@@ -531,6 +526,7 @@ impl Prop
             let old_id = item.id();
             let new_id = manager.spawn_pasted_entity(
                 drawing_resources,
+                things_catalog,
                 edits_history,
                 grid,
                 item.clone(),
@@ -556,6 +552,7 @@ impl Prop
         spawn_regular(
             self,
             drawing_resources,
+            things_catalog,
             manager,
             edits_history,
             grid,
@@ -569,6 +566,7 @@ impl Prop
     pub(in crate::map::editor::state::clipboard) fn spawn_copy(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         grid: &Grid,
@@ -580,7 +578,7 @@ impl Prop
         // If the pasted and the original overlap pull them apart.
         if self.entities.len() == 1 && manager.entity_exists(self.entities[0].id())
         {
-            let hull = self.entities[0].hull(drawing_resources, grid);
+            let hull = self.entities[0].hull(drawing_resources, things_catalog, grid);
 
             if let Some(overlap_vector) = hull.overlap_vector(&(hull + delta))
             {
@@ -588,7 +586,7 @@ impl Prop
             }
         }
 
-        self.spawn(drawing_resources, manager, edits_history, grid, delta);
+        self.spawn(drawing_resources, things_catalog, manager, edits_history, grid, delta);
     }
 
     /// Spawns a copy of `self` as if it were a brush of a image editing software.
@@ -596,13 +594,21 @@ impl Prop
     pub(in crate::map::editor::state::clipboard) fn paint_copy(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
         grid: &Grid,
         cursor_pos: Vec2
     )
     {
-        self.spawn(drawing_resources, manager, edits_history, grid, self.spawn_delta(cursor_pos));
+        self.spawn(
+            drawing_resources,
+            things_catalog,
+            manager,
+            edits_history,
+            grid,
+            self.spawn_delta(cursor_pos)
+        );
     }
 
     //==============================================================

@@ -41,7 +41,7 @@ use crate::{
     },
     utils::{
         collections::hv_vec,
-        hull::{EntityHull, Flip, Hull},
+        hull::{Flip, Hull},
         identifiers::EntityCenter,
         iterators::{
             PairIterator,
@@ -967,12 +967,6 @@ impl PartialEq for ConvexPolygon
     }
 }
 
-impl EntityHull for ConvexPolygon
-{
-    #[inline]
-    fn hull(&self) -> Hull { self.hull }
-}
-
 impl EntityCenter for ConvexPolygon
 {
     #[inline]
@@ -1209,6 +1203,9 @@ impl ConvexPolygon
 
     //==============================================================
     // Info
+
+    #[inline]
+    pub fn hull(&self) -> Hull { self.hull }
 
     #[allow(clippy::cast_precision_loss)]
     #[inline]

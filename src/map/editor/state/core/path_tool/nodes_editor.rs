@@ -17,7 +17,8 @@ use crate::{
             manager::EntitiesManager,
             ui::{overall_value_field::OverallValueField, UiBundle}
         },
-        path::overall_values::{OverallMovement, UiOverallMovement}
+        path::overall_values::{OverallMovement, UiOverallMovement},
+        thing::catalog::ThingsCatalog
     },
     utils::{
         identifiers::EntityId,
@@ -36,6 +37,7 @@ macro_rules! movement_values {
         #[inline]
         fn [< set_ $value >](
             drawing_resources: &DrawingResources,
+            things_catalog: &ThingsCatalog,
             manager: &mut EntitiesManager,
             edits_history: &mut EditsHistory,
             grid: &Grid,
@@ -45,7 +47,7 @@ macro_rules! movement_values {
         {
             let new_value = ($clamp)(new_value);
 
-            edits_history.[< path_nodes_ $value _cluster >](manager.selected_movings_mut(drawing_resources, grid).filter_map(|mut entity| {
+            edits_history.[< path_nodes_ $value _cluster >](manager.selected_movings_mut(drawing_resources, things_catalog, grid).filter_map(|mut entity| {
                 entity.[< set_selected_path_nodes_ $value >](new_value).map(|edit| {
                     _ = overall.merge(entity.overall_selected_path_nodes_movement());
                     (entity.id(), edit)
@@ -75,6 +77,7 @@ macro_rules! movement_values {
                 |new_value| {
                     Self::[< set_ $value >](
                         bundle.drawing_resources,
+                        bundle.things_catalog,
                         bundle.manager,
                         bundle.edits_history,
                         bundle.grid,
@@ -204,6 +207,7 @@ impl NodesEditor
             &'a mut UiOverallValue<f32>,
             fn(
                 &DrawingResources,
+                &ThingsCatalog,
                 &mut EntitiesManager,
                 &mut EditsHistory,
                 &Grid,
@@ -232,6 +236,7 @@ impl NodesEditor
         value.update(false, true, |value| {
             func(
                 bundle.drawing_resources,
+                bundle.things_catalog,
                 bundle.manager,
                 bundle.edits_history,
                 bundle.grid,

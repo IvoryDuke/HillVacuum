@@ -524,7 +524,14 @@ impl Editor
             return false;
         }
 
-        if let Some(hull) = State::quick_zoom_hull(key_inputs, &mut self.manager, binds)
+        if let Some(hull) = self.state.quick_zoom_hull(
+            key_inputs,
+            &self.drawing_resources,
+            &self.things_catalog,
+            &self.manager,
+            &self.grid,
+            binds
+        )
         {
             // Zoom on the selected entities.
             camera.scale_viewport_to_hull(window, &self.grid, &hull, self.grid.size_f32());
@@ -763,6 +770,7 @@ impl Editor
             images,
             user_textures,
             &self.drawing_resources,
+            &self.things_catalog,
             &mut self.manager,
             &mut self.clipboard,
             &mut self.edits_history,

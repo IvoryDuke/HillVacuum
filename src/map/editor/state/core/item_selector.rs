@@ -11,8 +11,13 @@ use crate::{
         drawer::drawing_resources::DrawingResources,
         editor::{
             cursor::Cursor,
-            state::{grid::Grid, inputs_presses::InputsPresses, manager::EntitiesManager}
-        }
+            state::{
+                grid::Grid,
+                inputs_presses::InputsPresses,
+                manager::{DrawHeight, EntitiesManager}
+            }
+        },
+        thing::catalog::ThingsCatalog
     },
     utils::{collections::hv_vec, identifiers::EntityId, misc::next},
     HvVec
@@ -40,8 +45,15 @@ enum Position
 //=======================================================================//
 
 #[allow(clippy::missing_docs_in_private_items)]
-type SelectorFunc<T> =
-    fn(&DrawingResources, &EntitiesManager, &Cursor, &Grid, f32, &mut ItemsBeneathCursor<T>);
+type SelectorFunc<T> = fn(
+    &DrawingResources,
+    &ThingsCatalog,
+    &EntitiesManager,
+    &Cursor,
+    &Grid,
+    f32,
+    &mut ItemsBeneathCursor<T>
+);
 
 //=======================================================================//
 
@@ -199,6 +211,7 @@ where
     pub fn item_beneath_cursor(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &EntitiesManager,
         cursor: &Cursor,
         grid: &Grid,
@@ -207,7 +220,15 @@ where
     ) -> Option<T>
     {
         self.items.clear();
-        (self.selector)(drawing_resources, manager, cursor, grid, camera_scale, &mut self.items);
+        (self.selector)(
+            drawing_resources,
+            things_catalog,
+            manager,
+            cursor,
+            grid,
+            camera_scale,
+            &mut self.items
+        );
 
         if self.items.is_empty()
         {

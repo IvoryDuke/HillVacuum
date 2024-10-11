@@ -34,7 +34,8 @@ use crate::{
             },
             DrawBundle,
             ToolUpdateBundle
-        }
+        },
+        thing::{catalog::ThingsCatalog, ThingInterface}
     },
     utils::hull::Hull,
     INDEXES
@@ -103,6 +104,7 @@ enum PaintingProp
 type PropSpawnFunc = fn(
     &mut Clipboard,
     &DrawingResources,
+    &ThingsCatalog,
     &mut EntitiesManager,
     &mut EditsHistory,
     &Grid,
@@ -181,6 +183,7 @@ impl PaintTool
     fn quick_spawn(
         &mut self,
         drawing_resources: &DrawingResources,
+        things_catalog: &ThingsCatalog,
         manager: &mut EntitiesManager,
         clipboard: &mut Clipboard,
         edits_history: &mut EditsHistory,
@@ -188,7 +191,14 @@ impl PaintTool
         cursor_pos: Vec2
     ) -> bool
     {
-        if clipboard.spawn_quick_prop(drawing_resources, manager, edits_history, grid, cursor_pos)
+        if clipboard.spawn_quick_prop(
+            drawing_resources,
+            things_catalog,
+            manager,
+            edits_history,
+            grid,
+            cursor_pos
+        )
         {
             self.status = Status::Paint(PaintingProp::Quick, CursorDelta::new(cursor_pos));
             return true;
@@ -209,6 +219,7 @@ impl PaintTool
             paint_tool_camera,
             cursor,
             drawing_resources,
+            things_catalog,
             inputs,
             clipboard,
             manager,
@@ -230,7 +241,8 @@ impl PaintTool
 
                 if inputs.enter.just_pressed() && manager.any_selected_entities()
                 {
-                    self.status = Status::SetPivot(Self::outline(manager, grid).unwrap());
+                    self.status =
+                        Status::SetPivot(Self::outline(things_catalog, manager, grid).unwrap());
                 }
 
                 if !inputs.left_mouse.just_pressed()
@@ -241,6 +253,7 @@ impl PaintTool
                 if inputs.alt_pressed() &&
                     self.quick_spawn(
                         drawing_resources,
+                        things_catalog,
                         manager,
                         clipboard,
                         edits_history,
@@ -253,6 +266,7 @@ impl PaintTool
 
                 if clipboard.spawn_selected_prop(
                     drawing_resources,
+                    things_catalog,
                     manager,
                     edits_history,
                     grid,
@@ -272,16 +286,19 @@ impl PaintTool
 
                 let mut prop = Prop::new(
                     drawing_resources,
+                    things_catalog,
                     grid,
                     manager.selected_entities(),
                     cursor_pos,
                     None
                 );
+
                 Clipboard::assign_camera_to_prop(
                     images,
                     paint_tool_camera,
                     user_textures,
                     drawing_resources,
+                    things_catalog,
                     grid,
                     &mut prop
                 );
@@ -327,6 +344,7 @@ impl PaintTool
 
                 _ = self.quick_spawn(
                     drawing_resources,
+                    things_catalog,
                     manager,
                     clipboard,
                     edits_history,
@@ -342,6 +360,7 @@ impl PaintTool
                         prop.spawn_func()(
                             clipboard,
                             drawing_resources,
+                            things_catalog,
                             manager,
                             edits_history,
                             grid,
@@ -361,17 +380,50 @@ impl PaintTool
     /// Returns the selected entities' outline.
     #[inline]
     #[must_use]
-    fn outline(manager: &EntitiesManager, grid: &Grid) -> Option<Hull>
+    fn outline(
+        things_catalog: &ThingsCatalog,
+        manager: &EntitiesManager,
+        grid: &Grid
+    ) -> Option<Hull>
     {
-        manager.selected_entities_hull().map(|hull| grid.snap_hull(&hull))
+        Hull::from_hulls_iter(
+            manager
+                .selected_brushes()
+                .map(|brush| {
+                    let mut hull = brush.polygon_hull();
+
+                    if let Some(pivot) = brush.sprite_pivot()
+                    {
+                        hull = Hull::from_points([hull.top_right(), hull.bottom_left(), pivot]);
+                    }
+
+                    if let Some(p_hull) = brush.path_hull()
+                    {
+                        hull = hull.merged(&p_hull);
+                    }
+
+                    hull
+                })
+                .chain(
+                    manager
+                        .selected_things()
+                        .map(|thing| thing.thing_hull(things_catalog))
+                )
+        )
+        .map(|hull| grid.snap_hull(&hull))
     }
 
     /// Updates the selected entities' outline.
     #[inline]
-    pub fn update_outline(&mut self, manager: &EntitiesManager, grid: &Grid)
+    pub fn update_outline(
+        &mut self,
+        things_catalog: &ThingsCatalog,
+        manager: &EntitiesManager,
+        grid: &Grid
+    )
     {
         *return_if_no_match!(&mut self.status, Status::SetPivot(hull), hull) =
-            return_if_none!(Self::outline(manager, grid));
+            return_if_none!(Self::outline(things_catalog, manager, grid));
     }
 
     /// Draws the UI.
@@ -505,7 +557,9 @@ impl PaintTool
             buttons,
             (
                 PaintCreation,
-                Status::SetPivot(Self::outline(bundle.manager, bundle.grid).unwrap()),
+                Status::SetPivot(
+                    Self::outline(bundle.things_catalog, bundle.manager, bundle.grid).unwrap()
+                ),
                 Status::SetPivot(_) |
                     Status::PropCreationScreenshot(..) |
                     Status::PropCreationUi(..),

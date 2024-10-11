@@ -32,10 +32,11 @@ use crate::{
             },
             DrawBundle,
             ToolUpdateBundle
-        }
+        },
+        thing::{catalog::ThingsCatalog, ThingInterface}
     },
     utils::{
-        hull::{EntityHull, Hull},
+        hull::Hull,
         identifiers::{EntityId, Id},
         iterators::FilterSet
     }
@@ -190,6 +191,7 @@ impl Selector
         #[inline]
         fn entity_selector(
             _: &DrawingResources,
+            things_catalog: &ThingsCatalog,
             manager: &EntitiesManager,
             cursor: &Cursor,
             _: &Grid,
@@ -204,7 +206,7 @@ impl Selector
             for thing in manager
                 .things_at_pos(cursor_pos, None)
                 .iter()
-                .filter(|thing| thing.contains_point(cursor_pos))
+                .filter(|thing| thing.contains_point(things_catalog, cursor_pos))
             {
                 let id = thing.id();
                 items.push(ItemBeneathCursor::Thing(id), manager.is_selected(id));
@@ -215,6 +217,7 @@ impl Selector
         #[inline]
         fn polygon_selector(
             _: &DrawingResources,
+            _: &ThingsCatalog,
             manager: &EntitiesManager,
             cursor: &Cursor,
             _: &Grid,
@@ -229,6 +232,7 @@ impl Selector
         #[inline]
         fn textured_brush_selector(
             drawing_resources: &DrawingResources,
+            _: &ThingsCatalog,
             manager: &EntitiesManager,
             cursor: &Cursor,
             grid: &Grid,
@@ -253,6 +257,7 @@ impl Selector
         #[inline]
         fn both_selector(
             drawing_resources: &DrawingResources,
+            things_catalog: &ThingsCatalog,
             manager: &EntitiesManager,
             cursor: &Cursor,
             grid: &Grid,
@@ -261,7 +266,15 @@ impl Selector
         )
         {
             scan_sprites(drawing_resources, manager, cursor, grid, items);
-            entity_selector(drawing_resources, manager, cursor, grid, camera_scale, items);
+            entity_selector(
+                drawing_resources,
+                things_catalog,
+                manager,
+                cursor,
+                grid,
+                camera_scale,
+                items
+            );
         }
 
         Self {
@@ -280,6 +293,7 @@ impl Selector
     {
         self.brushes_and_things.item_beneath_cursor(
             bundle.drawing_resources,
+            bundle.things_catalog,
             bundle.manager,
             bundle.cursor,
             bundle.grid,
@@ -295,6 +309,7 @@ impl Selector
     {
         self.brushes.item_beneath_cursor(
             bundle.drawing_resources,
+            bundle.things_catalog,
             bundle.manager,
             bundle.cursor,
             bundle.grid,
@@ -313,6 +328,7 @@ impl Selector
     {
         self.textured_brushes.item_beneath_cursor(
             bundle.drawing_resources,
+            bundle.things_catalog,
             bundle.manager,
             bundle.cursor,
             bundle.grid,
@@ -328,6 +344,7 @@ impl Selector
     {
         self.everything.item_beneath_cursor(
             bundle.drawing_resources,
+            bundle.things_catalog,
             bundle.manager,
             bundle.cursor,
             bundle.grid,
@@ -543,6 +560,7 @@ impl EntityTool
                     {
                         _ = bundle.manager.duplicate_selected_entities(
                             bundle.drawing_resources,
+                            bundle.things_catalog,
                             bundle.clipboard,
                             bundle.edits_history,
                             bundle.grid,
@@ -594,6 +612,7 @@ impl EntityTool
                 {
                     if bundle.manager.duplicate_selected_entities(
                         bundle.drawing_resources,
+                        bundle.things_catalog,
                         bundle.clipboard,
                         bundle.edits_history,
                         bundle.grid,
@@ -670,6 +689,7 @@ impl EntityTool
                 {
                     _ = bundle.manager.duplicate_selected_entities(
                         bundle.drawing_resources,
+                        bundle.things_catalog,
                         bundle.clipboard,
                         bundle.edits_history,
                         bundle.grid,
@@ -810,9 +830,9 @@ impl EntityTool
                     (!brush.check_move(bundle.drawing_resources, bundle.grid, delta, move_texture))
                         .then_some(brush.id())
                 })
-                .or(manager
-                    .selected_things()
-                    .find_map(|thing| (!thing.check_move(delta)).then_some(thing.id())))
+                .or(manager.selected_things().find_map(|thing| {
+                    (!thing.check_move(bundle.things_catalog, delta)).then_some(thing.id())
+                }))
         });
 
         if !valid
@@ -827,7 +847,7 @@ impl EntityTool
             brush.move_by_delta(delta, move_texture);
         }
 
-        for mut thing in bundle.manager.selected_things_mut()
+        for mut thing in bundle.manager.selected_things_mut(bundle.things_catalog)
         {
             thing.move_by_delta(delta);
         }
@@ -993,7 +1013,7 @@ impl EntityTool
                 if bundle.manager.is_selected(id)
                 {
                     brush.draw_highlighted_selected(bundle.drawer);
-                    brush.hull().into()
+                    brush.polygon_hull().into()
                 }
                 else
                 {
@@ -1044,7 +1064,7 @@ impl EntityTool
                         bundle.things_catalog
                     );
 
-                    thing.hull().into()
+                    thing.thing_hull(bundle.things_catalog).into()
                 }
                 else
                 {

@@ -34,7 +34,7 @@ use crate::{
     },
     utils::{
         collections::hv_vec,
-        hull::{Corner, EntityHull, Flip, Hull, ScaleResult},
+        hull::{Corner, Flip, Hull, ScaleResult},
         identifiers::{EntityId, Id},
         math::AroundEqual,
         misc::{Camera, TakeValue}
@@ -479,24 +479,26 @@ impl ScaleTool
                     }
                     else
                     {
-                        brush.hull()
+                        brush.polygon_hull()
                     }
                 }))
             }
             else
             {
                 Hull::from_hulls_iter(manager.selected_textured_brushes().map(|brush| {
-                    brush.sprite_hull(drawing_resources, grid).unwrap_or(brush.hull())
+                    brush
+                        .sprite_hull(drawing_resources, grid)
+                        .unwrap_or(brush.polygon_hull())
                 }))
             }
         }
 
         match settings.target_switch()
         {
-            TargetSwitch::Entity => manager.selected_brushes_hull(),
+            TargetSwitch::Entity => manager.selected_brushes_polygon_hull(),
             TargetSwitch::Both =>
             {
-                manager.selected_brushes_hull().map(|hull| {
+                manager.selected_brushes_polygon_hull().map(|hull| {
                     hull.merged(&textures_hull(drawing_resources, manager, grid).unwrap())
                 })
             },

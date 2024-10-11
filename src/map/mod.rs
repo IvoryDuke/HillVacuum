@@ -369,7 +369,7 @@ pub(in crate::map) mod ui_mod
             },
             properties::{BrushProperties, ThingProperties}
         },
-        utils::hull::{EntityHull, Hull},
+        utils::hull::Hull,
         warning_message,
         EditorState
     };
@@ -446,11 +446,6 @@ pub(in crate::map) mod ui_mod
     {
         #[inline]
         fn out_of_bounds(&self) -> bool { self.abs() > MAP_HALF_SIZE }
-    }
-
-    impl<T: EntityHull> OutOfBounds for T
-    {
-        fn out_of_bounds(&self) -> bool { self.hull().out_of_bounds() }
     }
 
     //=======================================================================//

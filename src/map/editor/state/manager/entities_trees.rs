@@ -18,15 +18,10 @@ use crate::{
             manager::quad_tree::{QuadTree, QuadTreeIds}
         },
         path::Moving,
-        thing::ThingInstance,
+        thing::{catalog::ThingsCatalog, ThingInstance, ThingInterface},
         MAP_SIZE
     },
-    utils::{
-        hull::{EntityHull, Hull},
-        identifiers::EntityId,
-        math::AroundEqual,
-        misc::Camera
-    }
+    utils::{hull::Hull, identifiers::EntityId, math::AroundEqual, misc::Camera}
 };
 
 //=======================================================================//
@@ -153,7 +148,7 @@ impl Trees
     pub fn insert_brush_hull(&mut self, brush: &Brush) -> InsertResult
     {
         self.set_brushes_dirty();
-        self.brushes_tree.insert_entity(brush, EntityHull::hull)
+        self.brushes_tree.insert_entity(brush, Brush::polygon_hull)
     }
 
     /// Removes the [`Hull`] of `brush`.
@@ -231,10 +226,15 @@ impl Trees
     /// Inserts the [`Hull`] of `thing`.
     #[inline]
     #[must_use]
-    pub fn insert_thing_hull(&mut self, thing: &ThingInstance) -> InsertResult
+    pub fn insert_thing_hull(
+        &mut self,
+        things_catalog: &ThingsCatalog,
+        thing: &ThingInstance
+    ) -> InsertResult
     {
         self.set_things_dirty();
-        self.things_tree.insert_entity(thing, EntityHull::hull)
+        self.things_tree
+            .insert_entity(thing, |thing| thing.thing_hull(things_catalog))
     }
 
     /// Removes the [`Hull`] of `thing`.

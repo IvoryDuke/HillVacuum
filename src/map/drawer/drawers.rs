@@ -40,7 +40,7 @@ use crate::{
         MAP_SIZE
     },
     utils::{
-        hull::{CircleIterator, Corner, EntityHull, Hull, Side},
+        hull::{CircleIterator, Corner, Hull, Side},
         iterators::{PairIterator, SkipIndexIterator},
         math::points::rotate_point,
         misc::{Camera, VX_HGL_SIDE}
@@ -845,12 +845,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
     /// Draws `thing`.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    pub fn thing<T: ThingInterface + EntityHull>(
-        &mut self,
-        catalog: &ThingsCatalog,
-        thing: &T,
-        color: Color
-    )
+    pub fn thing<T: ThingInterface>(&mut self, catalog: &ThingsCatalog, thing: &T, color: Color)
     {
         /// The resolution of the corners of the [`ThingOutline`].
         const CORNER_RESOLUTION: u8 = 6;
@@ -934,9 +929,9 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         {
             /// Returns a new [`ThingOutline`].
             #[inline]
-            fn new<T: ThingInterface + EntityHull>(thing: &T) -> Self
+            fn new<T: ThingInterface>(catalog: &ThingsCatalog, thing: &T) -> Self
             {
-                let hull = thing.hull();
+                let hull = thing.thing_hull(catalog);
                 let (width, height) = hull.dimensions();
                 let ray = (width.min(height) / 8f32).min(24f32);
                 let x_delta = width / 2f32 - ray;
@@ -1014,7 +1009,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         }
 
         // Sides and overlay.
-        let iter = ThingOutline::new(thing);
+        let iter = ThingOutline::new(catalog, thing);
         self.sides(iter, color);
         let mesh = self.polygon_mesh(iter);
         self.push_mesh(mesh, self.color_resources.polygon_material(color), color.entity_height());
@@ -1022,7 +1017,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         // Angle indicator.
         let preview = catalog.thing_or_error(thing.thing_id()).preview();
         let angle = thing.angle_f32().to_radians();
-        let hull = thing.hull();
+        let hull = thing.thing_hull(catalog);
         let half_side = (hull.width().min(hull.height()) / 2f32).min(64f32);
         let mut center = self.grid.transform_point(hull.center());
 
@@ -1387,7 +1382,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
 
     /// Draws `thing`.
     #[inline]
-    pub fn thing<T: ThingInterface + EntityHull>(
+    pub fn thing<T: ThingInterface>(
         &mut self,
         catalog: &ThingsCatalog,
         thing: &T,
@@ -1471,7 +1466,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
 #[inline]
 #[must_use]
 #[allow(clippy::cast_precision_loss)]
-pub(in crate::map::drawer) fn thing_texture_hull<T: ThingInterface + EntityHull>(
+pub(in crate::map::drawer) fn thing_texture_hull<T: ThingInterface>(
     resources: &DrawingResources,
     grid: &Grid,
     thing: &T,
