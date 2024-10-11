@@ -23,7 +23,7 @@ use crate::{
             cursor::Cursor,
             state::{
                 core::draw_selected_and_non_selected_brushes,
-                editor_state::{edit_target, TargetSwitch, ToolsSettings},
+                editor_state::{TargetSwitch, ToolsSettings},
                 grid::Grid,
                 manager::EntitiesManager
             },
@@ -276,25 +276,22 @@ impl ScaleTool
 
                 let cursor_pos = Self::cursor_pos(bundle.cursor);
 
-                edit_target!(
-                    settings.target_switch(),
-                    |scale_textures| {
+                settings.target_switch().edit_target(
+                    bundle,
+                    (hull, &mut self.selected_corner, &mut *backup_polygons),
+                    |bundle, scale_textures, (hull, selected_corner, backup_polygons)| {
                         Self::scale_brushes(
                             bundle,
                             hull,
-                            &mut self.selected_corner,
+                            selected_corner,
                             cursor_pos,
                             backup_polygons,
                             scale_textures
                         );
                     },
-                    scale_textures(
-                        bundle,
-                        hull,
-                        &mut self.selected_corner,
-                        cursor_pos,
-                        backup_polygons
-                    )
+                    |bundle, (hull, selected_corner, backup_polygons)| {
+                        scale_textures(bundle, hull, selected_corner, cursor_pos, backup_polygons);
+                    }
                 );
 
                 if bundle.inputs.left_mouse.pressed()
@@ -365,15 +362,16 @@ impl ScaleTool
 
         let new_corner_position = self.outline.corner_vertex(self.selected_corner) + dir;
 
-        edit_target!(
-            settings.target_switch(),
-            |scale_texture| {
+        settings.target_switch().edit_target(
+            bundle,
+            (&mut self.outline, &mut self.selected_corner),
+            |bundle, scale_texture, (outline, selected_corner)| {
                 let mut backup_polygons = hv_vec![];
 
                 Self::scale_brushes(
                     bundle,
-                    &mut self.outline,
-                    &mut self.selected_corner,
+                    outline,
+                    selected_corner,
                     new_corner_position,
                     &mut backup_polygons,
                     scale_texture
@@ -383,16 +381,13 @@ impl ScaleTool
                 {
                     bundle
                         .edits_history
-                        .polygon_edit_cluster(backup_polygons.take_value().into_iter());
+                        .polygon_edit_cluster(backup_polygons.take_value());
                     bundle.edits_history.override_edit_tag("Brushes Scale");
                 }
             },
-            scale_textures(
-                bundle,
-                &mut self.outline,
-                &mut self.selected_corner,
-                new_corner_position
-            )
+            |bundle, (outline, selected_corner)| {
+                scale_textures(bundle, outline, selected_corner, new_corner_position);
+            }
         );
     }
 

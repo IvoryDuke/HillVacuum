@@ -25,7 +25,7 @@ use crate::{
             cursor::Cursor,
             state::{
                 core::{rect::LeftMouse, tool::subtools_buttons},
-                editor_state::{edit_target, TargetSwitch, ToolsSettings},
+                editor_state::{TargetSwitch, ToolsSettings},
                 grid::Grid,
                 manager::EntitiesManager,
                 ui::{ToolsButtons, UiBundle}
@@ -452,7 +452,7 @@ impl EntityTool
                     bundle,
                     cursor_pos,
                     (),
-                    |ds, bundle, ()| {
+                    |ds, bundle, _| {
                         if settings.entity_editing() && bundle.inputs.right_mouse.just_pressed()
                         {
                             let id = return_if_no_match!(
@@ -569,9 +569,10 @@ impl EntityTool
                             return LeftMouse::NotPressed;
                         }
 
-                        edit_target!(
-                            settings.target_switch(),
-                            |move_texture| {
+                        settings.target_switch().edit_target(
+                            bundle,
+                            (),
+                            |bundle, move_texture, _| {
                                 if Self::move_selected_entities(bundle, delta, move_texture)
                                 {
                                     bundle.edits_history.entity_move_cluster(
@@ -581,16 +582,20 @@ impl EntityTool
                                     );
                                 }
                             },
-                            if Self::move_selected_textures(bundle, delta) &&
-                                bundle.manager.selected_textured_amount() != 0
-                            {
-                                bundle.edits_history.texture_move_cluster(bundle.manager, delta);
+                            |bundle, _| {
+                                if Self::move_selected_textures(bundle, delta) &&
+                                    bundle.manager.selected_textured_amount() != 0
+                                {
+                                    bundle
+                                        .edits_history
+                                        .texture_move_cluster(bundle.manager, delta);
+                                }
                             }
                         );
 
                         LeftMouse::NotPressed
                     },
-                    |bundle, ()| {
+                    |bundle, _| {
                         if item_beneath_cursor.is_none()
                         {
                             bundle.manager.deselect_selected_entities(bundle.edits_history);
@@ -598,7 +603,7 @@ impl EntityTool
 
                         None
                     },
-                    |bundle, hull, ()| {
+                    |bundle, hull, _| {
                         Self::select_entities_from_drag_selection(bundle, settings, hull);
                         None
                     }
@@ -656,12 +661,13 @@ impl EntityTool
                             return Self::move_selected_entities(bundle, delta, true);
                         }
 
-                        edit_target!(
-                            settings.target_switch(),
-                            |move_texture| {
+                        settings.target_switch().edit_target(
+                            bundle,
+                            (),
+                            |bundle, move_texture, _| {
                                 Self::move_selected_entities(bundle, delta, move_texture)
                             },
-                            Self::move_selected_textures(bundle, delta)
+                            |bundle, _| Self::move_selected_textures(bundle, delta)
                         )
                     });
                 }
@@ -750,16 +756,19 @@ impl EntityTool
             }
             else
             {
-                edit_target!(
-                    settings.target_switch(),
-                    |move_texture| {
+                settings.target_switch().edit_target(
+                    bundle,
+                    (),
+                    |bundle, move_texture, _| {
                         bundle.edits_history.entity_move_cluster(
                             bundle.manager,
                             drag_delta,
                             move_texture
                         );
                     },
-                    bundle.edits_history.texture_move_cluster(bundle.manager, drag_delta)
+                    |bundle, _| {
+                        bundle.edits_history.texture_move_cluster(bundle.manager, drag_delta);
+                    }
                 );
             }
         }

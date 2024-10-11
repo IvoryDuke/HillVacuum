@@ -107,29 +107,6 @@ const ANIMATIONS_EXTENSION: &str = "anms";
 const PROPS_EXTENSION: &str = "prps";
 
 //=======================================================================//
-// MACROS
-//
-//=======================================================================//
-
-/// A macro to choose what entity should be updated based on the value of [`TargetSwitch`] and
-/// execute the relative piece of code.
-macro_rules! edit_target {
-    ($target_switch:expr, $entity_func:expr, $texture_func:expr) => {{
-        use crate::map::editor::state::editor_state::TargetSwitch;
-
-        #[allow(clippy::redundant_closure_call)]
-        match $target_switch
-        {
-            TargetSwitch::Entity => $entity_func(false),
-            TargetSwitch::Both => $entity_func(true),
-            TargetSwitch::Texture => $texture_func
-        }
-    }};
-}
-
-pub(in crate::map::editor::state) use edit_target;
-
-//=======================================================================//
 // ENUMS
 //
 //=======================================================================//
@@ -237,6 +214,26 @@ impl TargetSwitch
                     ui.selectable_value(self, Self::Entity, "Polygon");
                 });
         });
+    }
+
+    #[inline]
+    pub(in crate::map::editor::state) fn edit_target<E, T, U, V>(
+        self,
+        bundle: &mut ToolUpdateBundle,
+        extra: V,
+        e: E,
+        t: T
+    ) -> U
+    where
+        E: FnOnce(&mut ToolUpdateBundle, bool, V) -> U,
+        T: FnOnce(&mut ToolUpdateBundle, V) -> U
+    {
+        match self
+        {
+            Self::Entity => e(bundle, false, extra),
+            Self::Both => e(bundle, true, extra),
+            Self::Texture => t(bundle, extra)
+        }
     }
 
     /// Draws an UI combobox that allows to change the value of `self`.

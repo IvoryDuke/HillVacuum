@@ -1,4 +1,5 @@
 #![doc = include_str!("../docs/crate_description.md")]
+#![allow(clippy::ignored_unit_patterns)]
 #![forbid(clippy::enum_glob_use)]
 #![allow(clippy::single_match_else)]
 #![allow(clippy::manual_let_else)]
@@ -323,7 +324,7 @@ pub(crate) mod ui_mod
                     String::as_str
                 );
 
-                () = native_dialog::MessageDialog::new()
+                native_dialog::MessageDialog::new()
                     .set_title("FATAL ERROR")
                     .set_text(&format!(
                         "{message}\nThe backtrace has been logged to backtrace.log."
@@ -388,7 +389,7 @@ pub(crate) mod ui_mod
     #[inline]
     pub(crate) fn error_message(error: &str)
     {
-        () = native_dialog::MessageDialog::new()
+        native_dialog::MessageDialog::new()
             .set_type(native_dialog::MessageType::Error)
             .set_title("ERROR")
             .set_text(error)
@@ -401,7 +402,7 @@ pub(crate) mod ui_mod
     #[inline]
     pub(crate) fn warning_message(message: &str)
     {
-        () = native_dialog::MessageDialog::new()
+        native_dialog::MessageDialog::new()
             .set_type(native_dialog::MessageType::Warning)
             .set_title("WARNING")
             .set_text(message)

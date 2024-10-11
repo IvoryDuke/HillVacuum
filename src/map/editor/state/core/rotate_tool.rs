@@ -28,7 +28,7 @@ use crate::{
             cursor::Cursor,
             state::{
                 core::tool::subtools_buttons,
-                editor_state::{edit_target, ToolsSettings},
+                editor_state::ToolsSettings,
                 manager::EntitiesManager,
                 ui::{ToolsButtons, UiBundle}
             },
@@ -438,9 +438,10 @@ impl RotateTool
 
         let mut backup_polygons = hv_vec![];
 
-        edit_target!(
-            settings.target_switch(),
-            |rotate_texture| {
+        settings.target_switch().edit_target(
+            bundle,
+            (),
+            |bundle, rotate_texture, _| {
                 if Self::rotate_brushes(
                     bundle,
                     self.pivot,
@@ -455,7 +456,9 @@ impl RotateTool
                     bundle.edits_history.override_edit_tag("Brushes rotation");
                 }
             },
-            rotate_textures(bundle, self.pivot, angle)
+            |bundle, _| {
+                rotate_textures(bundle, self.pivot, angle);
+            }
         );
     }
 
@@ -574,12 +577,13 @@ impl RotateTool
         *cumulative_angle += deg_angle;
 
         // Rotate.
-        if edit_target!(
-            settings.target_switch(),
-            |rotate_texture| {
+        if settings.target_switch().edit_target(
+            bundle,
+            backup_polygons,
+            |bundle, rotate_texture, backup_polygons| {
                 Self::rotate_brushes(bundle, pivot, deg_angle, rotate_texture, backup_polygons)
             },
-            rotate_textures(bundle, pivot, deg_angle, backup_polygons)
+            |bundle, backup_polygons| rotate_textures(bundle, pivot, deg_angle, backup_polygons)
         )
         {
             // Update last position value.

@@ -12,11 +12,7 @@ use crate::{
         brush::Brush,
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
-            state::{
-                editor_state::{edit_target, ToolsSettings},
-                grid::Grid,
-                manager::EntitiesManager
-            },
+            state::{editor_state::ToolsSettings, grid::Grid, manager::EntitiesManager},
             DrawBundle,
             StateUpdateBundle,
             ToolUpdateBundle
@@ -51,9 +47,10 @@ impl FlipTool
     {
         let dir = return_if_none!(bundle.inputs.directional_keys_delta());
 
-        edit_target!(
-            settings.target_switch(),
-            |flip_texture| {
+        settings.target_switch().edit_target(
+            bundle,
+            (),
+            |bundle, flip_texture, _| {
                 #[allow(clippy::missing_docs_in_private_items)]
                 type FlipSteps = (
                     fn(&mut Brush, &DrawingResources, &Grid, f32, bool) -> bool,
@@ -112,7 +109,7 @@ impl FlipTool
                 );
                 self.update_outline(bundle.manager, bundle.grid);
             },
-            {
+            |bundle, _| {
                 let y = if dir.x == 0f32
                 {
                     for mut brush in bundle
