@@ -42,6 +42,7 @@ use crate::{
 //=======================================================================//
 
 /// The state of the tool.
+#[must_use]
 enum Status
 {
     /// Shearing by keyboard.

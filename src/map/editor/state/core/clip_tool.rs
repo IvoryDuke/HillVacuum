@@ -97,6 +97,7 @@ impl PickedPolygons
 //=======================================================================//
 
 /// The state of the clip tool.
+#[must_use]
 enum Status
 {
     /// Inactive.
@@ -117,7 +118,6 @@ enum Status
 impl Default for Status
 {
     #[inline]
-    #[must_use]
     fn default() -> Self { Self::Inactive(None) }
 }
 

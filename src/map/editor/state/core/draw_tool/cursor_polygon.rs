@@ -317,6 +317,7 @@ pub(in crate::map) enum FreeDrawStatus
 //=======================================================================//
 
 /// The state of the [`FreeDrawCursorPolygon`].
+#[must_use]
 #[derive(Clone, Default)]
 enum Status
 {

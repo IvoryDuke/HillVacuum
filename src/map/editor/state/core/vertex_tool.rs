@@ -18,7 +18,7 @@ use super::{
     deselect_vertexes,
     draw_non_selected_brushes,
     path_tool::path_creation::PathCreation,
-    rect::{Rect, RectTrait},
+    rect::{LeftMouse, Rect, RectTrait},
     selected_vertexes,
     tool::{
         subtools_buttons,
@@ -43,7 +43,7 @@ use crate::{
         editor::{
             cursor::Cursor,
             state::{
-                core::{rect, VertexesToggle},
+                core::VertexesToggle,
                 edits_history::EditsHistory,
                 grid::Grid,
                 manager::EntitiesManager,
@@ -394,106 +394,89 @@ impl VertexTool
         {
             Status::Inactive(ds) =>
             {
-                rect::update!(
-                    ds,
+                let value = ds.drag_selection(
+                    bundle,
                     cursor_pos,
-                    bundle.inputs.left_mouse.pressed(),
-                    {
-                        if !bundle.inputs.left_mouse.just_pressed()
+                    &mut self.1,
+                    |_, bundle, brushes_with_selected_vertexes| {
+                        if bundle.inputs.left_mouse.just_pressed()
                         {
-                            false
-                        }
-                        else if bundle.inputs.alt_pressed()
-                        {
-                            if let Some(s) = Self::alt_vertex_left_mouse(
-                                bundle.manager,
+                            if bundle.inputs.alt_pressed()
+                            {
+                                if let Some(s) = Self::alt_left_mouse(
+                                    bundle.manager,
+                                    cursor_pos,
+                                    bundle.camera.scale()
+                                )
+                                {
+                                    return LeftMouse::Value(s);
+                                }
+                            }
+
+                            return match Self::toggle_vertexes(
+                                bundle,
+                                brushes_with_selected_vertexes,
                                 cursor_pos,
                                 bundle.camera.scale()
                             )
                             {
-                                self.0 = s;
-                            }
-
-                            return None;
-                        }
-                        else if bundle.inputs.shift_pressed()
-                        {
-                            match Self::toggle_vertexes(bundle, cursor_pos, bundle.camera.scale())
-                            {
-                                VertexesToggle::None => true,
+                                VertexesToggle::None => LeftMouse::Pressed,
                                 VertexesToggle::Selected =>
                                 {
-                                    self.0 = Status::PreDrag(cursor_pos);
-                                    return None;
+                                    LeftMouse::Value(Status::PreDrag(cursor_pos))
                                 },
-                                VertexesToggle::NonSelected => return None
-                            }
+                                VertexesToggle::NonSelected => LeftMouse::NotPressed
+                            };
                         }
-                        else
+
+                        if bundle.inputs.enter.just_pressed()
                         {
-                            if Self::exclusively_select_vertexes(
-                                bundle,
-                                &self.1,
-                                cursor_pos,
-                                bundle.camera.scale()
-                            )
+                            if bundle.inputs.alt_pressed()
                             {
-                                self.0 = Status::PreDrag(cursor_pos);
-                                return None;
+                                return LeftMouse::Value(Status::PolygonToPath(PathCreation::None));
                             }
 
-                            true
+                            brushes_with_selected_vertexes.split_brushes(
+                                bundle.drawing_resources,
+                                bundle.manager,
+                                bundle.edits_history,
+                                bundle.grid
+                            );
                         }
+                        else if bundle.inputs.back.just_pressed()
+                        {
+                            // Vertex deletion.
+                            Self::delete_selected_vertexes(bundle);
+                        }
+                        else if let Some(dir) = bundle.inputs.directional_keys_delta()
+                        {
+                            let mut vxs_move = hv_vec![];
+
+                            if brushes_with_selected_vertexes.selected_vxs.any_selected_vx() &&
+                                Self::move_vertexes(bundle, dir, &mut vxs_move)
+                            {
+                                bundle.edits_history.vertexes_move(vxs_move);
+                            }
+                        }
+
+                        LeftMouse::NotPressed
                     },
-                    {
+                    |bundle, _| {
                         deselect_vertexes(
                             bundle.drawing_resources,
                             bundle.manager,
                             bundle.edits_history,
                             bundle.grid
                         );
+                        None
                     },
-                    hull,
-                    {
-                        Self::select_vertexes_from_drag_selection(bundle, &hull);
+                    |bundle, hull, _| {
+                        Self::select_vertexes_from_drag_selection(bundle, hull);
+                        None
                     }
                 );
 
-                if bundle.inputs.enter.just_pressed()
-                {
-                    if bundle.inputs.alt_pressed()
-                    {
-                        self.0 = Status::PolygonToPath(PathCreation::None);
-                    }
-                    else
-                    {
-                        self.1.split_brushes(
-                            bundle.drawing_resources,
-                            bundle.manager,
-                            bundle.edits_history,
-                            bundle.grid
-                        );
-                    }
-
-                    return None;
-                }
-
-                if bundle.inputs.back.just_pressed()
-                {
-                    // Vertex deletion.
-                    Self::delete_selected_vertexes(bundle);
-                    return None;
-                }
-
-                // Moving vertex with directional keys.
-                let dir = return_if_none!(bundle.inputs.directional_keys_delta(), None);
-                let mut vxs_move = hv_vec![];
-
-                if self.1.selected_vxs.any_selected_vx() &&
-                    Self::move_vertexes(bundle, dir, &mut vxs_move)
-                {
-                    bundle.edits_history.vertexes_move(vxs_move);
-                }
+                self.0 = return_if_none!(value, None);
             },
             Status::PreDrag(pos) =>
             {
@@ -538,11 +521,7 @@ impl VertexTool
                 if bundle.inputs.left_mouse.just_pressed()
                 {
                     self.0 = return_if_none!(
-                        Self::alt_vertex_left_mouse(
-                            bundle.manager,
-                            cursor_pos,
-                            bundle.camera.scale()
-                        ),
+                        Self::alt_left_mouse(bundle.manager, cursor_pos, bundle.camera.scale()),
                         None
                     );
                 }
@@ -615,7 +594,7 @@ impl VertexTool
 
     /// Initializes the insertion of a new vertex.
     #[inline]
-    fn alt_vertex_left_mouse(
+    fn alt_left_mouse(
         manager: &EntitiesManager,
         cursor_pos: Vec2,
         camera_scale: f32
@@ -646,83 +625,81 @@ impl VertexTool
         .into()
     }
 
-    /// Exclusively selects the vertexes whose highlight is beneath `cursor_pos`.
-    #[inline]
-    fn exclusively_select_vertexes(
-        bundle: &mut ToolUpdateBundle,
-        brushes_with_selected_vertexes: &BrushesWithSelectedVertexes,
-        cursor_pos: Vec2,
-        camera_scale: f32
-    ) -> bool
-    {
-        let mut id_vx_id = None;
-
-        for (id, result) in bundle
-            .manager
-            .selected_brushes_mut_at_pos(
-                bundle.drawing_resources,
-                bundle.grid,
-                cursor_pos,
-                camera_scale
-            )
-            .map(|mut brush| {
-                (
-                    brush.id(),
-                    brush.check_vertex_proximity_and_exclusively_select(cursor_pos, camera_scale)
-                )
-            })
-        {
-            match result
-            {
-                VectorSelectionResult::Selected => return true,
-                VectorSelectionResult::NotSelected(vx, idx) =>
-                {
-                    id_vx_id = (id, vx, idx).into();
-                    break;
-                },
-                VectorSelectionResult::None => ()
-            };
-        }
-
-        let (id, vx, idx) = return_if_none!(id_vx_id, false);
-
-        bundle.edits_history.vertexes_selection_cluster(
-            brushes_with_selected_vertexes
-                .ids
-                .iter()
-                .filter_set_with_predicate(id, |id| **id)
-                .filter_map(|id| {
-                    let mut brush =
-                        bundle.manager.brush_mut(bundle.drawing_resources, bundle.grid, *id);
-
-                    (!brush.polygon_hull().contains_point(vx))
-                        .then(|| brush.deselect_vertexes().map(|idxs| (brush.id(), idxs)).unwrap())
-                })
-        );
-
-        bundle.edits_history.vertexes_selection_cluster(
-            bundle
-                .manager
-                .selected_brushes_mut_at_pos(bundle.drawing_resources, bundle.grid, vx, None)
-                .filter_set_with_predicate(id, EntityId::id)
-                .filter_map(|mut brush| {
-                    brush.try_exclusively_select_vertex(vx).map(|idxs| (brush.id(), idxs))
-                })
-                .chain(Some((id, idx)))
-        );
-
-        true
-    }
-
     /// Toggles the vertexes whose highlight is beneath `cursor_pos`.
     #[inline]
     #[must_use]
     fn toggle_vertexes(
         bundle: &mut ToolUpdateBundle,
+        brushes_with_selected_vertexes: &BrushesWithSelectedVertexes,
         cursor_pos: Vec2,
         camera_scale: f32
     ) -> VertexesToggle
     {
+        if bundle.inputs.shift_pressed()
+        {
+            let mut id_vx_id = None;
+
+            for (id, result) in bundle
+                .manager
+                .selected_brushes_mut_at_pos(
+                    bundle.drawing_resources,
+                    bundle.grid,
+                    cursor_pos,
+                    camera_scale
+                )
+                .map(|mut brush| {
+                    (
+                        brush.id(),
+                        brush.check_vertex_proximity_and_exclusively_select(
+                            cursor_pos,
+                            camera_scale
+                        )
+                    )
+                })
+            {
+                match result
+                {
+                    VectorSelectionResult::Selected => return VertexesToggle::Selected,
+                    VectorSelectionResult::NotSelected(vx, idx) =>
+                    {
+                        id_vx_id = (id, vx, idx).into();
+                        break;
+                    },
+                    VectorSelectionResult::None => ()
+                };
+            }
+
+            let (id, vx, idx) = return_if_none!(id_vx_id, VertexesToggle::None);
+
+            bundle.edits_history.vertexes_selection_cluster(
+                brushes_with_selected_vertexes
+                    .ids
+                    .iter()
+                    .filter_set_with_predicate(id, |id| **id)
+                    .filter_map(|id| {
+                        let mut brush =
+                            bundle.manager.brush_mut(bundle.drawing_resources, bundle.grid, *id);
+
+                        (!brush.polygon_hull().contains_point(vx)).then(|| {
+                            brush.deselect_vertexes().map(|idxs| (brush.id(), idxs)).unwrap()
+                        })
+                    })
+            );
+
+            bundle.edits_history.vertexes_selection_cluster(
+                bundle
+                    .manager
+                    .selected_brushes_mut_at_pos(bundle.drawing_resources, bundle.grid, vx, None)
+                    .filter_set_with_predicate(id, EntityId::id)
+                    .filter_map(|mut brush| {
+                        brush.try_exclusively_select_vertex(vx).map(|idxs| (brush.id(), idxs))
+                    })
+                    .chain(Some((id, idx)))
+            );
+
+            return VertexesToggle::Selected;
+        }
+
         let mut brushes = bundle.manager.selected_brushes_mut_at_pos(
             bundle.drawing_resources,
             bundle.grid,

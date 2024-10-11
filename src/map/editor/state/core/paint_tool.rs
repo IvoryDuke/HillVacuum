@@ -47,6 +47,7 @@ use crate::{
 //=======================================================================//
 
 /// The state of the tool.
+#[must_use]
 enum Status
 {
     /// Inactive.
@@ -66,7 +67,6 @@ enum Status
 impl Default for Status
 {
     #[inline]
-    #[must_use]
     fn default() -> Self { Self::Inactive(()) }
 }
 

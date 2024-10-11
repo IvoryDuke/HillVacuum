@@ -11,7 +11,7 @@ use super::{
     cursor_delta::CursorDelta,
     deselect_vertexes,
     draw_non_selected_brushes,
-    rect::Rect,
+    rect::{LeftMouse, Rect},
     selected_vertexes,
     tool::{
         subtools_buttons,
@@ -46,7 +46,7 @@ use crate::{
         editor::{
             cursor::Cursor,
             state::{
-                core::rect::{self, RectTrait},
+                core::rect::RectTrait,
                 grid::Grid,
                 manager::EntitiesManager,
                 ui::{ToolsButtons, UiBundle}
@@ -371,8 +371,8 @@ impl BrushesWithSelectedSides
 /// The side tool.
 pub(in crate::map::editor::state::core) struct SideTool
 {
-    status:         Status,
-    selected_sides: BrushesWithSelectedSides,
+    status: Status,
+    brushes_with_selected_sides: BrushesWithSelectedSides,
     check_xtrusion: bool
 }
 
@@ -414,8 +414,8 @@ impl SideTool
     pub fn tool(drag_selection: Rect) -> ActiveTool
     {
         ActiveTool::Side(SideTool {
-            status:         Status::Inactive(drag_selection),
-            selected_sides: BrushesWithSelectedSides::new(),
+            status: Status::Inactive(drag_selection),
+            brushes_with_selected_sides: BrushesWithSelectedSides::new(),
             check_xtrusion: false
         })
     }
@@ -441,12 +441,18 @@ impl SideTool
 
     /// Whether the vertexes merge is available.
     #[inline]
-    pub const fn vx_merge_available(&self) -> bool { self.selected_sides.vx_merge_available() }
+    pub const fn vx_merge_available(&self) -> bool
+    {
+        self.brushes_with_selected_sides.vx_merge_available()
+    }
 
     /// Whether the xtrusion is available.
     #[inline]
     #[must_use]
-    pub fn xtrusion_available(&self) -> bool { self.selected_sides.xtrusion_available() }
+    pub fn xtrusion_available(&self) -> bool
+    {
+        self.brushes_with_selected_sides.xtrusion_available()
+    }
 
     //==============================================================
     // Update
@@ -461,92 +467,91 @@ impl SideTool
         {
             Status::Inactive(ds) =>
             {
-                rect::update!(
-                    ds,
+                let value = ds.drag_selection(
+                    bundle,
                     cursor_pos,
-                    bundle.inputs.left_mouse.pressed(),
-                    {
-                        if self.check_xtrusion.take_value()
+                    (&mut self.check_xtrusion, &mut self.brushes_with_selected_sides),
+                    |_, bundle, (check_xtrusion, brushes_with_selected_sides)| {
+                        if check_xtrusion.take_value()
                         {
-                            if let Some(s) = self.selected_sides.initialize_xtrusion(
+                            if let Some(s) = brushes_with_selected_sides.initialize_xtrusion(
                                 bundle.manager,
                                 cursor_pos,
                                 bundle.camera.scale()
                             )
                             {
-                                self.status = s;
-                                return;
+                                return LeftMouse::Value(s);
                             }
                         }
 
                         if !bundle.inputs.left_mouse.just_pressed()
                         {
-                            false
-                        }
-                        else if bundle.inputs.shift_pressed()
-                        {
-                            match Self::toggle_sides(bundle, cursor_pos)
+                            if bundle.inputs.back.just_pressed()
                             {
-                                VertexesToggle::None => true,
+                                // Side deletion.
+                                Self::delete_selected_sides(bundle);
+                            }
+                            else if let Some(dir) = bundle.inputs.directional_keys_delta()
+                            {
+                                let mut vxs_move = hv_vec![];
+
+                                if brushes_with_selected_sides.selected_sides.any_selected_vx() &&
+                                    Self::move_sides(bundle, dir, &mut vxs_move)
+                                {
+                                    bundle.edits_history.vertexes_move(vxs_move);
+                                }
+                            }
+
+                            return LeftMouse::NotPressed;
+                        }
+
+                        if bundle.inputs.shift_pressed()
+                        {
+                            return match Self::toggle_sides(bundle, cursor_pos)
+                            {
+                                VertexesToggle::None => LeftMouse::Pressed,
                                 VertexesToggle::Selected =>
                                 {
-                                    self.status = Status::PreDrag(cursor_pos);
-                                    return;
+                                    LeftMouse::Value(Status::PreDrag(cursor_pos))
                                 },
-                                VertexesToggle::NonSelected => return
-                            }
+                                VertexesToggle::NonSelected => LeftMouse::NotPressed
+                            };
                         }
-                        else
+
+                        if Self::exclusively_select_sides(
+                            bundle,
+                            brushes_with_selected_sides,
+                            cursor_pos
+                        )
                         {
-                            if Self::exclusively_select_sides(
-                                bundle,
-                                &self.selected_sides,
-                                cursor_pos
-                            )
+                            if bundle.inputs.alt_pressed()
                             {
-                                if bundle.inputs.alt_pressed()
-                                {
-                                    self.check_xtrusion = true;
-                                    return;
-                                }
-
-                                self.status = Status::PreDrag(cursor_pos);
-                                return;
+                                *check_xtrusion = true;
+                                return LeftMouse::NotPressed;
                             }
 
-                            true
+                            return LeftMouse::Value(Status::PreDrag(cursor_pos));
                         }
+
+                        LeftMouse::Pressed
                     },
-                    {
+                    |bundle, _| {
                         deselect_vertexes(
                             bundle.drawing_resources,
                             bundle.manager,
                             bundle.edits_history,
                             bundle.grid
                         );
+
+                        None
                     },
-                    hull,
-                    {
-                        Self::select_sides_from_drag_selection(bundle, &hull);
+                    |bundle, hull, _| {
+                        Self::select_sides_from_drag_selection(bundle, hull);
+                        None
                     }
                 );
 
-                if bundle.inputs.back.just_pressed()
-                {
-                    // Side deletion.
-                    Self::delete_selected_sides(bundle);
-                    return;
-                }
-
-                // Moving vertex with directional keys.
-                let dir = return_if_none!(bundle.inputs.directional_keys_delta());
-                let mut vxs_move = hv_vec![];
-
-                if self.selected_sides.selected_sides.any_selected_vx() &&
-                    Self::move_sides(bundle, dir, &mut vxs_move)
-                {
-                    bundle.edits_history.vertexes_move(vxs_move);
-                }
+                self.status = return_if_none!(value);
             },
             Status::PreDrag(pos) =>
             {
@@ -632,11 +637,9 @@ impl SideTool
                     return;
                 }
 
-                self.status = return_if_none!(self.selected_sides.initialize_xtrusion(
-                    bundle.manager,
-                    cursor_pos,
-                    bundle.camera.scale()
-                ));
+                self.status = return_if_none!(self
+                    .brushes_with_selected_sides
+                    .initialize_xtrusion(bundle.manager, cursor_pos, bundle.camera.scale()));
             }
         };
     }
@@ -1111,7 +1114,7 @@ impl SideTool
         bundle.edits_history.override_edit_tag("Brushes Intrusion");
 
         self.status = Status::default();
-        self.selected_sides.clear();
+        self.brushes_with_selected_sides.clear();
     }
 
     /// Finalizes the extrusion.
@@ -1152,7 +1155,7 @@ impl SideTool
         edits_history.override_edit_tag("Brushes Extrusion");
 
         self.status = Status::default();
-        self.selected_sides.clear();
+        self.brushes_with_selected_sides.clear();
     }
 
     /// Updates the selected sides info.
@@ -1161,11 +1164,12 @@ impl SideTool
     {
         if manager.entity_exists(identifier)
         {
-            self.selected_sides.toggle_brush(manager.brush(identifier));
+            self.brushes_with_selected_sides
+                .toggle_brush(manager.brush(identifier));
             return;
         }
 
-        self.selected_sides.remove_id(manager, identifier);
+        self.brushes_with_selected_sides.remove_id(manager, identifier);
     }
 
     //==============================================================

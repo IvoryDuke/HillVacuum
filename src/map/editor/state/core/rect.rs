@@ -6,56 +6,74 @@
 use glam::Vec2;
 use hill_vacuum_shared::return_if_no_match;
 
-use crate::utils::{hull::Hull, identifiers::EntityId, math::AroundEqual};
+use crate::{
+    map::editor::ToolUpdateBundle,
+    utils::{hull::Hull, identifiers::EntityId, math::AroundEqual}
+};
 
 //=======================================================================//
 // MACROS
 //
 //=======================================================================//
 
-/// Updates `rect`.
-macro_rules! update {
-    (
-        $rect:expr,
-        $p:expr,
-        $left_mouse_pressed:expr,
-        $none:expr,
-        $initiated:block,
-        $hull:ident,
-        $formed:block
-    ) => {
-        if $rect.none()
+macro_rules! impl_update {
+    () => {
+        #[inline]
+        #[must_use]
+        fn drag_selection<'a, U, N, I, F, E>(
+            &mut self,
+            bundle: &mut ToolUpdateBundle,
+            cursor_pos: Vec2,
+            extra: E,
+            mut n: N,
+            mut i: I,
+            mut f: F
+        ) -> Option<U>
+        where
+            E: 'a,
+            N: FnMut(&mut Self, &mut ToolUpdateBundle, E) -> LeftMouse<U>,
+            I: FnMut(&mut ToolUpdateBundle, E) -> Option<U>,
+            F: FnMut(&mut ToolUpdateBundle, &Hull, E) -> Option<U>
         {
-            if $none
+            match self.core()
             {
-                $rect.update_extremes($p);
-            }
-        }
-        else if $rect.initiated()
-        {
-            $rect.update_extremes($p);
+                RectCore::None =>
+                {
+                    match n(self, bundle, extra).into()
+                    {
+                        LeftMouse::Value(v) => return v.into(),
+                        LeftMouse::Pressed => self.update_extremes(cursor_pos),
+                        LeftMouse::NotPressed => ()
+                    };
+                },
+                RectCore::Initiated(_) =>
+                {
+                    if !bundle.inputs.left_mouse.pressed()
+                    {
+                        let value = i(bundle, extra);
+                        self.reset();
+                        return value;
+                    }
 
-            if !$left_mouse_pressed
-            {
-                $initiated;
-                $rect.reset();
-            }
-        }
-        else
-        {
-            $rect.update_extremes($p);
+                    self.update_extremes(cursor_pos);
+                },
+                RectCore::Formed(..) =>
+                {
+                    if !bundle.inputs.left_mouse.pressed()
+                    {
+                        let value = f(bundle, &self.hull().unwrap(), extra);
+                        self.reset();
+                        return value;
+                    }
 
-            if !$left_mouse_pressed
-            {
-                let $hull = $rect.hull().unwrap();
-                $formed;
-                $rect.reset();
-            }
+                    self.update_extremes(cursor_pos);
+                }
+            };
+
+            None
         }
     };
 }
-
-pub(in crate::map::editor::state::core) use update;
 
 //=======================================================================//
 // TRAITS
@@ -70,18 +88,6 @@ pub(crate) trait RectTrait
     fn from_origin(origin: Vec2) -> Self
     where
         Self: Sized;
-
-    /// Whether `self` represents an uninitiated drag area.
-    #[must_use]
-    fn none(&self) -> bool;
-
-    /// Whether `self` represents an initiated drag area.
-    #[must_use]
-    fn initiated(&self) -> bool;
-
-    /// Whether `self` represents a formed drag area.
-    #[must_use]
-    fn formed(&self) -> bool;
 
     /// Returns the origin of the surface, if any.
     #[must_use]
@@ -98,6 +104,33 @@ pub(crate) trait RectTrait
     /// Updates the extremeties of the surface from `p`.
     fn update_extremes(&mut self, p: Vec2);
 
+    #[must_use]
+    fn drag_selection<'a, U, N, I, F, E>(
+        &mut self,
+        bundle: &mut ToolUpdateBundle,
+        cursor_pos: Vec2,
+        extra: E,
+        n: N,
+        i: I,
+        f: F
+    ) -> Option<U>
+    where
+        E: 'a,
+        N: FnMut(&mut Self, &mut ToolUpdateBundle, E) -> LeftMouse<U>,
+        I: FnMut(&mut ToolUpdateBundle, E) -> Option<U>,
+        F: FnMut(&mut ToolUpdateBundle, &Hull, E) -> Option<U>;
+}
+
+//=======================================================================//
+
+trait RectPrivate
+{
+    fn core(&self) -> &RectCore;
+
+    /// Whether `self` represents a formed drag area.
+    #[must_use]
+    fn formed(&self) -> bool;
+
     /// Resets the drag area.
     fn reset(&mut self);
 }
@@ -108,8 +141,9 @@ pub(crate) trait RectTrait
 //=======================================================================//
 
 /// The core of a [`Rect`].
+#[must_use]
 #[derive(Clone, Copy, Default)]
-enum RectCore
+pub(in crate::map::editor::state::core) enum RectCore
 {
     /// No area.
     #[default]
@@ -118,6 +152,29 @@ enum RectCore
     Initiated(Vec2),
     /// A rectangular surface.
     Formed(Vec2, Vec2)
+}
+
+//=======================================================================//
+
+pub(in crate::map::editor::state::core) enum LeftMouse<T>
+{
+    Value(T),
+    Pressed,
+    NotPressed
+}
+
+impl<T> From<bool> for LeftMouse<T>
+{
+    #[inline]
+    fn from(value: bool) -> Self
+    {
+        #[allow(clippy::match_bool)]
+        match value
+        {
+            true => Self::Pressed,
+            false => Self::NotPressed
+        }
+    }
 }
 
 //=======================================================================//
@@ -130,25 +187,24 @@ enum RectCore
 #[derive(Clone, Copy, Default)]
 pub(in crate::map::editor::state::core) struct Rect(RectCore);
 
-impl RectTrait for Rect
+impl RectPrivate for Rect
 {
-    //==============================================================
-    // New
-
     #[inline]
-    fn from_origin(origin: Vec2) -> Self { Self(RectCore::Initiated(origin)) }
-
-    //==============================================================
-    // Info
-
-    #[inline]
-    fn none(&self) -> bool { matches!(self.0, RectCore::None) }
-
-    #[inline]
-    fn initiated(&self) -> bool { matches!(self.0, RectCore::Initiated(_)) }
+    fn core(&self) -> &RectCore { &self.0 }
 
     #[inline]
     fn formed(&self) -> bool { matches!(self.0, RectCore::Formed(..)) }
+
+    #[inline]
+    fn reset(&mut self) { *self = Rect::default(); }
+}
+
+impl RectTrait for Rect
+{
+    impl_update!();
+
+    #[inline]
+    fn from_origin(origin: Vec2) -> Self { Self(RectCore::Initiated(origin)) }
 
     #[inline]
     fn origin(&self) -> Option<Vec2>
@@ -171,9 +227,6 @@ impl RectTrait for Rect
             RectCore::Formed(o, e) => Some(Hull::from_opposite_vertexes(o, e))
         }
     }
-
-    //==============================================================
-    // Update
 
     #[inline]
     fn update_extremes(&mut self, p: Vec2)
@@ -200,9 +253,6 @@ impl RectTrait for Rect
             }
         };
     }
-
-    #[inline]
-    fn reset(&mut self) { *self = Rect::default(); }
 }
 
 //=======================================================================//
@@ -245,10 +295,26 @@ where
     fn from(value: Rect) -> Self { Self(value, None) }
 }
 
+impl<T> RectPrivate for RectHighlightedEntity<T>
+where
+    T: EntityId + Clone + Copy
+{
+    #[inline]
+    fn reset(&mut self) { self.0.reset(); }
+
+    #[inline]
+    fn core(&self) -> &RectCore { &self.0 .0 }
+
+    #[inline]
+    fn formed(&self) -> bool { self.0.formed() }
+}
+
 impl<T> RectTrait for RectHighlightedEntity<T>
 where
     T: EntityId + Clone + Copy
 {
+    impl_update!();
+
     #[inline]
     fn from_origin(origin: Vec2) -> Self { Self(Rect::from_origin(origin), None) }
 
@@ -271,18 +337,6 @@ where
             self.1 = None;
         }
     }
-
-    #[inline]
-    fn reset(&mut self) { self.0.reset(); }
-
-    #[inline]
-    fn none(&self) -> bool { self.0.none() }
-
-    #[inline]
-    fn initiated(&self) -> bool { self.0.initiated() }
-
-    #[inline]
-    fn formed(&self) -> bool { self.0.formed() }
 }
 
 impl<T> RectHighlightedEntity<T>

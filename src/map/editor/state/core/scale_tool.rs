@@ -153,6 +153,7 @@ macro_rules! common_scale_textures {
 //=======================================================================//
 
 /// The state of the tool.
+#[must_use]
 enum Status
 {
     /// Scaling with the keyboard.

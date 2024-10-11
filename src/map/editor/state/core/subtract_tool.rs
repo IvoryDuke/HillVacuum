@@ -18,7 +18,7 @@ use crate::{
         editor::{
             cursor::Cursor,
             state::{
-                core::rect,
+                core::rect::LeftMouse,
                 edits_history::EditsHistory,
                 grid::Grid,
                 manager::EntitiesManager
@@ -159,99 +159,102 @@ impl SubtractTool
     {
         let subtractee_beneath_cursor = self.selector.brush_beneath_cursor(bundle);
 
-        let ToolUpdateBundle {
-            cursor,
-            manager,
-            edits_history,
-            inputs,
-            grid,
-            ..
-        } = bundle;
-
-        rect::update!(
-            self.drag_selection,
-            cursor.world(),
-            inputs.left_mouse.pressed(),
-            {
-                // Apply subtraction.
-                if inputs.enter.just_pressed()
-                {
-                    Self::subtract(
-                        bundle.drawing_resources,
+        self.drag_selection
+            .drag_selection(
+                bundle,
+                bundle.cursor.world(),
+                &mut self.subtractees,
+                |ds, bundle, subtractees| {
+                    let ToolUpdateBundle {
+                        drawing_resources,
                         manager,
                         edits_history,
+                        inputs,
                         grid,
-                        &mut self.subtractees
-                    );
-                    return true;
-                }
+                        ..
+                    } = bundle;
 
-                self.drag_selection.set_highlighted_entity(subtractee_beneath_cursor);
-
-                if inputs.left_mouse.just_pressed()
-                {
-                    if let Some(id) = subtractee_beneath_cursor
+                    // Apply subtraction.
+                    if inputs.enter.just_pressed()
                     {
-                        assert!(
-                            id != *manager.selected_brushes_ids().next_value(),
-                            "Tried to deselect the subtractor as a subtractee."
+                        Self::subtract(
+                            drawing_resources,
+                            manager,
+                            edits_history,
+                            grid,
+                            subtractees
                         );
-
-                        if self.subtractees.insert(id)
-                        {
-                            edits_history.subtractee_selection(id);
-                        }
-                        else
-                        {
-                            self.subtractees.asserted_remove(&id);
-                            edits_history.subtractee_deselection(id);
-                        }
-
-                        false
+                        return LeftMouse::Value(true);
                     }
-                    else
+
+                    ds.set_highlighted_entity(subtractee_beneath_cursor);
+
+                    if !inputs.left_mouse.just_pressed()
                     {
-                        true
+                        return LeftMouse::NotPressed;
                     }
+
+                    match subtractee_beneath_cursor
+                    {
+                        Some(id) =>
+                        {
+                            assert!(
+                                id != *manager.selected_brushes_ids().next_value(),
+                                "Tried to deselect the subtractor as a subtractee."
+                            );
+
+                            if subtractees.insert(id)
+                            {
+                                edits_history.subtractee_selection(id);
+                            }
+                            else
+                            {
+                                subtractees.asserted_remove(&id);
+                                edits_history.subtractee_deselection(id);
+                            }
+
+                            LeftMouse::NotPressed
+                        },
+                        None => LeftMouse::Pressed
+                    }
+                },
+                |bundle, subtractees| {
+                    if subtractee_beneath_cursor.is_none()
+                    {
+                        bundle
+                            .edits_history
+                            .subtractee_deselection_cluster(subtractees.iter());
+                        subtractees.clear();
+                    }
+
+                    None
+                },
+                |bundle, hull, subtractees| {
+                    let sel_id = *bundle.manager.selected_brushes_ids().next_value();
+                    let ids_in_range = bundle.manager.brushes_in_range(hull);
+                    let mut ids_in_range =
+                        ids_in_range.into_iter().copied().filter_set(sel_id).peekable();
+
+                    if ids_in_range.peek().is_none()
+                    {
+                        return Some(false);
+                    }
+
+                    let ids_in_range = hv_hash_set![collect; ids_in_range];
+
+                    bundle.edits_history.subtractee_selection_cluster(
+                        ids_in_range.iter().filter(|id| !subtractees.contains(*id))
+                    );
+                    bundle.edits_history.subtractee_deselection_cluster(
+                        subtractees.iter().filter(|id| !ids_in_range.contains(*id))
+                    );
+
+                    subtractees.replace_values(ids_in_range);
+
+                    None
                 }
-                else
-                {
-                    false
-                }
-            },
-            {
-                if subtractee_beneath_cursor.is_none()
-                {
-                    edits_history.subtractee_deselection_cluster(self.subtractees.iter());
-                    self.subtractees.clear();
-                }
-            },
-            hull,
-            {
-                let sel_id = *manager.selected_brushes_ids().next_value();
-                let ids_in_range = manager.brushes_in_range(&hull);
-                let mut ids_in_range =
-                    ids_in_range.into_iter().copied().filter_set(sel_id).peekable();
-
-                if ids_in_range.peek().is_none()
-                {
-                    return false;
-                }
-
-                let ids_in_range = hv_hash_set![collect; ids_in_range];
-
-                edits_history.subtractee_selection_cluster(
-                    ids_in_range.iter().filter(|id| !self.subtractees.contains(*id))
-                );
-                edits_history.subtractee_deselection_cluster(
-                    self.subtractees.iter().filter(|id| !ids_in_range.contains(*id))
-                );
-
-                self.subtractees.replace_values(ids_in_range);
-            }
-        );
-
-        false
+            )
+            .unwrap_or_default()
     }
 
     /// Subtracts the selected brush from the subtractees.

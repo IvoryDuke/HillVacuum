@@ -14,7 +14,7 @@ use self::{nodes_editor::NodesEditor, path_creation::PathCreation};
 use super::{
     cursor_delta::CursorDelta,
     item_selector::{ItemSelector, ItemsBeneathCursor},
-    rect::{Rect, RectHighlightedEntity, RectTrait},
+    rect::{LeftMouse, Rect, RectHighlightedEntity, RectTrait},
     tool::{
         ActiveTool,
         DisableSubtool,
@@ -30,7 +30,7 @@ use crate::{
         editor::{
             cursor::Cursor,
             state::{
-                core::{rect, tool::subtools_buttons},
+                core::tool::subtools_buttons,
                 grid::Grid,
                 inputs_presses::InputsPresses,
                 manager::EntitiesManager,
@@ -68,6 +68,7 @@ use crate::{
 //=======================================================================//
 
 /// The state of the tool.
+#[must_use]
 enum Status
 {
     /// Inactive.
@@ -91,7 +92,6 @@ enum Status
 impl Default for Status
 {
     #[inline]
-    #[must_use]
     fn default() -> Self { Self::Inactive(RectHighlightedEntity::default()) }
 }
 
@@ -472,66 +472,99 @@ impl PathTool
         {
             Status::Inactive(ds) =>
             {
-                rect::update!(
-                    ds,
-                    bundle.cursor.world(),
-                    bundle.inputs.left_mouse.pressed(),
-                    {
+                let value = ds.drag_selection(
+                    bundle,
+                    cursor_pos.unwrap(),
+                    &self.nodes_editor,
+                    |ds, bundle, nodes_editor| {
                         ds.set_highlighted_entity(item_beneath_cursor);
 
                         if !bundle.inputs.left_mouse.just_pressed()
                         {
-                            false
+                            if bundle.inputs.enter.just_pressed()
+                            {
+                                // Initiate paths simulation.
+                                if bundle.manager.selected_moving_amount() != 0
+                                {
+                                    if let Some(value) =
+                                        Self::enable_simulation(bundle.manager, nodes_editor)
+                                    {
+                                        return LeftMouse::Value(value);
+                                    }
+                                }
+                            }
+                            else if bundle.inputs.back.just_pressed()
+                            {
+                                if Self::delete(bundle)
+                                {
+                                    ds.set_highlighted_entity(self.selector.item_beneath_cursor(
+                                        bundle.drawing_resources,
+                                        bundle.things_catalog,
+                                        bundle.manager,
+                                        bundle.cursor,
+                                        bundle.grid,
+                                        bundle.camera.scale(),
+                                        bundle.inputs
+                                    ));
+                                }
+                            }
+                            else if let Some(dir) = bundle.inputs.directional_keys_delta()
+                            {
+                                // Moving vertex with directional keys.
+                                let mut nodes_move = hv_vec![];
+                                Self::move_nodes(bundle, dir, &mut nodes_move);
+                                bundle.edits_history.path_nodes_move(nodes_move);
+                            }
+
+                            return LeftMouse::NotPressed;
                         }
-                        else if bundle.inputs.alt_pressed()
+
+                        if bundle.inputs.alt_pressed()
                         {
                             // See if we should enable node insertion.
-                            match return_if_none!(item_beneath_cursor)
+                            return match return_if_none!(item_beneath_cursor, LeftMouse::Pressed)
                             {
-                                ItemBeneathCursor::SelectedMoving(_) => (),
+                                ItemBeneathCursor::SelectedMoving(_) => LeftMouse::Pressed,
                                 ItemBeneathCursor::PossibleMoving(id) =>
                                 {
-                                    self.status = Status::SingleEditing(
+                                    LeftMouse::Value(Status::SingleEditing(
                                         id,
                                         PathEditing::FreeDraw(PathCreation::default())
-                                    );
+                                    ))
                                 },
                                 ItemBeneathCursor::PathNode(id, idx) =>
                                 {
-                                    self.status = Self::add_node_status(bundle.cursor, id, idx);
-                                }
+                                    LeftMouse::Value(Self::add_node_status(bundle.cursor, id, idx))
+                                },
                             };
-
-                            return;
                         }
-                        else if let Some(ItemBeneathCursor::PathNode(id, idx)) =
-                            item_beneath_cursor
+
+                        let (id, idx) = return_if_no_match!(
+                            item_beneath_cursor,
+                            Some(ItemBeneathCursor::PathNode(id, idx)),
+                            (id, idx),
+                            LeftMouse::Pressed
+                        );
+
+                        if bundle.inputs.shift_pressed()
                         {
-                            if bundle.inputs.shift_pressed()
+                            return if Self::toggle_node(bundle, id, idx)
                             {
-                                if Self::toggle_node(bundle, id, idx)
-                                {
-                                    self.status =
-                                        Status::PreDrag(cursor_pos.unwrap(), item_beneath_cursor);
-                                    return;
-                                }
+                                LeftMouse::Value(Status::PreDrag(
+                                    cursor_pos.unwrap(),
+                                    item_beneath_cursor
+                                ))
                             }
                             else
                             {
-                                Self::select_node(bundle, id, idx);
-                                self.status =
-                                    Status::PreDrag(cursor_pos.unwrap(), item_beneath_cursor);
-                                return;
-                            }
+                                LeftMouse::Pressed
+                            };
+                        }
 
-                            false
-                        }
-                        else
-                        {
-                            true
-                        }
+                        Self::select_node(bundle, id, idx);
+                        LeftMouse::Value(Status::PreDrag(cursor_pos.unwrap(), item_beneath_cursor))
                     },
-                    {
+                    |bundle, _| {
                         // Deselect selected nodes.
                         if bundle.edits_history.path_nodes_selection_cluster(
                             bundle
@@ -548,45 +581,17 @@ impl PathTool
                         {
                             bundle.manager.schedule_overall_node_update();
                         }
+
+                        None
                     },
-                    hull,
-                    {
+                    |bundle, hull, _| {
                         // Select nodes.
-                        Self::select_nodes_from_drag_selection(bundle, &hull);
+                        Self::select_nodes_from_drag_selection(bundle, hull);
+                        None
                     }
                 );
 
-                if bundle.inputs.enter.just_pressed() &&
-                    bundle.manager.selected_moving_amount() != 0
-                {
-                    // Initiate paths simulation.
-                    self.enable_simulation(bundle.manager);
-                    return;
-                }
-
-                if bundle.inputs.back.just_pressed()
-                {
-                    if Self::delete(bundle)
-                    {
-                        ds.set_highlighted_entity(self.selector.item_beneath_cursor(
-                            bundle.drawing_resources,
-                            bundle.things_catalog,
-                            bundle.manager,
-                            bundle.cursor,
-                            bundle.grid,
-                            bundle.camera.scale(),
-                            bundle.inputs
-                        ));
-                    }
-
-                    return;
-                }
-
-                // Moving vertex with directional keys.
-                let dir = return_if_none!(bundle.inputs.directional_keys_delta());
-                let mut nodes_move = hv_vec![];
-                Self::move_nodes(bundle, dir, &mut nodes_move);
-                bundle.edits_history.path_nodes_move(nodes_move);
+                self.status = return_if_none!(value);
             },
             Status::PreDrag(pos, hgl_e) =>
             {
@@ -753,7 +758,6 @@ impl PathTool
     /// Returns a [`Status`] to add a [`Node`] to the [`Path`] of the entity with [`Id`]
     /// `identifier`.
     #[inline]
-    #[must_use]
     const fn add_node_status(cursor: &Cursor, identifier: Id, index: u8) -> Status
     {
         Status::SingleEditing(identifier, PathEditing::InsertNode {
@@ -1039,19 +1043,14 @@ impl PathTool
 
     /// Enables the movement simulation.
     #[inline]
-    pub fn enable_simulation(&mut self, manager: &EntitiesManager)
+    fn enable_simulation(manager: &EntitiesManager, nodes_editor: &NodesEditor) -> Option<Status>
     {
-        if self.nodes_editor.interacting() || manager.selected_moving_amount() == 0
+        if nodes_editor.interacting() || manager.selected_moving_amount() == 0
         {
-            return;
+            return None;
         }
 
-        if matches!(self.status, Status::Simulation(..))
-        {
-            return;
-        }
-
-        self.status = Status::Simulation(manager.selected_movement_simulators(), false);
+        Status::Simulation(manager.selected_movement_simulators(), false).into()
     }
 
     //==============================================================
@@ -1397,7 +1396,8 @@ impl PathTool
             Status::Inactive(..) | Status::FreeDrawUi(_) | Status::InsertNodeUi(_) =>
             {
                 self.nodes_editor.force_simulation(bundle);
-                self.enable_simulation(bundle.manager);
+                self.status =
+                    return_if_none!(Self::enable_simulation(bundle.manager, &self.nodes_editor));
             },
             Status::Simulation(..) => self.status = Status::default(),
             _ => ()

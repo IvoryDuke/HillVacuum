@@ -24,7 +24,7 @@ use crate::{
         editor::{
             cursor::Cursor,
             state::{
-                core::{rect, tool::subtools_buttons},
+                core::{rect::LeftMouse, tool::subtools_buttons},
                 editor_state::{edit_target, TargetSwitch, ToolsSettings},
                 grid::Grid,
                 manager::EntitiesManager,
@@ -48,6 +48,7 @@ use crate::{
 //=======================================================================//
 
 /// The status of the entity drag.
+#[must_use]
 enum Status
 {
     /// Inactive.
@@ -65,7 +66,6 @@ enum Status
 impl Default for Status
 {
     #[inline]
-    #[must_use]
     fn default() -> Self { Self::Inactive(RectHighlightedEntity::default()) }
 }
 
@@ -448,149 +448,152 @@ impl EntityTool
                 let item_beneath_cursor = self.1.item_beneath_cursor(bundle, settings);
                 let cursor_pos = Self::cursor_pos(bundle.cursor);
 
-                rect::update!(
-                    ds,
+                let value = ds.drag_selection(
+                    bundle,
                     cursor_pos,
-                    bundle.inputs.left_mouse.pressed(),
-                    {
-                        if settings.entity_editing()
+                    (),
+                    |ds, bundle, ()| {
+                        if settings.entity_editing() && bundle.inputs.right_mouse.just_pressed()
                         {
-                            if let Some(ItemBeneathCursor::Polygon(id)) = item_beneath_cursor
+                            let id = return_if_no_match!(
+                                item_beneath_cursor,
+                                Some(ItemBeneathCursor::Polygon(id)),
+                                id,
+                                LeftMouse::NotPressed
+                            );
+                            let brush = bundle.manager.brush(id);
+
+                            if bundle.manager.is_selected(id) && brush.attachable()
                             {
-                                let brush = bundle.manager.brush(id);
-
-                                if bundle.inputs.right_mouse.just_pressed() &&
-                                    bundle.manager.is_selected(id) &&
-                                    brush.attachable()
+                                if let Some(owner) = brush.attached()
                                 {
-                                    if let Some(owner) = brush.attached()
-                                    {
-                                        // Remove attachment.
-                                        bundle.manager.detach(owner, id);
-                                        bundle.edits_history.detach(owner, id);
-                                    }
-                                    else if bundle.manager.selected_brushes_amount() > 1
-                                    {
-                                        self.0 = Status::Attach(id, None);
-                                    }
-
-                                    return;
+                                    // Remove attachment.
+                                    bundle.manager.detach(owner, id);
+                                    bundle.edits_history.detach(owner, id);
+                                }
+                                else if bundle.manager.selected_brushes_amount() > 1
+                                {
+                                    return LeftMouse::Value(Status::Attach(id, None));
                                 }
                             }
+
+                            return LeftMouse::NotPressed;
                         }
 
                         ds.set_highlighted_entity(item_beneath_cursor);
 
-                        if let Some(item) = item_beneath_cursor
+                        if bundle.inputs.left_mouse.just_pressed()
                         {
+                            let item = return_if_no_match!(
+                                item_beneath_cursor,
+                                Some(item),
+                                item,
+                                LeftMouse::Pressed
+                            );
                             let id = item.id();
 
-                            if bundle.inputs.left_mouse.just_pressed()
+                            if !shift_pressed
                             {
-                                if shift_pressed
+                                if !bundle.manager.is_selected(id)
                                 {
-                                    Self::toggle_entity_selection(bundle, id);
+                                    Self::exclusively_select_entity(bundle, id);
                                 }
-                                else
+                                else if bundle.inputs.ctrl_pressed() &&
+                                    matches!(item, ItemBeneathCursor::Polygon(_))
                                 {
-                                    if !bundle.manager.is_selected(id)
-                                    {
-                                        Self::exclusively_select_entity(bundle, id);
-                                    }
-                                    else if bundle.inputs.ctrl_pressed() &&
-                                        matches!(item, ItemBeneathCursor::Polygon(_))
-                                    {
-                                        bundle
-                                            .manager
-                                            .select_attached_brushes(id, bundle.edits_history);
-                                    }
+                                    bundle
+                                        .manager
+                                        .select_attached_brushes(id, bundle.edits_history);
+                                }
 
-                                    self.0 = Status::PreDrag(cursor_pos, item, false);
-                                    return;
-                                }
+                                return LeftMouse::Value(Status::PreDrag(cursor_pos, item, false));
                             }
 
-                            false
+                            Self::toggle_entity_selection(bundle, id);
+                            return LeftMouse::NotPressed;
                         }
-                        else
+
+                        if bundle.inputs.back.just_pressed()
                         {
-                            bundle.inputs.left_mouse.just_pressed()
+                            if settings.entity_editing()
+                            {
+                                bundle.manager.despawn_selected_entities(
+                                    bundle.drawing_resources,
+                                    bundle.edits_history,
+                                    bundle.grid
+                                );
+                            }
+                            else
+                            {
+                                bundle.manager.remove_selected_textures(
+                                    bundle.drawing_resources,
+                                    bundle.edits_history,
+                                    bundle.grid
+                                );
+                            }
+
+                            ds.set_highlighted_entity(self.1.item_beneath_cursor(bundle, settings));
+                            return LeftMouse::NotPressed;
                         }
+
+                        let delta = return_if_none!(
+                            bundle.inputs.directional_keys_delta(),
+                            LeftMouse::NotPressed
+                        );
+
+                        if bundle.inputs.alt_pressed()
+                        {
+                            if settings.entity_editing()
+                            {
+                                _ = bundle.manager.duplicate_selected_entities(
+                                    bundle.drawing_resources,
+                                    bundle.things_catalog,
+                                    bundle.clipboard,
+                                    bundle.edits_history,
+                                    bundle.grid,
+                                    delta
+                                );
+                            }
+
+                            return LeftMouse::NotPressed;
+                        }
+
+                        edit_target!(
+                            settings.target_switch(),
+                            |move_texture| {
+                                if Self::move_selected_entities(bundle, delta, move_texture)
+                                {
+                                    bundle.edits_history.entity_move_cluster(
+                                        bundle.manager,
+                                        delta,
+                                        move_texture
+                                    );
+                                }
+                            },
+                            if Self::move_selected_textures(bundle, delta) &&
+                                bundle.manager.selected_textured_amount() != 0
+                            {
+                                bundle.edits_history.texture_move_cluster(bundle.manager, delta);
+                            }
+                        );
+
+                        LeftMouse::NotPressed
                     },
-                    {
+                    |bundle, ()| {
                         if item_beneath_cursor.is_none()
                         {
                             bundle.manager.deselect_selected_entities(bundle.edits_history);
                         }
+
+                        None
                     },
-                    hull,
-                    {
-                        Self::select_entities_from_drag_selection(bundle, settings, &hull);
+                    |bundle, hull, ()| {
+                        Self::select_entities_from_drag_selection(bundle, settings, hull);
+                        None
                     }
                 );
 
-                if bundle.inputs.back.just_pressed()
-                {
-                    if settings.entity_editing()
-                    {
-                        bundle.manager.despawn_selected_entities(
-                            bundle.drawing_resources,
-                            bundle.edits_history,
-                            bundle.grid
-                        );
-                    }
-                    else
-                    {
-                        bundle.manager.remove_selected_textures(
-                            bundle.drawing_resources,
-                            bundle.edits_history,
-                            bundle.grid
-                        );
-                    }
-
-                    ds.set_highlighted_entity(self.1.item_beneath_cursor(bundle, settings));
-                    return;
-                }
-
-                let delta = return_if_none!(bundle.inputs.directional_keys_delta());
-
-                if bundle.inputs.alt_pressed()
-                {
-                    if settings.entity_editing()
-                    {
-                        _ = bundle.manager.duplicate_selected_entities(
-                            bundle.drawing_resources,
-                            bundle.things_catalog,
-                            bundle.clipboard,
-                            bundle.edits_history,
-                            bundle.grid,
-                            delta
-                        );
-                    }
-
-                    return;
-                }
-
-                edit_target!(
-                    settings.target_switch(),
-                    |move_texture| {
-                        if Self::move_selected_entities(bundle, delta, move_texture)
-                        {
-                            bundle.edits_history.entity_move_cluster(
-                                bundle.manager,
-                                delta,
-                                move_texture
-                            );
-                        }
-                    },
-                    {
-                        if Self::move_selected_textures(bundle, delta) &&
-                            bundle.manager.selected_textured_amount() != 0
-                        {
-                            bundle.edits_history.texture_move_cluster(bundle.manager, delta);
-                        }
-                    }
-                );
+                self.0 = return_if_none!(value);
             },
             Status::PreDrag(pos, hgl_e, forced_spawn) =>
             {

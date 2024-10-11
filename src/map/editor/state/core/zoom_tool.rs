@@ -14,7 +14,7 @@ use super::{
 use crate::{
     map::{
         drawer::color::Color,
-        editor::{state::core::rect, DrawBundle, ToolUpdateBundle}
+        editor::{DrawBundle, ToolUpdateBundle}
     },
     utils::{collections::hv_box, misc::Camera}
 };
@@ -59,31 +59,19 @@ impl ZoomTool
         bundle: &mut ToolUpdateBundle
     ) -> Option<&'a mut PreviousActiveTool>
     {
-        let ToolUpdateBundle {
-            window,
-            camera,
-            cursor,
-            inputs,
-            grid,
-            ..
-        } = bundle;
-
-        rect::update!(
-            self.drag_selection,
-            cursor.world_snapped(),
-            inputs.left_mouse.pressed(),
-            inputs.left_mouse.just_pressed(),
-            {
-                return Some(&mut self.previous_active_tool);
-            },
-            hull,
-            {
-                camera.scale_viewport_to_hull(window, grid, &hull, 0f32);
-                return Some(&mut self.previous_active_tool);
+        self.drag_selection.drag_selection(
+            bundle,
+            bundle.cursor.world_snapped(),
+            &mut self.previous_active_tool,
+            |_, bundle, _| bundle.inputs.left_mouse.pressed().into(),
+            |_, previous_active_tool| Some(previous_active_tool),
+            |bundle, hull, previous_active_tool| {
+                bundle
+                    .camera
+                    .scale_viewport_to_hull(bundle.window, bundle.grid, hull, 0f32);
+                Some(previous_active_tool)
             }
-        );
-
-        None
+        )
     }
 
     /// Draws the tool.
