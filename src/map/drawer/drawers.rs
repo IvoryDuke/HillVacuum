@@ -1464,7 +1464,6 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
 //=======================================================================//
 
 #[inline]
-#[must_use]
 #[allow(clippy::cast_precision_loss)]
 pub(in crate::map::drawer) fn thing_texture_hull<T: ThingInterface>(
     resources: &DrawingResources,

@@ -150,7 +150,7 @@ pub(in crate::map) enum ClipboardData
     Thing(ThingInstanceData, Id)
 }
 
-impl<'a> From<ClipboardDataViewer> for ClipboardData
+impl From<ClipboardDataViewer> for ClipboardData
 {
     #[inline]
     fn from(value: ClipboardDataViewer) -> Self

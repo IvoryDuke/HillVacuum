@@ -874,7 +874,6 @@ pub(in crate::map) mod ui_mod
         /// Returns the [`Hull`] describing `size`.
         #[allow(clippy::cast_precision_loss)]
         #[inline]
-        #[must_use]
         fn create_hull(size: UVec2) -> Hull
         {
             let half_width = (size.x / 2) as f32;
@@ -980,7 +979,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn hull(&self) -> Hull { self.hull }
+        pub const fn hull(&self) -> Hull { self.hull }
 
         /// Whether the texture was edited.
         #[inline]

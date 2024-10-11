@@ -1205,7 +1205,7 @@ impl ConvexPolygon
     // Info
 
     #[inline]
-    pub fn hull(&self) -> Hull { self.hull }
+    pub const fn hull(&self) -> Hull { self.hull }
 
     #[allow(clippy::cast_precision_loss)]
     #[inline]

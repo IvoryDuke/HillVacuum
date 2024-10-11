@@ -524,7 +524,7 @@ impl Editor
             return false;
         }
 
-        if let Some(hull) = self.state.quick_zoom_hull(
+        if let Some(hull) = State::quick_zoom_hull(
             key_inputs,
             &self.drawing_resources,
             &self.things_catalog,

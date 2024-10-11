@@ -118,7 +118,6 @@ impl Cursor
     /// Returns a reference to the bounding box describing the grid square the cursor is currently
     /// on.
     #[inline]
-    #[must_use]
     pub const fn grid_square(&self) -> &Hull { &self.grid_square }
 
     /// Returns the amount the cursor was moved from the previous frame with respect to the

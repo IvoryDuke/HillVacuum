@@ -1736,7 +1736,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn hull(&self) -> Hull { self.hull }
+        pub const fn hull(&self) -> Hull { self.hull }
 
         /// Returns a reference to the vector containing the [`Node`]s of the path.
         #[inline]
@@ -3093,7 +3093,6 @@ pub(in crate::map) mod ui_mod
     /// Returns the slightly buffed [`Hull`] encompassing the [`Path`] and the center of the owning
     /// entity.
     #[inline]
-    #[must_use]
     pub(in crate::map) fn calc_path_hull(path: &Path, center: Vec2) -> Hull
     {
         (path.hull() + center)

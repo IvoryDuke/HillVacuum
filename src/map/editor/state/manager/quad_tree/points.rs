@@ -77,7 +77,6 @@ impl Corner
 
     /// The [`Hull`] the [`Corner`] belongs to.
     #[inline]
-    #[must_use]
     pub fn hull(&self) -> Hull
     {
         match self

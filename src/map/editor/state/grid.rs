@@ -168,7 +168,6 @@ impl Grid
     /// Returns the square that contains `pos`.
     #[allow(clippy::cast_possible_truncation)]
     #[inline]
-    #[must_use]
     pub fn square(&self, pos: Vec2) -> Hull
     {
         let size_f = self.size_f32();
@@ -447,7 +446,6 @@ impl Grid
 
     /// Snaps `hull` to the grid.
     #[inline]
-    #[must_use]
     pub(in crate::map::editor::state) fn snap_hull(&self, hull: &Hull) -> Hull
     {
         // Transform the hull to match the grid for better pivot setting.

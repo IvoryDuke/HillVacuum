@@ -174,8 +174,7 @@ impl Prop
             attached_brushes,
             pivot
         } = data;
-        let mut entities =
-            hv_vec![collect; entities.into_iter().map(|viewer| ClipboardData::from(viewer))];
+        let mut entities = hv_vec![collect; entities.into_iter().map(ClipboardData::from)];
         let (owners, attachments) = entities.split_at_mut(attached_brushes.start);
         let attachments = &mut attachments[..attached_brushes.len()];
 

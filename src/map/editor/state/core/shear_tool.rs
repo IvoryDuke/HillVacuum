@@ -305,7 +305,6 @@ impl ShearTool
 
     /// Returns the [`Hull`] describing the tool outline.
     #[inline]
-    #[must_use]
     fn outline(manager: &EntitiesManager, grid: &Grid) -> Hull
     {
         grid.snap_hull(&manager.selected_brushes_polygon_hull().unwrap())

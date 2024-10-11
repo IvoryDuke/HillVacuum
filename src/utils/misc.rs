@@ -136,7 +136,6 @@ pub(crate) mod ui_mod
         fn scale(&self) -> f32;
 
         /// Returns a [`Hull`] representing the camera's viewport.
-        #[must_use]
         fn viewport(&self, window: &Window, grid: &Grid) -> Hull;
 
         /// Returns the world position of 'p'.
@@ -592,7 +591,6 @@ pub(crate) mod ui_mod
 
     /// Returns a [`Hull`] describing a square with side `side_length` with center at the origin.
     #[inline]
-    #[must_use]
     fn square(side_length: f32) -> Hull
     {
         Hull::new(side_length, -side_length, -side_length, side_length).unwrap()
@@ -600,7 +598,6 @@ pub(crate) mod ui_mod
 
     /// Returns a [`Hull`] representing a vertex highlight with center at the origin.
     #[inline]
-    #[must_use]
     pub fn vertex_highlight_square(camera_scale: f32) -> Hull
     {
         square(vertex_highlight_side_length(camera_scale))
@@ -609,7 +606,6 @@ pub(crate) mod ui_mod
     /// Returns a [`Hull`] representing a slightly buffed vertex highlight with center at the
     /// origin.
     #[inline]
-    #[must_use]
     pub fn bumped_vertex_highlight_square(camera_scale: f32) -> Hull
     {
         square(bumped_vertex_highlight_side_length(camera_scale))

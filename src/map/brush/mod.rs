@@ -604,8 +604,7 @@ pub(in crate::map) mod ui_mod
     impl BrushData
     {
         #[inline]
-        #[must_use]
-        pub fn polygon_hull(&self) -> Hull { self.polygon.hull() }
+        pub const fn polygon_hull(&self) -> Hull { self.polygon.hull() }
 
         #[inline]
         #[must_use]
@@ -1110,7 +1109,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn polygon_hull(&self) -> Hull { self.data.polygon_hull() }
+        pub const fn polygon_hull(&self) -> Hull { self.data.polygon_hull() }
 
         #[inline]
         pub fn path_hull(&self) -> Option<Hull> { self.data.path_hull() }

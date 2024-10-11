@@ -233,7 +233,6 @@ impl Add<Vec2> for Hull
 
     /// Generates a new [`Hull`] with the same dimensions of `self` but displaced by `rhs`.
     #[inline]
-    #[must_use]
     fn add(self, rhs: Vec2) -> Self
     {
         Self {
@@ -264,7 +263,6 @@ impl Sub<Vec2> for Hull
 
     /// Generates a new [`Hull`] with the same dimensions of `self` but displaced by `-rhs`.
     #[inline]
-    #[must_use]
     fn sub(self, rhs: Vec2) -> Self
     {
         Self {
@@ -292,7 +290,6 @@ impl SubAssign<Vec2> for Hull
 impl<T: ExactSizeIterator<Item = Vec2>> From<T> for Hull
 {
     #[inline]
-    #[must_use]
     fn from(value: T) -> Self { Self::from_points(value) }
 }
 
@@ -328,7 +325,6 @@ impl Hull
     /// # Panics
     /// Panics if `bottom` is greater than `top` or `left` is greater than `right`.
     #[inline]
-    #[must_use]
     pub fn new(top: f32, bottom: f32, left: f32, right: f32) -> Option<Self>
     {
         if bottom > top || left > right
@@ -348,7 +344,6 @@ impl Hull
     /// Returns the [`Hull`] encompassing all the points contained in `points`.
     /// Returns None if `points` contained no elements.
     #[inline]
-    #[must_use]
     pub fn from_points(points: impl IntoIterator<Item = Vec2>) -> Self
     {
         let (mut top, mut bottom, mut left, mut right) = (f32::MIN, f32::MAX, f32::MAX, f32::MIN);
@@ -381,7 +376,6 @@ impl Hull
 
     /// Returns a new [`Hull`] from two points used as opposite vertexes of a rectangular shape.
     #[inline]
-    #[must_use]
     pub fn from_opposite_vertexes(a: Vec2, b: Vec2) -> Self
     {
         Self::new(a.y.max(b.y), a.y.min(b.y), a.x.min(b.x), a.x.max(b.x)).unwrap()
@@ -558,7 +552,6 @@ impl Hull
 
     /// Returns the [`Hull`] encompassing this and `other`.
     #[inline]
-    #[must_use]
     pub fn merged(&self, other: &Hull) -> Self
     {
         Hull::new(
@@ -573,14 +566,12 @@ impl Hull
     /// Extends the horizontal and vertical dimensions by `2f32 * bump` while maintaining the
     /// same center.
     #[inline]
-    #[must_use]
     pub fn bumped(&self, bump: f32) -> Self
     {
         Hull::new(self.top + bump, self.bottom - bump, self.left - bump, self.right + bump).unwrap()
     }
 
     #[inline]
-    #[must_use]
     pub fn transformed<F: Fn(Vec2) -> Vec2>(&self, f: F) -> Self
     {
         Self::from_points(self.vertexes().map(f))
@@ -796,7 +787,6 @@ impl Hull
 
     /// Flips the [`Hull`] with respect to the `flip_queue` elements.
     #[inline]
-    #[must_use]
     pub fn flipped(&self, flip_queue: impl Iterator<Item = Flip>) -> Self
     {
         let mut hull = *self;

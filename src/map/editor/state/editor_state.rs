@@ -1956,7 +1956,6 @@ impl State
     #[inline]
     #[must_use]
     pub fn quick_zoom_hull(
-        &self,
         key_inputs: &ButtonInput<KeyCode>,
         drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,

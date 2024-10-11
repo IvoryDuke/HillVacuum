@@ -90,7 +90,6 @@ impl Square
 
     /// Returns the [`Hull`] describing the area covered by the [`Square`].
     #[inline]
-    #[must_use]
     fn hull(&self) -> Hull
     {
         Hull::new(

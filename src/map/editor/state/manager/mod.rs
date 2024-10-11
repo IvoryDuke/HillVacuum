@@ -877,8 +877,8 @@ impl Innards
     {
         self.brushes
             .get(&identifier)
-            .map(|brush| Entity::Brush(brush))
-            .or(self.things.get(&identifier).map(|thing| Entity::Thing(thing)))
+            .map(Entity::Brush)
+            .or(self.things.get(&identifier).map(Entity::Thing))
             .unwrap()
     }
 
