@@ -9,7 +9,6 @@ use glam::Vec2;
 use hill_vacuum_shared::{return_if_no_match, return_if_none};
 
 use super::{
-    bottom_area,
     cursor_delta::CursorDelta,
     draw_selected_and_non_selected_brushes,
     tool::{ActiveTool, DisableSubtool, EnabledTool, OngoingMultiframeChange, SubTool}
@@ -22,11 +21,10 @@ use crate::{
             state::{
                 clipboard::{
                     prop::{Prop, PropScreenshotTimer},
-                    ChunkItem,
                     Clipboard,
                     PROP_SCREENSHOT_SIZE
                 },
-                core::tool::subtools_buttons,
+                core::{bottom_panel, tool::subtools_buttons},
                 edits_history::EditsHistory,
                 grid::Grid,
                 manager::EntitiesManager,
@@ -451,26 +449,27 @@ impl PaintTool
             return;
         }
 
-        if let Some(clicked) = bottom_area!(
-            self,
+        let clicked = return_if_none!(bottom_panel(
             egui_context,
-            clipboard,
             "props",
-            prop,
-            PREVIEW_SIZE.y + 28f32,
+            &mut self.max_bottom_panel_height,
             PREVIEW_SIZE,
-            |ui: &mut egui::Ui, texture: ChunkItem, frame| {
-                ui.vertical(|ui| {
-                    let response = ui.add(egui::ImageButton::new((texture.tex_id, frame)));
-                    ui.label(INDEXES[texture.index]);
-                    response
-                })
-                .inner
+            clipboard.selected_prop_index(),
+            |items_per_row| clipboard.chunked_props(items_per_row),
+            |ui, texture| {
+                (
+                    ui.vertical(|ui| {
+                        let response =
+                            ui.add(egui::ImageButton::new((texture.tex_id, PREVIEW_SIZE)));
+                        ui.label(INDEXES[texture.index]);
+                        response
+                    })
+                    .inner,
+                    texture.index
+                )
             }
-        )
-        {
-            clipboard.set_selected_prop_index(clicked);
-        }
+        ));
+        clipboard.set_selected_prop_index(clicked);
     }
 
     /// Draws the prop creation window.

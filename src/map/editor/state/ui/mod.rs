@@ -84,63 +84,6 @@ const ICONS_PADDING: egui::Vec2 = egui::Vec2::new(8f32, 4f32);
 //
 //=======================================================================//
 
-/// Draws a gallery of textures.
-macro_rules! textures_gallery {
-    (
-        $ui:ident,
-        $textures_per_row:expr,
-        $chunks:expr,
-        $highlight_index:expr,
-        $draw_texture:expr,
-        $row_without_highlight:expr
-    ) => {{
-        let mut chunks = $chunks;
-
-        if let Some(highlight_index) = $highlight_index
-        {
-            let row_with_highlight = highlight_index / $textures_per_row;
-
-            for _ in 0..row_with_highlight
-            {
-                #[allow(clippy::redundant_closure_call)]
-                $row_without_highlight($ui, chunks.next().unwrap());
-            }
-
-            $ui.horizontal(|ui| {
-                let highlight_index_in_row = highlight_index % $textures_per_row;
-                let mut textures = chunks.next().unwrap();
-
-                for _ in 0..highlight_index_in_row
-                {
-                    #[allow(clippy::redundant_closure_call)]
-                    $draw_texture(ui, textures.next().unwrap());
-                }
-
-                #[allow(clippy::redundant_closure_call)]
-                $draw_texture(ui, textures.next().unwrap()).highlight();
-
-                for texture in textures
-                {
-                    #[allow(clippy::redundant_closure_call)]
-                    $draw_texture(ui, texture);
-                }
-
-                ui.add_space(ui.available_width());
-            });
-        }
-
-        for chunk in chunks
-        {
-            #[allow(clippy::redundant_closure_call)]
-            $row_without_highlight($ui, chunk);
-        }
-    }};
-}
-
-pub(in crate::map::editor::state) use textures_gallery;
-
-//=======================================================================//
-
 macro_rules! is_focused {
     ($($t:ty),+) => { $(
         impl IsFocused for $t

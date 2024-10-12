@@ -57,7 +57,7 @@ use crate::{
             texture::{TextureSettings, TextureSpriteSet}
         },
         editor::{
-            state::{core::zoom_tool::ZoomTool, grid::Grid},
+            state::{core::zoom_tool::ZoomTool, grid::Grid, ui::texture_per_row},
             DrawBundle,
             DrawBundleMapPreview,
             StateUpdateBundle,
@@ -189,86 +189,124 @@ use draw_selected_and_non_selected;
 
 //=======================================================================//
 
-/// Draws the bottom UI panel.
-macro_rules! bottom_area {
-    (
-        $self:ident,
-        $egui_context:ident,
-        $source:ident,
-        $label:literal,
-        $object:ident,
-        $min_height:expr,
-        $preview_frame:expr,
-        $preview:expr
-        $(, $drawing_resources:ident)?
-    ) => {{
-        const EXTRA_PADDING: f32 = 4f32;
+#[inline]
+#[must_use]
+fn bottom_panel<T, I, F, C, H>(
+    egui_context: &egui::Context,
+    label: &'static str,
+    max_height: &mut f32,
+    frame: egui::Vec2,
+    selected_item_index: Option<usize>,
+    chunker: C,
+    preview: F
+) -> Option<usize>
+where
+    H: ExactSizeIterator<Item = I>,
+    I: Iterator<Item = T>,
+    C: Fn(usize) -> H,
+    F: Fn(&mut egui::Ui, T) -> (egui::Response, usize) + Copy
+{
+    const EXTRA_PADDING: f32 = 32f32;
 
-        egui::TopBottomPanel::bottom($label)
-            .resizable(true)
-            .min_height($min_height + EXTRA_PADDING)
-            .max_height($self.max_bottom_panel_height)
-            .show($egui_context, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    const PREVIEW_FRAME: egui::Vec2 = $preview_frame;
-
+    egui::TopBottomPanel::bottom(label)
+        .resizable(true)
+        .min_height(frame.y + EXTRA_PADDING)
+        .max_height(*max_height)
+        .show(egui_context, |ui| {
+            egui::ScrollArea::vertical()
+                .show(ui, |ui| {
                     #[inline]
-                    fn draw_preview(
+                    fn draw_preview<T, F>(
                         ui: &mut egui::Ui,
-                        texture: ChunkItem,
-                        clicked_prop: &mut Option<usize>
+                        texture: T,
+                        clicked: &mut Option<usize>,
+                        preview: F
                     ) -> egui::Response
+                    where
+                        F: Fn(&mut egui::Ui, T) -> (egui::Response, usize) + Copy
                     {
-                        #[allow(clippy::redundant_closure_call)]
-                        let response = $preview(ui, texture, PREVIEW_FRAME);
+                        let (response, index) = preview(ui, texture);
 
                         if response.clicked()
                         {
-                            *clicked_prop = texture.index.into();
+                            *clicked = index.into();
                         }
 
                         response
                     }
 
                     #[inline]
-                    fn row_without_highlight<'a>(
+                    fn row_without_highlight<T, I, F>(
                         ui: &mut egui::Ui,
-                        chunk: impl Iterator<Item = ChunkItem<'a>>,
-                        clicked_prop: &mut Option<usize>
-                    )
+                        chunk: I,
+                        clicked: &mut Option<usize>,
+                        preview: F
+                    ) where
+                        I: Iterator<Item = T>,
+                        F: Fn(&mut egui::Ui, T) -> (egui::Response, usize) + Copy
                     {
                         ui.horizontal(|ui| {
                             for texture in chunk
                             {
-                                draw_preview(ui, texture, clicked_prop);
+                                draw_preview(ui, texture, clicked, preview);
                             }
 
                             ui.add_space(ui.available_width());
                         });
                     }
 
-                    let mut clicked = None;
-                    let textures_per_row = crate::map::editor::state::ui::texture_per_row(ui, PREVIEW_FRAME.x);
+                    let items_per_row = texture_per_row(ui, frame.x);
 
-                    paste::paste! {
-                        crate::map::editor::state::ui::textures_gallery!(
-                            ui,
-                            textures_per_row,
-                            $source.[< chunked_ $object s >](textures_per_row $(, $drawing_resources)?),
-                            $source.[< selected_ $object _index>](),
-                            |ui, texture| { draw_preview(ui, texture, &mut clicked) },
-                            |ui, chunk| row_without_highlight(ui, chunk, &mut clicked)
-                        );
+                    let mut clicked = None;
+                    let mut chunks = chunker(items_per_row);
+
+                    if let Some(selected_item_index) = selected_item_index
+                    {
+                        let row_with_highlight = selected_item_index / items_per_row;
+
+                        for _ in 0..row_with_highlight
+                        {
+                            row_without_highlight(
+                                ui,
+                                chunks.next().unwrap(),
+                                &mut clicked,
+                                preview
+                            );
+                        }
+
+                        ui.horizontal(|ui| {
+                            let highlight_index_in_row = selected_item_index % items_per_row;
+                            let mut textures = chunks.next().unwrap();
+
+                            for _ in 0..highlight_index_in_row
+                            {
+                                draw_preview(ui, textures.next().unwrap(), &mut clicked, preview);
+                            }
+
+                            draw_preview(ui, textures.next().unwrap(), &mut clicked, preview)
+                                .highlight();
+
+                            for texture in textures
+                            {
+                                draw_preview(ui, texture, &mut clicked, preview);
+                            }
+
+                            ui.add_space(ui.available_width());
+                        });
                     }
 
-                    $self.max_bottom_panel_height = ui.min_rect().height() + EXTRA_PADDING;
-                    clicked
-                }).inner
-            }).inner
-    }};
-}
+                    for chunk in chunks
+                    {
+                        row_without_highlight(ui, chunk, &mut clicked, preview);
+                    }
 
-use bottom_area;
+                    *max_height = ui.min_rect().height() + EXTRA_PADDING;
+                    clicked
+                })
+                .inner
+        })
+        .inner
+}
 
 //=======================================================================//
 

@@ -6,16 +6,13 @@
 use bevy_egui::egui;
 use hill_vacuum_shared::return_if_none;
 
-use super::{
-    bottom_area,
-    tool::{ActiveTool, DisableSubtool, EnabledTool, SubTool}
-};
+use super::tool::{ActiveTool, DisableSubtool, EnabledTool, SubTool};
 use crate::{
     map::{
         drawer::color::Color,
         editor::{
             state::{
-                core::tool::subtools_buttons,
+                core::{bottom_panel, tool::subtools_buttons},
                 editor_state::ToolsSettings,
                 format_texture_preview,
                 manager::EntitiesManager,
@@ -23,8 +20,7 @@ use crate::{
             },
             DrawBundle,
             ToolUpdateBundle
-        },
-        thing::catalog::ChunkItem
+        }
     },
     utils::{
         collections::{hv_hash_set, Ids},
@@ -272,34 +268,36 @@ impl ThingTool
             ..
         } = bundle;
 
-        let clicked = return_if_none!(bottom_area!(
-            self,
+        let clicked = bottom_panel(
             egui_context,
-            things_catalog,
             "things",
-            thing,
-            PREVIEW_SIZE.y + 28f32,
+            &mut self.max_bottom_panel_height,
             PREVIEW_SIZE,
-            |ui: &mut egui::Ui, texture: ChunkItem, frame: egui::Vec2| {
-                ui.vertical(|ui| {
-                    ui.set_width(frame.x);
+            things_catalog.selected_thing_index(),
+            |item_per_row| things_catalog.chunked_things(item_per_row, drawing_resources),
+            |ui, texture| {
+                (
+                    ui.vertical(|ui| {
+                        ui.set_width(PREVIEW_SIZE.x);
 
-                    let response = format_texture_preview!(
-                        ImageButton,
-                        ui,
-                        texture.tex_id,
-                        texture.tex_size,
-                        frame.x
-                    );
-                    ui.vertical_centered(|ui| {
-                        ui.label(texture.name);
-                    });
-                    response
-                })
-                .inner
-            },
-            drawing_resources
-        ));
+                        let response = format_texture_preview!(
+                            ImageButton,
+                            ui,
+                            texture.tex_id,
+                            texture.tex_size,
+                            PREVIEW_SIZE.x
+                        );
+                        ui.vertical_centered(|ui| {
+                            ui.label(texture.name);
+                        });
+                        response
+                    })
+                    .inner,
+                    texture.index
+                )
+            }
+        );
+        let clicked = return_if_none!(clicked);
 
         if !inputs.alt_pressed() && !matches!(self.status, Status::ChangeUi)
         {
