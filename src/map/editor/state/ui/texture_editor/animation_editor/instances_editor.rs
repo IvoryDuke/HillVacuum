@@ -348,57 +348,50 @@ impl InstancesEditor
         ui.vertical(|ui| {
             ui.set_height(SETTING_HEIGHT);
             animation_pick(ui, |[none, list, atlas]| {
-                /// Changes the [`Animations`] to the clicked one.
-                macro_rules! anim_change {
-                    ($new:expr, $f:expr) => {{
-                        let new = &$new;
-                        let valid = bundle.manager.test_operation_validity(|manager| {
-                            manager
-                                .selected_brushes_with_sprite_mut(
+                #[inline]
+                fn anim_change<F>(bundle: &mut UiBundle, new: &Animation, f: F)
+                where
+                    F: Fn(&mut Brush) -> Animation
+                {
+                    let valid = bundle.manager.test_operation_validity(|manager| {
+                        manager
+                            .selected_brushes_with_sprite_mut(bundle.drawing_resources, bundle.grid)
+                            .find_map(|mut brush| {
+                                (!brush.check_texture_animation_change(
                                     bundle.drawing_resources,
-                                    bundle.grid
-                                )
-                                .find_map(|mut brush| {
-                                    (!brush.check_texture_animation_change(
-                                        bundle.drawing_resources,
-                                        bundle.grid,
-                                        new
-                                    ))
-                                    .then_some(brush.id())
-                                })
-                        });
+                                    bundle.grid,
+                                    new
+                                ))
+                                .then_some(brush.id())
+                            })
+                    });
 
-                        #[allow(clippy::redundant_closure_call)]
-                        if valid
-                        {
-                            bundle.edits_history.animation_cluster(
-                                bundle
-                                    .manager
-                                    .selected_textured_brushes_mut(
-                                        bundle.drawing_resources,
-                                        bundle.grid
-                                    )
-                                    .map(|mut brush| (brush.id(), $f(&mut brush)))
-                            );
-                        }
-                    }};
+                    if !valid
+                    {
+                        return;
+                    }
+
+                    bundle.edits_history.animation_cluster(
+                        bundle
+                            .manager
+                            .selected_textured_brushes_mut(bundle.drawing_resources, bundle.grid)
+                            .map(|mut brush| (brush.id(), f(&mut brush)))
+                    );
                 }
 
                 if none.clicked()
                 {
-                    anim_change!(Animation::None, |brush: &mut Brush| {
+                    anim_change(bundle, &Animation::None, |brush| {
                         brush.set_texture_animation(Animation::None)
                     });
                 }
                 else if list.clicked()
                 {
-                    anim_change!(Animation::None, |brush: &mut Brush| {
-                        brush.generate_list_animation()
-                    });
+                    anim_change(bundle, &Animation::None, |brush| brush.generate_list_animation());
                 }
                 else if atlas.clicked()
                 {
-                    anim_change!(Animation::atlas_animation(), |brush: &mut Brush| {
+                    anim_change(bundle, &Animation::atlas_animation(), |brush| {
                         brush.set_texture_animation(Animation::atlas_animation())
                     });
                 }
