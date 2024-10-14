@@ -697,35 +697,31 @@ pub(in crate::map) mod ui_mod
     )
     {
         /// Spawns a [`bevy::render::camera::Camera`] with the added `marker`.
-        macro_rules! camera {
-            ($marker:ident) => {
-                #[must_use]
-                #[inline]
-                fn prop_camera(images: &mut Assets<Image>, pos: Vec2) -> (Camera2dBundle, $marker)
-                {
-                    (
-                        Camera2dBundle {
-                            camera: Camera {
-                                is_active: false,
-                                target: RenderTarget::Image(images.add(Prop::image(Extent3d {
-                                    width:                 1,
-                                    height:                1,
-                                    depth_or_array_layers: 1
-                                }))),
-                                ..Default::default()
-                            },
-                            transform: Transform::from_translation(pos.extend(0f32)),
-                            projection: OrthographicProjection {
-                                near: -1000f32,
-                                far: 10000f32,
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        },
-                        $marker
-                    )
-                }
-            };
+        #[must_use]
+        #[inline]
+        fn prop_camera<T: Default>(images: &mut Assets<Image>, pos: Vec2) -> (Camera2dBundle, T)
+        {
+            (
+                Camera2dBundle {
+                    camera: Camera {
+                        is_active: false,
+                        target: RenderTarget::Image(images.add(Prop::image(Extent3d {
+                            width:                 1,
+                            height:                1,
+                            depth_or_array_layers: 1
+                        }))),
+                        ..Default::default()
+                    },
+                    transform: Transform::from_translation(pos.extend(0f32)),
+                    projection: OrthographicProjection {
+                        near: -1000f32,
+                        far: 10000f32,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                T::default()
+            )
         }
 
         let mut context = egui_contexts.iter_mut().next_value();
@@ -746,16 +742,14 @@ pub(in crate::map) mod ui_mod
 
         for i in 0..PROP_CAMERAS_ROWS
         {
-            camera!(PropCamera);
-
             let plus_one = i + 1;
             let start = MAP_SIZE * (plus_one as f32);
             y = -start;
 
             for _ in 0..=(plus_one * 2)
             {
-                commands.spawn(prop_camera(&mut images, Vec2::new(-start, y)));
-                commands.spawn(prop_camera(&mut images, Vec2::new(start, y)));
+                commands.spawn(prop_camera::<PropCamera>(&mut images, Vec2::new(-start, y)));
+                commands.spawn(prop_camera::<PropCamera>(&mut images, Vec2::new(start, y)));
 
                 y += MAP_SIZE;
                 prop_cameras_amount += 2;
@@ -765,8 +759,8 @@ pub(in crate::map) mod ui_mod
 
             for _ in 0..=(i * 2)
             {
-                commands.spawn(prop_camera(&mut images, Vec2::new(x, start)));
-                commands.spawn(prop_camera(&mut images, Vec2::new(x, -start)));
+                commands.spawn(prop_camera::<PropCamera>(&mut images, Vec2::new(x, start)));
+                commands.spawn(prop_camera::<PropCamera>(&mut images, Vec2::new(x, -start)));
 
                 x += MAP_SIZE;
                 prop_cameras_amount += 2;
@@ -775,8 +769,8 @@ pub(in crate::map) mod ui_mod
 
         assert!(prop_cameras_amount == PROP_CAMERAS_AMOUNT, "Incoherent prop cameras.");
 
-        camera!(PaintToolPropCamera);
-        commands.spawn(prop_camera(&mut images, Vec2::new(0f32, y + MAP_SIZE)));
+        commands
+            .spawn(prop_camera::<PaintToolPropCamera>(&mut images, Vec2::new(0f32, y + MAP_SIZE)));
 
         // Extract necessary values.
         let ctx = context.ctx.get_mut();

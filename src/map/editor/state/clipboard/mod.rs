@@ -242,11 +242,23 @@ impl ClipboardData
 #[derive(Component)]
 pub(in crate::map) struct PropCamera;
 
+impl Default for PropCamera
+{
+    #[inline]
+    fn default() -> Self { Self {} }
+}
+
 //=======================================================================//
 
 /// Marker for the camera used to create the image screenshot of the paint tool created prop.
 #[derive(Component)]
 pub(in crate::map) struct PaintToolPropCamera;
+
+impl Default for PaintToolPropCamera
+{
+    #[inline]
+    fn default() -> Self { Self {} }
+}
 
 //=======================================================================//
 
