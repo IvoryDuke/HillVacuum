@@ -15,8 +15,7 @@ use crate::{
                 overall_values::{
                     UiOverallAnimation,
                     UiOverallAtlasAnimation,
-                    UiOverallListAnimation,
-                    UiOverallTiming
+                    UiOverallListAnimation
                 },
                 Animation
             },
@@ -25,7 +24,7 @@ use crate::{
         editor::state::ui::{
             overall_value_field::OverallValueField,
             texture_editor::{
-                animation_editor::{list::list_editor, set_atlas_per_frame_time},
+                animation_editor::{atlas::atlas_editor, list::list_editor},
                 UiBundle,
                 SETTING_HEIGHT
             }
@@ -189,7 +188,7 @@ impl InstancesEditor
         macro_rules! xy_partition {
             ($xy:ident) => {
                 paste::paste! {
-                    |value| {
+                    |manager, edits_history, _, value| {
                         let valid = manager.test_operation_validity(|manager| {
                             manager.selected_brushes_with_sprite_mut(drawing_resources, grid).find_map(|mut brush| {
                                 (!brush.[< check_atlas_animation_ $xy _partition >](
@@ -225,7 +224,7 @@ impl InstancesEditor
         macro_rules! move_up_down {
             ($ud:ident) => {
                 paste::paste! {
-                    |index| {
+                    |manager, edits_history, _, index| {
                         edits_history.[< animation_move_ $ud >](
                             manager.selected_textured_brushes_mut(drawing_resources, grid).map(|mut brush| {
                                 brush.[< move_ $ud _atlas_animation_frame_time >](index);
@@ -239,17 +238,18 @@ impl InstancesEditor
             };
         }
 
-        super::atlas!(
+        atlas_editor(
             ui,
-            atlas,
             manager,
             clipboard,
+            edits_history,
             inputs,
-            *elapsed_time,
+            &mut (),
+            atlas,
             field_width,
             xy_partition!(x),
             xy_partition!(y),
-            |len| {
+            |manager, edits_history, _, len| {
                 let valid = manager.test_operation_validity(|manager| {
                     manager.selected_textured_brushes().find_map(|brush| {
                         (brush.texture_atlas_animation_max_len() < len).then_some(brush.id())
@@ -273,7 +273,7 @@ impl InstancesEditor
 
                 len.into()
             },
-            |[uniform, per_frame], _| {
+            |manager, edits_history, _, [uniform, per_frame]| {
                 if uniform.clicked()
                 {
                     edits_history.atlas_timing_cluster(
@@ -298,16 +298,8 @@ impl InstancesEditor
                             })
                     );
                 }
-
-                match &atlas.timing
-                {
-                    UiOverallTiming::None => unreachable!(),
-                    UiOverallTiming::NonUniform => None,
-                    UiOverallTiming::Uniform(_) => uniform.into(),
-                    UiOverallTiming::PerFrame(_) => per_frame.into()
-                }
             },
-            |_, time| {
+            |manager, edits_history, _, _, time| {
                 edits_history.atlas_uniform_time_cluster(
                     manager
                         .selected_textured_brushes_mut(drawing_resources, grid)
@@ -318,7 +310,7 @@ impl InstancesEditor
                         })
                 );
             },
-            |index, time| {
+            |manager, edits_history, _, index, time| {
                 edits_history.atlas_frame_time_cluster(
                     manager
                         .selected_textured_brushes_mut(drawing_resources, grid)

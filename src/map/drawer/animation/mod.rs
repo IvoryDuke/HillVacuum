@@ -351,14 +351,6 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map) const fn max_len(&self) -> usize { (self.x * self.y) as usize }
 
-        /// Whether the [`Timing`] is uniform.
-        #[inline]
-        #[must_use]
-        pub(in crate::map) const fn is_uniform(&self) -> bool
-        {
-            matches!(self.timing, Timing::Uniform(_))
-        }
-
         /// Resizes the amount of frames to `new_len`.
         #[inline]
         fn resize_frames(&mut self, new_len: usize)

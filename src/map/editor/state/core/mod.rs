@@ -85,8 +85,8 @@ macro_rules! draw_selected_and_non_selected_brushes {
         crate::map::editor::state::core::draw_selected_and_non_selected!(
             brushes,
             $bundle,
-            |brush, _: &bevy::transform::components::Transform, drawer, color, _| {
-                crate::map::brush::Brush::draw_with_color(brush, drawer, color);
+            |brush: &crate::map::brush::Brush, drawer, color, _| {
+                brush.draw_with_color(drawer, color);
             }
             $(, $filters)?
         );
@@ -103,8 +103,7 @@ macro_rules! draw_selected_and_non_selected_things {
         crate::map::editor::state::core::draw_selected_and_non_selected!(
             things,
             $bundle,
-            |thing,
-            _: &bevy::transform::components::Transform, drawer: &mut crate::map::drawer::drawers::EditDrawer, color, _| {
+            |thing, drawer: &mut crate::map::drawer::drawers::EditDrawer, color, _| {
                 drawer.thing($bundle.things_catalog, thing, color);
             }
             $(, $filters)?
@@ -122,7 +121,8 @@ macro_rules! draw_selected_and_non_selected_sprites {
         crate::map::editor::state::core::draw_selected_and_non_selected!(
             sprites,
             $bundle,
-            |brush: &Brush, _: &bevy::transform::components::Transform, drawer: &mut crate::map::drawer::drawers::EditDrawer, color, show_outline: bool| {
+            |brush: &crate::map::brush::Brush, drawer, color, show_outline|
+            {
                 brush.draw_sprite(drawer, color, show_outline);
             }
             $(, $filters)?
@@ -162,7 +162,7 @@ macro_rules! draw_selected_and_non_selected {
             if manager.is_selected(id)
             {
                 #[allow(clippy::redundant_closure_call)]
-                $draw(entity, camera, drawer, Color::SelectedEntity, draw_outline);
+                $draw(entity, drawer, Color::SelectedEntity, draw_outline);
                 selected_entities_iterated += 1;
 
                 if selected_entities_iterated == selected_entities_len
@@ -173,14 +173,14 @@ macro_rules! draw_selected_and_non_selected {
             else
             {
                 #[allow(clippy::redundant_closure_call)]
-                $draw(entity, camera, drawer, Color::NonSelectedEntity, draw_outline);
+                $draw(entity, drawer, Color::NonSelectedEntity, draw_outline);
             }
         }
 
         for entity in entities
         {
             #[allow(clippy::redundant_closure_call)]
-            $draw(entity, camera, drawer, Color::NonSelectedEntity, draw_outline);
+            $draw(entity, drawer, Color::NonSelectedEntity, draw_outline);
         }
     }}};
 }

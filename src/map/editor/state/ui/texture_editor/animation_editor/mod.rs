@@ -1,3 +1,4 @@
+mod atlas;
 mod instances_editor;
 mod list;
 
@@ -6,10 +7,11 @@ mod list;
 //
 //=======================================================================//
 
+use atlas::atlas_editor;
 use bevy_egui::egui;
 use hill_vacuum_shared::{match_or_panic, return_if_none};
 
-use super::{UiBundle, FIELD_NAME_WIDTH, MINUS_PLUS_WIDTH, SETTING_HEIGHT};
+use super::{UiBundle, FIELD_NAME_WIDTH, SETTING_HEIGHT};
 use crate::{
     map::{
         drawer::{
@@ -18,8 +20,7 @@ use crate::{
                     OverallAnimation,
                     UiOverallAnimation,
                     UiOverallAtlasAnimation,
-                    UiOverallListAnimation,
-                    UiOverallTiming
+                    UiOverallListAnimation
                 },
                 Animation,
                 MoveUpDown
@@ -29,27 +30,20 @@ use crate::{
             texture::Texture
         },
         editor::state::{
-            clipboard::Clipboard,
             edits_history::EditsHistory,
             grid::Grid,
-            inputs_presses::InputsPresses,
             manager::EntitiesManager,
-            ui::{
-                overall_value_field::OverallValueField,
-                texture_editor::{
-                    animation_editor::instances_editor::InstancesEditor,
-                    DELETE_BUTTON_WIDTH,
-                    MINUS_PLUS_HEIGHT
-                }
+            ui::texture_editor::{
+                animation_editor::instances_editor::InstancesEditor,
+                DELETE_BUTTON_WIDTH
             }
         }
     },
     utils::{
         identifiers::EntityId,
         misc::{ReplaceValue, TakeValue},
-        overall_value::{OverallValueToUi, UiOverallValue}
-    },
-    INDEXES
+        overall_value::OverallValueToUi
+    }
 };
 
 //=======================================================================//
@@ -63,211 +57,6 @@ const INDEX_WIDTH: f32 = 10f32;
 const LEFT_FIELD: f32 = INDEX_WIDTH + FIELD_NAME_WIDTH + 4f32;
 /// The total width of the minus and plus of a [`MinusPlusOverallValueField`].
 const MINUS_PLUS_TOTAL_WIDTH: f32 = super::MINUS_PLUS_TOTAL_WIDTH + 8f32;
-
-//=======================================================================//
-// MACROS
-//
-//=======================================================================//
-
-/// Shows the UI elements to edit the time of an atlas animation which has per-frame time.
-macro_rules! set_atlas_per_frame_time {
-    (
-        $builder:ident,
-        $clipboard:ident,
-        $inputs:ident,
-        $time:ident,
-        $index:ident,
-        $field_width:ident,
-        $frame_time:expr,
-        $move_up:expr,
-        $move_down:expr
-    ) => {{
-        use crate::map::editor::state::ui::texture_editor::animation_editor::{
-            set_atlas_time,
-            FIELD_NAME_WIDTH,
-            INDEX_WIDTH,
-            MINUS_PLUS_HEIGHT,
-            MINUS_PLUS_TOTAL_WIDTH,
-            MINUS_PLUS_WIDTH
-        };
-
-        $builder
-            .size(egui_extras::Size::exact(INDEX_WIDTH))
-            .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
-            .size(egui_extras::Size::exact($field_width))
-            .size(egui_extras::Size::exact(MINUS_PLUS_TOTAL_WIDTH))
-            .horizontal(|mut strip| {
-                set_atlas_time(&mut strip, $clipboard, $inputs, $time, $index, |index, time| {
-                    #[allow(clippy::redundant_closure_call)]
-                    $frame_time(index, time);
-                });
-
-                strip.cell(|ui| {
-                    use crate::map::editor::state::ui::minus_plus_buttons::{
-                        DownUpButtons,
-                        Response
-                    };
-
-                    ui.add_space(1f32);
-
-                    #[allow(clippy::redundant_closure_call)]
-                    match DownUpButtons::new((MINUS_PLUS_WIDTH, MINUS_PLUS_HEIGHT).into())
-                        .show(ui, true)
-                    {
-                        Response::None => return,
-                        Response::MinusClicked => $move_down($index),
-                        Response::PlusClicked => $move_up($index)
-                    };
-                });
-            });
-    }};
-}
-
-use set_atlas_per_frame_time;
-
-//=======================================================================//
-
-/// Shows the UI elements concerning an atlas animation.
-macro_rules! atlas {
-    (
-        $ui:ident,
-        $atlas:ident,
-        $manager:ident,
-        $clipboard:ident,
-        $inputs:ident,
-        $elapsed_time:expr,
-        $field_width:ident,
-        $x_partition:expr,
-        $y_partition:expr,
-        $len:expr,
-        $timing:expr,
-        $uniform_time:expr,
-        $frame_time:expr,
-        $move_up:expr,
-        $move_down:expr
-    ) => {{
-        use crate::map::editor::state::ui::texture_editor::animation_editor::{
-            set_atlas_len,
-            set_atlas_timing,
-            set_partition,
-            set_single_atlas_time
-        };
-
-        egui_extras::StripBuilder::new($ui)
-            .size(egui_extras::Size::exact(SETTING_HEIGHT))
-            .size(egui_extras::Size::exact(SETTING_HEIGHT))
-            .size(egui_extras::Size::exact(SETTING_HEIGHT))
-            .vertical(|mut strip| {
-                strip.strip(|builder| {
-                    set_partition(
-                        builder,
-                        $clipboard,
-                        $inputs,
-                        &mut $atlas.x,
-                        "X partition",
-                        $field_width,
-                        $x_partition
-                    );
-                });
-
-                strip.strip(|builder| {
-                    set_partition(
-                        builder,
-                        $clipboard,
-                        $inputs,
-                        &mut $atlas.y,
-                        "Y partition",
-                        $field_width,
-                        $y_partition
-                    );
-                });
-
-                strip.strip(|builder| {
-                    set_atlas_len(
-                        builder,
-                        $clipboard,
-                        $inputs,
-                        &mut $atlas.len,
-                        $field_width,
-                        $len
-                    );
-                });
-            });
-
-        $ui.separator();
-
-        $ui.vertical(|ui| {
-            ui.set_height(SETTING_HEIGHT);
-            set_atlas_timing(ui, $timing);
-        });
-
-        match &mut $atlas.timing
-        {
-            UiOverallTiming::None => unreachable!(),
-            UiOverallTiming::NonUniform => (),
-            UiOverallTiming::Uniform(time) =>
-            {
-                egui_extras::StripBuilder::new($ui)
-                    .size(egui_extras::Size::exact(SETTING_HEIGHT))
-                    .vertical(|mut strip| {
-                        strip.strip(|builder| {
-                            set_single_atlas_time(
-                                builder,
-                                $clipboard,
-                                $inputs,
-                                time,
-                                0,
-                                $field_width,
-                                $uniform_time
-                            );
-                        });
-                    });
-            },
-            UiOverallTiming::PerFrame(vec) =>
-            {
-                egui_extras::StripBuilder::new($ui)
-                    .sizes(egui_extras::Size::exact(SETTING_HEIGHT), vec.len())
-                    .vertical(|mut strip| {
-                        if vec.len() == 1
-                        {
-                            strip.strip(|builder| {
-                                set_single_atlas_time(
-                                    builder,
-                                    $clipboard,
-                                    $inputs,
-                                    &mut vec[0],
-                                    0,
-                                    $field_width,
-                                    $frame_time
-                                );
-                            });
-
-                            return;
-                        }
-
-                        for (i, time) in vec.iter_mut().enumerate()
-                        {
-                            strip.strip(|builder| {
-                                set_atlas_per_frame_time!(
-                                    builder,
-                                    $clipboard,
-                                    $inputs,
-                                    time,
-                                    i,
-                                    $field_width,
-                                    $frame_time,
-                                    $move_up,
-                                    $move_down
-                                );
-                            });
-                        }
-                    });
-            }
-        };
-    }};
-}
-
-use atlas;
 
 //=======================================================================//
 // ENUMS
@@ -583,7 +372,7 @@ impl AnimationEditor
         macro_rules! xy_partition {
             ($xy:ident) => {
                 paste::paste! {
-                    |value| {
+                    |manager, edits_history, texture, value| {
                         if !Self::check_sprites_within_bounds(
                             drawing_resources,
                             grid,
@@ -612,7 +401,7 @@ impl AnimationEditor
         macro_rules! move_up_down {
             ($ud:ident) => {
                 paste::paste! {
-                    |index| {
+                    |_, edits_history, texture, index| {
                         edits_history.[< default_animation_move_ $ud >](texture, index, true);
                         texture.animation_mut_set_dirty().get_atlas_animation_mut().[< move_ $ud >](index);
                     }
@@ -620,17 +409,18 @@ impl AnimationEditor
             };
         }
 
-        atlas!(
+        atlas_editor(
             ui,
-            atlas,
             manager,
             clipboard,
+            edits_history,
             inputs,
-            *elapsed_time,
+            texture,
+            atlas,
             field_width,
             xy_partition!(x),
             xy_partition!(y),
-            |len| {
+            |_, edits_history, texture, len| {
                 let atlas = texture.animation_mut_set_dirty().get_atlas_animation_mut();
                 let len = len.min(atlas.max_len());
 
@@ -642,7 +432,7 @@ impl AnimationEditor
                         edits_history.default_animation_atlas_len(texture, *prev);
                     })
             },
-            |[uniform, per_frame], changed| {
+            |_, edits_history, texture, [uniform, per_frame]| {
                 if uniform.clicked()
                 {
                     if let Some(timing) = texture
@@ -652,8 +442,6 @@ impl AnimationEditor
                     {
                         edits_history.default_animation_atlas_timing(texture, timing);
                     }
-
-                    *changed = true;
                 }
                 else if per_frame.clicked()
                 {
@@ -664,21 +452,9 @@ impl AnimationEditor
                     {
                         edits_history.default_animation_atlas_timing(texture, timing);
                     }
-
-                    *changed = true;
                 }
-
-                if texture.animation().get_atlas_animation().is_uniform()
-                {
-                    uniform
-                }
-                else
-                {
-                    per_frame
-                }
-                .into()
             },
-            |_, time| {
+            |_, edits_history, texture, _, time| {
                 let prev = return_if_none!(texture
                     .animation_mut_set_dirty()
                     .get_atlas_animation_mut()
@@ -686,7 +462,7 @@ impl AnimationEditor
 
                 edits_history.default_animation_atlas_uniform_time(texture, prev);
             },
-            |index, time| {
+            |_, edits_history, texture, index, time| {
                 let prev = return_if_none!(texture
                     .animation_mut_set_dirty()
                     .get_atlas_animation_mut()
@@ -912,170 +688,5 @@ where
                         .highlight();
                 });
             });
-        });
-}
-
-//=======================================================================//
-
-/// UI element to set the partitioning of an atlas animation.
-#[inline]
-fn set_partition<F>(
-    builder: egui_extras::StripBuilder,
-    clipboard: &mut Clipboard,
-    inputs: &InputsPresses,
-    value: &mut UiOverallValue<u32>,
-    label: &str,
-    field_width: f32,
-    f: F
-) where
-    F: FnOnce(u32) -> bool
-{
-    builder
-        .size(egui_extras::Size::exact(LEFT_FIELD))
-        .size(egui_extras::Size::exact(field_width))
-        .horizontal(|mut strip| {
-            strip.cell(|ui| {
-                ui.label(label);
-            });
-
-            strip.cell(|ui| {
-                OverallValueField::show_always_enabled(ui, clipboard, inputs, value, |value| {
-                    if value != 0 && f(value)
-                    {
-                        return value.into();
-                    }
-
-                    None
-                });
-            });
-        });
-}
-
-//=======================================================================//
-
-/// UI element to set the timing of an atlas animation.
-#[inline]
-fn set_atlas_timing<F>(ui: &mut egui::Ui, f: F) -> bool
-where
-    F: FnOnce([egui::Response; 2], &mut bool) -> Option<egui::Response>
-{
-    let mut value_changed = false;
-
-    egui_extras::StripBuilder::new(ui)
-        .size(egui_extras::Size::exact(LEFT_FIELD))
-        .size(egui_extras::Size::remainder())
-        .horizontal(|mut strip| {
-            strip.cell(|ui| {
-                ui.label("Timing");
-            });
-
-            strip.cell(|ui| {
-                ui.horizontal(|ui| {
-                    return_if_none!(f(
-                        [
-                            ui.add(egui::Button::new("Uniform")),
-                            ui.add(egui::Button::new("Per Frame"))
-                        ],
-                        &mut value_changed
-                    ))
-                    .highlight();
-                });
-            });
-        });
-
-    value_changed
-}
-
-//=======================================================================//
-
-/// UI element to set the time of a frame of an atlas animation.
-#[inline]
-fn set_atlas_time<F>(
-    strip: &mut egui_extras::Strip,
-    clipboard: &mut Clipboard,
-    inputs: &InputsPresses,
-    value: &mut UiOverallValue<f32>,
-    index: usize,
-    f: F
-) where
-    F: FnOnce(usize, f32)
-{
-    strip.cell(|ui| {
-        ui.label(INDEXES[index]);
-    });
-
-    strip.cell(|ui| {
-        ui.label("Time");
-    });
-
-    strip.cell(|ui| {
-        OverallValueField::show_always_enabled(ui, clipboard, inputs, value, |value| {
-            if value > 0f32
-            {
-                f(index, value);
-                return value.into();
-            }
-
-            None
-        });
-    });
-}
-
-//=======================================================================//
-
-/// UI element to set the amount of frames of an atlas animation.
-#[inline]
-fn set_atlas_len<F>(
-    builder: egui_extras::StripBuilder,
-    clipboard: &mut Clipboard,
-    inputs: &InputsPresses,
-    value: &mut UiOverallValue<usize>,
-    field_width: f32,
-    f: F
-) where
-    F: FnOnce(usize) -> Option<usize>
-{
-    builder
-        .size(egui_extras::Size::exact(LEFT_FIELD))
-        .size(egui_extras::Size::exact(field_width))
-        .horizontal(|mut strip| {
-            strip.cell(|ui| {
-                ui.label("Length");
-            });
-
-            strip.cell(|ui| {
-                OverallValueField::show_always_enabled(ui, clipboard, inputs, value, |value| {
-                    if value != 0
-                    {
-                        return f(value);
-                    }
-
-                    None
-                });
-            });
-        });
-}
-
-//=======================================================================//
-
-/// UI element to set the time of an atlas animation frame.
-#[inline]
-fn set_single_atlas_time<F>(
-    builder: egui_extras::StripBuilder,
-    clipboard: &mut Clipboard,
-    inputs: &InputsPresses,
-    value: &mut UiOverallValue<f32>,
-    index: usize,
-    field_width: f32,
-    f: F
-) where
-    F: FnOnce(usize, f32)
-{
-    builder
-        .size(egui_extras::Size::exact(INDEX_WIDTH))
-        .size(egui_extras::Size::exact(FIELD_NAME_WIDTH))
-        .size(egui_extras::Size::exact(field_width))
-        .horizontal(|mut strip| {
-            set_atlas_time(&mut strip, clipboard, inputs, value, index, f);
         });
 }

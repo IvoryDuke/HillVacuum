@@ -19,7 +19,6 @@ use super::{
 };
 use crate::{
     map::{
-        brush::Brush,
         drawer::{color::Color, drawing_resources::DrawingResources},
         editor::{
             cursor::Cursor,
