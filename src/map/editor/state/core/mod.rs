@@ -189,127 +189,6 @@ use draw_selected_and_non_selected;
 
 //=======================================================================//
 
-#[inline]
-#[must_use]
-fn bottom_panel<T, I, F, C, H>(
-    egui_context: &egui::Context,
-    label: &'static str,
-    max_height: &mut f32,
-    frame: egui::Vec2,
-    selected_item_index: Option<usize>,
-    chunker: C,
-    preview: F
-) -> Option<usize>
-where
-    H: ExactSizeIterator<Item = I>,
-    I: Iterator<Item = T>,
-    C: Fn(usize) -> H,
-    F: Fn(&mut egui::Ui, T) -> (egui::Response, usize) + Copy
-{
-    const EXTRA_PADDING: f32 = 32f32;
-
-    egui::TopBottomPanel::bottom(label)
-        .resizable(true)
-        .min_height(frame.y + EXTRA_PADDING)
-        .max_height(*max_height)
-        .show(egui_context, |ui| {
-            egui::ScrollArea::vertical()
-                .show(ui, |ui| {
-                    #[inline]
-                    fn draw_preview<T, F>(
-                        ui: &mut egui::Ui,
-                        texture: T,
-                        clicked: &mut Option<usize>,
-                        preview: F
-                    ) -> egui::Response
-                    where
-                        F: Fn(&mut egui::Ui, T) -> (egui::Response, usize) + Copy
-                    {
-                        let (response, index) = preview(ui, texture);
-
-                        if response.clicked()
-                        {
-                            *clicked = index.into();
-                        }
-
-                        response
-                    }
-
-                    #[inline]
-                    fn row_without_highlight<T, I, F>(
-                        ui: &mut egui::Ui,
-                        chunk: I,
-                        clicked: &mut Option<usize>,
-                        preview: F
-                    ) where
-                        I: Iterator<Item = T>,
-                        F: Fn(&mut egui::Ui, T) -> (egui::Response, usize) + Copy
-                    {
-                        ui.horizontal(|ui| {
-                            for texture in chunk
-                            {
-                                draw_preview(ui, texture, clicked, preview);
-                            }
-
-                            ui.add_space(ui.available_width());
-                        });
-                    }
-
-                    let items_per_row = texture_per_row(ui, frame.x);
-
-                    let mut clicked = None;
-                    let mut chunks = chunker(items_per_row);
-
-                    if let Some(selected_item_index) = selected_item_index
-                    {
-                        let row_with_highlight = selected_item_index / items_per_row;
-
-                        for _ in 0..row_with_highlight
-                        {
-                            row_without_highlight(
-                                ui,
-                                chunks.next().unwrap(),
-                                &mut clicked,
-                                preview
-                            );
-                        }
-
-                        ui.horizontal(|ui| {
-                            let highlight_index_in_row = selected_item_index % items_per_row;
-                            let mut textures = chunks.next().unwrap();
-
-                            for _ in 0..highlight_index_in_row
-                            {
-                                draw_preview(ui, textures.next().unwrap(), &mut clicked, preview);
-                            }
-
-                            draw_preview(ui, textures.next().unwrap(), &mut clicked, preview)
-                                .highlight();
-
-                            for texture in textures
-                            {
-                                draw_preview(ui, texture, &mut clicked, preview);
-                            }
-
-                            ui.add_space(ui.available_width());
-                        });
-                    }
-
-                    for chunk in chunks
-                    {
-                        row_without_highlight(ui, chunk, &mut clicked, preview);
-                    }
-
-                    *max_height = ui.min_rect().height() + EXTRA_PADDING;
-                    clicked
-                })
-                .inner
-        })
-        .inner
-}
-
-//=======================================================================//
-
 /// Generates the definition of a [`SelectedVertexes`] struct.
 macro_rules! selected_vertexes {
     ($count:ident) => {
@@ -1204,4 +1083,125 @@ fn fill_backup_polygons(manager: &EntitiesManager, backup_polygons: &mut HvVec<(
         backup_polygons
             .extend(manager.selected_brushes().map(|brush| (brush.id(), brush.polygon())));
     }
+}
+
+//=======================================================================//
+
+#[inline]
+#[must_use]
+fn bottom_panel<T, I, F, C, H>(
+    egui_context: &egui::Context,
+    label: &'static str,
+    max_height: &mut f32,
+    frame: egui::Vec2,
+    selected_item_index: Option<usize>,
+    chunker: C,
+    preview: F
+) -> Option<usize>
+where
+    H: ExactSizeIterator<Item = I>,
+    I: Iterator<Item = T>,
+    C: Fn(usize) -> H,
+    F: Fn(&mut egui::Ui, T) -> (egui::Response, usize) + Copy
+{
+    const EXTRA_PADDING: f32 = 32f32;
+
+    egui::TopBottomPanel::bottom(label)
+        .resizable(true)
+        .min_height(frame.y + EXTRA_PADDING)
+        .max_height(*max_height)
+        .show(egui_context, |ui| {
+            egui::ScrollArea::vertical()
+                .show(ui, |ui| {
+                    #[inline]
+                    fn draw_preview<T, F>(
+                        ui: &mut egui::Ui,
+                        texture: T,
+                        clicked: &mut Option<usize>,
+                        preview: F
+                    ) -> egui::Response
+                    where
+                        F: Fn(&mut egui::Ui, T) -> (egui::Response, usize) + Copy
+                    {
+                        let (response, index) = preview(ui, texture);
+
+                        if response.clicked()
+                        {
+                            *clicked = index.into();
+                        }
+
+                        response
+                    }
+
+                    #[inline]
+                    fn row_without_highlight<T, I, F>(
+                        ui: &mut egui::Ui,
+                        chunk: I,
+                        clicked: &mut Option<usize>,
+                        preview: F
+                    ) where
+                        I: Iterator<Item = T>,
+                        F: Fn(&mut egui::Ui, T) -> (egui::Response, usize) + Copy
+                    {
+                        ui.horizontal(|ui| {
+                            for texture in chunk
+                            {
+                                draw_preview(ui, texture, clicked, preview);
+                            }
+
+                            ui.add_space(ui.available_width());
+                        });
+                    }
+
+                    let items_per_row = texture_per_row(ui, frame.x);
+
+                    let mut clicked = None;
+                    let mut chunks = chunker(items_per_row);
+
+                    if let Some(selected_item_index) = selected_item_index
+                    {
+                        let row_with_highlight = selected_item_index / items_per_row;
+
+                        for _ in 0..row_with_highlight
+                        {
+                            row_without_highlight(
+                                ui,
+                                chunks.next().unwrap(),
+                                &mut clicked,
+                                preview
+                            );
+                        }
+
+                        ui.horizontal(|ui| {
+                            let highlight_index_in_row = selected_item_index % items_per_row;
+                            let mut textures = chunks.next().unwrap();
+
+                            for _ in 0..highlight_index_in_row
+                            {
+                                draw_preview(ui, textures.next().unwrap(), &mut clicked, preview);
+                            }
+
+                            draw_preview(ui, textures.next().unwrap(), &mut clicked, preview)
+                                .highlight();
+
+                            for texture in textures
+                            {
+                                draw_preview(ui, texture, &mut clicked, preview);
+                            }
+
+                            ui.add_space(ui.available_width());
+                        });
+                    }
+
+                    for chunk in chunks
+                    {
+                        row_without_highlight(ui, chunk, &mut clicked, preview);
+                    }
+
+                    *max_height = ui.min_rect().height() + EXTRA_PADDING;
+                    clicked
+                })
+                .inner
+        })
+        .inner
 }

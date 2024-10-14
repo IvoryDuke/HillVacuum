@@ -4,7 +4,7 @@
 //=======================================================================//
 
 use bevy_egui::egui;
-use hill_vacuum_shared::{match_or_panic, NextValue};
+use hill_vacuum_shared::NextValue;
 
 use super::animation_pick;
 use crate::{
@@ -25,11 +25,7 @@ use crate::{
         editor::state::ui::{
             overall_value_field::OverallValueField,
             texture_editor::{
-                animation_editor::{
-                    edit_list_single_texture,
-                    edit_list_texture,
-                    set_atlas_per_frame_time
-                },
+                animation_editor::{list::list_editor, set_atlas_per_frame_time},
                 UiBundle,
                 SETTING_HEIGHT
             }
@@ -67,14 +63,16 @@ impl InstancesEditor
             ..
         } = bundle;
 
-        super::list!(
+        list_editor(
             ui,
-            animation,
             drawing_resources,
             clipboard,
+            edits_history,
             inputs,
+            manager,
+            animation,
             field_width,
-            |index, texture| {
+            |edits_history, manager, index, texture| {
                 let name = manager
                     .selected_textured_brushes()
                     .next_value()
@@ -93,7 +91,7 @@ impl InstancesEditor
                     name
                 );
             },
-            |index, time| {
+            |edits_history, manager, index, time| {
                 let prev = manager
                     .selected_textured_brushes()
                     .next_value()
@@ -111,7 +109,7 @@ impl InstancesEditor
                     prev
                 );
             },
-            |index| {
+            |edits_history, manager, index| {
                 edits_history.animation_move_up(
                     manager.selected_textured_brushes_mut(drawing_resources, grid).map(
                         |mut brush| {
@@ -123,7 +121,7 @@ impl InstancesEditor
                     false
                 );
             },
-            |index| {
+            |edits_history, manager, index| {
                 edits_history.animation_move_down(
                     manager.selected_textured_brushes_mut(drawing_resources, grid).map(
                         |mut brush| {
@@ -135,7 +133,7 @@ impl InstancesEditor
                     false
                 );
             },
-            |index| {
+            |edits_history, manager, index| {
                 let (texture, time) = manager
                     .selected_textured_brushes()
                     .next_value()
@@ -154,7 +152,7 @@ impl InstancesEditor
                     time
                 );
             },
-            |texture| {
+            |edits_history, manager, texture| {
                 edits_history.list_animation_new_frame(
                     manager.selected_textured_brushes_mut(drawing_resources, grid).map(
                         |mut brush| {
@@ -387,7 +385,7 @@ impl InstancesEditor
                 }
                 else if list.clicked()
                 {
-                    anim_change(bundle, &Animation::None, |brush| brush.generate_list_animation());
+                    anim_change(bundle, &Animation::None, Brush::generate_list_animation);
                 }
                 else if atlas.clicked()
                 {
