@@ -1650,7 +1650,7 @@ impl State
                     |version, reader, path, len| {
                         match version
                         {
-                            PREVIOUS_FILE_VERSION => convert_08_prps_file(path, len),
+                            PREVIOUS_FILE_VERSION => convert_08_prps_file(path, reader, len),
                             FILE_VERSION => Ok(reader),
                             _ => unreachable!()
                         }

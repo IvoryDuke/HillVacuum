@@ -69,6 +69,15 @@ enum Group
 }
 
 //=======================================================================//
+
+#[derive(Deserialize)]
+enum TextureId
+{
+    Managed(u64),
+    User(u64)
+}
+
+//=======================================================================//
 // STRUCTS
 //
 //=======================================================================//
@@ -81,7 +90,8 @@ pub(in crate::map::editor::state) struct Prop
     pub data_center:        Vec2,
     pub pivot:              Vec2,
     pub attachments_owners: usize,
-    pub attached_range:     Range<usize>
+    pub attached_range:     Range<usize>,
+    screenshot:             Option<TextureId>
 }
 
 //=======================================================================//
@@ -449,6 +459,7 @@ pub(in crate::map::editor::state) fn save_imported_08_props(
 #[inline]
 pub(in crate::map::editor::state) fn convert_08_prps_file(
     mut path: PathBuf,
+    mut reader: BufReader<File>,
     len: usize
 ) -> Result<BufReader<File>, &'static str>
 {
@@ -460,7 +471,6 @@ pub(in crate::map::editor::state) fn convert_08_prps_file(
          converted to {file_name}."
     ));
 
-    let mut reader = BufReader::new(File::open(&path).unwrap());
     let props = convert_08_props(&mut reader, len)?;
     drop(reader);
 
@@ -487,7 +497,7 @@ pub(in crate::map::editor::state) fn convert_08_prps_file(
     path.pop();
     path.push(file_name);
 
-    let mut reader = BufReader::new(File::open(&path).unwrap());
+    let mut reader = BufReader::new(File::create(&path).unwrap());
     let _ = version_number(&mut reader);
     let _ = ciborium::from_reader::<usize, _>(&mut reader)
         .map_err(|_| "Error reading converted props length.")?;
