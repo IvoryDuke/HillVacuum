@@ -99,8 +99,14 @@ pub fn scale_viewport(camera: &mut Transform, window_sizes: (f32, f32), hull: &H
 {
     let double_padding = padding * 2f32;
     let (width, height) = (hull.width(), hull.height());
-    let (size, win_size) =
-        if width < height { (height, window_sizes.1) } else { (width, window_sizes.0) };
+    let (size, win_size) = if width / window_sizes.0 < height / window_sizes.1
+    {
+        (height, window_sizes.1)
+    }
+    else
+    {
+        (width, window_sizes.0)
+    };
 
     camera.scale = Vec3::splat((size + double_padding / camera.scale()) / win_size);
 }

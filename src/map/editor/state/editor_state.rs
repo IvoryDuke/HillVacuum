@@ -1438,6 +1438,7 @@ impl State
         if HardcodedActions::Quit.pressed(bundle.key_inputs)
         {
             Self::quit(bundle);
+            return false;
         }
 
         // Reactive update to previous frame's changes.
