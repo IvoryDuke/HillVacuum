@@ -3,8 +3,6 @@
 //
 //=======================================================================//
 
-use std::cmp::Ordering;
-
 use bevy::{transform::components::Transform, window::Window};
 use glam::{Vec2, Vec3};
 
@@ -101,29 +99,10 @@ pub fn scale_viewport(camera: &mut Transform, window_sizes: (f32, f32), hull: &H
 {
     let double_padding = padding * 2f32;
     let (width, height) = (hull.width(), hull.height());
-    let size_extension = |size: f32, win_size: f32, win_mul: f32| {
-        double_padding + f32::max(0f32, size + double_padding - win_size * camera.scale()) * win_mul
-    };
+    let (size, win_size) =
+        if width < height { (height, window_sizes.1) } else { (width, window_sizes.0) };
 
-    match (width / height).total_cmp(&(window_sizes.0 / window_sizes.1))
-    {
-        Ordering::Less =>
-        {
-            let height =
-                height + size_extension(width, window_sizes.0, window_sizes.1 / window_sizes.0);
-            camera.scale = Vec3::splat(height / window_sizes.1);
-        },
-        Ordering::Equal =>
-        {
-            camera.scale = Vec3::splat((height + double_padding) / window_sizes.1);
-        },
-        Ordering::Greater =>
-        {
-            let width =
-                width + size_extension(height, window_sizes.1, window_sizes.0 / window_sizes.1);
-            camera.scale = Vec3::splat(width / window_sizes.0);
-        }
-    };
+    camera.scale = Vec3::splat((size + double_padding / camera.scale()) / win_size);
 }
 
 //=======================================================================//

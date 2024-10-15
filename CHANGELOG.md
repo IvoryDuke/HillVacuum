@@ -12,7 +12,8 @@
 - Added missing collision overlay in clipped brushes;
 - fixed layout of default `.ini` settings;
 - fixed empty edit sometimes created by the selection of attached brushes;
-- fixed a paint tool crash occurring when no prop is selected.
+- fixed a paint tool crash occurring when no prop is selected;
+- fixed crash that could occour when creating a shape with the draw tool.
 
 ## 0.8.2
 
