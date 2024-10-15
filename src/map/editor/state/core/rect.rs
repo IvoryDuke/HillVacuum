@@ -231,6 +231,13 @@ impl RectTrait for Rect
     #[inline]
     fn update_extremes(&mut self, p: Vec2)
     {
+        #[inline]
+        #[must_use]
+        fn valid_area(o: Vec2, p: Vec2) -> bool
+        {
+            !o.x.around_equal_narrow(&p.x) && !o.y.around_equal_narrow(&p.y)
+        }
+
         match &mut self.0
         {
             RectCore::None =>
@@ -239,14 +246,14 @@ impl RectTrait for Rect
             },
             RectCore::Initiated(o) =>
             {
-                if !o.around_equal_narrow(&p)
+                if valid_area(*o, p)
                 {
                     *self = Self(RectCore::Formed(*o, p));
                 }
             },
             RectCore::Formed(o, e) =>
             {
-                if !o.around_equal_narrow(&p)
+                if valid_area(*o, p)
                 {
                     *e = p;
                 }
