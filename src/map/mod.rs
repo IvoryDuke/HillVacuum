@@ -697,9 +697,12 @@ pub(in crate::map) mod ui_mod
     )
     {
         /// Spawns a [`bevy::render::camera::Camera`] with the added `marker`.
-        #[must_use]
         #[inline]
-        fn prop_camera<T: Default>(images: &mut Assets<Image>, pos: Vec2) -> (Camera2dBundle, T)
+        #[must_use]
+        fn prop_camera<T: Default + Component>(
+            images: &mut Assets<Image>,
+            pos: Vec2
+        ) -> (Camera2dBundle, T)
         {
             (
                 Camera2dBundle {

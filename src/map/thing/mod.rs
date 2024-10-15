@@ -6,11 +6,10 @@ pub(in crate::map) mod catalog;
 //
 //=======================================================================//
 
-use catalog::ThingsCatalog;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{utils::hull::Hull, HvHashMap, HvVec, Id, Node, Value};
+use crate::{HvHashMap, HvVec, Id, Node, Value};
 
 //=======================================================================//
 // TRAITS
@@ -35,31 +34,6 @@ pub trait MapThing
 {
     /// Returns the [`Thing`] associated with `self`.
     fn thing() -> Thing;
-}
-
-//=======================================================================//
-
-/// A trait with methods returning basic information about a type representing a thing.
-#[allow(dead_code)]
-pub(in crate::map) trait ThingInterface
-{
-    /// Returns the [`ThingId`].
-    #[must_use]
-    fn thing_id(&self) -> ThingId;
-
-    /// Returns the position it is placed on the map.
-    #[must_use]
-    fn pos(&self) -> Vec2;
-
-    /// The draw height of `self` as a float.
-    #[must_use]
-    fn draw_height_f32(&self) -> f32;
-
-    /// The angle of `self`.
-    #[must_use]
-    fn angle_f32(&self) -> f32;
-
-    fn thing_hull(&self, things_catalog: &ThingsCatalog) -> Hull;
 }
 
 //=======================================================================//
@@ -187,7 +161,7 @@ pub mod ui_mod
     use hill_vacuum_shared::{match_or_panic, return_if_none};
     use serde::{Deserialize, Serialize};
 
-    use super::{catalog::ThingsCatalog, MapThing, Thing, ThingInterface, ThingViewer};
+    use super::{catalog::ThingsCatalog, MapThing, Thing, ThingViewer};
     use crate::{
         map::{
             drawer::{
@@ -222,6 +196,34 @@ pub mod ui_mod
         ThingId,
         Value
     };
+
+    //=======================================================================//
+    // TRAITS
+    //
+    //=======================================================================//
+
+    /// A trait with methods returning basic information about a type representing a thing.
+    #[allow(dead_code)]
+    pub(in crate::map) trait ThingInterface
+    {
+        /// Returns the [`ThingId`].
+        #[must_use]
+        fn thing_id(&self) -> ThingId;
+
+        /// Returns the position it is placed on the map.
+        #[must_use]
+        fn pos(&self) -> Vec2;
+
+        /// The draw height of `self` as a float.
+        #[must_use]
+        fn draw_height_f32(&self) -> f32;
+
+        /// The angle of `self`.
+        #[must_use]
+        fn angle_f32(&self) -> f32;
+
+        fn thing_hull(&self, things_catalog: &ThingsCatalog) -> Hull;
+    }
 
     //=======================================================================//
     // STRUCTS
