@@ -3212,7 +3212,7 @@ impl ConvexPolygon
         camera_scale: f32
     ) -> Option<([Vec2; 2], u8, bool)>
     {
-        let idx = self.nearby_side_index(cursor_pos, camera_scale).map(|idx| {
+        let mut idx = self.nearby_side_index(cursor_pos, camera_scale).map(|idx| {
             (
                 [
                     self.vertexes[idx].vec,
@@ -3223,9 +3223,10 @@ impl ConvexPolygon
             )
         });
 
-        if let Some((_, idx, _)) = idx
+        if let Some((_, idx, selected)) = &mut idx
         {
-            self.toggle_vertex_at_index(idx as usize);
+            self.toggle_vertex_at_index(*idx as usize);
+            selected.toggle();
         }
 
         idx
