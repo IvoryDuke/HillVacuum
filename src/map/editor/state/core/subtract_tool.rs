@@ -203,14 +203,26 @@ impl SubtractTool
                                 "Tried to deselect the subtractor as a subtractee."
                             );
 
-                            if subtractees.insert(id)
+                            if inputs.shift_pressed()
                             {
-                                edits_history.subtractee_selection(id);
+                                if subtractees.contains(&id)
+                                {
+                                    subtractees.asserted_remove(&id);
+                                    edits_history.subtractee_deselection(id);
+                                }
+                                else
+                                {
+                                    subtractees.asserted_insert(id);
+                                    edits_history.subtractee_selection(id);
+                                }
                             }
-                            else
+                            else if !subtractees.contains(&id)
                             {
-                                subtractees.asserted_remove(&id);
-                                edits_history.subtractee_deselection(id);
+                                edits_history
+                                    .subtractee_deselection_cluster(subtractees.iter());
+                                edits_history.subtractee_selection(id);
+
+                                subtractees.replace_values(Some(id));
                             }
 
                             LeftMouse::NotPressed
@@ -230,26 +242,37 @@ impl SubtractTool
                     None
                 },
                 |bundle, hull, subtractees| {
-                    let sel_id = *bundle.manager.selected_brushes_ids().next_value();
-                    let ids_in_range = bundle.manager.brushes_in_range(hull);
-                    let mut ids_in_range =
-                        ids_in_range.into_iter().copied().filter_set(sel_id).peekable();
+                    let ids_in_range = hv_hash_set![
+                        collect;
+                        bundle
+                            .manager
+                            .brushes_in_range(hull)
+                            .iter()
+                            .filter_set(bundle.manager.selected_brushes_ids().next_value())
+                            .copied()
+                    ];
 
-                    if ids_in_range.peek().is_none()
+                    if ids_in_range.is_empty()
                     {
-                        return Some(false);
+                        return false.into();
                     }
-
-                    let ids_in_range = hv_hash_set![collect; ids_in_range];
 
                     bundle.edits_history.subtractee_selection_cluster(
                         ids_in_range.iter().filter(|id| !subtractees.contains(*id))
                     );
-                    bundle.edits_history.subtractee_deselection_cluster(
-                        subtractees.iter().filter(|id| !ids_in_range.contains(*id))
-                    );
 
-                    subtractees.replace_values(ids_in_range);
+                    if bundle.inputs.shift_pressed()
+                    {
+                        subtractees.extend(ids_in_range);
+                    }
+                    else
+                    {
+                        bundle.edits_history.subtractee_deselection_cluster(
+                            subtractees.iter().filter(|id| !ids_in_range.contains(*id))
+                        );
+
+                        subtractees.replace_values(ids_in_range);
+                    }
 
                     None
                 }
