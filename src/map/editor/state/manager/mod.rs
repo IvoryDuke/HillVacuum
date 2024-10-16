@@ -85,6 +85,7 @@ use crate::{
         math::AroundEqual,
         misc::{Blinker, ReplaceValues, TakeValue}
     },
+    warning_message,
     HvHashSet,
     HvVec
 };
@@ -634,7 +635,7 @@ struct Innards
     /// Whether the overall properties of the [`ThingInstance`]s should be updated.
     overall_things_properties_update: PropertyUpdate,
     /// Whether the properties where refactored after loading a map file.
-    refactored_properties: bool
+    loaded_file_modified: bool
 }
 
 impl Innards
@@ -666,7 +667,7 @@ impl Innards
             overall_brushes_properties_update: PropertyUpdate::default(),
             overall_things_info_update: false,
             overall_things_properties_update: PropertyUpdate::default(),
-            refactored_properties: false
+            loaded_file_modified: false
         }
     }
 
@@ -686,6 +687,17 @@ impl Innards
     ) -> Result<(), &'static str>
     {
         use crate::map::{brush::BrushViewer, thing::ThingViewer};
+
+        macro_rules! removed_message {
+            ($entities:literal) => {
+                warning_message(concat!(
+                    "Some ",
+                    $entities,
+                    " did not fit within the boundaries of the map and have therefore been \
+                     removed. Be careful before saving the file."
+                ));
+            };
+        }
 
         /// Stores in `map_default_properties` the desired properties and returns a
         /// [`PropertiesRefactor`] if the default and file properties do not match.
@@ -744,6 +756,7 @@ impl Innards
             file_brushes_default_properties,
             "brushes"
         );
+        let mut brushes_removed = false;
 
         for _ in 0..header.brushes
         {
@@ -752,21 +765,9 @@ impl Innards
                     .map_err(|_| "Error reading brushes")?
             );
 
-            if brush.has_sprite()
+            if brush.hull(drawing_resources, grid).out_of_bounds()
             {
-                let texture = drawing_resources
-                    .texture_or_error(brush.texture_settings().unwrap().name())
-                    .name();
-
-                if !brush.check_texture_change(drawing_resources, grid, texture)
-                {
-                    continue;
-                }
-
-                _ = brush.set_texture(drawing_resources, texture);
-            }
-            else if brush.hull(drawing_resources, grid).out_of_bounds()
-            {
+                brushes_removed = true;
                 continue;
             }
 
@@ -786,6 +787,11 @@ impl Innards
             brushes.push(brush);
         }
 
+        if brushes_removed
+        {
+            removed_message!("brushes");
+        }
+
         if let Some(refactor) = &b_refactor
         {
             for brush in &mut brushes
@@ -802,6 +808,7 @@ impl Innards
             file_things_default_properties,
             "things"
         );
+        let mut things_removed = false;
 
         for _ in 0..header.things
         {
@@ -812,11 +819,17 @@ impl Innards
 
             if thing.hull(things_catalog).out_of_bounds()
             {
+                things_removed = true;
                 continue;
             }
 
             max_id = max_id.max(thing.id());
             things.push(thing);
+        }
+
+        if things_removed
+        {
+            removed_message!("things");
         }
 
         if let Some(refactor) = &t_refactor
@@ -844,7 +857,8 @@ impl Innards
 
         self.id_generator.reset(max_id);
         _ = self.id_generator.new_id();
-        self.refactored_properties = b_refactor.is_some() || t_refactor.is_some();
+        self.loaded_file_modified =
+            b_refactor.is_some() || t_refactor.is_some() || brushes_removed || things_removed;
 
         Ok(())
     }
@@ -1972,16 +1986,16 @@ impl EntitiesManager
     /// Whether the entities properties have been refactored on file load.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) const fn refactored_properties(&self) -> bool
+    pub(in crate::map::editor::state) const fn loaded_file_modified(&self) -> bool
     {
-        self.innards.refactored_properties
+        self.innards.loaded_file_modified
     }
 
     /// Turns off the refactored properties flag.
     #[inline]
-    pub(in crate::map::editor::state) fn reset_refactored_properties(&mut self)
+    pub(in crate::map::editor::state) fn reset_loaded_file_modified(&mut self)
     {
-        self.innards.refactored_properties = false;
+        self.innards.loaded_file_modified = false;
     }
 
     /// Whether an entity with [`Id`] `identifier` exists.
@@ -3645,6 +3659,7 @@ impl EntitiesManager
         grid: &Grid
     )
     {
+        let mut errors = hv_hash_set![];
         self.auxiliary.replace_values(&self.innards.textured);
 
         for id in &self.auxiliary
@@ -3668,11 +3683,25 @@ impl EntitiesManager
 
             if !valid
             {
+                errors.insert(name);
                 _ = self
                     .innards
                     .remove_brush(drawing_resources, grid, &mut self.quad_trees, *id);
             }
         }
+
+        if errors.is_empty()
+        {
+            return;
+        }
+
+        warning_message(&format!(
+            "Some brushes did not fit within the boundaries of the map due to updated the size of \
+             their sprites and have therefore been removed. Be careful before saving the \
+             file.\nHere is the list of the textures of the sprites of the brushes that have been \
+             removed:\n{:?}",
+            errors
+        ));
     }
 
     //==============================================================
@@ -3881,6 +3910,7 @@ impl EntitiesManager
         things_catalog: &ThingsCatalog
     )
     {
+        let mut errors = hv_hash_set![];
         self.auxiliary.replace_values(self.innards.things.keys());
 
         for id in &self.auxiliary
@@ -3893,10 +3923,22 @@ impl EntitiesManager
 
             if !valid
             {
+                errors.insert(instance.thing_id());
                 _ = self.innards.remove_thing(&mut self.quad_trees, *id);
-                continue;
             }
         }
+
+        if errors.is_empty()
+        {
+            return;
+        }
+
+        warning_message(&format!(
+            "Some things did not fit within the boundaries of the map due to the updated size of \
+             their outline and have therefore been removed. Be careful before saving the \
+             file.\nHere is the list of the ThingIds of the things that have been removed:\n{:?}",
+            errors
+        ));
     }
 
     //==============================================================

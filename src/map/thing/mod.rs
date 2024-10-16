@@ -42,7 +42,7 @@ pub trait MapThing
 //=======================================================================//
 
 /// The identifier of a [`Thing`].
-#[derive(Clone, Copy, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Serialize, Deserialize)]
 pub struct ThingId(u16);
 
 impl Eq for ThingId {}

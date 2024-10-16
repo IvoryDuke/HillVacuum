@@ -739,7 +739,7 @@ impl Clipboard
 
     /// Queues the screenshots of the [`Prop`]s that must be retaken after a texture reload.
     #[inline]
-    pub(in crate::map::editor::state) fn reload_textures(
+    pub(in crate::map::editor::state) fn finish_textures_reload(
         &mut self,
         images: &mut Assets<Image>,
         user_textures: &mut EguiUserTextures,

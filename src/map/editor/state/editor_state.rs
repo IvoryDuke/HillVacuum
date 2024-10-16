@@ -595,7 +595,7 @@ impl State
             default_properties
         )
         {
-            Ok((mut manager, clipboard, grid, path)) =>
+            Ok((manager, clipboard, grid, path)) =>
             {
                 let state = Self {
                     core:               Core::default(),
@@ -612,9 +612,6 @@ impl State
                     show_collision:     true,
                     reloading_textures: false
                 };
-
-                manager.finish_things_reload(things_catalog);
-                manager.finish_textures_reload(drawing_resources, &grid);
 
                 (state, manager, clipboard, EditsHistory::default(), grid, path.into())
             },
@@ -881,7 +878,7 @@ impl State
         bundle.edits_history.no_unsaved_edits() &&
             !bundle.clipboard.props_changed() &&
             !bundle.drawing_resources.default_animations_changed() &&
-            !bundle.manager.refactored_properties() &&
+            !bundle.manager.loaded_file_modified() &&
             !bundle.grid.changed()
     }
 
@@ -1076,7 +1073,7 @@ impl State
 
         bundle.edits_history.reset_last_save_edit();
         bundle.clipboard.reset_props_changed();
-        bundle.manager.reset_refactored_properties();
+        bundle.manager.reset_loaded_file_modified();
         bundle.drawing_resources.reset_default_animation_changed();
         bundle.grid.reset_changed();
 
@@ -2026,7 +2023,7 @@ impl State
         assert!(self.reloading_textures.take_value(), "No ongoing texture reload.");
 
         edits_history.purge_texture_edits();
-        clipboard.reload_textures(
+        clipboard.finish_textures_reload(
             images,
             user_textures,
             prop_cameras,
