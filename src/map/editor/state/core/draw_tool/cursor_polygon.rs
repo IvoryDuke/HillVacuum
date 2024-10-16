@@ -263,7 +263,7 @@ impl DrawMode
                     }
                 };
             },
-            Self::Drag(da, _) => da.update_extremes(cursor_pos)
+            Self::Drag(da, _) => da.update_extremes(bundle.camera, cursor_pos)
         };
 
         match self.hull().map(|hull| v(&hull))

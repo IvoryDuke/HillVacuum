@@ -8,7 +8,7 @@ use hill_vacuum_shared::return_if_no_match;
 
 use crate::{
     map::editor::ToolUpdateBundle,
-    utils::{hull::Hull, identifiers::EntityId, math::AroundEqual}
+    utils::{hull::Hull, identifiers::EntityId, misc::Camera}
 };
 
 //=======================================================================//
@@ -42,7 +42,7 @@ macro_rules! impl_update {
                     match n(self, bundle, extra).into()
                     {
                         LeftMouse::Value(v) => return v.into(),
-                        LeftMouse::Pressed => self.update_extremes(cursor_pos),
+                        LeftMouse::Pressed => self.update_extremes(bundle.camera, cursor_pos),
                         LeftMouse::NotPressed => ()
                     };
                 },
@@ -55,7 +55,7 @@ macro_rules! impl_update {
                         return value;
                     }
 
-                    self.update_extremes(cursor_pos);
+                    self.update_extremes(bundle.camera, cursor_pos);
                 },
                 RectCore::Formed(..) =>
                 {
@@ -66,7 +66,7 @@ macro_rules! impl_update {
                         return value;
                     }
 
-                    self.update_extremes(cursor_pos);
+                    self.update_extremes(bundle.camera, cursor_pos);
                 }
             };
 
@@ -102,7 +102,7 @@ pub(crate) trait RectTrait
     fn hull(&self) -> Option<Hull>;
 
     /// Updates the extremeties of the surface from `p`.
-    fn update_extremes(&mut self, p: Vec2);
+    fn update_extremes<T: Camera>(&mut self, camera: &T, p: Vec2);
 
     #[must_use]
     fn drag_selection<'a, U, N, I, F, E>(
@@ -229,15 +229,8 @@ impl RectTrait for Rect
     }
 
     #[inline]
-    fn update_extremes(&mut self, p: Vec2)
+    fn update_extremes<T: Camera>(&mut self, _: &T, p: Vec2)
     {
-        #[inline]
-        #[must_use]
-        fn valid_area(o: Vec2, p: Vec2) -> bool
-        {
-            !o.x.around_equal_narrow(&p.x) && !o.y.around_equal_narrow(&p.y)
-        }
-
         match &mut self.0
         {
             RectCore::None =>
@@ -246,18 +239,9 @@ impl RectTrait for Rect
             },
             RectCore::Initiated(o) =>
             {
-                if valid_area(*o, p)
-                {
-                    *self = Self(RectCore::Formed(*o, p));
-                }
+                *self = Self(RectCore::Formed(*o, p));
             },
-            RectCore::Formed(o, e) =>
-            {
-                if valid_area(*o, p)
-                {
-                    *e = p;
-                }
-            }
+            RectCore::Formed(_, e) => *e = p
         };
     }
 }
@@ -335,9 +319,19 @@ where
     fn hull(&self) -> Option<crate::utils::hull::Hull> { self.0.hull() }
 
     #[inline]
-    fn update_extremes(&mut self, p: Vec2)
+    fn update_extremes<U: Camera>(&mut self, camera: &U, p: Vec2)
     {
-        self.0.update_extremes(p);
+        if let Some(o) = self.origin()
+        {
+            let delta = camera.scale() * 2f32;
+
+            if (o.x - p.x).abs() < delta && (o.y - p.y).abs() < delta
+            {
+                return;
+            }
+        }
+
+        self.0.update_extremes(camera, p);
 
         if self.0.formed()
         {
