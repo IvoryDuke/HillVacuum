@@ -84,6 +84,7 @@ use crate::{
             ReplaceValue,
             SwapValue,
             TakeValue,
+            Toggle,
             VX_HGL_SIDE,
             VX_HGL_SIDE_SQUARED
         }
@@ -2481,13 +2482,14 @@ impl ConvexPolygon
         camera_scale: f32
     ) -> Option<(Vec2, u8, bool)>
     {
-        let value = self.nearby_vertex(cursor_pos, camera_scale).map(|idx| {
+        let mut value = self.nearby_vertex(cursor_pos, camera_scale).map(|idx| {
             (self.vertexes[idx].vec, u8::try_from(idx).unwrap(), self.vertexes[idx].selected)
         });
 
-        if let Some((_, idx, _)) = value
+        if let Some((_, idx, selected)) = &mut value
         {
-            self.toggle_vertex_at_index(idx as usize);
+            self.toggle_vertex_at_index(*idx as usize);
+            selected.toggle();
         }
 
         value
