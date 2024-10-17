@@ -2389,7 +2389,8 @@ impl ConvexPolygon
             return None;
         }
 
-        let idxs = select_vectors_in_range!(VertexesSelectionIterMut(&mut self.vertexes), range);
+        let idxs =
+            select_vectors_in_range(VertexesSelectionIterMut(&mut self.vertexes).iter(), range);
 
         if let Some(idxs) = &idxs
         {
@@ -2500,7 +2501,7 @@ impl ConvexPolygon
     pub(in crate::map::brush) fn deselect_vertexes(&mut self) -> Option<HvVec<u8>>
     {
         self.selected_vertexes = 0;
-        deselect_vectors!(VertexesSelectionIterMut(&mut self.vertexes))
+        deselect_vectors(VertexesSelectionIterMut(&mut self.vertexes).iter())
     }
 
     #[inline]
@@ -4817,7 +4818,7 @@ struct VertexesSelectionIterMut<'a>(&'a mut HvVec<SelectableVector>);
 impl<'a> VertexesSelectionIterMut<'a>
 {
     #[inline]
-    fn iter_mut(&mut self) -> impl ExactSizeIterator<Item = (Vec2, &mut bool)>
+    fn iter(&mut self) -> impl ExactSizeIterator<Item = (Vec2, &mut bool)>
     {
         self.0.iter_mut().map(|svx| (svx.vec, &mut svx.selected))
     }

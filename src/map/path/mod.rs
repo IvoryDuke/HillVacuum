@@ -2195,7 +2195,7 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         pub(in crate::map) fn deselect_nodes(&mut self, center: Vec2) -> Option<HvVec<u8>>
         {
-            deselect_vectors!(self.nodes_world_mut(center))
+            deselect_vectors(self.nodes_world_mut(center).iter())
         }
 
         /// Deselects the selected [`Node`]s, but does not return the indexes of the nodes that were
@@ -2238,7 +2238,7 @@ pub(in crate::map) mod ui_mod
 
             for (i, node) in self
                 .nodes_world_mut(center)
-                .iter_mut()
+                .iter()
                 .enumerate()
                 .skip_index(index)
                 .unwrap()
@@ -2261,7 +2261,7 @@ pub(in crate::map) mod ui_mod
             range: &Hull
         ) -> Option<HvVec<u8>>
         {
-            select_vectors_in_range!(self.nodes_world_mut(center), range)
+            select_vectors_in_range(self.nodes_world_mut(center).iter(), range)
         }
 
         /// Exclusively selects all [`Node`]s within range and returns the indexes of the nodes
@@ -2280,7 +2280,7 @@ pub(in crate::map) mod ui_mod
             }
 
             hv_vec![collect; self.nodes_world_mut(center)
-                .iter_mut()
+                .iter()
                 .enumerate()
                 .filter_map(|(i, node)| {
                     let selected = std::mem::replace(

@@ -3,8 +3,6 @@
 //
 //=======================================================================//
 
-use std::ops::{AddAssign, SubAssign};
-
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
@@ -94,16 +92,6 @@ pub struct Node
     pub(in crate::map::path) movement:          Movement
 }
 
-impl AddAssign<Vec2> for Node
-{
-    fn add_assign(&mut self, rhs: Vec2) { self.selectable_vector += rhs; }
-}
-
-impl SubAssign<Vec2> for Node
-{
-    fn sub_assign(&mut self, rhs: Vec2) { self.selectable_vector -= rhs; }
-}
-
 impl Node
 {
     /// The position of the node with respect to the center of the entity it is associated with.
@@ -128,6 +116,8 @@ pub(in crate::map) mod ui_mod
     // IMPORTS
     //
     //=======================================================================//
+
+    use std::ops::{AddAssign, SubAssign};
 
     use glam::Vec2;
 
@@ -304,6 +294,16 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
+    impl AddAssign<Vec2> for Node
+    {
+        fn add_assign(&mut self, rhs: Vec2) { self.selectable_vector += rhs; }
+    }
+
+    impl SubAssign<Vec2> for Node
+    {
+        fn sub_assign(&mut self, rhs: Vec2) { self.selectable_vector -= rhs; }
+    }
+
     impl Node
     {
         /// Creates a new [`Node`].
@@ -428,9 +428,12 @@ pub(in crate::map) mod ui_mod
 
         /// An iterator to the [`NodeWorldMut`]s.
         #[inline]
-        pub fn iter_mut(&mut self) -> impl ExactSizeIterator<Item = NodeWorldMut>
+        pub fn iter(&'a mut self) -> impl ExactSizeIterator<Item = (Vec2, &'a mut bool)>
         {
-            self.slice.iter_mut().map(|node| NodeWorldMut::new(node, self.center))
+            self.slice.iter_mut().map(|node| {
+                let NodeWorldMut(pos, selected) = NodeWorldMut::new(node, self.center);
+                (pos, selected)
+            })
         }
     }
 

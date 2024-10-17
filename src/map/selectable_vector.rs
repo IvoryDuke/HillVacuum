@@ -3,8 +3,6 @@
 //
 //=======================================================================//
 
-use std::ops::{Add, AddAssign, SubAssign};
-
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
@@ -23,40 +21,11 @@ pub(in crate::map) struct SelectableVector
     pub selected: bool
 }
 
-impl Add<Vec2> for SelectableVector
-{
-    type Output = Vec2;
-
-    fn add(self, rhs: Vec2) -> Self::Output { self.vec + rhs }
-}
-
-impl AddAssign<Vec2> for SelectableVector
-{
-    fn add_assign(&mut self, rhs: Vec2) { self.vec += rhs; }
-}
-
-impl SubAssign<Vec2> for SelectableVector
-{
-    fn sub_assign(&mut self, rhs: Vec2) { self.vec -= rhs; }
-}
-
 impl From<Vec2> for SelectableVector
 {
     #[inline]
     #[must_use]
     fn from(vector: Vec2) -> Self { Self::new(vector) }
-}
-
-impl std::fmt::Debug for SelectableVector
-{
-    #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
-    {
-        f.debug_struct("Svec")
-            .field("vertex", &self.vec)
-            .field("selected", &self.selected)
-            .finish()
-    }
 }
 
 impl Serialize for SelectableVector
@@ -107,64 +76,16 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
-    use crate::utils::{collections::HvVec, misc::Toggle};
-
-    //=======================================================================//
-    // MACROS
-    //
-    //=======================================================================//
-
-    /// Deselects all [`SelectableVector`]s and returns their indexes, if any.
-    macro_rules! deselect_vectors {
-        ($value:expr) => {{
-            let mut idxs = crate::map::hv_vec![];
-
-            for (i, value) in $value.iter_mut().enumerate()
-            {
-                if *value.1
-                {
-                    idxs.push(i.try_into().unwrap());
-                    *value.1 = false;
-                }
-            }
-
-            idxs.none_if_empty()
-        }};
-    }
-
-    pub(in crate::map) use deselect_vectors;
-
-    //=======================================================================//
-
-    /// Selects the [`SelectableVector`]s in range of `$x_range` and `$y_range` and returns their
-    /// indexes, if any.
-    macro_rules! select_vectors_in_range {
-        ($value:expr, $range:ident) => {{
-            let mut idxs = crate::map::hv_vec![];
-
-            for (i, value) in $value.iter_mut().enumerate()
-            {
-                let selection = *value.1;
-
-                if $range.contains_point(value.0)
-                {
-                    *value.1 = true;
-                }
-
-                if *value.1 != selection
-                {
-                    idxs.push(i.try_into().unwrap());
-                }
-            }
-
-            idxs.none_if_empty()
-        }};
-    }
+    use std::ops::{Add, AddAssign, SubAssign};
 
     use glam::Vec2;
-    pub(in crate::map) use select_vectors_in_range;
 
     use super::SelectableVector;
+    use crate::utils::{
+        collections::{hv_vec, HvVec},
+        hull::Hull,
+        misc::{NoneIfEmpty, Toggle}
+    };
 
     //=======================================================================//
     // ENUMS
@@ -189,6 +110,35 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
+    impl Add<Vec2> for SelectableVector
+    {
+        type Output = Vec2;
+
+        fn add(self, rhs: Vec2) -> Self::Output { self.vec + rhs }
+    }
+
+    impl AddAssign<Vec2> for SelectableVector
+    {
+        fn add_assign(&mut self, rhs: Vec2) { self.vec += rhs; }
+    }
+
+    impl SubAssign<Vec2> for SelectableVector
+    {
+        fn sub_assign(&mut self, rhs: Vec2) { self.vec -= rhs; }
+    }
+
+    impl std::fmt::Debug for SelectableVector
+    {
+        #[inline]
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+        {
+            f.debug_struct("Svec")
+                .field("vertex", &self.vec)
+                .field("selected", &self.selected)
+                .finish()
+        }
+    }
+
     impl Toggle for SelectableVector
     {
         #[inline]
@@ -206,6 +156,57 @@ pub(in crate::map) mod ui_mod
                 selected
             }
         }
+    }
+
+    //=======================================================================//
+    // FUNCTIONS
+    //
+    //=======================================================================//
+
+    #[inline]
+    pub(in crate::map) fn deselect_vectors<'a, I>(iter: I) -> Option<HvVec<u8>>
+    where
+        I: Iterator<Item = (Vec2, &'a mut bool)>
+    {
+        let mut idxs = hv_vec![];
+
+        for (i, value) in iter.enumerate()
+        {
+            if *value.1
+            {
+                idxs.push(i.try_into().unwrap());
+                *value.1 = false;
+            }
+        }
+
+        idxs.none_if_empty()
+    }
+
+    //=======================================================================//
+
+    #[inline]
+    pub(in crate::map) fn select_vectors_in_range<'a, I>(iter: I, range: &Hull) -> Option<HvVec<u8>>
+    where
+        I: Iterator<Item = (Vec2, &'a mut bool)>
+    {
+        let mut idxs = hv_vec![];
+
+        for (i, value) in iter.enumerate()
+        {
+            let selection = *value.1;
+
+            if range.contains_point(value.0)
+            {
+                *value.1 = true;
+            }
+
+            if *value.1 != selection
+            {
+                idxs.push(i.try_into().unwrap());
+            }
+        }
+
+        idxs.none_if_empty()
     }
 }
 
