@@ -84,7 +84,7 @@ impl Movement
 /// A node of the travel path of a moving entity.
 /// The position of the node is relative to the center of the entity.
 #[derive(Clone, Copy, Serialize, Deserialize)]
-pub struct Node
+pub(in crate::map) struct Node
 {
     /// The position in 2D space with respect to the center of the entity.
     pub(in crate::map::path) selectable_vector: SelectableVector,
@@ -92,16 +92,16 @@ pub struct Node
     pub(in crate::map::path) movement:          Movement
 }
 
-impl Node
-{
-    /// The position of the node with respect to the center of the entity it is associated with.
-    #[inline]
-    #[must_use]
-    pub const fn pos(&self) -> Vec2 { self.selectable_vector.vec }
+//=======================================================================//
 
-    /// Returns a reference to the node's [`Movement`].
-    #[inline]
-    pub const fn movement(&self) -> &Movement { &self.movement }
+#[must_use]
+#[derive(Serialize, Deserialize)]
+pub struct NodeViewer
+{
+    /// The position in 2D space with respect to the center of the entity.
+    pub pos:      Vec2,
+    /// The data concerning how the moving entity should travel to the next [`Node`].
+    pub movement: Movement
 }
 
 //=======================================================================//
@@ -121,12 +121,12 @@ pub(in crate::map) mod ui_mod
 
     use glam::Vec2;
 
+    use super::Node;
     use crate::{
         map::selectable_vector::SelectableVector,
         utils::{math::AroundEqual, misc::ReplaceValue},
         HvVec,
-        Movement,
-        Node
+        Movement
     };
 
     //=======================================================================//
@@ -334,6 +334,11 @@ pub(in crate::map) mod ui_mod
         {
             self.selectable_vector.vec + center
         }
+
+        /// The position of the node with respect to the center of the entity it is associated with.
+        #[inline]
+        #[must_use]
+        pub const fn pos(&self) -> Vec2 { self.selectable_vector.vec }
     }
 
     //=======================================================================//

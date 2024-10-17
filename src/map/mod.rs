@@ -417,7 +417,7 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     /// A trait to determine wherever an entity fits within the map's bounds.
-    pub(crate) trait OutOfBounds
+    pub(in crate::map) trait OutOfBounds
     {
         /// Whether the entity fits within the map bounds.
         #[must_use]
@@ -450,7 +450,7 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
-    pub(crate) trait BoundToMap
+    pub(in crate::map) trait BoundToMap
     {
         #[must_use]
         fn bound(&self) -> Self;
@@ -466,6 +466,17 @@ pub(in crate::map) mod ui_mod
     {
         #[inline]
         fn bound(&self) -> Self { Self::new(self.x.bound(), self.y.bound()) }
+    }
+
+    //=======================================================================//
+
+    pub(in crate::map) trait Viewer
+    {
+        type Item;
+
+        fn from_viewer(value: Self::Item) -> Self;
+
+        fn to_viewer(self) -> Self::Item;
     }
 
     //=======================================================================//

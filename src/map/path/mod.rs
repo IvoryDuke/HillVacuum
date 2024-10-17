@@ -34,12 +34,20 @@ pub(in crate::map) mod ui_mod
                 manager::{Animators, Brushes}
             },
             path::{
-                nodes::{NodeWorld, NodesInsertionIter, NodesWorld, NodesWorldMut},
+                nodes::{
+                    Node,
+                    NodeViewer,
+                    NodeWorld,
+                    NodesInsertionIter,
+                    NodesWorld,
+                    NodesWorldMut
+                },
                 overall_values::OverallMovement
             },
-            selectable_vector::{deselect_vectors, select_vectors_in_range},
+            selectable_vector::{deselect_vectors, select_vectors_in_range, SelectableVector},
             thing::catalog::ThingsCatalog,
             OutOfBounds,
+            Viewer,
             TOOLTIP_OFFSET
         },
         utils::{
@@ -68,7 +76,6 @@ pub(in crate::map) mod ui_mod
             overall_value::OverallValueInterface
         },
         Id,
-        Node,
         INDEXES
     };
 
@@ -1584,24 +1591,17 @@ pub(in crate::map) mod ui_mod
         buckets: Buckets
     }
 
-    impl From<HvVec<Node>> for Path
+    impl PartialEq for Path
     {
         #[inline]
-        fn from(nodes: HvVec<Node>) -> Self
+        #[must_use]
+        fn eq(&self, other: &Self) -> bool
         {
-            let hull = Path::nodes_hull(nodes.iter());
-            let mut buckets = Buckets::new();
-
-            for (i, node) in nodes.iter().enumerate()
-            {
-                buckets.insert(i, node.pos());
-            }
-
-            Self {
-                nodes,
-                hull,
-                buckets
-            }
+            self.len() == other.len() &&
+                self.nodes
+                    .iter()
+                    .zip(&other.nodes)
+                    .all(|(a, b)| a.selectable_vector == b.selectable_vector)
         }
     }
 
@@ -1641,20 +1641,6 @@ pub(in crate::map) mod ui_mod
         }
     }
 
-    impl PartialEq for Path
-    {
-        #[inline]
-        #[must_use]
-        fn eq(&self, other: &Self) -> bool
-        {
-            self.len() == other.len() &&
-                self.nodes
-                    .iter()
-                    .zip(&other.nodes)
-                    .all(|(a, b)| a.selectable_vector == b.selectable_vector)
-        }
-    }
-
     impl<'a, I: ExactSizeIterator<Item = &'a Node> + Clone> From<I> for Path
     {
         #[inline]
@@ -1677,6 +1663,47 @@ pub(in crate::map) mod ui_mod
             assert!(path.valid(), "From<HvVec<Node>> generated an invalid Path.");
 
             path
+        }
+    }
+
+    impl Viewer for Path
+    {
+        type Item = HvVec<NodeViewer>;
+
+        #[inline]
+        fn from_viewer(value: Self::Item) -> Self
+        {
+            let nodes = hv_vec![collect; value.into_iter().map(|node| {
+                Node {
+                    selectable_vector: SelectableVector::new(node.pos),
+                    movement:          node.movement
+                }
+            })];
+            let hull = Path::nodes_hull(nodes.iter());
+            let mut buckets = Buckets::new();
+
+            for (i, node) in nodes.iter().enumerate()
+            {
+                buckets.insert(i, node.pos());
+            }
+
+            Self {
+                nodes,
+                hull,
+                buckets
+            }
+        }
+
+        #[inline]
+        #[must_use]
+        fn to_viewer(self) -> Self::Item
+        {
+            hv_vec![collect; self.nodes.into_iter().map(|node| {
+                NodeViewer {
+                    pos:      node.pos(),
+                    movement: node.movement
+                }
+            })]
         }
     }
 
@@ -1818,9 +1845,6 @@ pub(in crate::map) mod ui_mod
 
         //==============================================================
         // Update
-
-        #[inline]
-        pub fn take_nodes(self) -> HvVec<Node> { self.nodes }
 
         /// Updates the value of the cached [`Hull`].
         #[inline]

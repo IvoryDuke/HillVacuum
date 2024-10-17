@@ -109,7 +109,8 @@ pub(in crate::map) mod ui_mod
             path::{calc_path_hull, common_edit_path, EditPath, MovementSimulator, Moving, Path},
             properties::{Properties, PropertiesRefactor, COLLISION_LABEL},
             selectable_vector::VectorSelectionResult,
-            thing::catalog::ThingsCatalog
+            thing::catalog::ThingsCatalog,
+            Viewer
         },
         utils::{
             collections::{hv_vec, Ids},
@@ -541,26 +542,6 @@ pub(in crate::map) mod ui_mod
         properties: HvHashMap<String, Value>
     }
 
-    impl From<BrushData> for BrushDataViewer
-    {
-        #[inline]
-        fn from(value: BrushData) -> Self
-        {
-            let BrushData {
-                polygon,
-                group,
-                properties
-            } = value;
-
-            Self {
-                vertexes:   hv_vec![collect; polygon.vertexes()],
-                texture:    polygon.take_texture_settings(),
-                group:      group.into(),
-                properties: properties.take()
-            }
-        }
-    }
-
     //=======================================================================//
 
     #[derive(Clone)]
@@ -574,12 +555,14 @@ pub(in crate::map) mod ui_mod
         properties: Properties
     }
 
-    impl From<BrushDataViewer> for BrushData
+    impl Viewer for BrushData
     {
+        type Item = BrushDataViewer;
+
         #[inline]
-        fn from(value: BrushDataViewer) -> Self
+        fn from_viewer(value: Self::Item) -> Self
         {
-            let BrushDataViewer {
+            let Self::Item {
                 vertexes,
                 texture,
                 group,
@@ -595,8 +578,25 @@ pub(in crate::map) mod ui_mod
 
             Self {
                 polygon,
-                group: group.into(),
+                group: Group::from_viewer(group),
                 properties: Properties::from_parts(properties)
+            }
+        }
+
+        #[inline]
+        fn to_viewer(self) -> Self::Item
+        {
+            let Self {
+                polygon,
+                group,
+                properties
+            } = self;
+
+            Self::Item {
+                vertexes:   hv_vec![collect; polygon.vertexes()],
+                texture:    polygon.take_texture_settings(),
+                group:      group.to_viewer(),
+                properties: properties.take()
             }
         }
     }
@@ -676,13 +676,6 @@ pub(in crate::map) mod ui_mod
         pub const fn attachments(&self) -> Option<&Ids> { self.group.attachments() }
 
         #[inline]
-        pub fn attach_to(&mut self, identifier: Id)
-        {
-            assert!(matches!(self.group, Group::None), "Brush Mover is not None");
-            self.group = Group::Attached(identifier);
-        }
-
-        #[inline]
         #[must_use]
         pub const fn has_texture(&self) -> bool { self.polygon.has_texture() }
 
@@ -738,12 +731,14 @@ pub(in crate::map) mod ui_mod
         data: BrushData
     }
 
-    impl From<BrushViewer> for Brush
+    impl Viewer for Brush
     {
+        type Item = BrushViewer;
+
         #[inline]
-        fn from(value: BrushViewer) -> Self
+        fn from_viewer(value: Self::Item) -> Self
         {
-            let BrushViewer {
+            let Self::Item {
                 id,
                 vertexes,
                 texture,
@@ -753,12 +748,32 @@ pub(in crate::map) mod ui_mod
 
             Self {
                 id,
-                data: BrushData::from(BrushDataViewer {
+                data: BrushData::from_viewer(BrushDataViewer {
                     vertexes,
                     texture,
                     group,
                     properties
                 })
+            }
+        }
+
+        #[inline]
+        fn to_viewer(self) -> Self::Item
+        {
+            let Self { data, id } = self;
+            let BrushDataViewer {
+                vertexes,
+                texture,
+                group,
+                properties
+            } = data.to_viewer();
+
+            Self::Item {
+                id,
+                vertexes,
+                texture,
+                group,
+                properties
             }
         }
     }
@@ -2651,31 +2666,6 @@ pub(in crate::map) mod ui_mod
         )
         {
             self.data.polygon.draw_map_preview_sprite(drawer, animator);
-        }
-    }
-
-    //=======================================================================//
-
-    impl From<Brush> for BrushViewer
-    {
-        #[inline]
-        fn from(value: Brush) -> Self
-        {
-            let Brush { data, id } = value;
-            let BrushDataViewer {
-                vertexes,
-                texture,
-                group,
-                properties
-            } = BrushDataViewer::from(data);
-
-            Self {
-                id,
-                vertexes,
-                texture,
-                group,
-                properties
-            }
         }
     }
 }

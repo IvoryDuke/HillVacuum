@@ -51,7 +51,7 @@ pub(in crate::map) mod ui_mod
 
     use super::GroupViewer;
     use crate::{
-        map::path::Path,
+        map::{path::Path, Viewer},
         utils::{
             collections::{hv_hash_set, Ids},
             misc::{AssertedInsertRemove, TakeValue}
@@ -67,7 +67,7 @@ pub(in crate::map) mod ui_mod
     /// Information concerning a set of [`Brush`]es grouped together.
     #[must_use]
     #[derive(Clone, Default)]
-    pub enum Group
+    pub(in crate::map) enum Group
     {
         /// None.
         #[default]
@@ -86,26 +86,49 @@ pub(in crate::map) mod ui_mod
         Attached(Id)
     }
 
-    impl From<GroupViewer> for Group
+    impl Viewer for Group
     {
+        type Item = GroupViewer;
+
         #[inline]
-        fn from(value: GroupViewer) -> Self
+        fn from_viewer(value: Self::Item) -> Self
         {
             match value
             {
-                GroupViewer::None => Self::None,
-                GroupViewer::Attachments(ids) => Self::Attachments(ids),
-                GroupViewer::Path {
+                Self::Item::None => Self::None,
+                Self::Item::Attachments(ids) => Self::Attachments(ids),
+                Self::Item::Path {
                     path,
                     attached_brushes
                 } =>
                 {
                     Self::Path {
-                        path: path.iter().into(),
+                        path: Path::from_viewer(path),
                         attached_brushes
                     }
                 },
-                GroupViewer::Attached(id) => Self::Attached(id)
+                Self::Item::Attached(id) => Self::Attached(id)
+            }
+        }
+
+        #[inline]
+        fn to_viewer(self) -> Self::Item
+        {
+            match self
+            {
+                Self::None => Self::Item::None,
+                Self::Attachments(ids) => Self::Item::Attachments(ids),
+                Self::Path {
+                    path,
+                    attached_brushes
+                } =>
+                {
+                    Self::Item::Path {
+                        path: path.to_viewer(),
+                        attached_brushes
+                    }
+                },
+                Self::Attached(id) => Self::Item::Attached(id)
             }
         }
     }
@@ -246,53 +269,6 @@ pub(in crate::map) mod ui_mod
                     panic!("Unsuitable circumstance for setting a path.")
                 }
             };
-        }
-    }
-
-    //=======================================================================//
-
-    // impl From<Mover> for GroupViewer
-    // {
-    //     #[inline]
-    //     fn from(value: Mover) -> Self
-    //     {
-    //         match value
-    //         {
-    //             Mover::None => Self::None,
-    //             Mover::Anchors(ids) => Self::Attachments(ids),
-    //             Mover::Motor(motor) =>
-    //             {
-    //                 Self::Path {
-    //                     path:             motor.path.take_nodes(),
-    //                     attached_brushes: motor.anchored_brushes
-    //                 }
-    //             },
-    //             Mover::Anchored(id) => Self::Attached(id)
-    //         }
-    //     }
-    // }
-
-    impl From<Group> for GroupViewer
-    {
-        #[inline]
-        fn from(value: Group) -> Self
-        {
-            match value
-            {
-                Group::None => Self::None,
-                Group::Attachments(ids) => Self::Attachments(ids),
-                Group::Path {
-                    path,
-                    attached_brushes
-                } =>
-                {
-                    Self::Path {
-                        path: path.take_nodes(),
-                        attached_brushes
-                    }
-                },
-                Group::Attached(id) => Self::Attached(id)
-            }
         }
     }
 }

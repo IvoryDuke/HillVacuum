@@ -39,7 +39,7 @@ pub use crate::{
             animation::{Animation, Atlas, List, Timing},
             texture::{TextureInterface, TextureSettings}
         },
-        path::nodes::{Movement, Node},
+        path::nodes::{Movement, NodeViewer as Node},
         properties::{ToValue, Value},
         thing::{MapThing, Thing, ThingId, ThingViewer as ThingInstance},
         Exporter

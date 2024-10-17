@@ -182,6 +182,7 @@ pub mod ui_mod
                 HEIGHT_LABEL
             },
             OutOfBounds,
+            Viewer,
             TOOLTIP_OFFSET
         },
         utils::{
@@ -240,28 +241,6 @@ pub mod ui_mod
         pub properties: HvHashMap<String, Value>
     }
 
-    impl From<ThingInstanceData> for ThingInstanceDataViewer
-    {
-        #[inline]
-        fn from(value: ThingInstanceData) -> Self
-        {
-            let ThingInstanceData {
-                thing_id: thing,
-                pos,
-                path,
-                properties,
-                ..
-            } = value;
-
-            Self {
-                thing_id: thing,
-                pos,
-                path: path.map(Path::take_nodes),
-                properties: properties.take()
-            }
-        }
-    }
-
     //=======================================================================//
 
     /// The data of [`ThingInstance`].
@@ -279,12 +258,14 @@ pub mod ui_mod
         properties: Properties
     }
 
-    impl From<ThingInstanceDataViewer> for ThingInstanceData
+    impl Viewer for ThingInstanceData
     {
+        type Item = ThingInstanceDataViewer;
+
         #[inline]
-        fn from(value: ThingInstanceDataViewer) -> Self
+        fn from_viewer(value: Self::Item) -> Self
         {
-            let ThingInstanceDataViewer {
+            let Self::Item {
                 thing_id,
                 pos,
                 path,
@@ -294,8 +275,27 @@ pub mod ui_mod
             Self {
                 thing_id,
                 pos,
-                path: path.map(Into::into),
+                path: path.map(Path::from_viewer),
                 properties: Properties::from_parts(properties)
+            }
+        }
+
+        #[inline]
+        fn to_viewer(self) -> Self::Item
+        {
+            let Self {
+                thing_id: thing,
+                pos,
+                path,
+                properties,
+                ..
+            } = self;
+
+            Self::Item {
+                thing_id: thing,
+                pos,
+                path: path.map(Path::to_viewer),
+                properties: properties.take()
             }
         }
     }
@@ -410,6 +410,53 @@ pub mod ui_mod
         data: ThingInstanceData
     }
 
+    impl Viewer for ThingInstance
+    {
+        type Item = ThingViewer;
+
+        #[inline]
+        fn from_viewer(value: Self::Item) -> Self
+        {
+            let Self::Item {
+                id,
+                thing_id,
+                pos,
+                path,
+                properties
+            } = value;
+
+            Self {
+                id,
+                data: ThingInstanceData::from_viewer(ThingInstanceDataViewer {
+                    thing_id,
+                    pos,
+                    path,
+                    properties
+                })
+            }
+        }
+
+        #[inline]
+        fn to_viewer(self) -> Self::Item
+        {
+            let id = self.id;
+            let ThingInstanceDataViewer {
+                thing_id,
+                pos,
+                path,
+                properties
+            } = self.data.to_viewer();
+
+            Self::Item {
+                id,
+                thing_id,
+                pos,
+                path,
+                properties
+            }
+        }
+    }
+
     impl ThingInterface for ThingInstance
     {
         #[inline]
@@ -428,31 +475,6 @@ pub mod ui_mod
         fn thing_hull(&self, things_catalog: &ThingsCatalog) -> Hull
         {
             self.data.thing_hull(things_catalog)
-        }
-    }
-
-    impl From<ThingViewer> for ThingInstance
-    {
-        #[inline]
-        fn from(value: ThingViewer) -> Self
-        {
-            let ThingViewer {
-                id,
-                thing_id,
-                pos,
-                path,
-                properties
-            } = value;
-
-            Self {
-                id,
-                data: ThingInstanceData::from(ThingInstanceDataViewer {
-                    thing_id,
-                    pos,
-                    path,
-                    properties
-                })
-            }
         }
     }
 
@@ -863,31 +885,6 @@ pub mod ui_mod
                 drawer.tooltip_text_color(),
                 egui::Color32::WHITE
             );
-        }
-    }
-
-    //=======================================================================//
-
-    impl From<ThingInstance> for ThingViewer
-    {
-        #[inline]
-        fn from(value: ThingInstance) -> Self
-        {
-            let id = value.id;
-            let ThingInstanceDataViewer {
-                thing_id,
-                pos,
-                path,
-                properties
-            } = ThingInstanceDataViewer::from(value.data);
-
-            Self {
-                id,
-                thing_id,
-                pos,
-                path,
-                properties
-            }
         }
     }
 

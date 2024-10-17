@@ -73,6 +73,7 @@ use crate::{
         FileStructure,
         GridSettings,
         MapHeader,
+        Viewer,
         CONVERTED_FILE_APPENDIX,
         FILE_VERSION,
         PREVIOUS_FILE_VERSION,
@@ -892,8 +893,6 @@ impl State
         save_as: Option<&'static str>
     ) -> Result<(), &'static str>
     {
-        use crate::map::{brush::BrushViewer, thing::ThingViewer};
-
         /// The target of the file save process.
         enum SaveTarget
         {
@@ -1013,7 +1012,7 @@ impl State
                     for brush in bundle.manager.brushes().iter()
                     {
                         test_writer!(
-                            &BrushViewer::from(brush.clone()),
+                            &brush.clone().to_viewer(),
                             &mut writer,
                             "Error saving brushes."
                         );
@@ -1024,7 +1023,7 @@ impl State
                     for thing in bundle.manager.things()
                     {
                         test_writer!(
-                            &ThingViewer::from(thing.clone()),
+                            &thing.clone().to_viewer(),
                             &mut writer,
                             "Error saving things."
                         );
@@ -1132,7 +1131,7 @@ impl State
 
             for _ in 0..header.brushes
             {
-                brushes.push(Brush::from(
+                brushes.push(Brush::from_viewer(
                     ciborium::from_reader::<crate::map::brush::BrushViewer, _>(&mut reader)
                         .map_err(|_| "Error reading brushes for conversion.")?
                 ));
@@ -1143,7 +1142,7 @@ impl State
 
             for _ in 0..header.things
             {
-                things.push(ThingInstance::from(
+                things.push(ThingInstance::from_viewer(
                     ciborium::from_reader::<crate::map::thing::ThingViewer, _>(&mut reader)
                         .map_err(|_| "Error reading things for conversion.")?
                 ));
@@ -1234,7 +1233,7 @@ impl State
                         for brush in brushes
                             .take_value()
                             .into_iter()
-                            .map(crate::map::brush::BrushViewer::from)
+                            .map(crate::map::brush::Brush::to_viewer)
                         {
                             test_writer!(&brush, &mut writer, "Error converting brushes.");
                         }
@@ -1244,7 +1243,7 @@ impl State
                         for thing in things
                             .take_value()
                             .into_iter()
-                            .map(crate::map::thing::ThingViewer::from)
+                            .map(crate::map::thing::ThingInstance::to_viewer)
                         {
                             test_writer!(&thing, &mut writer, "Error converting things.");
                         }
@@ -1670,9 +1669,9 @@ impl State
             Command::ExportProps =>
             {
                 export(
-                    "animations",
-                    ANIMATIONS_FILTER_NAME,
-                    ANIMATIONS_EXTENSION,
+                    "props",
+                    PROPS_FILTER_NAME,
+                    PROPS_EXTENSION,
                     bundle.clipboard.props_amount(),
                     |writer| bundle.clipboard.export_props(writer)
                 );

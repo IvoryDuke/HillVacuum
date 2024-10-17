@@ -15,7 +15,6 @@ use std::{
 use glam::Vec2;
 use serde::Deserialize;
 
-use super::prop::PropViewer;
 use crate::{
     map::{
         editor::state::test_writer,
@@ -23,6 +22,7 @@ use crate::{
         properties::Properties,
         selectable_vector::SelectableVector,
         version_number,
+        Viewer,
         FILE_VERSION
     },
     utils::{
@@ -446,7 +446,9 @@ pub(in crate::map::editor::state) fn save_imported_08_props(
     props: HvVec<crate::map::editor::state::clipboard::prop::Prop>
 ) -> Result<(), &'static str>
 {
-    for prop in props.into_iter().map(PropViewer::from)
+    for prop in props
+        .into_iter()
+        .map(crate::map::editor::state::clipboard::prop::Prop::to_viewer)
     {
         test_writer!(&prop, &mut *writer, "Error converting props.");
     }

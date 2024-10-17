@@ -76,7 +76,8 @@ use crate::{
         FileStructure,
         HvHashMap,
         MapHeader,
-        OutOfBounds
+        OutOfBounds,
+        Viewer
     },
     utils::{
         collections::{hv_hash_map, hv_hash_set, Ids},
@@ -760,7 +761,7 @@ impl Innards
 
         for _ in 0..header.brushes
         {
-            let mut brush = Brush::from(
+            let mut brush = Brush::from_viewer(
                 ciborium::from_reader::<BrushViewer, _>(&mut *file)
                     .map_err(|_| "Error reading brushes")?
             );
@@ -812,7 +813,7 @@ impl Innards
 
         for _ in 0..header.things
         {
-            let thing = ThingInstance::from(
+            let thing = ThingInstance::from_viewer(
                 ciborium::from_reader::<ThingViewer, _>(&mut *file)
                     .map_err(|_| "Error reading things")?
             );

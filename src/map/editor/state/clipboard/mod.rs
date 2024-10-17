@@ -59,6 +59,7 @@ use crate::{
         thing::{catalog::ThingsCatalog, ThingInstanceData, ThingInstanceDataViewer},
         MapHeader,
         OutOfBounds,
+        Viewer,
         PROP_CAMERAS_AMOUNT
     },
     utils::{
@@ -124,19 +125,6 @@ pub(in crate::map) enum ClipboardDataViewer
     Thing(ThingInstanceDataViewer, Id)
 }
 
-impl From<ClipboardData> for ClipboardDataViewer
-{
-    #[inline]
-    fn from(value: ClipboardData) -> Self
-    {
-        match value
-        {
-            ClipboardData::Brush(data, id) => Self::Brush(data.into(), id),
-            ClipboardData::Thing(data, id) => Self::Thing(data.into(), id)
-        }
-    }
-}
-
 //=======================================================================//
 
 /// The data that can be stored in the Clipboard.
@@ -150,15 +138,27 @@ pub(in crate::map) enum ClipboardData
     Thing(ThingInstanceData, Id)
 }
 
-impl From<ClipboardDataViewer> for ClipboardData
+impl Viewer for ClipboardData
 {
+    type Item = ClipboardDataViewer;
+
     #[inline]
-    fn from(value: ClipboardDataViewer) -> Self
+    fn from_viewer(value: Self::Item) -> Self
     {
         match value
         {
-            ClipboardDataViewer::Brush(data, id) => Self::Brush(data.into(), id),
-            ClipboardDataViewer::Thing(data, id) => Self::Thing(ThingInstanceData::from(data), id)
+            Self::Item::Brush(data, id) => Self::Brush(BrushData::from_viewer(data), id),
+            Self::Item::Thing(data, id) => Self::Thing(ThingInstanceData::from_viewer(data), id)
+        }
+    }
+
+    #[inline]
+    fn to_viewer(self) -> Self::Item
+    {
+        match self
+        {
+            Self::Brush(data, id) => Self::Item::Brush(data.to_viewer(), id),
+            Self::Thing(data, id) => Self::Item::Thing(data.to_viewer(), id)
         }
     }
 }
@@ -420,9 +420,6 @@ impl Clipboard
         for _ in 0..props_amount
         {
             let mut prop = Prop::from_viewer(
-                drawing_resources,
-                things_catalog,
-                grid,
                 ciborium::from_reader::<PropViewer, _>(&mut *file)
                     .map_err(|_| "Error loading props")?
             );
@@ -696,7 +693,7 @@ impl Clipboard
         writer: &mut BufWriter<&mut Vec<u8>>
     ) -> Result<(), &'static str>
     {
-        for prop in self.props.iter().map(|prop| PropViewer::from(prop.clone()))
+        for prop in self.props.iter().map(|prop| prop.clone().to_viewer())
         {
             ciborium::ser::into_writer(&prop, &mut *writer).map_err(|_| "Error saving prop")?;
         }

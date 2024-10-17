@@ -38,7 +38,8 @@ use crate::{
             state::{edits_history::EditsHistory, grid::Grid, manager::EntitiesManager},
             DrawBundle
         },
-        thing::catalog::ThingsCatalog
+        thing::catalog::ThingsCatalog,
+        Viewer
     },
     utils::{collections::hv_vec, hull::Hull, identifiers::EntityId},
     HvVec
@@ -51,31 +52,12 @@ use crate::{
 
 #[must_use]
 #[derive(Serialize, Deserialize)]
-pub(in crate::map::editor::state) struct PropViewer
+pub(in crate::map) struct PropViewer
 {
     entities:         HvVec<ClipboardDataViewer>,
     attached_brushes: Range<usize>,
-    pivot:            Vec2
-}
-
-impl From<Prop> for PropViewer
-{
-    #[inline]
-    fn from(value: Prop) -> Self
-    {
-        let Prop {
-            entities,
-            attached_brushes,
-            pivot,
-            ..
-        } = value;
-
-        Self {
-            entities: hv_vec![collect; entities.into_iter().map(ClipboardDataViewer::from)],
-            attached_brushes,
-            pivot
-        }
-    }
+    pivot:            Vec2,
+    center:           Vec2
 }
 
 //=======================================================================//
@@ -135,6 +117,49 @@ impl From<crate::map::editor::state::clipboard::compatibility::Prop> for Prop
     }
 }
 
+impl Viewer for Prop
+{
+    type Item = PropViewer;
+
+    #[inline]
+    fn from_viewer(value: Self::Item) -> Self
+    {
+        let Self::Item {
+            entities,
+            attached_brushes,
+            pivot,
+            center
+        } = value;
+
+        Self {
+            entities: hv_vec![collect; entities.into_iter().map(ClipboardData::from_viewer)],
+            pivot,
+            center,
+            attached_brushes,
+            screenshot: None
+        }
+    }
+
+    #[inline]
+    fn to_viewer(self) -> Self::Item
+    {
+        let Self {
+            entities,
+            attached_brushes,
+            pivot,
+            center,
+            ..
+        } = self;
+
+        Self::Item {
+            entities: hv_vec![collect; entities.into_iter().map(ClipboardData::to_viewer)],
+            attached_brushes,
+            pivot,
+            center
+        }
+    }
+}
+
 impl Prop
 {
     //==============================================================
@@ -158,47 +183,6 @@ impl Prop
         new.fill(drawing_resources, things_catalog, grid, iter.map(|e| e.copy_to_clipboard()));
         new.pivot = new.center - cursor_pos;
         new.screenshot = screenshot;
-        new
-    }
-
-    #[inline]
-    pub(in crate::map::editor::state::clipboard) fn from_viewer(
-        drawing_resources: &DrawingResources,
-        things_catalog: &ThingsCatalog,
-        grid: &Grid,
-        data: PropViewer
-    ) -> Self
-    {
-        let PropViewer {
-            entities,
-            attached_brushes,
-            pivot
-        } = data;
-        let mut entities = hv_vec![collect; entities.into_iter().map(ClipboardData::from)];
-        let (owners, attachments) = entities.split_at_mut(attached_brushes.start);
-        let attachments = &mut attachments[..attached_brushes.len()];
-
-        for (owner, id) in owners
-            .iter()
-            .map(|e| match_or_panic!(e, ClipboardData::Brush(data, id), (data, *id)))
-        {
-            for id_0 in owner.attachments().unwrap()
-            {
-                attachments
-                    .iter_mut()
-                    .find_map(|e| {
-                        let (data, id_1) =
-                            match_or_panic!(e, ClipboardData::Brush(data, id_1), (data, id_1));
-                        (*id_0 == *id_1).then_some(data)
-                    })
-                    .unwrap()
-                    .attach_to(id);
-            }
-        }
-
-        let mut new = Self::default();
-        new.fill(drawing_resources, things_catalog, grid, entities);
-        new.pivot = pivot;
         new
     }
 
