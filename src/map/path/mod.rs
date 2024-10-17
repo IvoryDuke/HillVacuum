@@ -2261,11 +2261,6 @@ pub(in crate::map) mod ui_mod
             range: &Hull
         ) -> Option<HvVec<u8>>
         {
-            if !range.overlaps(&(self.hull + center))
-            {
-                return self.deselect_nodes(center);
-            }
-
             select_vectors_in_range!(self.nodes_world_mut(center), range)
         }
 
