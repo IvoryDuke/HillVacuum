@@ -441,17 +441,17 @@ impl EntityTool
     {
         match &mut self.0
         {
-            Status::Inactive(ds) =>
+            Status::Inactive(rect) =>
             {
                 let shift_pressed = bundle.inputs.shift_pressed();
                 let item_beneath_cursor = self.1.item_beneath_cursor(bundle, settings);
                 let cursor_pos = Self::cursor_pos(bundle.cursor);
 
-                let value = ds.drag_selection(
+                let value = rect.drag_selection(
                     bundle,
                     cursor_pos,
                     (),
-                    |ds, bundle, _| {
+                    |rect, bundle, _| {
                         if settings.entity_editing() && bundle.inputs.right_mouse.just_pressed()
                         {
                             let id = return_if_no_match!(
@@ -479,7 +479,7 @@ impl EntityTool
                             return LeftMouse::NotPressed;
                         }
 
-                        ds.set_highlighted_entity(item_beneath_cursor);
+                        rect.set_highlighted_entity(item_beneath_cursor);
 
                         if bundle.inputs.left_mouse.just_pressed()
                         {
@@ -542,7 +542,9 @@ impl EntityTool
                                 );
                             }
 
-                            ds.set_highlighted_entity(self.1.item_beneath_cursor(bundle, settings));
+                            rect.set_highlighted_entity(
+                                self.1.item_beneath_cursor(bundle, settings)
+                            );
                             return LeftMouse::NotPressed;
                         }
 
@@ -810,7 +812,7 @@ impl EntityTool
             .select_entity(identifier, bundle.inputs, bundle.edits_history);
     }
 
-    /// Selects the entities inside the drag selection.
+    /// Selects the entities inside the rectangular selection.
     #[inline]
     fn select_entities_from_drag_selection(
         bundle: &mut ToolUpdateBundle,
@@ -909,7 +911,7 @@ impl EntityTool
     #[inline]
     pub fn remove_highlighted_entity(&mut self)
     {
-        return_if_no_match!(&mut self.0, Status::Inactive(ds), ds).set_highlighted_entity(None);
+        return_if_no_match!(&mut self.0, Status::Inactive(rect), rect).set_highlighted_entity(None);
     }
 
     //==============================================================
@@ -932,14 +934,14 @@ impl EntityTool
 
         let hgl_e = match &self.0
         {
-            Status::Inactive(ds) =>
+            Status::Inactive(rect) =>
             {
-                if let Some(hull) = ds.hull()
+                if let Some(hull) = rect.hull()
                 {
                     bundle.drawer.hull(&hull, Color::Hull);
                 }
 
-                ds.highlighted_entity()
+                rect.highlighted_entity()
             },
             Status::Drag(drag, _) =>
             {

@@ -176,10 +176,10 @@ pub(in crate::map::editor::state) trait OngoingMultiframeChange
 
 //=======================================================================//
 
-/// A trait to return the drag selection of the tool, if any.
+/// A trait to return the rectangular selection of the tool, if any.
 pub(in crate::map::editor::state::core) trait DragSelection
 {
-    /// Returns the [`Rect`] describing the tool's drag selection, if any.
+    /// Returns the [`Rect`] describing the tool's rectangular selection, if any.
     fn drag_selection(&self) -> Option<Rect>;
 }
 
@@ -421,7 +421,7 @@ impl ActiveTool
         EditingTarget::new(self, prev_value)
     }
 
-    /// The current drag selection.
+    /// The current rectangular selection.
     #[inline]
     fn drag_selection(&self) -> Rect
     {

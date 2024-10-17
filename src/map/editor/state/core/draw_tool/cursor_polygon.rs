@@ -116,10 +116,10 @@ macro_rules! shape_cursor_brush {
                     drawer.sides(core.vertexes().unwrap(), Color::CursorPolygon);
                 }
 
-                if let DrawMode::Drag(da, _) = &self.0
+                if let DrawMode::Drag(rect, _) = &self.0
                 {
-                    drawer.square_highlight(return_if_none!(da.origin()),  Color::CursorPolygon);
-                    drawer.square_highlight(return_if_none!(da.extreme()),  Color::CursorPolygon);
+                    drawer.square_highlight(return_if_none!(rect.origin()),  Color::CursorPolygon);
+                    drawer.square_highlight(return_if_none!(rect.extreme()),  Color::CursorPolygon);
                 }
             }
         }
@@ -223,7 +223,7 @@ impl DrawMode
         match self
         {
             Self::Spawn(hull, ..) => Some(*hull),
-            Self::Drag(da, _) => da.hull()
+            Self::Drag(rect, _) => rect.hull()
         }
     }
 
@@ -263,7 +263,7 @@ impl DrawMode
                     }
                 };
             },
-            Self::Drag(da, _) => da.update_extremes(bundle.camera, cursor_pos)
+            Self::Drag(rect, _) => rect.update_extremes(bundle.camera, cursor_pos)
         };
 
         match self.hull().map(|hull| v(&hull))

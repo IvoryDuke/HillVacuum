@@ -2215,9 +2215,8 @@ pub(in crate::map) mod ui_mod
         pub(in crate::map) fn toggle_node_at_index(&mut self, index: usize) -> bool
         {
             let svec = &mut self.nodes[index].selectable_vector;
-            let selected = svec.selected;
             svec.toggle();
-            selected
+            svec.selected
         }
 
         /// Checks whether there is a [`Node`] nearby `cursor_pos` and selects it if not already

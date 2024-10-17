@@ -102,7 +102,7 @@ impl Selector
 /// The subtract tool.
 pub(in crate::map::editor::state::core) struct SubtractTool
 {
-    /// The drag selection.
+    /// The rectangular selection.
     drag_selection:       RectHighlightedEntity<Id>,
     /// The brush selector.
     selector:             Selector,
@@ -164,7 +164,7 @@ impl SubtractTool
                 bundle,
                 bundle.cursor.world(),
                 &mut self.subtractees,
-                |ds, bundle, subtractees| {
+                |rect, bundle, subtractees| {
                     let ToolUpdateBundle {
                         drawing_resources,
                         manager,
@@ -187,7 +187,7 @@ impl SubtractTool
                         return LeftMouse::Value(true);
                     }
 
-                    ds.set_highlighted_entity(subtractee_beneath_cursor);
+                    rect.set_highlighted_entity(subtractee_beneath_cursor);
 
                     if !inputs.left_mouse.just_pressed()
                     {
@@ -218,8 +218,7 @@ impl SubtractTool
                             }
                             else if !subtractees.contains(&id)
                             {
-                                edits_history
-                                    .subtractee_deselection_cluster(subtractees.iter());
+                                edits_history.subtractee_deselection_cluster(subtractees.iter());
                                 edits_history.subtractee_selection(id);
 
                                 subtractees.replace_values(Some(id));

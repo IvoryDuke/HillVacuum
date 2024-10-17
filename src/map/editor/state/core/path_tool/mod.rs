@@ -470,14 +470,14 @@ impl PathTool
 
         match &mut self.status
         {
-            Status::Inactive(ds) =>
+            Status::Inactive(rect) =>
             {
-                let value = ds.drag_selection(
+                let value = rect.drag_selection(
                     bundle,
                     cursor_pos.unwrap(),
                     &self.nodes_editor,
-                    |ds, bundle, nodes_editor| {
-                        ds.set_highlighted_entity(item_beneath_cursor);
+                    |rect, bundle, nodes_editor| {
+                        rect.set_highlighted_entity(item_beneath_cursor);
 
                         if !bundle.inputs.left_mouse.just_pressed()
                         {
@@ -497,7 +497,7 @@ impl PathTool
                             {
                                 if Self::delete(bundle)
                                 {
-                                    ds.set_highlighted_entity(self.selector.item_beneath_cursor(
+                                    rect.set_highlighted_entity(self.selector.item_beneath_cursor(
                                         bundle.drawing_resources,
                                         bundle.things_catalog,
                                         bundle.manager,
@@ -774,11 +774,11 @@ impl PathTool
 
         match &mut self.status
         {
-            Status::Inactive(ds) if ds.has_highlighted_entity() =>
+            Status::Inactive(rect) if rect.has_highlighted_entity() =>
             {
-                if ds.highlighted_entity().unwrap().id() == identifier
+                if rect.highlighted_entity().unwrap().id() == identifier
                 {
-                    ds.set_highlighted_entity(None);
+                    rect.set_highlighted_entity(None);
                 }
             },
             _ => ()
@@ -1216,10 +1216,10 @@ impl PathTool
 
         match &self.status
         {
-            Status::Inactive(ds) =>
+            Status::Inactive(rect) =>
             {
-                draw_entities_with_highlight!(ds.highlighted_entity());
-                drawer.hull(&return_if_none!(ds.hull()), Color::Hull);
+                draw_entities_with_highlight!(rect.highlighted_entity());
+                drawer.hull(&return_if_none!(rect.hull()), Color::Hull);
             },
             Status::PreDrag(_, hgl_e) | Status::InsertNodeUi(hgl_e) =>
             {

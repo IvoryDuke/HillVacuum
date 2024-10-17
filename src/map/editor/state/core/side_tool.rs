@@ -465,9 +465,9 @@ impl SideTool
 
         match &mut self.status
         {
-            Status::Inactive(ds) =>
+            Status::Inactive(rect) =>
             {
-                let value = ds.drag_selection(
+                let value = rect.drag_selection(
                     bundle,
                     cursor_pos,
                     (&mut self.check_xtrusion, &mut self.brushes_with_selected_sides),
@@ -891,7 +891,7 @@ impl SideTool
             }));
     }
 
-    /// Selects the sides that fit in the drag selection.
+    /// Selects the sides that fit in the rectangular selection.
     #[inline]
     fn select_sides_from_drag_selection(bundle: &mut ToolUpdateBundle, range: &Hull)
     {
@@ -1198,11 +1198,11 @@ impl SideTool
 
         match &self.status
         {
-            Status::Inactive(ds) =>
+            Status::Inactive(rect) =>
             {
                 draw_selected_brushes(bundle);
 
-                if let Some(hull) = ds.hull()
+                if let Some(hull) = rect.hull()
                 {
                     bundle.drawer.hull(&hull, Color::Hull);
                 }

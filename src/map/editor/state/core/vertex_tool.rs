@@ -392,9 +392,9 @@ impl VertexTool
 
         match &mut self.0
         {
-            Status::Inactive(ds) =>
+            Status::Inactive(rect) =>
             {
-                let value = ds.drag_selection(
+                let value = rect.drag_selection(
                     bundle,
                     cursor_pos,
                     &mut self.1,
@@ -935,10 +935,10 @@ impl VertexTool
 
         match &self.0
         {
-            Status::Inactive(ds) =>
+            Status::Inactive(rect) =>
             {
                 draw_selected_and_non_selected_brushes(bundle);
-                bundle.drawer.hull(&return_if_none!(ds.hull()), Color::Hull);
+                bundle.drawer.hull(&return_if_none!(rect.hull()), Color::Hull);
             },
             Status::Drag(..) | Status::PreDrag(_) | Status::NewVertexUi =>
             {

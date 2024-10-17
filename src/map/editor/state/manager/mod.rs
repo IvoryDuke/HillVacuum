@@ -3699,8 +3699,7 @@ impl EntitiesManager
             "Some brushes did not fit within the boundaries of the map due to updated the size of \
              their sprites and have therefore been removed. Be careful before saving the \
              file.\nHere is the list of the textures of the sprites of the brushes that have been \
-             removed:\n{:?}",
-            errors
+             removed:\n{errors:?}"
         ));
     }
 
@@ -3936,8 +3935,8 @@ impl EntitiesManager
         warning_message(&format!(
             "Some things did not fit within the boundaries of the map due to the updated size of \
              their outline and have therefore been removed. Be careful before saving the \
-             file.\nHere is the list of the ThingIds of the things that have been removed:\n{:?}",
-            errors
+             file.\nHere is the list of the ThingIds of the things that have been \
+             removed:\n{errors:?}"
         ));
     }
 

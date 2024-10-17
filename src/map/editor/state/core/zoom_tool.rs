@@ -27,7 +27,7 @@ use crate::{
 /// The tool used to zoom in/out the map view.
 pub(in crate::map::editor::state::core) struct ZoomTool
 {
-    /// The drag selection.
+    /// The rectangular selection.
     drag_selection:           Rect,
     /// The tool that was being used before enabling the zoom tool.
     pub previous_active_tool: PreviousActiveTool
