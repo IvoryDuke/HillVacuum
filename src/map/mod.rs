@@ -319,7 +319,7 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
-    use std::{hash::Hash, ops::RangeInclusive};
+    use std::ops::RangeInclusive;
 
     use bevy::{
         input::mouse::MouseWheel,
@@ -483,16 +483,6 @@ pub(in crate::map) mod ui_mod
     // ENUMS
     //
     //=======================================================================//
-
-    /// The two execution steps of the running application.
-    #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-    enum EditorSet
-    {
-        /// Update entities.
-        Update,
-        /// Draw visible entities.
-        Draw
-    }
 
     impl GridSettings
     {
@@ -663,29 +653,20 @@ pub(in crate::map) mod ui_mod
             // Texture loading
             .add_systems(
                 Update,
-                (load_textures, texture_loading_ui).chain().run_if(not(in_state(TextureLoadingProgress::Complete)))
+                (load_textures, texture_loading_ui)
+                    .chain()
+                    .run_if(not(in_state(TextureLoadingProgress::Complete)))
             )
             .add_systems(
                 OnEnter(TextureLoadingProgress::Complete),
                 store_loaded_textures
             )
-            // Handle entity creation and editing
-            .add_systems(First, quit)
+            // Handle editor
+            .add_systems(First, alt_f4_quit)
             .add_systems(
                 Update,
-                (
-                    update_state,
-                    update_active_tool
-                )
-                .chain()
-                .in_set(EditorSet::Update)
-                .run_if(in_state(EditorState::Run))
-            )
-            .add_systems(
-                Update,
-                draw
-                    .in_set(EditorSet::Draw)
-                    .after(EditorSet::Update)
+                (update,draw)
+                    .chain()
                     .run_if(in_state(EditorState::Run))
             )
             // Shutdown
@@ -934,7 +915,7 @@ pub(in crate::map) mod ui_mod
 
     /// Handle `Alt+F4` shutdown.
     #[inline]
-    fn quit(
+    fn alt_f4_quit(
         mut window: Query<&mut Window, With<PrimaryWindow>>,
         mut close_events: ResMut<Events<WindowCloseRequested>>,
         mut config: ResMut<Config>,
@@ -961,11 +942,12 @@ pub(in crate::map) mod ui_mod
     #[allow(clippy::needless_pass_by_value)]
     #[allow(clippy::too_many_arguments)]
     #[inline]
-    fn update_state(
+    fn update(
         mut window: Query<&mut Window, With<PrimaryWindow>>,
         mut images: ResMut<Assets<Image>>,
         mut materials: ResMut<Assets<ColorMaterial>>,
         mut camera: MainCameraQueryMut,
+        mut paint_tool_camera: PaintToolCameraQueryMut,
         mut prop_cameras: PropCamerasMut,
         mouse_buttons: Res<ButtonInput<MouseButton>>,
         mut mouse_wheel: EventReader<MouseWheel>,
@@ -1000,31 +982,13 @@ pub(in crate::map) mod ui_mod
             &mut next_editor_state,
             &mut next_tex_load
         );
-    }
 
-    //=======================================================================//
-
-    /// Updates the active tool.
-    #[allow(clippy::too_many_arguments)]
-    #[allow(clippy::needless_pass_by_value)]
-    #[inline]
-    fn update_active_tool(
-        window: Query<&Window, With<PrimaryWindow>>,
-        mut images: ResMut<Assets<Image>>,
-        mut camera: MainCameraQueryMut,
-        mut prop_cameras: PropCamerasMut,
-        mut paint_tool_camera: PaintToolCameraQueryMut,
-        time: Res<Time>,
-        mut user_textures: ResMut<EguiUserTextures>,
-        mut editor: NonSendMut<Editor>
-    )
-    {
         let mut paint_tool_camera = paint_tool_camera.single_mut();
 
         editor.update_active_tool(
-            return_if_err!(window.get_single()),
+            &window,
             &mut images,
-            camera.get_single_mut().unwrap().as_mut(),
+            &mut camera,
             &mut prop_cameras,
             (paint_tool_camera.0.as_mut(), paint_tool_camera.1.as_mut()),
             &time,
