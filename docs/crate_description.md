@@ -164,7 +164,7 @@ The executable can be picked through Options->Exporter.
 
 ## !! WARNING
 - [The only thing I know for real](https://youtu.be/T928kJvqTlo?si=2_YnB2pEuFSKKq-j), there will be bugs.  
-HV has been thoroughly tested but is still in its early releases, so there might be issues that lead to crashes due to unrecoverable errors. It is strongly recommended to save often.
+  HV has been thoroughly tested but is still in its early releases, so there might be issues that lead to crashes due to unrecoverable errors. It is strongly recommended to save often.
 - On Linux, HV requires the C library and development headers of GTK3 to be installed to build. If not installed, HV will crash any time a message dialog must be displayed. The package names on various distributions are (source: https://docs.rs/rfd/latest/rfd/):
 
 | Distribution    | Installation Command     |
@@ -175,3 +175,4 @@ HV has been thoroughly tested but is still in its early releases, so there might
 
 ## Misc
 In order to close the in-editor windows through the keyboard the `F4` key needs to be pressed (similar to pressing `Alt+F4` to close OS windows).
+

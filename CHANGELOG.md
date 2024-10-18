@@ -13,7 +13,7 @@
 - fixed layout of default `.ini` settings;
 - fixed empty edit sometimes created by the selection of attached brushes;
 - fixed a paint tool crash occurring when no prop is selected;
-- fixed crash that could occour when creating a shape with the draw tool;
+- fixed crash that could occur when creating a shape with the draw tool;
 - fixed sometimes incorrect camera zoom;
 - fixed path nodes selection.
 
