@@ -3725,6 +3725,7 @@ impl EntitiesManager
              file.\nHere is the list of the textures of the sprites of the brushes that have been \
              removed:\n{errors:?}"
         ));
+        self.innards.loaded_file_modified = true;
     }
 
     //==============================================================
@@ -3962,6 +3963,7 @@ impl EntitiesManager
              file.\nHere is the list of the ThingIds of the things that have been \
              removed:\n{errors:?}"
         ));
+        self.innards.loaded_file_modified = true;
     }
 
     //==============================================================
