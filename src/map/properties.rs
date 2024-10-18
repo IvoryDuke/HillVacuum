@@ -135,7 +135,7 @@ impl std::fmt::Debug for Value
             ($($value:ident, $t:ty, $str:literal, $default:expr),+) => {
                 match self
                 {
-                    $(Self::$value(value) => write!(f, "{}: {value}", $str)),+
+                    $(Self::$value(value) => write!(f, "{value} ({})", $str)),+
                 }
             }
         }
@@ -151,7 +151,7 @@ impl std::fmt::Display for Value
     {
         /// Implements display for all enum arms.
         macro_rules! display {
-            ($($value:ident),+) => {
+            ($($value:ident, $t:ty, $str:literal, $default:expr),+) => {
                 match self
                 {
                     $(Self::$value(value) => value.fmt(f)),+
@@ -159,7 +159,7 @@ impl std::fmt::Display for Value
             }
         }
 
-        display!(Bool, U8, U16, U32, U64, U128, I8, I16, I32, I64, I128, F32, F64, String)
+        for_each_value!(ret, display)
     }
 }
 
@@ -465,26 +465,19 @@ pub(in crate::map) mod ui_mod
         #[inline]
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
         {
-            let mut properties = "[".to_string();
+            let mut properties = '\n'.to_string();
             let len = self.len();
-
-            if len == 0
-            {
-                return write!(f, "{properties}]");
-            }
-
-            properties.push('\n');
 
             let mut iter = self.0.iter();
 
             for _ in 0..len - 1
             {
                 let (k, v) = iter.next_value();
-                properties.push_str(&format!("\t({k}, {v:?}),\n"));
+                properties.push_str(&format!("{k}: {v:?},\n"));
             }
 
             let (k, v) = iter.next_value();
-            properties.push_str(&format!("\t({k}, {v:?})\n]"));
+            properties.push_str(&format!("{k}: {v:?}"));
 
             write!(f, "{properties}")
         }

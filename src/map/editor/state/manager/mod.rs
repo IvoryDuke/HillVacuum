@@ -70,7 +70,14 @@ use crate::{
         },
         hv_vec,
         path::{EditPath, MovementSimulator, Moving, Path},
-        properties::{DefaultProperties, Properties, PropertiesRefactor},
+        properties::{
+            DefaultProperties,
+            Properties,
+            PropertiesRefactor,
+            ANGLE_LABEL,
+            COLLISION_LABEL,
+            HEIGHT_LABEL
+        },
         thing::{catalog::ThingsCatalog, ThingInstance, ThingInstanceData, ThingInterface},
         AssertedInsertRemove,
         FileStructure,
@@ -703,13 +710,19 @@ impl Innards
         /// Stores in `map_default_properties` the desired properties and returns a
         /// [`PropertiesRefactor`] if the default and file properties do not match.
         #[inline]
-        fn mismatching_properties<'a>(
+        fn mismatching_properties<'a, F>(
             engine_default_properties: &'a DefaultProperties,
             map_default_properties: &'a mut DefaultProperties,
             file_default_properties: DefaultProperties,
-            entity: &str
+            entity: &str,
+            assertion: F
         ) -> Option<PropertiesRefactor<'a>>
+        where
+            F: Fn(&DefaultProperties) -> bool + Copy
         {
+            assert!(assertion(engine_default_properties), "Invalid engine_default_properties.");
+            assert!(assertion(&file_default_properties), "Invalid file_default_properties.");
+
             if *engine_default_properties == file_default_properties
             {
                 return None;
@@ -724,11 +737,11 @@ impl Innards
                  {engine_default_properties}\n\nMAP: {file_default_properties}"
             );
 
-            match rfd::MessageDialog::new()
+            let refactor = match rfd::MessageDialog::new()
                 .set_level(rfd::MessageLevel::Warning)
                 .set_title("WARNING")
                 .set_description(&description)
-                .set_buttons(rfd::MessageButtons::YesNoCancel)
+                .set_buttons(rfd::MessageButtons::YesNo)
                 .show()
             {
                 rfd::MessageDialogResult::Yes =>
@@ -743,7 +756,11 @@ impl Innards
                     None
                 },
                 _ => unreachable!()
-            }
+            };
+
+            assert!(assertion(map_default_properties), "Invalid map_default_properties.");
+
+            refactor
         }
 
         let mut max_id = Id::ZERO;
@@ -759,7 +776,8 @@ impl Innards
             default_properties.brushes,
             default_properties.map_brushes,
             file_brushes_default_properties,
-            "brushes"
+            "brushes",
+            |properties| properties.contains(COLLISION_LABEL)
         );
         let mut brushes_removed = false;
 
@@ -811,7 +829,8 @@ impl Innards
             default_properties.things,
             default_properties.map_things,
             file_things_default_properties,
-            "things"
+            "things",
+            |properties| properties.contains(HEIGHT_LABEL) && properties.contains(ANGLE_LABEL)
         );
         let mut things_removed = false;
 
