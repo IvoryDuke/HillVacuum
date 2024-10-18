@@ -12,7 +12,9 @@ use std::{
 use bevy::{
     asset::{AssetServer, Assets},
     input::{keyboard::KeyCode, ButtonInput},
-    render::texture::Image
+    prelude::NextState,
+    render::texture::Image,
+    window::Window
 };
 use bevy_egui::{egui, EguiUserTextures};
 use glam::Vec2;
@@ -33,7 +35,10 @@ use super::{
     ui::{Interaction, UiFocus}
 };
 use crate::{
-    config::controls::{bind::Bind, BindsKeyCodes},
+    config::{
+        controls::{bind::Bind, BindsKeyCodes},
+        Config
+    },
     error_message,
     map::{
         brush::Brush,
@@ -87,8 +92,7 @@ use crate::{
     warning_message,
     EditorState,
     HardcodedActions,
-    HvVec,
-    NAME
+    HvVec
 };
 
 //=======================================================================//
@@ -689,7 +693,14 @@ impl State
             }
 
             dialog_if_error!(Self::save(
-                bundle,
+                bundle.window,
+                bundle.config,
+                bundle.default_properties,
+                bundle.drawing_resources,
+                bundle.manager,
+                bundle.clipboard,
+                bundle.edits_history,
+                bundle.grid,
                 bundle.inputs.shift_pressed().then_some("Save as")
             ));
             return true;
@@ -783,31 +794,52 @@ impl State
 
     /// Executes the file save file routine if there are unsaved changes and the user decides to
     /// save.  
-    /// Returns whether the file was actually saved.
+    /// Returns whether the procedure was not canceled.
     #[inline]
-    fn unsaved_changes(bundle: &mut StateUpdateBundle) -> Result<bool, &'static str>
+    fn save_unsaved_changes(
+        window: &mut Window,
+        config: &mut Config,
+        default_properties: &AllDefaultProperties,
+        drawing_resources: &mut DrawingResources,
+        manager: &mut EntitiesManager,
+        clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        grid: &mut Grid
+    ) -> Result<bool, &'static str>
     {
-        if Self::no_edits(bundle)
+        if Self::no_edits(drawing_resources, manager, clipboard, edits_history, grid)
         {
-            return Ok(false);
+            return Ok(true);
         }
 
-        if native_dialog::MessageDialog::new()
-            .set_title(NAME)
-            .set_text("There are unsaved changes, do you wish to save?")
-            .set_type(native_dialog::MessageType::Info)
-            .show_confirm()
-            .unwrap()
+        match rfd::MessageDialog::new()
+            .set_title("WARNING")
+            .set_description("There are unsaved changes, do you wish to save?")
+            .set_level(rfd::MessageLevel::Warning)
+            .set_buttons(rfd::MessageButtons::YesNoCancel)
+            .show()
         {
-            match Self::save(bundle, None)
+            rfd::MessageDialogResult::Yes =>
             {
-                Err(err) => Err(err),
-                Ok(()) => Ok(true)
-            }
-        }
-        else
-        {
-            Ok(false)
+                match Self::save(
+                    window,
+                    config,
+                    default_properties,
+                    drawing_resources,
+                    manager,
+                    clipboard,
+                    edits_history,
+                    grid,
+                    None
+                )
+                {
+                    Err(err) => Err(err),
+                    Ok(()) => Ok(true)
+                }
+            },
+            rfd::MessageDialogResult::No => Ok(true),
+            rfd::MessageDialogResult::Cancel => Ok(false),
+            _ => unreachable!()
         }
     }
 
@@ -816,7 +848,19 @@ impl State
     #[inline]
     fn new_file(&mut self, bundle: &mut StateUpdateBundle) -> Result<(), &'static str>
     {
-        _ = Self::unsaved_changes(bundle)?;
+        if !Self::save_unsaved_changes(
+            bundle.window,
+            bundle.config,
+            bundle.default_properties,
+            bundle.drawing_resources,
+            bundle.manager,
+            bundle.clipboard,
+            bundle.edits_history,
+            bundle.grid
+        )?
+        {
+            return Ok(());
+        }
 
         self.core = Core::default();
         *bundle.manager = EntitiesManager::new();
@@ -874,13 +918,30 @@ impl State
     /// Whether there are no unsaved changes.
     #[inline]
     #[must_use]
-    fn no_edits(bundle: &StateUpdateBundle) -> bool
+    fn no_edits(
+        drawing_resources: &DrawingResources,
+        manager: &EntitiesManager,
+        clipboard: &Clipboard,
+        edits_history: &EditsHistory,
+        grid: &Grid
+    ) -> bool
     {
-        bundle.edits_history.no_unsaved_edits() &&
-            !bundle.clipboard.props_changed() &&
-            !bundle.drawing_resources.default_animations_changed() &&
-            !bundle.manager.loaded_file_modified() &&
-            !bundle.grid.changed()
+        edits_history.no_unsaved_edits() &&
+            !clipboard.props_changed() &&
+            !drawing_resources.default_animations_changed() &&
+            !manager.loaded_file_modified() &&
+            !grid.changed()
+    }
+
+    #[inline]
+    #[must_use]
+    fn save_file(title: &str, filter_description: &str, filter_extension: &str) -> Option<PathBuf>
+    {
+        rfd::FileDialog::new()
+            .set_directory(std::env::current_dir().unwrap())
+            .set_title(title)
+            .add_filter(filter_description, &[filter_extension])
+            .save_file()
     }
 
     /// Saves the map being edited. If the file has not being created yet user is asked to specify
@@ -889,7 +950,14 @@ impl State
     /// in the previously opened file.
     #[inline]
     fn save(
-        bundle: &mut StateUpdateBundle,
+        window: &mut Window,
+        config: &mut Config,
+        default_properties: &AllDefaultProperties,
+        drawing_resources: &mut DrawingResources,
+        manager: &mut EntitiesManager,
+        clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        grid: &mut Grid,
         save_as: Option<&'static str>
     ) -> Result<(), &'static str>
     {
@@ -918,12 +986,7 @@ impl State
         fn save_as_dialog(title: &'static str) -> SaveTarget
         {
             let path = return_if_none!(
-                native_dialog::FileDialog::new()
-                    .set_location(&std::env::current_dir().unwrap())
-                    .set_title(title)
-                    .add_filter(HV_FILTER_NAME, &[FILE_EXTENSION])
-                    .show_save_single_file()
-                    .unwrap(),
+                State::save_file(title, HV_FILTER_NAME, FILE_EXTENSION),
                 SaveTarget::None
             );
 
@@ -935,7 +998,7 @@ impl State
             Some(msg) => save_as_dialog(msg),
             None =>
             {
-                match bundle.config.open_file.path()
+                match config.open_file.path()
                 {
                     Some(path) =>
                     {
@@ -973,10 +1036,10 @@ impl State
                 {
                     test_writer!(
                         &MapHeader {
-                            brushes:    bundle.manager.brushes_amount(),
-                            things:     bundle.manager.things_amount(),
-                            animations: bundle.drawing_resources.animations_amount(),
-                            props:      bundle.clipboard.props_amount()
+                            brushes:    manager.brushes_amount(),
+                            things:     manager.things_amount(),
+                            animations: drawing_resources.animations_amount(),
+                            props:      clipboard.props_amount()
                         },
                         &mut writer,
                         "Error saving file header"
@@ -984,32 +1047,28 @@ impl State
                 },
                 FileStructure::Grid =>
                 {
-                    test_writer!(
-                        &bundle.grid.settings(),
-                        &mut writer,
-                        "Error saving grid settings."
-                    );
+                    test_writer!(&grid.settings(), &mut writer, "Error saving grid settings.");
                 },
                 FileStructure::Animations =>
                 {
-                    bundle.drawing_resources.export_animations(&mut writer)?;
+                    drawing_resources.export_animations(&mut writer)?;
                 },
                 FileStructure::Properties =>
                 {
                     test_writer!(
-                        bundle.default_properties.map_brushes,
+                        default_properties.map_brushes,
                         &mut writer,
                         "Error saving Brush default properties."
                     );
                     test_writer!(
-                        bundle.default_properties.map_things,
+                        default_properties.map_things,
                         &mut writer,
                         "Error saving Thing default properties."
                     );
                 },
                 FileStructure::Brushes =>
                 {
-                    for brush in bundle.manager.brushes().iter()
+                    for brush in manager.brushes().iter()
                     {
                         test_writer!(
                             &brush.clone().to_viewer(),
@@ -1020,7 +1079,7 @@ impl State
                 },
                 FileStructure::Things =>
                 {
-                    for thing in bundle.manager.things()
+                    for thing in manager.things()
                     {
                         test_writer!(
                             &thing.clone().to_viewer(),
@@ -1029,7 +1088,7 @@ impl State
                         );
                     }
                 },
-                FileStructure::Props => bundle.clipboard.export_props(&mut writer)?
+                FileStructure::Props => clipboard.export_props(&mut writer)?
             }
         }
 
@@ -1046,7 +1105,7 @@ impl State
                 file = file.create(true);
                 path
             },
-            SaveTarget::Opened => bundle.config.open_file.path().unwrap()
+            SaveTarget::Opened => config.open_file.path().unwrap()
         };
 
         let file = match file.open(path)
@@ -1067,14 +1126,14 @@ impl State
 
         if target.is_new()
         {
-            bundle.config.open_file.update(path.clone(), bundle.window);
+            config.open_file.update(path.clone(), window);
         }
 
-        bundle.edits_history.reset_last_save_edit();
-        bundle.clipboard.reset_props_changed();
-        bundle.manager.reset_loaded_file_modified();
-        bundle.drawing_resources.reset_default_animation_changed();
-        bundle.grid.reset_changed();
+        edits_history.reset_last_save_edit();
+        clipboard.reset_props_changed();
+        manager.reset_loaded_file_modified();
+        drawing_resources.reset_default_animation_changed();
+        grid.reset_changed();
 
         Ok(())
     }
@@ -1329,19 +1388,40 @@ impl State
         Ok((manager, clipboard, grid, path))
     }
 
+    #[inline]
+    #[must_use]
+    fn open_file(title: &str, filter_description: &str, filter_extension: &str) -> Option<PathBuf>
+    {
+        rfd::FileDialog::new()
+            .set_directory(std::env::current_dir().unwrap())
+            .set_title(title)
+            .add_filter(filter_description, &[filter_extension])
+            .pick_file()
+    }
+
     /// Opens a map file, unless the file cannot be properly read. If there are unsaved changes in
     /// the currently open map the save procedure is initiated.
     #[inline]
     fn open(&mut self, bundle: &mut StateUpdateBundle)
     {
-        dialog_if_error!(ret; Self::unsaved_changes(bundle));
+        if !dialog_if_error!(
+            ret;
+            Self::save_unsaved_changes(
+                bundle.window,
+                bundle.config,
+                bundle.default_properties,
+                bundle.drawing_resources,
+                bundle.manager,
+                bundle.clipboard,
+                bundle.edits_history,
+                bundle.grid
+            )
+        )
+        {
+            return;
+        }
 
-        let file_to_open = return_if_none!(native_dialog::FileDialog::new()
-            .set_location(&std::env::current_dir().unwrap())
-            .set_title("Open")
-            .add_filter(HV_FILTER_NAME, &[FILE_EXTENSION])
-            .show_open_single_file()
-            .unwrap());
+        let file_to_open = return_if_none!(Self::open_file("Open", HV_FILTER_NAME, FILE_EXTENSION));
 
         match Self::process_map_file(
             bundle.images,
@@ -1380,7 +1460,19 @@ impl State
     #[inline]
     fn export(bundle: &mut StateUpdateBundle)
     {
-        dialog_if_error!(Self::unsaved_changes(bundle));
+        if !dialog_if_error!(ret; Self::save_unsaved_changes(
+            bundle.window,
+            bundle.config,
+            bundle.default_properties,
+            bundle.drawing_resources,
+            bundle.manager,
+            bundle.clipboard,
+            bundle.edits_history,
+            bundle.grid
+        ))
+        {
+            return;
+        }
 
         let file = return_if_none!(bundle.config.open_file.path());
         let exporter = return_if_none!(bundle.config.exporter.as_ref());
@@ -1393,6 +1485,7 @@ impl State
         }
 
         dialog_if_error!(
+            map;
             std::process::Command::new(exporter).arg(file).output(),
             "Error exporting map"
         );
@@ -1431,9 +1524,19 @@ impl State
     #[must_use]
     pub fn update(&mut self, bundle: &mut StateUpdateBundle) -> bool
     {
-        if HardcodedActions::Quit.pressed(bundle.key_inputs)
+        if HardcodedActions::Quit.pressed(bundle.key_inputs) &&
+            Self::quit(
+                bundle.window,
+                bundle.config,
+                bundle.default_properties,
+                bundle.drawing_resources,
+                bundle.manager,
+                bundle.clipboard,
+                bundle.edits_history,
+                bundle.grid,
+                bundle.next_editor_state
+            )
         {
-            Self::quit(bundle);
             return false;
         }
 
@@ -1505,28 +1608,29 @@ impl State
         fn export<E>(
             items: &str,
             filter_description: &str,
-            extension: &'static str,
+            filter_extension: &'static str,
             len: usize,
             e: E
         ) where
             E: FnOnce(&mut BufWriter<&mut Vec<u8>>) -> Result<(), &'static str>
         {
-            let path = return_if_none!(native_dialog::FileDialog::new()
-                .set_location(&std::env::current_dir().unwrap())
-                .set_title(&format!("Export {items}"))
-                .add_filter(filter_description, &[extension])
-                .show_save_single_file()
-                .unwrap());
-            let path = check_path_extension(path, extension);
+            let path = return_if_none!(State::save_file(
+                &format!("Export {items}"),
+                filter_description,
+                filter_extension
+            ));
+            let path = check_path_extension(path, filter_extension);
 
             let mut data = Vec::<u8>::new();
             let mut writer = BufWriter::new(&mut data);
 
-            dialog_if_error!(ret; ciborium::ser::into_writer(
-                FILE_VERSION,
-                &mut writer
-            ), "Error writing version number.");
             dialog_if_error!(
+                map;
+                ciborium::ser::into_writer(FILE_VERSION, &mut writer),
+                "Error writing version number."
+            );
+            dialog_if_error!(
+                map;
                 ciborium::ser::into_writer(&len, &mut writer),
                 &format!("Error writing {items} amount.")
             );
@@ -1570,7 +1674,7 @@ impl State
         }
 
         #[inline]
-        fn import<C, I>(items: &str, filter_description: &str, extension: &str, c: C, i: I)
+        fn import<C, I>(items: &str, filter_description: &str, filter_extension: &str, c: C, i: I)
         where
             C: FnOnce(
                 &str,
@@ -1580,16 +1684,16 @@ impl State
             ) -> Result<BufReader<File>, &'static str>,
             I: FnOnce(&mut BufReader<File>, usize) -> Result<(), &'static str>
         {
-            let path = return_if_none!(native_dialog::FileDialog::new()
-                .set_location(&std::env::current_dir().unwrap())
-                .set_title(&format!("Import {items}"))
-                .add_filter(filter_description, &[extension])
-                .show_open_single_file()
-                .unwrap());
+            let path = return_if_none!(State::open_file(
+                &format!("Import {items}"),
+                filter_description,
+                filter_extension
+            ));
 
             let mut reader = BufReader::new(File::open(&path).unwrap());
             let version = version_number(&mut reader);
             let len = dialog_if_error!(
+                map;
                 ciborium::de::from_reader(&mut reader),
                 &format!("Error reading {items} length")
             );
@@ -1614,8 +1718,34 @@ impl State
                 self.change_tool(tool, bundle, tool_change_conditions);
             },
             Command::New => dialog_if_error!(self.new_file(bundle)),
-            Command::Save => dialog_if_error!(Self::save(bundle, None)),
-            Command::SaveAs => dialog_if_error!(Self::save(bundle, "Save as".into())),
+            Command::Save =>
+            {
+                dialog_if_error!(Self::save(
+                    bundle.window,
+                    bundle.config,
+                    bundle.default_properties,
+                    bundle.drawing_resources,
+                    bundle.manager,
+                    bundle.clipboard,
+                    bundle.edits_history,
+                    bundle.grid,
+                    None
+                ));
+            },
+            Command::SaveAs =>
+            {
+                dialog_if_error!(Self::save(
+                    bundle.window,
+                    bundle.config,
+                    bundle.default_properties,
+                    bundle.drawing_resources,
+                    bundle.manager,
+                    bundle.clipboard,
+                    bundle.edits_history,
+                    bundle.grid,
+                    "Save as".into()
+                ));
+            },
             Command::Open => self.open(bundle),
             Command::Export => Self::export(bundle),
             Command::ImportAnimations =>
@@ -1708,7 +1838,17 @@ impl State
             Command::QuickSnap => self.quick_snap(bundle),
             Command::Quit =>
             {
-                Self::quit(bundle);
+                _ = Self::quit(
+                    bundle.window,
+                    bundle.config,
+                    bundle.default_properties,
+                    bundle.drawing_resources,
+                    bundle.manager,
+                    bundle.clipboard,
+                    bundle.edits_history,
+                    bundle.grid,
+                    bundle.next_editor_state
+                );
                 return true;
             }
         };
@@ -1788,7 +1928,13 @@ impl State
         self.tools_settings.update(&self.core, bundle.manager);
         let starts_with_star = bundle.window.title.starts_with('*');
 
-        if Self::no_edits(bundle)
+        if Self::no_edits(
+            bundle.drawing_resources,
+            bundle.manager,
+            bundle.clipboard,
+            bundle.edits_history,
+            bundle.grid
+        )
         {
             if starts_with_star
             {
@@ -1816,7 +1962,20 @@ impl State
         {
             Command::ToggleMapPreview => self.toggle_map_preview(bundle),
             Command::ReloadTextures => self.start_texture_reload(bundle),
-            Command::Quit => Self::quit(bundle),
+            Command::Quit =>
+            {
+                _ = Self::quit(
+                    bundle.window,
+                    bundle.config,
+                    bundle.default_properties,
+                    bundle.drawing_resources,
+                    bundle.manager,
+                    bundle.clipboard,
+                    bundle.edits_history,
+                    bundle.grid,
+                    bundle.next_editor_state
+                );
+            },
             _ => ()
         };
 
@@ -1901,14 +2060,20 @@ impl State
     fn toggle_collision(&mut self) { self.show_collision.toggle(); }
 
     #[inline]
+    #[must_use]
     fn reload_warning(message: &str) -> bool
     {
-        native_dialog::MessageDialog::new()
+        match rfd::MessageDialog::new()
+            .set_level(rfd::MessageLevel::Warning)
             .set_title("WARNING")
-            .set_text(message)
-            .set_type(native_dialog::MessageType::Warning)
-            .show_confirm()
-            .unwrap()
+            .set_description(message)
+            .set_buttons(rfd::MessageButtons::YesNoCancel)
+            .show()
+        {
+            rfd::MessageDialogResult::Yes => true,
+            rfd::MessageDialogResult::No => false,
+            _ => unreachable!()
+        }
     }
 
     /// Reloads the things.
@@ -1939,10 +2104,39 @@ impl State
     /// Starts the application shutdown procedure.  
     /// Returns whether the application should actually be closed.
     #[inline]
-    pub fn quit(bundle: &mut StateUpdateBundle)
+    #[must_use]
+    pub fn quit(
+        window: &mut Window,
+        config: &mut Config,
+        default_properties: &AllDefaultProperties,
+        drawing_resources: &mut DrawingResources,
+        manager: &mut EntitiesManager,
+        clipboard: &mut Clipboard,
+        edits_history: &mut EditsHistory,
+        grid: &mut Grid,
+        next_editor_state: &mut NextState<EditorState>
+    ) -> bool
     {
-        dialog_if_error!(Self::unsaved_changes(bundle));
-        bundle.next_editor_state.set(EditorState::ShutDown);
+        if !dialog_if_error!(
+            default;
+            Self::save_unsaved_changes(
+                window,
+                config,
+                default_properties,
+                drawing_resources,
+                manager,
+                clipboard,
+                edits_history,
+                grid
+            ),
+            true
+        )
+        {
+            return false;
+        }
+
+        next_editor_state.set(EditorState::ShutDown);
+        true
     }
 
     /// Returns the [`Hull`] representing the rectangle encompassing all the selected entities if

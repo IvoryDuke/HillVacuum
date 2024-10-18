@@ -670,6 +670,7 @@ pub(in crate::map) mod ui_mod
                 store_loaded_textures
             )
             // Handle entity creation and editing
+            .add_systems(First, quit)
             .add_systems(
                 Update,
                 (
@@ -931,6 +932,31 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
+    /// Handle `Alt+F4` shutdown.
+    #[inline]
+    fn quit(
+        mut window: Query<&mut Window, With<PrimaryWindow>>,
+        mut close_events: ResMut<Events<WindowCloseRequested>>,
+        mut config: ResMut<Config>,
+        mut editor: NonSendMut<Editor>,
+        mut next_editor_state: ResMut<NextState<EditorState>>
+    )
+    {
+        if close_events.is_empty()
+        {
+            return;
+        }
+
+        let mut window = return_if_err!(window.get_single_mut());
+
+        if !editor.quit(&mut window, &mut config, &mut next_editor_state)
+        {
+            close_events.clear();
+        }
+    }
+
+    //=======================================================================//
+
     /// Updates the editor state.
     #[allow(clippy::needless_pass_by_value)]
     #[allow(clippy::too_many_arguments)]
@@ -945,7 +971,6 @@ pub(in crate::map) mod ui_mod
         mut mouse_wheel: EventReader<MouseWheel>,
         mut key_inputs: ResMut<ButtonInput<KeyCode>>,
         time: Res<Time>,
-        mut close_events: EventReader<WindowCloseRequested>,
         mut egui_context: Query<&'static mut EguiContext, With<PrimaryWindow>>,
         mut user_textures: ResMut<EguiUserTextures>,
         mut editor: NonSendMut<Editor>,
@@ -958,27 +983,6 @@ pub(in crate::map) mod ui_mod
         let mut egui_context = egui_context.single_mut();
         let egui_context = egui_context.get_mut();
         let mut camera = camera.single_mut();
-
-        if close_events.read().next().is_some()
-        {
-            editor.quit(
-                &mut window,
-                &mut images,
-                &mut materials,
-                &mut camera,
-                &mut prop_cameras,
-                &time,
-                egui_context,
-                &mut user_textures,
-                &mouse_buttons,
-                &mut key_inputs,
-                &mut config,
-                &mut next_editor_state,
-                &mut next_tex_load
-            );
-
-            return;
-        }
 
         editor.update(
             &mut window,

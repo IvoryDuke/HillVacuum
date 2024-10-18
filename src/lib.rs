@@ -316,22 +316,14 @@ pub(crate) mod ui_mod
 
                 let message = panic_info.payload();
                 let message = message.downcast_ref::<String>().map_or_else(
-                    || {
-                        message
-                            .downcast_ref::<&str>()
-                            .copied()
-                            .unwrap_or("A fatal error has occurred.")
-                    },
+                    || message.downcast_ref::<&str>().copied().unwrap_or_default(),
                     String::as_str
                 );
 
-                native_dialog::MessageDialog::new()
-                    .set_title("FATAL ERROR")
-                    .set_text(&format!(
-                        "{message}\nThe backtrace has been logged to backtrace.log."
-                    ))
-                    .show_alert()
-                    .unwrap();
+                error_message(&format!(
+                    "A fatal error has occurred: {message}\nThe backtrace has been logged to \
+                     backtrace.log."
+                ));
             }));
 
             let mut window = Window {
@@ -390,12 +382,11 @@ pub(crate) mod ui_mod
     #[inline]
     pub(crate) fn error_message(error: &str)
     {
-        native_dialog::MessageDialog::new()
-            .set_type(native_dialog::MessageType::Error)
+        rfd::MessageDialog::new()
+            .set_level(rfd::MessageLevel::Error)
             .set_title("ERROR")
-            .set_text(error)
-            .show_alert()
-            .unwrap();
+            .set_description(error)
+            .show();
     }
 
     //=======================================================================//
@@ -403,12 +394,11 @@ pub(crate) mod ui_mod
     #[inline]
     pub(crate) fn warning_message(message: &str)
     {
-        native_dialog::MessageDialog::new()
-            .set_type(native_dialog::MessageType::Warning)
+        rfd::MessageDialog::new()
+            .set_level(rfd::MessageLevel::Warning)
             .set_title("WARNING")
-            .set_text(message)
-            .show_alert()
-            .unwrap();
+            .set_description(message)
+            .show();
     }
 }
 

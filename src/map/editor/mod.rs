@@ -631,50 +631,26 @@ impl Editor
     pub fn quit(
         &mut self,
         window: &mut Window,
-        images: &mut Assets<Image>,
-        materials: &mut Assets<ColorMaterial>,
-        camera: &mut Transform,
-        prop_cameras: &mut PropCamerasMut,
-        time: &Time,
-        egui_context: &egui::Context,
-        user_textures: &mut EguiUserTextures,
-        mouse_buttons: &ButtonInput<MouseButton>,
-        key_inputs: &mut ButtonInput<KeyCode>,
         config: &mut Config,
-        next_editor_state: &mut NextState<EditorState>,
-        next_tex_load: &mut NextState<TextureLoadingProgress>
-    )
+        next_editor_state: &mut NextState<EditorState>
+    ) -> bool
     {
-        State::quit(&mut StateUpdateBundle {
+        State::quit(
             window,
-            images,
-            materials,
-            camera,
-            prop_cameras,
-            elapsed_time: time.elapsed_seconds(),
-            delta_time: time.delta_seconds(),
-            mouse_buttons,
-            key_inputs,
-            egui_context,
-            user_textures,
             config,
-            cursor: &self.cursor,
-            things_catalog: &mut self.things_catalog,
-            drawing_resources: &mut self.drawing_resources,
-            default_properties: &mut AllDefaultProperties {
+            &AllDefaultProperties {
                 brushes:     &self.brushes_default_properties,
                 things:      &self.things_default_properties,
                 map_brushes: &mut self.map_brushes_default_properties,
                 map_things:  &mut self.map_things_default_properties
             },
-            manager: &mut self.manager,
-            clipboard: &mut self.clipboard,
-            edits_history: &mut self.edits_history,
-            inputs: &mut self.inputs,
-            grid: &mut self.grid,
-            next_editor_state,
-            next_tex_load
-        });
+            &mut self.drawing_resources,
+            &mut self.manager,
+            &mut self.clipboard,
+            &mut self.edits_history,
+            &mut self.grid,
+            next_editor_state
+        )
     }
 
     //==============================================================

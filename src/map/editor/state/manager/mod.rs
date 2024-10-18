@@ -719,26 +719,30 @@ impl Innards
                 "The engine default {entity} properties are different from the ones stored in the \
                  map file.\nIf you decide to use the engine defined ones, all values currently \
                  contained in the {entity} that do not match will be removed, and the missing \
-                 ones will be inserted.\nPress YES to use the engine properties, press NO to use \
-                 the map file properties.\n\nHere are the two property lists:\n\nENGINE: \
+                 ones will be inserted.\n- Press YES to use the engine properties;\n- Press NO to \
+                 use the map file properties.\n\nHere are the two property lists:\n\nENGINE: \
                  {engine_default_properties}\n\nMAP: {file_default_properties}"
             );
 
-            if native_dialog::MessageDialog::new()
+            match rfd::MessageDialog::new()
+                .set_level(rfd::MessageLevel::Warning)
                 .set_title("WARNING")
-                .set_text(&description)
-                .set_type(native_dialog::MessageType::Info)
-                .show_confirm()
-                .unwrap()
+                .set_description(&description)
+                .set_buttons(rfd::MessageButtons::YesNoCancel)
+                .show()
             {
-                let refactor = file_default_properties.refactor(engine_default_properties);
-                *map_default_properties = engine_default_properties.clone();
-                refactor.into()
-            }
-            else
-            {
-                *map_default_properties = file_default_properties;
-                None
+                rfd::MessageDialogResult::Yes =>
+                {
+                    let refactor = file_default_properties.refactor(engine_default_properties);
+                    *map_default_properties = engine_default_properties.clone();
+                    refactor.into()
+                },
+                rfd::MessageDialogResult::No =>
+                {
+                    *map_default_properties = file_default_properties;
+                    None
+                },
+                _ => unreachable!()
             }
         }
 

@@ -91,18 +91,6 @@ macro_rules! dialog_if_error {
         }
     };
 
-    ($value:expr, $err:expr) => {
-        match $value
-        {
-            Ok(value) => value,
-            Err(_) =>
-            {
-                crate::error_message($err);
-                return;
-            }
-        }
-    };
-
     (ret; $value:expr) => {
         match $value
         {
@@ -115,7 +103,7 @@ macro_rules! dialog_if_error {
         }
     };
 
-    (ret; $value:expr, $err:expr) => {
+    (map; $value:expr, $err:expr) => {
         match $value
         {
             Ok(value) => value,
@@ -123,6 +111,18 @@ macro_rules! dialog_if_error {
             {
                 crate::error_message($err);
                 return;
+            }
+        }
+    };
+
+    (default; $value:expr, $default:expr) => {
+        match $value
+        {
+            Ok(value) => value,
+            Err(err) =>
+            {
+                crate::error_message(err);
+                return $default;
             }
         }
     };

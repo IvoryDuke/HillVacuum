@@ -306,11 +306,10 @@ impl SettingsWindow
 
                         if ui.button("Pick exporter").clicked()
                         {
-                            match native_dialog::FileDialog::new()
-                                .set_location(&std::env::current_dir().unwrap())
+                            match rfd::FileDialog::new()
+                                .set_directory(std::env::current_dir().unwrap())
                                 .set_title("Pick exporter")
-                                .show_open_single_file()
-                                .unwrap()
+                                .pick_file()
                             {
                                 Some(file) if file.is_executable() => *exporter = file.into(),
                                 _ => ()

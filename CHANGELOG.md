@@ -6,7 +6,6 @@
 - Simplified texture parallax calculations, changed signature of `draw_offset_with_parallax_and_scroll`;
 - `Tab` and `Alt+Tab` can now be used to scroll through the ui widgets;
 - decreased file size of `Prop`s;
-- replaced `rfd` with `native-dialog` to handle message dialogs due to the wider range of supported operating systems;
 - `Node`'s fields are now public.
 
 ### Fixes
