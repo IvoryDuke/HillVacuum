@@ -1,5 +1,7 @@
 #[cfg(feature = "ui")]
 pub(in crate::map) mod catalog;
+#[cfg(feature = "ui")]
+pub(in crate::map) mod compatibility;
 
 //=======================================================================//
 // IMPORTS

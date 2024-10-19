@@ -170,7 +170,6 @@ impl std::fmt::Display for Value
 
 /// Key-value pairs associated to an entity.
 #[must_use]
-#[allow(clippy::unsafe_derive_deserialize)]
 #[derive(Clone, Serialize, Deserialize)]
 pub(in crate::map) struct Properties(HvHashMap<String, Value>);
 
@@ -224,7 +223,7 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     macro_rules! new_default_properties {
-        ($(($entity:ident, $($property:ident, $default:literal),+)),+) => { paste::paste! {$(
+        ($(($entity:ident, $($property:ident, $default:expr),+)),+) => { paste::paste! {$(
             #[inline]
             pub fn [< default_ $entity >]() -> Self { Self::$entity(Vec::<(&'static str, _)>::new()) }
 
@@ -283,8 +282,11 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     pub(in crate::map) const COLLISION_LABEL: &str = "collision";
+    pub(in crate::map) const COLLISION_DEFAULT: bool = true;
     pub(in crate::map) const ANGLE_LABEL: &str = "angle";
+    pub(in crate::map) const ANGLE_DEFAULT: i16 = 0;
     pub(in crate::map) const HEIGHT_LABEL: &str = "height";
+    pub(in crate::map) const HEIGHT_DEFAULT: i8 = 0;
 
     //=======================================================================//
     // TRAITS
@@ -503,8 +505,8 @@ pub(in crate::map) mod ui_mod
     impl DefaultProperties
     {
         new_default_properties!(
-            (brush, COLLISION_LABEL, true),
-            (thing, HEIGHT_LABEL, 0i8, ANGLE_LABEL, 0i16)
+            (brush, COLLISION_LABEL, COLLISION_DEFAULT),
+            (thing, HEIGHT_LABEL, HEIGHT_DEFAULT, ANGLE_LABEL, ANGLE_DEFAULT)
         );
 
         /// Returns the amount of contained values.

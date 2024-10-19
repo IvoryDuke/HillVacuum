@@ -1577,7 +1577,6 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     /// A path describing how an entity moves in space over time.
-    #[allow(dead_code)]
     #[must_use]
     #[derive(Clone)]
     pub struct Path

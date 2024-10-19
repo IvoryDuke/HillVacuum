@@ -1190,9 +1190,11 @@ impl State
 
             for _ in 0..header.brushes
             {
-                brushes.push(Brush::from_viewer(
-                    ciborium::from_reader::<crate::map::brush::BrushViewer, _>(&mut reader)
-                        .map_err(|_| "Error reading brushes for conversion.")?
+                brushes.push(Brush::from(
+                    ciborium::from_reader::<crate::map::brush::compatibility::BrushViewer, _>(
+                        &mut reader
+                    )
+                    .map_err(|_| "Error reading brushes for conversion.")?
                 ));
             }
 
@@ -1201,9 +1203,11 @@ impl State
 
             for _ in 0..header.things
             {
-                things.push(ThingInstance::from_viewer(
-                    ciborium::from_reader::<crate::map::thing::ThingViewer, _>(&mut reader)
-                        .map_err(|_| "Error reading things for conversion.")?
+                things.push(ThingInstance::from(
+                    ciborium::from_reader::<crate::map::thing::compatibility::ThingViewer, _>(
+                        &mut reader
+                    )
+                    .map_err(|_| "Error reading things for conversion.")?
                 ));
             }
 

@@ -69,15 +69,6 @@ enum Group
 }
 
 //=======================================================================//
-
-#[derive(Deserialize)]
-enum TextureId
-{
-    Managed(u64),
-    User(u64)
-}
-
-//=======================================================================//
 // STRUCTS
 //
 //=======================================================================//
@@ -90,8 +81,7 @@ pub(in crate::map::editor::state) struct Prop
     pub data_center:        Vec2,
     pub pivot:              Vec2,
     pub attachments_owners: usize,
-    pub attached_range:     Range<usize>,
-    screenshot:             Option<TextureId>
+    pub attached_range:     Range<usize>
 }
 
 //=======================================================================//

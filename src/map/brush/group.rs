@@ -7,7 +7,11 @@ use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
 use crate::Brush;
-use crate::{utils::identifiers::Id, HvHashSet, HvVec, Node};
+use crate::{
+    utils::{collections::Ids, identifiers::Id},
+    HvVec,
+    Node
+};
 
 //=======================================================================//
 // ENUMS
@@ -21,14 +25,14 @@ pub enum GroupViewer
     /// No group.
     None,
     /// Has some attached [`Brush`]es.
-    Attachments(HvHashSet<Id>),
+    Attachments(Ids),
     /// Has a path and maybe some attached [`Brush`]es.
     Path
     {
         /// The travel path.
         path:             HvVec<Node>,
         /// The attached [`Brush`]es.
-        attached_brushes: HvHashSet<Id>
+        attached_brushes: Ids
     },
     /// Is attached to a [`Brush`].
     Attached(Id)
