@@ -9,7 +9,7 @@ use crate::{
         drawer::drawing_resources::DrawingResources,
         editor::state::{core::UndoRedoInterface, grid::Grid, ui::Ui},
         hv_vec,
-        properties::Value,
+        properties::value::Value,
         thing::catalog::ThingsCatalog
     },
     utils::{identifiers::Id, misc::ReplaceValue},

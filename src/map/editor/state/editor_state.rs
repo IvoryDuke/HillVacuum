@@ -61,7 +61,6 @@ use crate::{
                 },
                 core::{tool::ToolInterface, Core},
                 dialog_if_error,
-                read_default_properties,
                 test_writer,
                 ui::{Command, Ui}
             },
@@ -72,7 +71,7 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
-        properties::DefaultProperties,
+        properties::{DefaultBrushProperties, DefaultThingProperties},
         thing::{catalog::ThingsCatalog, Thing, ThingInstance},
         version_number,
         FileStructure,
@@ -552,8 +551,8 @@ impl State
         fn default(
             asset_server: &AssetServer,
             user_textures: &mut EguiUserTextures,
-            brushes_default_properties: &DefaultProperties,
-            things_default_properties: &DefaultProperties
+            default_brush_properties: &DefaultBrushProperties,
+            default_thing_properties: &DefaultThingProperties
         ) -> State
         {
             State {
@@ -561,8 +560,8 @@ impl State
                 ui:                 Ui::new(
                     asset_server,
                     user_textures,
-                    brushes_default_properties,
-                    things_default_properties
+                    default_brush_properties,
+                    default_thing_properties
                 ),
                 tools_settings:     ToolsSettings::default(),
                 show_tooltips:      true,
@@ -579,8 +578,8 @@ impl State
                 default(
                     asset_server,
                     user_textures,
-                    default_properties.brushes,
-                    default_properties.things
+                    default_properties.engine_brushes,
+                    default_properties.engine_things
                 ),
                 EntitiesManager::new(),
                 Clipboard::new(),
@@ -628,8 +627,8 @@ impl State
                     default(
                         asset_server,
                         user_textures,
-                        default_properties.brushes,
-                        default_properties.things
+                        default_properties.engine_brushes,
+                        default_properties.engine_things
                     ),
                     EntitiesManager::new(),
                     Clipboard::new(),
@@ -1157,13 +1156,14 @@ impl State
         #[must_use]
         struct OldFileRead
         {
-            header:             MapHeader,
-            grid:               GridSettings,
-            animations:         HvVec<DefaultAnimation>,
-            default_properties: [DefaultProperties; 2],
-            brushes:            HvVec<Brush>,
-            things:             HvVec<ThingInstance>,
-            props:              HvVec<Prop>
+            header:                   MapHeader,
+            grid:                     GridSettings,
+            animations:               HvVec<DefaultAnimation>,
+            default_brush_properties: DefaultBrushProperties,
+            default_thing_properties: DefaultThingProperties,
+            brushes:                  HvVec<Brush>,
+            things:                   HvVec<ThingInstance>,
+            props:                    HvVec<Prop>
         }
 
         #[inline]
@@ -1182,8 +1182,23 @@ impl State
                 .map_err(|_| "Error reading animations for conversion.")?;
 
             // Properties.
-            let default_properties = read_default_properties(&mut reader)
-                .map_err(|_| "Error reading default properties for conversion.")?;
+            let default_brush_properties =
+                DefaultBrushProperties::from(
+                    ciborium::from_reader::<
+                        crate::map::properties::compatibility::DefaultProperties,
+                        _
+                    >(&mut reader)
+                    .map_err(|_| "Error reading default brush properties for conversion.")?
+                );
+
+            let default_thing_properties =
+                DefaultThingProperties::from(
+                    ciborium::from_reader::<
+                        crate::map::properties::compatibility::DefaultProperties,
+                        _
+                    >(&mut reader)
+                    .map_err(|_| "Error reading default thing properties for conversion.")?
+                );
 
             // Brushes.
             let mut brushes = hv_vec![];
@@ -1215,7 +1230,8 @@ impl State
                 header,
                 grid,
                 animations,
-                default_properties,
+                default_brush_properties,
+                default_thing_properties,
                 brushes,
                 things,
                 props: convert_08_props(&mut reader, header.props)?
@@ -1242,14 +1258,12 @@ impl State
                 header,
                 grid,
                 animations,
-                default_properties: [default_brush_properties, default_thing_properties],
+                default_brush_properties,
+                default_thing_properties,
                 mut brushes,
                 mut things,
                 mut props
             } = f(reader)?;
-
-            let default_brush_properties = default_brush_properties.with_brush_properties();
-            let default_thing_properties = default_thing_properties.with_thing_properties();
 
             // Write to file.
             let mut data = Vec::new();

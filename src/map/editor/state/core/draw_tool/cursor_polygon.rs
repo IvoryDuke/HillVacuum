@@ -87,7 +87,7 @@ macro_rules! shape_cursor_brush {
 
                 bundle.manager.spawn_drawn_brush(
                     bundle.drawing_resources,
-                    bundle.brushes_default_properties,
+                    bundle.default_brush_properties,
                     bundle.edits_history,
                     bundle.grid,
                     ConvexPolygon::new(vxs),
@@ -687,7 +687,7 @@ impl FreeDrawCursorPolygon
 
         bundle.manager.spawn_drawn_brush(
             bundle.drawing_resources,
-            bundle.brushes_default_properties,
+            bundle.default_brush_properties,
             bundle.edits_history,
             bundle.grid,
             match_or_panic!(status, Status::Polygon(poly), poly),

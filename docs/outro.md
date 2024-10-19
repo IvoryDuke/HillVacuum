@@ -15,9 +15,9 @@ HV creates three types of files, all of which are relatively simple:
 -------------------------------
 | Animations                  |
 -------------------------------
-| Brushes default properties  |
+| Default brush properties    |
 -------------------------------
-| Things default properties   |
+| Default thing properties    |
 -------------------------------
 | Brushes                     |
 -------------------------------

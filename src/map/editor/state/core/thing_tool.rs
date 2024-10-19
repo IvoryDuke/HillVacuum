@@ -119,7 +119,7 @@ impl ThingTool
         {
             self.drawn_things.asserted_insert(bundle.manager.spawn_selected_thing(
                 bundle.things_catalog,
-                bundle.things_default_properties,
+                bundle.default_thing_properties,
                 bundle.edits_history,
                 settings,
                 bundle.cursor.world_snapped()

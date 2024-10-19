@@ -1014,7 +1014,7 @@ impl VertexTool
         if merge_clicked
         {
             ActiveTool::merge_vertexes(
-                bundle.brushes_default_properties,
+                bundle.default_brush_properties,
                 bundle.drawing_resources,
                 bundle.manager,
                 bundle.edits_history,

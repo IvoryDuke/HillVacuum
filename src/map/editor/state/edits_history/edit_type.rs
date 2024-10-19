@@ -27,11 +27,11 @@ use crate::{
         },
         editor::state::{core::UndoRedoInterface, grid::Grid, ui::Ui},
         path::{MovementValueEdit, NodesMove, Path, StandbyValueEdit},
-        properties::Value,
         thing::{catalog::ThingsCatalog, ThingId, ThingInstanceData}
     },
     utils::{hull::Flip, identifiers::Id},
-    HvVec
+    HvVec,
+    Value
 };
 
 //=======================================================================//

@@ -29,7 +29,7 @@ mod utils;
 
 #[cfg(feature = "ui")]
 pub use crate::map::{
-    properties::{BrushProperties, ThingProperties},
+    properties::{BrushUserProperties, ThingUserProperties},
     thing::HardcodedThings
 };
 pub use crate::{
@@ -40,7 +40,7 @@ pub use crate::{
             texture::{TextureInterface, TextureSettings}
         },
         path::nodes::{Movement, NodeViewer as Node},
-        properties::{ToValue, Value},
+        properties::value::{ToValue, Value},
         thing::{MapThing, Thing, ThingId, ThingViewer as ThingInstance},
         Exporter
     },
@@ -144,7 +144,7 @@ pub(crate) mod ui_mod
     #[macro_export]
     macro_rules! brush_properties {
         ($app:expr, [$(($key:literal, $value:literal)),+]) => {
-            $app.insert_resource(hill_vacuum::BrushProperties::new([
+            $app.insert_resource(hill_vacuum::BrushUserProperties::new([
                 $(($key, &$value as &dyn hill_vacuum::ToValue)),+
             ]));
         }
@@ -161,7 +161,7 @@ pub(crate) mod ui_mod
     #[macro_export]
     macro_rules! thing_properties {
         ($app:expr, [$(($key:literal, $value:literal)),+]) => {
-            $app.insert_resource(hill_vacuum::ThingProperties::new([
+            $app.insert_resource(hill_vacuum::ThingUserProperties::new([
                 $(($key, &$value as &dyn hill_vacuum::ToValue)),+
             ].into_iter()));
         }

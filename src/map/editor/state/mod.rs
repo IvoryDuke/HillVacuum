@@ -8,15 +8,6 @@ pub(in crate::map) mod manager;
 pub(in crate::map) mod ui;
 
 //=======================================================================//
-// IMPORTS
-//
-//=======================================================================//
-
-use std::{fs::File, io::BufReader};
-
-use crate::map::properties::DefaultProperties;
-
-//=======================================================================//
 // MACROS
 //
 //=======================================================================//
@@ -129,21 +120,3 @@ macro_rules! dialog_if_error {
 }
 
 use dialog_if_error;
-
-//=======================================================================//
-// FUNCTIONS
-//
-//=======================================================================//
-
-#[inline]
-fn read_default_properties(
-    file: &mut BufReader<File>
-) -> Result<[DefaultProperties; 2], &'static str>
-{
-    Ok([
-        ciborium::from_reader::<DefaultProperties, _>(&mut *file)
-            .map_err(|_| "Error reading Brush default properties")?,
-        ciborium::from_reader::<DefaultProperties, _>(&mut *file)
-            .map_err(|_| "Error reading Thing default properties")?
-    ])
-}

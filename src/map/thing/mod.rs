@@ -177,9 +177,10 @@ pub mod ui_mod
             },
             path::{common_edit_path, EditPath, MovementSimulator, Moving, Path},
             properties::{
-                DefaultProperties,
+                DefaultThingProperties,
                 Properties,
                 PropertiesRefactor,
+                ThingProperties,
                 ANGLE_LABEL,
                 HEIGHT_LABEL
             },
@@ -257,7 +258,7 @@ pub mod ui_mod
         /// The path describing the [`ThingInstance`] movement, if any.
         path:       Option<Path>,
         /// The associated properties.
-        properties: Properties
+        properties: ThingProperties
     }
 
     impl Viewer for ThingInstanceData
@@ -278,7 +279,7 @@ pub mod ui_mod
                 thing_id,
                 pos,
                 path: path.map(Path::from_viewer),
-                properties: Properties::from_parts(properties)
+                properties: ThingProperties::from_parts(properties)
             }
         }
 
@@ -653,7 +654,7 @@ pub mod ui_mod
             id: Id,
             thing_id: ThingId,
             pos: Vec2,
-            default_properties: &DefaultProperties
+            default_properties: &DefaultThingProperties
         ) -> Self
         {
             Self {
@@ -696,7 +697,7 @@ pub mod ui_mod
 
         /// Returns a reference to the associated [`Properties`].
         #[inline]
-        pub const fn properties(&self) -> &Properties { &self.data.properties }
+        pub const fn properties(&self) -> &ThingProperties { &self.data.properties }
 
         /// Returns the overall [`Hull`] of both the thing and the [`Path`].
         #[inline]
@@ -767,7 +768,7 @@ pub mod ui_mod
 
         /// Refactors the [`Peoperties`] based on `refactor`.
         #[inline]
-        pub fn refactor_properties(&mut self, refactor: &PropertiesRefactor)
+        pub fn refactor_properties(&mut self, refactor: &PropertiesRefactor<DefaultThingProperties>)
         {
             self.data.properties.refactor(refactor);
         }

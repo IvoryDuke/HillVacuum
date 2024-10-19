@@ -59,11 +59,7 @@ use crate::{
             texture::{TextureInterface, TextureInterfaceExtra, TextureSettings, TextureSpriteSet}
         },
         editor::{
-            state::{
-                editor_state::TargetSwitch,
-                manager::quad_tree::QuadTreeIds,
-                read_default_properties
-            },
+            state::{editor_state::TargetSwitch, manager::quad_tree::QuadTreeIds},
             AllDefaultProperties,
             StateUpdateBundle,
             ToolUpdateBundle
@@ -71,12 +67,12 @@ use crate::{
         hv_vec,
         path::{EditPath, MovementSimulator, Moving, Path},
         properties::{
+            read_default_properties,
+            BrushProperties,
+            DefaultBrushProperties,
             DefaultProperties,
-            Properties,
-            PropertiesRefactor,
-            ANGLE_LABEL,
-            COLLISION_LABEL,
-            HEIGHT_LABEL
+            DefaultThingProperties,
+            PropertiesRefactor
         },
         thing::{catalog::ThingsCatalog, ThingInstance, ThingInstanceData, ThingInterface},
         AssertedInsertRemove,
@@ -710,19 +706,13 @@ impl Innards
         /// Stores in `map_default_properties` the desired properties and returns a
         /// [`PropertiesRefactor`] if the default and file properties do not match.
         #[inline]
-        fn mismatching_properties<'a, F>(
-            engine_default_properties: &'a DefaultProperties,
-            map_default_properties: &'a mut DefaultProperties,
-            file_default_properties: DefaultProperties,
-            entity: &str,
-            assertion: F
-        ) -> Option<PropertiesRefactor<'a>>
-        where
-            F: Fn(&DefaultProperties) -> bool + Copy
+        fn mismatching_properties<'a, T: DefaultProperties>(
+            engine_default_properties: &'a T,
+            map_default_properties: &'a mut T,
+            file_default_properties: T,
+            entity: &str
+        ) -> Option<PropertiesRefactor<'a, T>>
         {
-            assert!(assertion(engine_default_properties), "Invalid engine_default_properties.");
-            assert!(assertion(&file_default_properties), "Invalid file_default_properties.");
-
             if *engine_default_properties == file_default_properties
             {
                 return None;
@@ -733,11 +723,11 @@ impl Innards
                  map file.\nIf you decide to use the engine defined ones, all values currently \
                  contained in the {entity} that do not match will be removed, and the missing \
                  ones will be inserted.\n- Press YES to use the engine properties;\n- Press NO to \
-                 use the map file properties.\n\nHere are the two property lists:\n\nENGINE: \
-                 {engine_default_properties}\n\nMAP: {file_default_properties}"
+                 use the map file properties.\n\nHere are the two property \
+                 lists:\n\nENGINE:\n{engine_default_properties}\nMAP:\n{file_default_properties}"
             );
 
-            let refactor = match rfd::MessageDialog::new()
+            match rfd::MessageDialog::new()
                 .set_level(rfd::MessageLevel::Warning)
                 .set_title("WARNING")
                 .set_description(&description)
@@ -756,11 +746,7 @@ impl Innards
                     None
                 },
                 _ => unreachable!()
-            };
-
-            assert!(assertion(map_default_properties), "Invalid map_default_properties.");
-
-            refactor
+            }
         }
 
         let mut max_id = Id::ZERO;
@@ -768,16 +754,15 @@ impl Innards
         let mut with_attachments = hv_vec![];
 
         steps.next_value().assert(FileStructure::Properties);
-        let [file_brushes_default_properties, file_things_default_properties] =
+        let (file_default_brush_properties, file_default_thing_properties) =
             read_default_properties(file)?;
 
         steps.next_value().assert(FileStructure::Brushes);
         let b_refactor = mismatching_properties(
-            default_properties.brushes,
+            default_properties.engine_brushes,
             default_properties.map_brushes,
-            file_brushes_default_properties,
-            "brushes",
-            |properties| properties.contains(COLLISION_LABEL)
+            file_default_brush_properties,
+            "brushes"
         );
         let mut brushes_removed = false;
 
@@ -826,11 +811,10 @@ impl Innards
         steps.next_value().assert(FileStructure::Things);
         let mut things = hv_vec![];
         let t_refactor = mismatching_properties(
-            default_properties.things,
+            default_properties.engine_things,
             default_properties.map_things,
-            file_things_default_properties,
-            "things",
-            |properties| properties.contains(HEIGHT_LABEL) && properties.contains(ANGLE_LABEL)
+            file_default_thing_properties,
+            "things"
         );
         let mut things_removed = false;
 
@@ -1517,7 +1501,7 @@ impl Innards
         grid: &Grid,
         quad_trees: &mut Trees,
         polygon: impl Into<Cow<'a, ConvexPolygon>>,
-        properties: Properties
+        properties: BrushProperties
     ) -> Id
     {
         let id = self.new_id();
@@ -2790,7 +2774,7 @@ impl EntitiesManager
         edits_history: &mut EditsHistory,
         grid: &Grid,
         polygon: impl Into<Cow<'d, ConvexPolygon>>,
-        properties: Properties
+        properties: BrushProperties
     ) -> Id
     {
         self.innards.spawn_brush(
@@ -2851,7 +2835,7 @@ impl EntitiesManager
         edits_history: &mut EditsHistory,
         grid: &Grid,
         mut polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
-        properties: Properties
+        properties: BrushProperties
     )
     {
         for _ in 0..polygons.len() - 1
@@ -2913,7 +2897,7 @@ impl EntitiesManager
             edits_history: &mut EditsHistory,
             grid: &Grid,
             mut polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
-            properties: Properties
+            properties: BrushProperties
         ) -> HvHashSet<Id>
         {
             let mut ids = hv_hash_set![];
@@ -3009,7 +2993,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn spawn_drawn_brush(
         &mut self,
         drawing_resources: &DrawingResources,
-        default_properties: &DefaultProperties,
+        default_properties: &DefaultBrushProperties,
         edits_history: &mut EditsHistory,
         grid: &Grid,
         polygon: ConvexPolygon,
@@ -3131,7 +3115,7 @@ impl EntitiesManager
         edits_history: &mut EditsHistory,
         grid: &Grid,
         polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
-        properties: Properties
+        properties: BrushProperties
     )
     {
         self.despawn_selected_brushes(drawing_resources, edits_history, grid);
@@ -3839,7 +3823,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn spawn_selected_thing(
         &mut self,
         things_catalog: &ThingsCatalog,
-        things_default_properties: &DefaultProperties,
+        default_thing_properties: &DefaultThingProperties,
         edits_history: &mut EditsHistory,
         settings: &mut ToolsSettings,
         cursor_pos: Vec2
@@ -3855,7 +3839,7 @@ impl EntitiesManager
                 settings
                     .thing_pivot
                     .spawn_pos(things_catalog.selected_thing(), cursor_pos),
-                things_default_properties
+                default_thing_properties
             ),
             &mut self.quad_trees,
             edits_history

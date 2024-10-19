@@ -94,29 +94,6 @@ impl Default for Prop
     }
 }
 
-impl From<crate::map::editor::state::clipboard::compatibility::Prop> for Prop
-{
-    #[inline]
-    fn from(value: crate::map::editor::state::clipboard::compatibility::Prop) -> Self
-    {
-        let crate::map::editor::state::clipboard::compatibility::Prop {
-            data,
-            data_center,
-            pivot,
-            attached_range,
-            ..
-        } = value;
-
-        Self {
-            entities: unsafe { std::mem::transmute(data) },
-            pivot,
-            center: data_center,
-            attached_brushes: attached_range,
-            screenshot: None
-        }
-    }
-}
-
 impl Viewer for Prop
 {
     type Item = PropViewer;

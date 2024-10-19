@@ -19,14 +19,22 @@ use crate::{
             state::{edits_history::EditsHistory, grid::Grid, manager::EntitiesManager},
             Placeholder
         },
-        properties::{DefaultProperties, SetProperty, Value, ANGLE_LABEL, HEIGHT_LABEL},
+        properties::{
+            DefaultBrushProperties,
+            DefaultProperties,
+            DefaultThingProperties,
+            SetProperty,
+            ANGLE_LABEL,
+            HEIGHT_LABEL
+        },
         thing::{catalog::ThingsCatalog, ThingInstance}
     },
     utils::{
         identifiers::EntityId,
         misc::Toggle,
         overall_value::{OverallValue, OverallValueInterface, OverallValueToUi, UiOverallValue}
-    }
+    },
+    Value
 };
 
 //=======================================================================//
@@ -218,8 +226,8 @@ impl Innards
         let UiBundle {
             drawing_resources,
             things_catalog,
-            brushes_default_properties,
-            things_default_properties,
+            default_brush_properties,
+            default_thing_properties,
             manager,
             edits_history,
             clipboard,
@@ -240,7 +248,7 @@ impl Innards
                 self.overall_brushes_properties.show(
                     ui,
                     drawing_resources,
-                    brushes_default_properties,
+                    *default_brush_properties,
                     clipboard,
                     inputs,
                     grid,
@@ -257,7 +265,7 @@ impl Innards
                 self.overall_things_properties.show(
                     ui,
                     drawing_resources,
-                    things_default_properties,
+                    *default_thing_properties,
                     clipboard,
                     inputs,
                     grid,
@@ -333,22 +341,22 @@ impl PropertiesWindow
     /// Returns a new [`PropertiesWindow`].
     #[inline]
     pub fn new(
-        brushes_default_properties: &DefaultProperties,
-        things_default_properties: &DefaultProperties
+        default_brush_properties: &DefaultBrushProperties,
+        default_thing_properties: &DefaultThingProperties
     ) -> Self
     {
-        let b_len = brushes_default_properties.len();
-        let t_len = things_default_properties.len();
+        let b_len = default_brush_properties.len();
+        let t_len = default_thing_properties.len();
         let max_rows = b_len.max(t_len).max(10);
 
         Self {
             window:  Window::default(),
             innards: Innards {
                 target: Target::default(),
-                overall_brushes_properties: UiOverallProperties::from(brushes_default_properties),
+                overall_brushes_properties: UiOverallProperties::new(default_brush_properties),
                 overall_things_draw_height: UiOverallValue::none(),
                 overall_things_angle: UiOverallValue::none(),
-                overall_things_properties: UiOverallProperties::from(things_default_properties),
+                overall_things_properties: UiOverallProperties::new(default_thing_properties),
                 max_rows,
                 brushes_filler: max_rows - b_len,
                 things_filler: max_rows - t_len

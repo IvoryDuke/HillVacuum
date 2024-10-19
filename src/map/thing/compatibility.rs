@@ -8,18 +8,12 @@ use serde::Deserialize;
 
 use super::ThingId;
 use crate::{
-    map::{
-        path::nodes::NodeViewer,
-        properties::{ANGLE_DEFAULT, ANGLE_LABEL, HEIGHT_DEFAULT, HEIGHT_LABEL},
-        selectable_vector::SelectableVector,
-        Viewer
-    },
-    utils::{collections::hv_vec, misc::AssertedInsertRemove},
+    map::{path::nodes::NodeViewer, selectable_vector::SelectableVector, Viewer},
+    utils::collections::hv_vec,
     HvHashMap,
     HvVec,
     Id,
     Movement,
-    ToValue,
     Value
 };
 
@@ -64,18 +58,8 @@ impl From<ThingViewer> for crate::map::thing::ThingInstance
             thing_id,
             pos,
             path,
-            mut properties
+            properties
         } = value;
-
-        if !properties.contains_key(ANGLE_LABEL)
-        {
-            properties.asserted_insert((ANGLE_LABEL.to_string(), ANGLE_DEFAULT.to_value()));
-        }
-
-        if !properties.contains_key(HEIGHT_LABEL)
-        {
-            properties.asserted_insert((HEIGHT_LABEL.to_string(), HEIGHT_DEFAULT.to_value()));
-        }
 
         Self::from_viewer(crate::map::thing::ThingViewer {
             id,

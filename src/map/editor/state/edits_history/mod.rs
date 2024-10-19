@@ -38,7 +38,7 @@ use crate::{
         editor::state::core::UndoRedoInterface,
         hv_vec,
         path::{MovementValueEdit, NodesMove, Path, StandbyValueEdit},
-        properties::Value,
+        properties::value::Value,
         thing::{catalog::ThingsCatalog, ThingId, ThingInstanceData}
     },
     utils::{

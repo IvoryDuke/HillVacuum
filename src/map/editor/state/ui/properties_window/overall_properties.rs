@@ -21,12 +21,13 @@ use crate::{
             Placeholder
         },
         indexed_map::IndexedMap,
-        properties::{DefaultProperties, Properties, SetProperty, Value}
+        properties::{DefaultProperties, Properties, SetProperty}
     },
     utils::{
         collections::hv_vec,
         overall_value::{OverallValue, OverallValueInterface, OverallValueToUi, UiOverallValue}
-    }
+    },
+    Value
 };
 
 //=======================================================================//
@@ -57,24 +58,18 @@ impl Placeholder for UiOverallProperties
     unsafe fn placeholder() -> Self { Self(IndexedMap::default()) }
 }
 
-impl From<&DefaultProperties> for UiOverallProperties
-{
-    #[inline]
-    fn from(value: &DefaultProperties) -> Self { Self::new(value) }
-}
-
 impl UiOverallProperties
 {
     /// Returns a new [`UiOverallProperties`].
     #[inline]
-    pub fn new(values: &DefaultProperties) -> Self
+    pub fn new<D: DefaultProperties>(values: &D) -> Self
     {
         let mut vec = hv_vec![capacity; values.len()];
 
         for (k, d_v) in values.iter()
         {
             let d = std::mem::discriminant(d_v);
-            vec.push((k.clone(), (d, OverallValue::from(d_v.clone()))));
+            vec.push((k.to_string(), (d, OverallValue::from(d_v.clone()))));
         }
 
         vec.sort_by(|(a, _), (b, _)| a.cmp(b));
@@ -101,7 +96,7 @@ impl UiOverallProperties
 
     /// Overwrites all the overall properties.
     #[inline]
-    pub fn total_overwrite<'a>(&mut self, mut iter: impl Iterator<Item = &'a Properties>)
+    pub fn total_overwrite<'a, P: Properties + 'a>(&mut self, mut iter: impl Iterator<Item = &'a P>)
     {
         {
             let properties = iter.next_value();
@@ -142,7 +137,11 @@ impl UiOverallProperties
 
     /// Overwrite the overall property with key `k`.
     #[inline]
-    pub fn overwrite<'a>(&mut self, k: &str, mut iter: impl Iterator<Item = &'a Properties>)
+    pub fn overwrite<'a, P: Properties + 'a>(
+        &mut self,
+        k: &str,
+        mut iter: impl Iterator<Item = &'a P>
+    )
     {
         {
             let properties = iter.next_value();
@@ -162,11 +161,11 @@ impl UiOverallProperties
 
     /// Shows the [`Properties`] fields.
     #[inline]
-    pub fn show<S: SetProperty>(
+    pub fn show<D: DefaultProperties, S: SetProperty>(
         &mut self,
         ui: &mut egui::Ui,
         drawing_resources: &DrawingResources,
-        default_properties: &DefaultProperties,
+        default_properties: &D,
         clipboard: &mut Clipboard,
         inputs: &InputsPresses,
         grid: &Grid,

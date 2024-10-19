@@ -64,14 +64,14 @@ use crate::{
             ToolUpdateBundle
         },
         path::Path,
-        properties::Value,
         thing::{catalog::ThingsCatalog, ThingId, ThingInstanceData}
     },
     utils::{
         collections::HvBox,
         identifiers::{EntityId, Id}
     },
-    HvVec
+    HvVec,
+    Value
 };
 
 //=======================================================================//

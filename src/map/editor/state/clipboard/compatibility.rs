@@ -19,7 +19,7 @@ use crate::{
     map::{
         editor::state::test_writer,
         path::Path,
-        properties::Properties,
+        properties::{compatibility::Properties, BrushProperties, ThingProperties},
         selectable_vector::SelectableVector,
         version_number,
         Viewer,
@@ -53,6 +53,58 @@ pub(in crate::map::editor::state) enum ClipboardData
     Thing(ThingInstanceData, Id)
 }
 
+impl From<ClipboardData> for crate::map::editor::state::clipboard::ClipboardData
+{
+    #[inline]
+    fn from(value: ClipboardData) -> Self
+    {
+        match value
+        {
+            ClipboardData::Brush(data, id) =>
+            {
+                let BrushData {
+                    polygon,
+                    group,
+                    properties
+                } = data;
+
+                Self::Brush(
+                    unsafe {
+                        std::mem::transmute((
+                            polygon,
+                            group,
+                            BrushProperties::from_parts(properties.0)
+                        ))
+                    },
+                    id
+                )
+            },
+            ClipboardData::Thing(data, id) =>
+            {
+                let ThingInstanceData {
+                    thing_id,
+                    pos,
+                    path,
+                    properties,
+                    ..
+                } = data;
+
+                Self::Thing(
+                    unsafe {
+                        std::mem::transmute((
+                            thing_id,
+                            pos,
+                            path,
+                            ThingProperties::from_parts(properties.0)
+                        ))
+                    },
+                    id
+                )
+            }
+        }
+    }
+}
+
 //=======================================================================//
 
 #[derive(Deserialize)]
@@ -82,6 +134,36 @@ pub(in crate::map::editor::state) struct Prop
     pub pivot:              Vec2,
     pub attachments_owners: usize,
     pub attached_range:     Range<usize>
+}
+
+impl From<Prop> for crate::map::editor::state::clipboard::Prop
+{
+    #[inline]
+    fn from(value: Prop) -> Self
+    {
+        let Prop {
+            data,
+            data_center,
+            pivot,
+            attached_range,
+            ..
+        } = value;
+
+        unsafe {
+            std::mem::transmute((
+                hv_vec![
+                    collect;
+                    data
+                        .into_iter()
+                        .map(crate::map::editor::state::clipboard::ClipboardData::from)
+                ],
+                pivot,
+                data_center,
+                attached_range,
+                None::<bevy_egui::egui::TextureId>
+            ))
+        }
+    }
 }
 
 //=======================================================================//

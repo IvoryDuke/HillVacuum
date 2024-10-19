@@ -56,7 +56,7 @@ use crate::{
     map::{
         drawer::drawing_resources::DrawingResources,
         editor::{cursor::Cursor, Placeholder, PropCamerasMut, StateUpdateBundle},
-        properties::DefaultProperties,
+        properties::{DefaultBrushProperties, DefaultThingProperties},
         thing::catalog::ThingsCatalog
     },
     utils::misc::{Camera, FromToStr, Toggle},
@@ -401,27 +401,27 @@ impl From<bool> for UiFocus
 #[allow(clippy::missing_docs_in_private_items)]
 pub(in crate::map::editor::state) struct UiBundle<'world, 'state, 'a, 'c>
 {
-    pub window: &'a mut Window,
-    pub images: &'a mut Assets<Image>,
-    pub materials: &'a mut Assets<ColorMaterial>,
-    pub camera: &'a mut Transform,
-    pub prop_cameras: &'a mut PropCamerasMut<'world, 'state, 'c>,
-    pub elapsed_time: f32,
-    pub delta_time: f32,
-    pub key_inputs: &'a mut ButtonInput<KeyCode>,
-    pub user_textures: &'a mut EguiUserTextures,
-    pub config: &'a mut Config,
-    pub drawing_resources: &'a mut DrawingResources,
-    pub things_catalog: &'a mut ThingsCatalog,
-    pub brushes_default_properties: &'a DefaultProperties,
-    pub things_default_properties: &'a DefaultProperties,
-    pub manager: &'a mut EntitiesManager,
-    pub edits_history: &'a mut EditsHistory,
-    pub clipboard: &'a mut Clipboard,
-    pub inputs: &'a mut InputsPresses,
-    pub grid: &'a mut Grid,
-    pub settings: &'a mut ToolsSettings,
-    pub tool_change_conditions: &'a ChangeConditions
+    pub window:                   &'a mut Window,
+    pub images:                   &'a mut Assets<Image>,
+    pub materials:                &'a mut Assets<ColorMaterial>,
+    pub camera:                   &'a mut Transform,
+    pub prop_cameras:             &'a mut PropCamerasMut<'world, 'state, 'c>,
+    pub elapsed_time:             f32,
+    pub delta_time:               f32,
+    pub key_inputs:               &'a mut ButtonInput<KeyCode>,
+    pub user_textures:            &'a mut EguiUserTextures,
+    pub config:                   &'a mut Config,
+    pub drawing_resources:        &'a mut DrawingResources,
+    pub things_catalog:           &'a mut ThingsCatalog,
+    pub default_brush_properties: &'a DefaultBrushProperties,
+    pub default_thing_properties: &'a DefaultThingProperties,
+    pub manager:                  &'a mut EntitiesManager,
+    pub edits_history:            &'a mut EditsHistory,
+    pub clipboard:                &'a mut Clipboard,
+    pub inputs:                   &'a mut InputsPresses,
+    pub grid:                     &'a mut Grid,
+    pub settings:                 &'a mut ToolsSettings,
+    pub tool_change_conditions:   &'a ChangeConditions
 }
 
 //=======================================================================//
@@ -568,8 +568,8 @@ impl Ui
     pub fn new(
         asset_server: &AssetServer,
         user_textures: &mut EguiUserTextures,
-        brushes_default_properties: &DefaultProperties,
-        things_default_properties: &DefaultProperties
+        default_brush_properties: &DefaultBrushProperties,
+        default_thing_properties: &DefaultThingProperties
     ) -> Self
     {
         Self {
@@ -577,8 +577,8 @@ impl Ui
             left_panel_layer_id:  egui::LayerId::background(),
             right_panel_layer_id: egui::LayerId::background(),
             properties_window:    PropertiesWindow::new(
-                brushes_default_properties,
-                things_default_properties
+                default_brush_properties,
+                default_thing_properties
             ),
             settings_window:      SettingsWindow::default(),
             edits_history_window: EditsHistoryWindow::default(),
@@ -660,8 +660,8 @@ impl Ui
             delta_time: *delta_time,
             drawing_resources,
             things_catalog,
-            brushes_default_properties: default_properties.brushes,
-            things_default_properties: default_properties.things,
+            default_brush_properties: default_properties.map_brushes,
+            default_thing_properties: default_properties.map_things,
             manager,
             edits_history,
             clipboard,

@@ -109,7 +109,13 @@ pub(in crate::map) mod ui_mod
                 manager::{Animators, Brushes}
             },
             path::{calc_path_hull, common_edit_path, EditPath, MovementSimulator, Moving, Path},
-            properties::{Properties, PropertiesRefactor, COLLISION_LABEL},
+            properties::{
+                BrushProperties,
+                DefaultBrushProperties,
+                Properties,
+                PropertiesRefactor,
+                COLLISION_LABEL
+            },
             selectable_vector::VectorSelectionResult,
             thing::catalog::ThingsCatalog,
             Viewer
@@ -554,7 +560,7 @@ pub(in crate::map) mod ui_mod
         /// Platform path and attached brushes.
         group:      Group,
         /// The properties of the brush.
-        properties: Properties
+        properties: BrushProperties
     }
 
     impl Viewer for BrushData
@@ -581,7 +587,7 @@ pub(in crate::map) mod ui_mod
             Self {
                 polygon,
                 group: Group::from_viewer(group),
-                properties: Properties::from_parts(properties)
+                properties: BrushProperties::from_parts(properties)
             }
         }
 
@@ -985,7 +991,7 @@ pub(in crate::map) mod ui_mod
         pub fn from_polygon<'a>(
             polygon: impl Into<Cow<'a, ConvexPolygon>>,
             identifier: Id,
-            properties: Properties
+            properties: BrushProperties
         ) -> Self
         {
             match polygon.into()
@@ -1785,10 +1791,10 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn properties(&self) -> Properties { self.data.properties.clone() }
+        pub fn properties(&self) -> BrushProperties { self.data.properties.clone() }
 
         #[inline]
-        pub const fn properties_as_ref(&self) -> &Properties { &self.data.properties }
+        pub const fn properties_as_ref(&self) -> &BrushProperties { &self.data.properties }
 
         #[inline]
         pub fn set_property(&mut self, key: &str, value: &Value) -> Option<Value>
@@ -1797,7 +1803,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn refactor_properties(&mut self, refactor: &PropertiesRefactor)
+        pub fn refactor_properties(&mut self, refactor: &PropertiesRefactor<DefaultBrushProperties>)
         {
             self.data.properties.refactor(refactor);
         }

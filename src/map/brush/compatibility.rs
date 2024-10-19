@@ -7,22 +7,13 @@ use glam::Vec2;
 use serde::Deserialize;
 
 use crate::{
-    map::{
-        path::nodes::NodeViewer,
-        properties::{COLLISION_DEFAULT, COLLISION_LABEL},
-        selectable_vector::SelectableVector,
-        Viewer
-    },
-    utils::{
-        collections::{hv_vec, Ids},
-        misc::AssertedInsertRemove
-    },
+    map::{path::nodes::NodeViewer, selectable_vector::SelectableVector, Viewer},
+    utils::collections::{hv_vec, Ids},
     HvHashMap,
     HvVec,
     Id,
     Movement,
     TextureSettings,
-    ToValue,
     Value
 };
 
@@ -114,13 +105,8 @@ impl From<BrushViewer> for crate::map::brush::Brush
             vertexes,
             texture,
             group,
-            mut properties
+            properties
         } = value;
-
-        if !properties.contains_key(COLLISION_LABEL)
-        {
-            properties.asserted_insert((COLLISION_LABEL.to_string(), COLLISION_DEFAULT.to_value()));
-        }
 
         Self::from_viewer(crate::map::brush::BrushViewer {
             id,

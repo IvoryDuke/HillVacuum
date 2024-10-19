@@ -46,7 +46,12 @@ use super::{
         texture::Texture,
         texture_loader::{TextureLoader, TextureLoadingProgress}
     },
-    properties::{BrushProperties, DefaultProperties, ThingProperties},
+    properties::{
+        BrushUserProperties,
+        DefaultBrushProperties,
+        DefaultThingProperties,
+        ThingUserProperties
+    },
     thing::{catalog::ThingsCatalog, HardcodedThings},
     BoundToMap
 };
@@ -84,10 +89,10 @@ pub(in crate::map) trait Placeholder
 #[must_use]
 struct AllDefaultProperties<'a>
 {
-    brushes:     &'a DefaultProperties,
-    things:      &'a DefaultProperties,
-    map_brushes: &'a mut DefaultProperties,
-    map_things:  &'a mut DefaultProperties
+    engine_brushes: &'a DefaultBrushProperties,
+    engine_things:  &'a DefaultThingProperties,
+    map_brushes:    &'a mut DefaultBrushProperties,
+    map_things:     &'a mut DefaultThingProperties
 }
 
 //=======================================================================//
@@ -129,23 +134,23 @@ struct StateUpdateBundle<'world, 'state, 'a, 'b, 'c>
 #[must_use]
 struct ToolUpdateBundle<'world, 'state, 'a, 'b, 'c>
 {
-    window: &'a Window,
-    images: &'a mut Assets<Image>,
-    delta_time: f32,
-    camera: &'a mut Transform,
-    prop_cameras: &'a mut PropCamerasMut<'world, 'state, 'c>,
-    paint_tool_camera: (&'a mut bevy::render::camera::Camera, &'a mut Transform),
-    user_textures: &'a mut EguiUserTextures,
-    things_catalog: &'b ThingsCatalog,
-    drawing_resources: &'b DrawingResources,
-    cursor: &'b Cursor,
-    brushes_default_properties: &'b DefaultProperties,
-    things_default_properties: &'b DefaultProperties,
-    manager: &'b mut EntitiesManager,
-    clipboard: &'b mut Clipboard,
-    edits_history: &'b mut EditsHistory,
-    inputs: &'b mut InputsPresses,
-    grid: &'b Grid
+    window:                   &'a Window,
+    images:                   &'a mut Assets<Image>,
+    delta_time:               f32,
+    camera:                   &'a mut Transform,
+    prop_cameras:             &'a mut PropCamerasMut<'world, 'state, 'c>,
+    paint_tool_camera:        (&'a mut bevy::render::camera::Camera, &'a mut Transform),
+    user_textures:            &'a mut EguiUserTextures,
+    things_catalog:           &'b ThingsCatalog,
+    drawing_resources:        &'b DrawingResources,
+    cursor:                   &'b Cursor,
+    default_brush_properties: &'b DefaultBrushProperties,
+    default_thing_properties: &'b DefaultThingProperties,
+    manager:                  &'b mut EntitiesManager,
+    clipboard:                &'b mut Clipboard,
+    edits_history:            &'b mut EditsHistory,
+    inputs:                   &'b mut InputsPresses,
+    grid:                     &'b Grid
 }
 
 //=======================================================================//
@@ -197,13 +202,13 @@ pub(in crate::map) struct Editor
     /// The resources to draw the map on screen.
     drawing_resources: DrawingResources,
     /// The engine defined default brush properties.
-    brushes_default_properties: DefaultProperties,
+    engine_default_brush_properties: DefaultBrushProperties,
     /// The engine defined default [`ThingInstance`] properties.
-    things_default_properties: DefaultProperties,
+    engine_default_thing_properties: DefaultThingProperties,
     /// The defined default brush properties to be used for the currently opened map.
-    map_brushes_default_properties: DefaultProperties,
+    map_default_brush_properties: DefaultBrushProperties,
     /// The defined default [`ThingInstance`] properties to be used for the currently opened map.
-    map_things_default_properties: DefaultProperties,
+    map_default_thing_properties: DefaultThingProperties,
     /// The manager of all entities.
     manager: EntitiesManager,
     /// The clipboard used for copy paste and prop spawning.
@@ -227,10 +232,10 @@ impl Placeholder for Editor
                 cursor: Cursor::default(),
                 things_catalog: ThingsCatalog::default(),
                 drawing_resources: DrawingResources::placeholder(),
-                brushes_default_properties: DefaultProperties::default_brush(),
-                things_default_properties: DefaultProperties::default_thing(),
-                map_brushes_default_properties: DefaultProperties::default_brush(),
-                map_things_default_properties: DefaultProperties::default_thing(),
+                engine_default_brush_properties: DefaultBrushProperties::default(),
+                engine_default_thing_properties: DefaultThingProperties::default(),
+                map_default_brush_properties: DefaultBrushProperties::default(),
+                map_default_thing_properties: DefaultThingProperties::default(),
                 manager: EntitiesManager::new(),
                 clipboard: Clipboard::new(),
                 edits_history: EditsHistory::default(),
@@ -257,8 +262,8 @@ impl Editor
         config: &mut Config,
         texture_loader: &mut TextureLoader,
         hardcoded_things: Option<Res<HardcodedThings>>,
-        brush_properties: Option<ResMut<BrushProperties>>,
-        thing_properties: Option<ResMut<ThingProperties>>
+        brush_properties: Option<ResMut<BrushUserProperties>>,
+        thing_properties: Option<ResMut<ThingUserProperties>>
     ) -> Self
     {
         let mut drawing_resources = DrawingResources::new(
@@ -276,22 +281,22 @@ impl Editor
             None => None
         };
 
-        let brushes_default_properties = brush_properties
-            .map_or(DefaultProperties::default_brush(), |mut d_p| {
-                DefaultProperties::brush(d_p.0.take_value())
+        let default_brush_properties = brush_properties
+            .map_or_else(DefaultBrushProperties::default, |mut d_p| {
+                DefaultBrushProperties::new(d_p.0.take_value())
             });
-        let things_default_properties = thing_properties
-            .map_or(DefaultProperties::default_thing(), |mut d_p| {
-                DefaultProperties::thing(d_p.0.take_value())
+        let default_thing_properties = thing_properties
+            .map_or_else(DefaultThingProperties::default, |mut d_p| {
+                DefaultThingProperties::new(d_p.0.take_value())
             });
-        let mut map_brushes_default_properties = brushes_default_properties.clone();
-        let mut map_things_default_properties = things_default_properties.clone();
+        let mut map_default_brush_properties = default_brush_properties.clone();
+        let mut map_default_thing_properties = default_thing_properties.clone();
 
         let mut default_properties = AllDefaultProperties {
-            brushes:     &brushes_default_properties,
-            things:      &things_default_properties,
-            map_brushes: &mut map_brushes_default_properties,
-            map_things:  &mut map_things_default_properties
+            engine_brushes: &default_brush_properties,
+            engine_things:  &default_thing_properties,
+            map_brushes:    &mut map_default_brush_properties,
+            map_things:     &mut map_default_thing_properties
         };
 
         let (state, manager, clipboard, edits_history, grid, path) = State::new(
@@ -316,10 +321,10 @@ impl Editor
             cursor: Cursor::default(),
             things_catalog,
             drawing_resources,
-            brushes_default_properties,
-            things_default_properties,
-            map_brushes_default_properties,
-            map_things_default_properties,
+            engine_default_brush_properties: default_brush_properties,
+            engine_default_thing_properties: default_thing_properties,
+            map_default_brush_properties,
+            map_default_thing_properties,
             manager,
             clipboard,
             edits_history,
@@ -384,10 +389,10 @@ impl Editor
             things_catalog: &mut self.things_catalog,
             drawing_resources: &mut self.drawing_resources,
             default_properties: &mut AllDefaultProperties {
-                brushes:     &self.brushes_default_properties,
-                things:      &self.things_default_properties,
-                map_brushes: &mut self.map_brushes_default_properties,
-                map_things:  &mut self.map_things_default_properties
+                engine_brushes: &self.engine_default_brush_properties,
+                engine_things:  &self.engine_default_thing_properties,
+                map_brushes:    &mut self.map_default_brush_properties,
+                map_things:     &mut self.map_default_thing_properties
             },
             manager: &mut self.manager,
             clipboard: &mut self.clipboard,
@@ -434,8 +439,8 @@ impl Editor
             cursor: &self.cursor,
             things_catalog: &self.things_catalog,
             drawing_resources: &self.drawing_resources,
-            brushes_default_properties: &self.map_brushes_default_properties,
-            things_default_properties: &self.map_things_default_properties,
+            default_brush_properties: &self.map_default_brush_properties,
+            default_thing_properties: &self.map_default_thing_properties,
             manager: &mut self.manager,
             clipboard: &mut self.clipboard,
             edits_history: &mut self.edits_history,
@@ -639,10 +644,10 @@ impl Editor
             window,
             config,
             &AllDefaultProperties {
-                brushes:     &self.brushes_default_properties,
-                things:      &self.things_default_properties,
-                map_brushes: &mut self.map_brushes_default_properties,
-                map_things:  &mut self.map_things_default_properties
+                engine_brushes: &self.engine_default_brush_properties,
+                engine_things:  &self.engine_default_thing_properties,
+                map_brushes:    &mut self.map_default_brush_properties,
+                map_things:     &mut self.map_default_thing_properties
             },
             &mut self.drawing_resources,
             &mut self.manager,

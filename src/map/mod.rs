@@ -23,10 +23,10 @@ use std::{
 
 use hill_vacuum_proc_macros::EnumIter;
 use hill_vacuum_shared::{return_if_none, NextValue};
+use properties::read_default_properties;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    map::properties::DefaultProperties,
     utils::{
         collections::{hv_hash_map, hv_vec},
         misc::AssertedInsertRemove
@@ -206,11 +206,7 @@ impl Exporter
 
         // Properties.
         steps.next_value().assert(FileStructure::Properties);
-
-        _ = ciborium::from_reader::<DefaultProperties, _>(&mut file)
-            .map_err(|_| "Error reading default Brush properties")?;
-        _ = ciborium::from_reader::<DefaultProperties, _>(&mut file)
-            .map_err(|_| "Error reading default Thing properties")?;
+        _ = read_default_properties(&mut file)?;
 
         // Brushes.
         steps.next_value().assert(FileStructure::Brushes);
@@ -367,7 +363,7 @@ pub(in crate::map) mod ui_mod
                 Editor,
                 Placeholder
             },
-            properties::{BrushProperties, ThingProperties}
+            properties::{BrushUserProperties, ThingUserProperties}
         },
         utils::hull::Hull,
         warning_message,
@@ -869,8 +865,8 @@ pub(in crate::map) mod ui_mod
         mut config: ResMut<Config>,
         mut texture_loader: NonSendMut<TextureLoader>,
         hardcoded_things: Option<Res<HardcodedThings>>,
-        brush_properties: Option<ResMut<BrushProperties>>,
-        thing_properties: Option<ResMut<ThingProperties>>,
+        brush_properties: Option<ResMut<BrushUserProperties>>,
+        thing_properties: Option<ResMut<ThingUserProperties>>,
         state: Res<State<EditorState>>,
         mut next_state: ResMut<NextState<EditorState>>
     )

@@ -113,9 +113,6 @@ pub(in crate::map) mod ui_only
             self.map.contains_key(k)
         }
 
-        #[inline]
-        pub fn decompose(self) -> (HvVec<T>, HvHashMap<K, usize>) { (self.vec, self.map) }
-
         //==============================================================
         // Values
 

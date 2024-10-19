@@ -51,7 +51,7 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
-        properties::DefaultProperties,
+        properties::DefaultBrushProperties,
         thing::catalog::ThingsCatalog
     },
     utils::{
@@ -1119,7 +1119,7 @@ impl ActiveTool
                     bundle.edits_history,
                     bundle.grid,
                     Some(intersection_polygon).into_iter(),
-                    bundle.default_properties.brushes.instance()
+                    bundle.default_properties.engine_brushes.instance()
                 );
             }
         });
@@ -1136,7 +1136,7 @@ impl ActiveTool
     /// Merges all selected vertexes.
     #[inline]
     pub fn merge_vertexes(
-        brush_default_properties: &DefaultProperties,
+        brush_default_properties: &DefaultBrushProperties,
         drawing_resources: &DrawingResources,
         manager: &mut EntitiesManager,
         edits_history: &mut EditsHistory,
@@ -1188,7 +1188,7 @@ impl ActiveTool
                 Self::Vertex(_) =>
                 {
                     Self::merge_vertexes(
-                        bundle.default_properties.brushes,
+                        bundle.default_properties.engine_brushes,
                         bundle.drawing_resources,
                         bundle.manager,
                         bundle.edits_history,
@@ -1200,7 +1200,7 @@ impl ActiveTool
                 Self::Side(_) =>
                 {
                     Self::merge_vertexes(
-                        bundle.default_properties.brushes,
+                        bundle.default_properties.engine_brushes,
                         bundle.drawing_resources,
                         bundle.manager,
                         bundle.edits_history,
@@ -1266,7 +1266,7 @@ impl ActiveTool
                 bundle.edits_history,
                 bundle.grid,
                 Some(poly).into_iter(),
-                bundle.default_properties.brushes.instance()
+                bundle.default_properties.engine_brushes.instance()
             );
         });
     }
