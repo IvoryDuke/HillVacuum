@@ -1079,6 +1079,18 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         }
 
         // Texture
+        self.thing_texture(catalog, thing, color);
+    }
+
+    #[inline]
+    pub fn thing_texture<T: ThingInterface>(
+        &mut self,
+        catalog: &ThingsCatalog,
+        thing: &T,
+        color: Color
+    )
+    {
+        let preview = catalog.thing_or_error(thing.thing_id()).preview();
         let vxs = thing_texture_hull(self.resources, self.grid, thing, preview);
 
         let mut mesh_generator = self.resources.mesh_generator();

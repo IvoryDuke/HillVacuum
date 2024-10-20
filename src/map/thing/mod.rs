@@ -407,7 +407,7 @@ pub mod ui_mod
         #[inline]
         pub fn draw_prop(&self, drawer: &mut EditDrawer, catalog: &ThingsCatalog, delta: Vec2)
         {
-            drawer.thing(
+            drawer.thing_texture(
                 catalog,
                 &MovedThingInstance { thing: self, delta },
                 Color::NonSelectedEntity
@@ -935,7 +935,7 @@ pub mod ui_mod
         #[inline]
         fn thing_hull(&self, things_catalog: &ThingsCatalog) -> Hull
         {
-            self.thing.thing_hull(things_catalog)
+            self.thing.thing_hull(things_catalog) + self.delta
         }
     }
 
