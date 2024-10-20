@@ -1052,16 +1052,16 @@ impl Clipboard
 
         let range = if inputs.copy_just_pressed()
         {
-            self.copy_ui_text(buffer, &output.cursor_range);
+            self.copy_ui_text(buffer, output.cursor_range.as_ref());
             None
         }
         else if inputs.paste_just_pressed()
         {
-            self.paste_ui_text(buffer, &output.cursor_range)
+            self.paste_ui_text(buffer, output.cursor_range.as_ref())
         }
         else if inputs.cut_just_pressed()
         {
-            self.cut_ui_text(buffer, &output.cursor_range)
+            self.cut_ui_text(buffer, output.cursor_range.as_ref())
         }
         else
         {
@@ -1079,7 +1079,7 @@ impl Clipboard
 
     /// Copies the selected UI text.
     #[inline]
-    fn copy_ui_text(&mut self, buffer: &String, cursor_range: &Option<CursorRange>)
+    fn copy_ui_text(&mut self, buffer: &String, cursor_range: Option<&CursorRange>)
     {
         let cursor_range = return_if_none!(cursor_range);
 
@@ -1099,7 +1099,7 @@ impl Clipboard
     fn paste_ui_text(
         &self,
         buffer: &mut String,
-        cursor_range: &Option<CursorRange>
+        cursor_range: Option<&CursorRange>
     ) -> Option<CCursorRange>
     {
         if self.ui_text.is_empty()
@@ -1122,7 +1122,7 @@ impl Clipboard
     fn cut_ui_text(
         &mut self,
         buffer: &mut String,
-        cursor_range: &Option<CursorRange>
+        cursor_range: Option<&CursorRange>
     ) -> Option<CCursorRange>
     {
         let cursor_range = return_if_none!(cursor_range, None);

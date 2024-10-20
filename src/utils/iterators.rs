@@ -219,14 +219,14 @@ impl<'a, T> SliceTripletIter<'a, T>
     pub const fn enumerate(self) -> Enumerate<Self, &'a T, 3> { Enumerate(self) }
 }
 
-impl<'a, T> Enumeration<3> for SliceTripletIter<'a, T>
+impl<T> Enumeration<3> for SliceTripletIter<'_, T>
 {
     /// Returns the indexes of the returned triplet of elements.
     #[inline]
     fn enumeration(&self) -> [usize; 3] { [self.iter.i, self.iter.j, self.iter.k] }
 }
 
-impl<'a, T> ExactSizeIterator for SliceTripletIter<'a, T>
+impl<T> ExactSizeIterator for SliceTripletIter<'_, T>
 {
     #[inline]
     #[must_use]
@@ -422,7 +422,7 @@ where
     factory:   fn(&mut Self) -> Option<I::Item>
 }
 
-impl<'a, I, T, P, const N: usize> FilteredSet<'a, I, T, P, N>
+impl<I, T, P, const N: usize> FilteredSet<'_, I, T, P, N>
 where
     I: Sized + Iterator,
     T: PartialEq + Eq,
@@ -476,7 +476,7 @@ where
     fn unfiltered_iteration(&mut self) -> Option<I::Item> { self.iter.next() }
 }
 
-impl<'a, I, T, P, const N: usize> Iterator for FilteredSet<'a, I, T, P, N>
+impl<I, T, P, const N: usize> Iterator for FilteredSet<'_, I, T, P, N>
 where
     I: Sized + Iterator,
     T: PartialEq + Eq + Clone,
@@ -527,14 +527,14 @@ impl<'a, T> SlicePairIter<'a, T>
     pub const fn enumerate(self) -> Enumerate<Self, &'a T, 2> { Enumerate(self) }
 }
 
-impl<'a, T> Enumeration<2> for SlicePairIter<'a, T>
+impl<T> Enumeration<2> for SlicePairIter<'_, T>
 {
     /// Returns the indexes of the returned pair of elements.
     #[inline]
     fn enumeration(&self) -> [usize; 2] { [self.iter.j, self.iter.i] }
 }
 
-impl<'a, T> ExactSizeIterator for SlicePairIter<'a, T>
+impl<T> ExactSizeIterator for SlicePairIter<'_, T>
 {
     #[inline]
     #[must_use]
@@ -657,14 +657,14 @@ impl<'a, T> SlicePairIterMut<'a, T>
     pub fn enumerate(self) -> Enumerate<Self, &'a mut T, 2> { Enumerate(self) }
 }
 
-impl<'a, T> Enumeration<2> for SlicePairIterMut<'a, T>
+impl<T> Enumeration<2> for SlicePairIterMut<'_, T>
 {
     /// Returns the indexes of the returned pair of elements.
     #[inline]
     fn enumeration(&self) -> [usize; 2] { [self.iter.j, self.iter.i] }
 }
 
-impl<'a, T> ExactSizeIterator for SlicePairIterMut<'a, T>
+impl<T> ExactSizeIterator for SlicePairIterMut<'_, T>
 {
     fn len(&self) -> usize { self.iter.len - self.iter.i }
 }

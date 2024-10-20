@@ -611,7 +611,7 @@ impl<'a> UndoRedoInterface<'a>
         &'b mut self,
         things_catalog: &'b ThingsCatalog,
         identifier: Id
-    ) -> ThingMut
+    ) -> ThingMut<'b>
     {
         self.manager.thing_mut(things_catalog, identifier)
     }

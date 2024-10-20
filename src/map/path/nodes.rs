@@ -467,7 +467,7 @@ pub(in crate::map) mod ui_mod
         j:                 usize
     }
 
-    impl<'a> ExactSizeIterator for NodesInsertionIter<'a>
+    impl ExactSizeIterator for NodesInsertionIter<'_>
     {
         #[inline]
         #[must_use]
@@ -477,7 +477,7 @@ pub(in crate::map) mod ui_mod
         }
     }
 
-    impl<'a> Iterator for NodesInsertionIter<'a>
+    impl Iterator for NodesInsertionIter<'_>
     {
         type Item = [NodeWorld; 2];
 

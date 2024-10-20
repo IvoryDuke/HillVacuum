@@ -252,7 +252,7 @@ impl<'a> Iterator for MergedVertexesIter<'a>
     }
 }
 
-impl<'a> DoubleEndedIterator for MergedVertexesIter<'a>
+impl DoubleEndedIterator for MergedVertexesIter<'_>
 {
     #[inline]
     #[must_use]
@@ -843,7 +843,7 @@ impl<'b> TextureInterface for MovingTextureSettings<'b>
     fn animation(&self) -> &Animation { self.texture.animation() }
 }
 
-impl<'b> TextureInterfaceExtra for MovingTextureSettings<'b>
+impl TextureInterfaceExtra for MovingTextureSettings<'_>
 {
     #[inline]
     fn overall_animation<'a>(&'a self, drawing_resources: &'a DrawingResources) -> &'a Animation
@@ -1021,7 +1021,7 @@ impl From<(HvVec<Vec2>, Option<&TextureSettings>)> for ConvexPolygon
     }
 }
 
-impl<'a> From<ConvexPolygon> for Cow<'a, ConvexPolygon>
+impl From<ConvexPolygon> for Cow<'_, ConvexPolygon>
 {
     #[inline]
     fn from(val: ConvexPolygon) -> Self { Cow::Owned(val) }
@@ -4770,7 +4770,7 @@ impl ExactSizeIterator for NewVertexIterator<'_>
     }
 }
 
-impl<'a> Iterator for NewVertexIterator<'a>
+impl Iterator for NewVertexIterator<'_>
 {
     type Item = Vec2;
 
@@ -4815,7 +4815,7 @@ impl<'a> NewVertexIterator<'a>
 
 struct VertexesSelectionIterMut<'a>(&'a mut HvVec<SelectableVector>);
 
-impl<'a> VertexesSelectionIterMut<'a>
+impl VertexesSelectionIterMut<'_>
 {
     #[inline]
     fn iter(&mut self) -> impl ExactSizeIterator<Item = (Vec2, &mut bool)>

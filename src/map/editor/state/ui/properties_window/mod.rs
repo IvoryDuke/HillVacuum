@@ -164,7 +164,7 @@ impl Innards
             edits_history: &'a mut EditsHistory
         }
 
-        impl<'a> SetProperty for BrushesPropertySetter<'a>
+        impl SetProperty for BrushesPropertySetter<'_>
         {
             #[inline]
             fn set_property(
@@ -193,7 +193,7 @@ impl Innards
             edits_history:  &'a mut EditsHistory
         }
 
-        impl<'a> SetProperty for ThingsPropertySetter<'a>
+        impl SetProperty for ThingsPropertySetter<'_>
         {
             #[inline]
             fn set_property(&mut self, _: &DrawingResources, _: &Grid, key: &str, value: &mut Value)

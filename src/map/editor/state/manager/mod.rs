@@ -146,7 +146,7 @@ pub(in crate::map::editor::state) enum Entity<'a>
     Thing(&'a ThingInstance)
 }
 
-impl<'a> EntityId for Entity<'a>
+impl EntityId for Entity<'_>
 {
     #[inline]
     fn id(&self) -> Id { *self.id_as_ref() }
@@ -162,7 +162,7 @@ impl<'a> EntityId for Entity<'a>
     }
 }
 
-impl<'a> DrawHeight for Entity<'a>
+impl DrawHeight for Entity<'_>
 {
     #[inline]
     fn draw_height(&self) -> Option<f32>
@@ -175,7 +175,7 @@ impl<'a> DrawHeight for Entity<'a>
     }
 }
 
-impl<'a> CopyToClipboard for Entity<'a>
+impl CopyToClipboard for Entity<'_>
 {
     #[inline]
     fn copy_to_clipboard(&self) -> ClipboardData
@@ -188,7 +188,7 @@ impl<'a> CopyToClipboard for Entity<'a>
     }
 }
 
-impl<'a> Entity<'a>
+impl Entity<'_>
 {
     #[inline]
     fn hull(
@@ -3736,7 +3736,7 @@ impl EntitiesManager
         &'a mut self,
         things_catalog: &'a ThingsCatalog,
         identifier: Id
-    ) -> ThingMut<'_>
+    ) -> ThingMut<'a>
     {
         self.innards
             .thing_mut(things_catalog, &mut self.quad_trees, identifier)
@@ -3790,7 +3790,7 @@ impl EntitiesManager
     pub(in crate::map::editor::state) fn selected_things_mut<'a>(
         &'a mut self,
         things_catalog: &'a ThingsCatalog
-    ) -> impl Iterator<Item = ThingMut<'_>>
+    ) -> impl Iterator<Item = ThingMut<'a>>
     {
         self.auxiliary.replace_values(&self.innards.selected_things);
         SelectedThingsMut::new(
@@ -4137,7 +4137,7 @@ impl EntitiesManager
 #[derive(Clone, Copy)]
 pub(in crate::map) struct Brushes<'a>(&'a HvHashMap<Id, Brush>);
 
-impl<'a> Brushes<'a>
+impl Brushes<'_>
 {
     /// Returns the brush with [`Id`] `identifier`.
     /// # Panics
@@ -4171,7 +4171,7 @@ pub(in crate::map) struct BrushMut<'a>
     selected_vertexes: bool
 }
 
-impl<'a> Deref for BrushMut<'a>
+impl Deref for BrushMut<'_>
 {
     type Target = Brush;
 
@@ -4180,14 +4180,14 @@ impl<'a> Deref for BrushMut<'a>
     fn deref(&self) -> &Self::Target { self.manager.brush(self.id) }
 }
 
-impl<'a> DerefMut for BrushMut<'a>
+impl DerefMut for BrushMut<'_>
 {
     #[inline]
     #[must_use]
     fn deref_mut(&mut self) -> &mut Self::Target { self.manager.brushes.get_mut(&self.id).unwrap() }
 }
 
-impl<'a> Drop for BrushMut<'a>
+impl Drop for BrushMut<'_>
 {
     #[inline]
     fn drop(&mut self)
@@ -4252,7 +4252,7 @@ impl<'a> Drop for BrushMut<'a>
     }
 }
 
-impl<'a> EntityId for BrushMut<'a>
+impl EntityId for BrushMut<'_>
 {
     #[inline]
     fn id(&self) -> Id { self.deref().id() }
@@ -4305,7 +4305,7 @@ pub(in crate::map) struct ThingMut<'a>
     id:             Id
 }
 
-impl<'a> Deref for ThingMut<'a>
+impl Deref for ThingMut<'_>
 {
     type Target = ThingInstance;
 
@@ -4314,14 +4314,14 @@ impl<'a> Deref for ThingMut<'a>
     fn deref(&self) -> &Self::Target { self.manager.thing(self.id) }
 }
 
-impl<'a> DerefMut for ThingMut<'a>
+impl DerefMut for ThingMut<'_>
 {
     #[inline]
     #[must_use]
     fn deref_mut(&mut self) -> &mut Self::Target { self.manager.things.get_mut(&self.id).unwrap() }
 }
 
-impl<'a> Drop for ThingMut<'a>
+impl Drop for ThingMut<'_>
 {
     #[inline]
     fn drop(&mut self)
@@ -4340,7 +4340,7 @@ impl<'a> Drop for ThingMut<'a>
     }
 }
 
-impl<'a> EntityId for ThingMut<'a>
+impl EntityId for ThingMut<'_>
 {
     #[inline]
     fn id(&self) -> Id { self.deref().id() }
@@ -4381,7 +4381,7 @@ pub(in crate::map) enum MovingMut<'a>
     Thing(ThingMut<'a>)
 }
 
-impl<'a> Deref for MovingMut<'a>
+impl Deref for MovingMut<'_>
 {
     type Target = dyn EditPath;
 
@@ -4397,7 +4397,7 @@ impl<'a> Deref for MovingMut<'a>
     }
 }
 
-impl<'a> DerefMut for MovingMut<'a>
+impl DerefMut for MovingMut<'_>
 {
     #[inline]
     #[must_use]
@@ -4411,7 +4411,7 @@ impl<'a> DerefMut for MovingMut<'a>
     }
 }
 
-impl<'a> EntityId for MovingMut<'a>
+impl EntityId for MovingMut<'_>
 {
     #[inline]
     fn id(&self) -> Id { *self.id_as_ref() }
@@ -4427,7 +4427,7 @@ impl<'a> EntityId for MovingMut<'a>
     }
 }
 
-impl<'a> EntityCenter for MovingMut<'a>
+impl EntityCenter for MovingMut<'_>
 {
     #[inline]
     fn center(&self) -> Vec2

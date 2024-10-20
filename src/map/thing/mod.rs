@@ -902,7 +902,7 @@ pub mod ui_mod
         delta: Vec2
     }
 
-    impl<'a> ThingInterface for MovedThingInstance<'a>
+    impl ThingInterface for MovedThingInstance<'_>
     {
         #[inline]
         fn thing_id(&self) -> ThingId { self.thing.thing_id() }

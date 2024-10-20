@@ -489,7 +489,7 @@ pub(in crate::map) mod ui_mod
     impl TextureRotationResult
     {
         #[inline]
-        const fn from_result(value: &Option<TextureRotation>, identifier: Id) -> Self
+        const fn from_result(value: Option<&TextureRotation>, identifier: Id) -> Self
         {
             match value
             {
@@ -2498,10 +2498,10 @@ pub(in crate::map) mod ui_mod
         ) -> TextureRotationResult
         {
             TextureRotationResult::from_result(
-                &self
-                    .data
+                self.data
                     .polygon
-                    .check_texture_rotation(drawing_resources, grid, pivot, angle),
+                    .check_texture_rotation(drawing_resources, grid, pivot, angle)
+                    .as_ref(),
                 self.id
             )
         }

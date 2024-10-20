@@ -17,6 +17,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use smallvec::SmallVec;
 
 use super::misc::AssertedInsertRemove;
+use crate::Id;
 
 //=======================================================================//
 // STATICS
@@ -613,6 +614,11 @@ impl<T> HvHashSet<T>
 }
 
 //=======================================================================//
+
+/// Alias for a [`HvHashSet`] of [`Id`]s.
+pub type Ids = HvHashSet<Id>;
+
+//=======================================================================//
 // FUNCTIONS
 //
 //=======================================================================//
@@ -666,8 +672,7 @@ pub(crate) mod ui_mod
         },
         HvHashMap,
         HvHashSet,
-        HvVec,
-        Id
+        HvVec
     };
 
     //=======================================================================//
@@ -1146,11 +1151,6 @@ pub(crate) mod ui_mod
             self.0.retain(f);
         }
     }
-
-    //=======================================================================//
-
-    /// Alias for a [`HvHashSet`] of [`Id`]s.
-    pub type Ids = HvHashSet<Id>;
 }
 
 #[cfg(feature = "ui")]

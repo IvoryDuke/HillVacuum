@@ -9,6 +9,62 @@ pub mod value;
 
 use std::{fs::File, io::BufReader};
 
+use serde::{Deserialize, Serialize};
+use value::Value;
+
+use super::indexed_map::IndexedMap;
+use crate::HvHashMap;
+#[allow(unused_imports)]
+use crate::{Brush, ThingInstance};
+
+//=======================================================================//
+// STRUCTS
+//
+//=======================================================================//
+
+/// The default properties to be associated with the [`Brush`]es.
+#[must_use]
+#[derive(Clone, Serialize, Deserialize)]
+pub(in crate::map) struct DefaultBrushProperties
+{
+    user:     IndexedMap<String, Value>,
+    instance: BrushProperties
+}
+
+//=======================================================================//
+
+/// The default properties to be associated with the [`ThingInstance`]s.
+#[must_use]
+#[derive(Clone, Serialize, Deserialize)]
+pub(in crate::map) struct DefaultThingProperties
+{
+    user:     IndexedMap<String, Value>,
+    instance: ThingProperties
+}
+
+//=======================================================================//
+
+/// Key-value pairs associated to a [`Brush`].
+#[must_use]
+#[derive(Clone, Serialize, Deserialize)]
+pub(in crate::map) struct BrushProperties
+{
+    collision: Value,
+    user:      HvHashMap<String, Value>
+}
+
+//=======================================================================//
+
+/// Key-value pairs associated to a [`ThingInstance`].
+#[must_use]
+#[derive(Clone, Serialize, Deserialize)]
+pub(in crate::map) struct ThingProperties
+{
+    angle:  Value,
+    height: Value,
+    user:   HvHashMap<String, Value>
+}
+
 //=======================================================================//
 // FUNCTIONS
 //
@@ -42,14 +98,19 @@ pub(in crate::map) mod ui_mod
 
     use bevy::prelude::Resource;
     use hill_vacuum_shared::{return_if_none, NextValue};
-    use serde::{Deserialize, Serialize};
 
     use crate::{
         map::{
             drawer::drawing_resources::DrawingResources,
             editor::state::grid::Grid,
             indexed_map::IndexedMap,
-            properties::value::{ToValue, Value}
+            properties::{
+                value::{ToValue, Value},
+                BrushProperties,
+                DefaultBrushProperties,
+                DefaultThingProperties,
+                ThingProperties
+            }
         },
         utils::{
             collections::{hv_hash_map, hv_vec},
@@ -58,8 +119,6 @@ pub(in crate::map) mod ui_mod
         HvHashMap,
         HvVec
     };
-    #[allow(unused_imports)]
-    use crate::{Brush, ThingInstance};
 
     //=======================================================================//
     // MACROS
@@ -67,8 +126,8 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     macro_rules! entity_properties {
-        ($($entity:ident, $entity_str:literal, $len:literal, $(($property:ident, $property_name:ident, $default:expr)),+),+) => { paste::paste! { $(
-            #[doc = concat!("The default properties associated with all [`", $entity_str, "`]es.")]
+        ($($entity:ident, $entity_str:literal, $entities_str:literal, $len:literal, $(($property:ident, $property_name:ident, $default:expr)),+),+) => { paste::paste! { $(
+            #[doc = concat!("The default properties associated with all ", $entities_str)]
             #[must_use]
             #[derive(Resource)]
             pub struct [< $entity UserProperties >](pub Vec<(&'static str, Value)>);
@@ -89,15 +148,6 @@ pub(in crate::map) mod ui_mod
             }
 
             //=======================================================================//
-
-            /// The default properties to be associated with the [`Brush`]es.
-            #[must_use]
-            #[derive(Clone, Serialize, Deserialize)]
-            pub(in crate::map) struct [< Default $entity Properties >]
-            {
-                user:      IndexedMap<String, Value>,
-                instance:  [< $entity Properties >]
-            }
 
             impl Default for [< Default $entity Properties >]
             {
@@ -280,15 +330,6 @@ pub(in crate::map) mod ui_mod
 
             //=======================================================================//
 
-            /// Key-value pairs associated to a [`Brush`].
-            #[must_use]
-            #[derive(Clone, Serialize, Deserialize)]
-            pub(in crate::map) struct [< $entity Properties >]
-            {
-                $($property_name: Value,)+
-                user: HvHashMap<String, Value>
-            }
-
             impl Default for [< $entity Properties >]
             {
                 #[inline]
@@ -455,10 +496,12 @@ pub(in crate::map) mod ui_mod
     entity_properties!(
         Brush,
         "Brush",
+        "[`Brush`]es",
         1,
         (COLLISION_LABEL, collision, COLLISION_DEFAULT),
         Thing,
         "Thing",
+        "[`ThingInstance`]s",
         2,
         (ANGLE_LABEL, angle, ANGLE_DEFAULT),
         (HEIGHT_LABEL, height, HEIGHT_DEFAULT)

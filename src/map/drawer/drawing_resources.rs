@@ -1640,7 +1640,7 @@ pub(in crate::map) struct TextureMut<'a>
     was_anim_none: bool
 }
 
-impl<'a> Deref for TextureMut<'a>
+impl Deref for TextureMut<'_>
 {
     type Target = Texture;
 
@@ -1649,7 +1649,7 @@ impl<'a> Deref for TextureMut<'a>
     fn deref(&self) -> &Self::Target { &self.resources.textures.get(&self.name).unwrap().texture }
 }
 
-impl<'a> DerefMut for TextureMut<'a>
+impl DerefMut for TextureMut<'_>
 {
     #[inline]
     #[must_use]
@@ -1659,7 +1659,7 @@ impl<'a> DerefMut for TextureMut<'a>
     }
 }
 
-impl<'a> Drop for TextureMut<'a>
+impl Drop for TextureMut<'_>
 {
     #[inline]
     fn drop(&mut self)

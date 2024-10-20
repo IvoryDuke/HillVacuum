@@ -1109,7 +1109,7 @@ pub(in crate::map) mod ui_mod
         camera_scale: f32
     }
 
-    impl<'a> Iterator for NearbyNodes<'a>
+    impl Iterator for NearbyNodes<'_>
     {
         type Item = (u8, bool);
 
