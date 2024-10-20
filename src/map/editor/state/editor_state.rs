@@ -1349,7 +1349,7 @@ impl State
 
             // Return exported file.
             let mut file = BufReader::new(File::open(path).unwrap());
-            _ = version_number(&mut file).as_str();
+            _ = version_number(&mut file)?;
             Ok(file)
         }
 
@@ -1357,7 +1357,7 @@ impl State
         let mut steps = FileStructure::iter();
 
         steps.next_value().assert(FileStructure::Version);
-        let version_number = version_number(&mut reader);
+        let version_number = version_number(&mut reader)?;
         let version_number = version_number.as_str();
 
         let mut file = match version_number
@@ -1709,7 +1709,7 @@ impl State
             ));
 
             let mut reader = BufReader::new(File::open(&path).unwrap());
-            let version = version_number(&mut reader);
+            let version = dialog_if_error!(ret; version_number(&mut reader));
             let len = dialog_if_error!(
                 map;
                 ciborium::de::from_reader(&mut reader),

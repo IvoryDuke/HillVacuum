@@ -286,6 +286,8 @@ pub(in crate::map) mod ui_mod
                         properties.insert(name.to_string(), value);
                     }
 
+                    $(_ = properties.remove($property);)+
+
                     let mut properties = hv_vec![collect; properties];
                     properties.sort_by(|a, b| a.0.cmp(&b.0));
 

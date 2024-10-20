@@ -15,11 +15,7 @@ pub mod thing;
 //
 //=======================================================================//
 
-use std::{
-    fs::File,
-    io::{BufReader, Seek, SeekFrom},
-    path::PathBuf
-};
+use std::{fs::File, io::BufReader, path::PathBuf};
 
 use hill_vacuum_proc_macros::EnumIter;
 use hill_vacuum_shared::{return_if_none, NextValue};
@@ -181,7 +177,7 @@ impl Exporter
         // Version.
         steps.next_value().assert(FileStructure::Version);
 
-        if version_number(&mut file) != FILE_VERSION
+        if version_number(&mut file)? != FILE_VERSION
         {
             return Err("Cannot export previous map versions, save the file to upgrade it to the \
                         latest version.");
@@ -289,17 +285,9 @@ impl Exporter
 /// Reads the version number from `file`.
 #[inline]
 #[must_use]
-fn version_number(file: &mut BufReader<File>) -> String
+fn version_number(file: &mut BufReader<File>) -> Result<String, &'static str>
 {
-    assert!(
-        file.stream_position().unwrap() == 0,
-        "Version number is stored at the start of the file."
-    );
-
-    ciborium::from_reader(&mut *file).unwrap_or_else(|_| {
-        file.seek(SeekFrom::Start(0)).ok();
-        "0.3".to_string()
-    })
+    ciborium::from_reader(&mut *file).map_err(|_| "Error reading file version")
 }
 
 //=======================================================================//

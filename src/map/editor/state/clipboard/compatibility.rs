@@ -82,7 +82,7 @@ impl From<ClipboardData> for crate::map::editor::state::clipboard::ClipboardData
             ClipboardData::Thing(data, id) =>
             {
                 let ThingInstanceData {
-                    thing_id,
+                    thing,
                     pos,
                     path,
                     properties,
@@ -90,14 +90,12 @@ impl From<ClipboardData> for crate::map::editor::state::clipboard::ClipboardData
                 } = data;
 
                 Self::Thing(
-                    unsafe {
-                        std::mem::transmute((
-                            thing_id,
-                            pos,
-                            path,
-                            ThingProperties::from_parts(properties.0)
-                        ))
-                    },
+                    crate::map::thing::ThingInstanceData::from_parts(
+                        thing,
+                        pos,
+                        path,
+                        ThingProperties::from_parts(properties.0)
+                    ),
                     id
                 )
             }
@@ -134,36 +132,6 @@ pub(in crate::map::editor::state) struct Prop
     pub pivot:              Vec2,
     pub attachments_owners: usize,
     pub attached_range:     Range<usize>
-}
-
-impl From<Prop> for crate::map::editor::state::clipboard::Prop
-{
-    #[inline]
-    fn from(value: Prop) -> Self
-    {
-        let Prop {
-            data,
-            data_center,
-            pivot,
-            attached_range,
-            ..
-        } = value;
-
-        unsafe {
-            std::mem::transmute((
-                hv_vec![
-                    collect;
-                    data
-                        .into_iter()
-                        .map(crate::map::editor::state::clipboard::ClipboardData::from)
-                ],
-                pivot,
-                data_center,
-                attached_range,
-                None::<bevy_egui::egui::TextureId>
-            ))
-        }
-    }
 }
 
 //=======================================================================//
@@ -479,7 +447,7 @@ impl ConvexPolygon
 #[derive(Deserialize)]
 pub(in crate::map::editor::state) struct ThingInstanceData
 {
-    thing_id:   ThingId,
+    thing:      ThingId,
     pos:        Vec2,
     hull:       Hull,
     path:       Option<Path>,
@@ -555,6 +523,9 @@ pub(in crate::map::editor::state) fn convert_08_prps_file(
     save_imported_08_props(&mut writer, props)?;
     drop(writer);
 
+    path.pop();
+    path.push(file_name);
+
     test_writer!(
         BufWriter::new(
             OpenOptions::new()
@@ -567,9 +538,6 @@ pub(in crate::map::editor::state) fn convert_08_prps_file(
         .write_all(&data),
         "Error saving converted props file."
     );
-
-    path.pop();
-    path.push(file_name);
 
     let mut reader = BufReader::new(File::create(&path).unwrap());
     let _ = version_number(&mut reader);
