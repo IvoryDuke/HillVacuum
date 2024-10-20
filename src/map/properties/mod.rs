@@ -149,6 +149,87 @@ pub(in crate::map) mod ui_mod
 
             //=======================================================================//
 
+            pub(in crate::map) struct [< EngineDefault $entity Properties >]([< Default $entity Properties >]);
+
+            impl Default for [< EngineDefault $entity Properties >]
+            {
+                #[inline]
+                fn default() -> Self
+                {
+                    Self([< Default $entity Properties >]::default())
+                }
+            }
+
+            impl std::fmt::Display for [< EngineDefault $entity Properties >]
+            {
+                #[inline]
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+                {
+                    self.0.fmt(f)
+                }
+            }
+
+            impl From<[< Default $entity Properties >]> for [< EngineDefault $entity Properties >]
+            {
+                #[inline]
+                fn from(value: [< Default $entity Properties >]) -> Self
+                {
+                    Self(value)
+                }
+            }
+
+            impl EngineDefaultProperties for [< EngineDefault $entity Properties >]
+            {
+                type Inner = [< Default $entity Properties >];
+
+                #[inline]
+                fn eq(&self, default_properties: &Self::Inner) -> bool
+                {
+                    self.0 == *default_properties
+                }
+
+                #[inline]
+                fn inner(&self) -> Self::Inner
+                {
+                    self.0.clone()
+                }
+
+                #[inline]
+                fn generate_refactor(&self, file_default_properties: Self::Inner)
+                    -> PropertiesRefactor<'_, Self>
+                {
+                    let mut remove = hv_vec![];
+
+                    for (k, v) in file_default_properties.iter()
+                    {
+                        if !self.0.contains(k) || !v.eq_discriminant(self.0.get(k))
+                        {
+                            remove.push(k.to_string());
+                        }
+                    }
+
+                    let mut insert = hv_vec![];
+
+                    for (k, v) in self.0.user.iter()
+                    {
+                        if !file_default_properties.contains(k) || !v.eq_discriminant(file_default_properties.get(k))
+                        {
+                            insert.push(k.as_str());
+                        }
+                    }
+
+                    assert!(!remove.is_empty() || !insert.is_empty(), "Empty refactor.");
+
+                    PropertiesRefactor {
+                        remove,
+                        insert,
+                        engine_default_properties: self
+                    }
+                }
+            }
+
+            //=======================================================================//
+
             impl Default for [< Default $entity Properties >]
             {
                 #[inline]
@@ -171,6 +252,7 @@ pub(in crate::map) mod ui_mod
                     fn format(k: &str, v: &Value) -> String { format!("{k}: {v:?}") }
 
                     let mut properties = String::new();
+
                     $(
                         properties.push_str(&format($property, &$default));
                         properties.push_str(",\n");
@@ -180,6 +262,9 @@ pub(in crate::map) mod ui_mod
 
                     if len == 0
                     {
+                        properties.pop();
+                        properties.pop();
+
                         return write!(f, "{properties}");
                     }
 
@@ -218,39 +303,6 @@ pub(in crate::map) mod ui_mod
 
             impl DefaultProperties for [< Default $entity Properties >]
             {
-                #[inline]
-                fn refactor<'a>(&self, new: &'a Self)
-                    -> PropertiesRefactor<'a, Self>
-                {
-                    let mut remove = hv_vec![];
-
-                    for (k, v) in self.user.iter()
-                    {
-                        if !new.contains(k) || !v.eq_discriminant(new.get(k))
-                        {
-                            remove.push(k.clone());
-                        }
-                    }
-
-                    let mut insert = hv_vec![];
-
-                    for (k, v) in new.user.iter()
-                    {
-                        if !self.contains(k) || !v.eq_discriminant(self.get(k))
-                        {
-                            insert.push(k.as_str());
-                        }
-                    }
-
-                    assert!(!remove.is_empty() || !insert.is_empty(), "Empty refactor.");
-
-                    PropertiesRefactor {
-                        remove,
-                        insert,
-                        default_properties: new
-                    }
-                }
-
                 #[inline]
                 fn len(&self) -> usize { self.instance.len() }
 
@@ -408,7 +460,7 @@ pub(in crate::map) mod ui_mod
 
                 /// Refactors `self` based on `refactor`.
                 #[inline]
-                pub fn refactor(&mut self, refactor: &PropertiesRefactor<[< Default $entity Properties >]>)
+                pub fn refactor(&mut self, refactor: &PropertiesRefactor<[< EngineDefault $entity Properties >]>)
                 {
                     for k in &refactor.remove
                     {
@@ -419,7 +471,7 @@ pub(in crate::map) mod ui_mod
                     {
                         self.user.asserted_insert((
                             (*k).to_string(),
-                            refactor.default_properties.get(k).clone()
+                            refactor.engine_default_properties.0.get(k).clone()
                         ));
                     }
                 }
@@ -459,14 +511,30 @@ pub(in crate::map) mod ui_mod
 
     //=======================================================================//
 
+    pub(in crate::map) trait EngineDefaultProperties
+    where
+        Self: From<Self::Inner> + std::fmt::Display,
+        Self::Inner: DefaultProperties
+    {
+        type Inner;
+
+        #[must_use]
+        fn eq(&self, default_properties: &Self::Inner) -> bool;
+
+        fn inner(&self) -> Self::Inner;
+
+        fn generate_refactor(
+            &self,
+            file_default_properties: Self::Inner
+        ) -> PropertiesRefactor<'_, Self>;
+    }
+
+    //=======================================================================//
+
     pub(in crate::map) trait DefaultProperties
     where
         Self: Sized + std::fmt::Display + Clone + PartialEq
     {
-        /// Generates a [`PropertiesRefactor`] describing how the [`Properties`] created from `self`
-        /// should be refactored to be compatible with `new`.
-        fn refactor<'a>(&self, new: &'a Self) -> PropertiesRefactor<'a, Self>;
-
         /// Returns the amount of contained values.
         #[must_use]
         fn len(&self) -> usize;
@@ -513,14 +581,16 @@ pub(in crate::map) mod ui_mod
 
     /// Information concerning how [`Properties`] instances should be refactored upon map file load.
     #[must_use]
-    pub(in crate::map) struct PropertiesRefactor<'a, T>
+    pub(in crate::map) struct PropertiesRefactor<'a, E>
+    where
+        E: EngineDefaultProperties
     {
         /// The keys of the values to be removed.
-        remove:             HvVec<String>,
-        /// The keys of the values inside `default_properties` to be inserted.
-        insert:             HvVec<&'a str>,
+        remove:                    HvVec<String>,
+        /// The keys of the values inside `engine_default_properties` to be inserted.
+        insert:                    HvVec<&'a str>,
         /// A reference to the [`DefaultProperties`] upon which [`PropertiesRefactor`] is based.
-        default_properties: &'a T
+        engine_default_properties: &'a E
     }
 }
 

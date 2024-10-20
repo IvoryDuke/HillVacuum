@@ -111,7 +111,7 @@ pub(in crate::map) mod ui_mod
             path::{calc_path_hull, common_edit_path, EditPath, MovementSimulator, Moving, Path},
             properties::{
                 BrushProperties,
-                DefaultBrushProperties,
+                EngineDefaultBrushProperties,
                 Properties,
                 PropertiesRefactor,
                 COLLISION_LABEL
@@ -1803,7 +1803,10 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn refactor_properties(&mut self, refactor: &PropertiesRefactor<DefaultBrushProperties>)
+        pub fn refactor_properties(
+            &mut self,
+            refactor: &PropertiesRefactor<EngineDefaultBrushProperties>
+        )
         {
             self.data.properties.refactor(refactor);
         }

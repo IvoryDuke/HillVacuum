@@ -578,8 +578,8 @@ impl State
                 default(
                     asset_server,
                     user_textures,
-                    default_properties.engine_brushes,
-                    default_properties.engine_things
+                    default_properties.map_brushes,
+                    default_properties.map_things
                 ),
                 EntitiesManager::new(),
                 Clipboard::new(),
@@ -627,8 +627,8 @@ impl State
                     default(
                         asset_server,
                         user_textures,
-                        default_properties.engine_brushes,
-                        default_properties.engine_things
+                        default_properties.map_brushes,
+                        default_properties.map_things
                     ),
                     EntitiesManager::new(),
                     Clipboard::new(),

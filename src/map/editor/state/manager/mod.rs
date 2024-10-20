@@ -70,8 +70,8 @@ use crate::{
             read_default_properties,
             BrushProperties,
             DefaultBrushProperties,
-            DefaultProperties,
             DefaultThingProperties,
+            EngineDefaultProperties,
             PropertiesRefactor
         },
         thing::{catalog::ThingsCatalog, ThingInstance, ThingInstanceData, ThingInterface},
@@ -706,14 +706,14 @@ impl Innards
         /// Stores in `map_default_properties` the desired properties and returns a
         /// [`PropertiesRefactor`] if the default and file properties do not match.
         #[inline]
-        fn mismatching_properties<'a, T: DefaultProperties>(
-            engine_default_properties: &'a T,
-            map_default_properties: &'a mut T,
-            file_default_properties: T,
+        fn mismatching_properties<'a, E: EngineDefaultProperties>(
+            engine_default_properties: &'a E,
+            map_default_properties: &'a mut E::Inner,
+            file_default_properties: E::Inner,
             entity: &str
-        ) -> Option<PropertiesRefactor<'a, T>>
+        ) -> Option<PropertiesRefactor<'a, E>>
         {
-            if *engine_default_properties == file_default_properties
+            if engine_default_properties.eq(&file_default_properties)
             {
                 return None;
             }
@@ -724,7 +724,7 @@ impl Innards
                  contained in the {entity} that do not match will be removed, and the missing \
                  ones will be inserted.\n- Press YES to use the engine properties;\n- Press NO to \
                  use the map file properties.\n\nHere are the two property \
-                 lists:\n\nENGINE:\n{engine_default_properties}\nMAP:\n{file_default_properties}"
+                 lists:\n\nENGINE:\n{engine_default_properties}\n\nMAP:\n{file_default_properties}"
             );
 
             match rfd::MessageDialog::new()
@@ -736,8 +736,8 @@ impl Innards
             {
                 rfd::MessageDialogResult::Yes =>
                 {
-                    let refactor = file_default_properties.refactor(engine_default_properties);
-                    *map_default_properties = engine_default_properties.clone();
+                    let refactor = engine_default_properties.generate_refactor(file_default_properties);
+                    *map_default_properties = engine_default_properties.inner();
                     refactor.into()
                 },
                 rfd::MessageDialogResult::No =>

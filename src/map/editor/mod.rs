@@ -50,6 +50,9 @@ use super::{
         BrushUserProperties,
         DefaultBrushProperties,
         DefaultThingProperties,
+        EngineDefaultBrushProperties,
+        EngineDefaultProperties,
+        EngineDefaultThingProperties,
         ThingUserProperties
     },
     thing::{catalog::ThingsCatalog, HardcodedThings},
@@ -89,8 +92,8 @@ pub(in crate::map) trait Placeholder
 #[must_use]
 struct AllDefaultProperties<'a>
 {
-    engine_brushes: &'a DefaultBrushProperties,
-    engine_things:  &'a DefaultThingProperties,
+    engine_brushes: &'a EngineDefaultBrushProperties,
+    engine_things:  &'a EngineDefaultThingProperties,
     map_brushes:    &'a mut DefaultBrushProperties,
     map_things:     &'a mut DefaultThingProperties
 }
@@ -202,9 +205,9 @@ pub(in crate::map) struct Editor
     /// The resources to draw the map on screen.
     drawing_resources: DrawingResources,
     /// The engine defined default brush properties.
-    engine_default_brush_properties: DefaultBrushProperties,
+    engine_default_brush_properties: EngineDefaultBrushProperties,
     /// The engine defined default [`ThingInstance`] properties.
-    engine_default_thing_properties: DefaultThingProperties,
+    engine_default_thing_properties: EngineDefaultThingProperties,
     /// The defined default brush properties to be used for the currently opened map.
     map_default_brush_properties: DefaultBrushProperties,
     /// The defined default [`ThingInstance`] properties to be used for the currently opened map.
@@ -232,8 +235,8 @@ impl Placeholder for Editor
                 cursor: Cursor::default(),
                 things_catalog: ThingsCatalog::default(),
                 drawing_resources: DrawingResources::placeholder(),
-                engine_default_brush_properties: DefaultBrushProperties::default(),
-                engine_default_thing_properties: DefaultThingProperties::default(),
+                engine_default_brush_properties: EngineDefaultBrushProperties::default(),
+                engine_default_thing_properties: EngineDefaultThingProperties::default(),
                 map_default_brush_properties: DefaultBrushProperties::default(),
                 map_default_thing_properties: DefaultThingProperties::default(),
                 manager: EntitiesManager::new(),
@@ -281,16 +284,18 @@ impl Editor
             None => None
         };
 
-        let default_brush_properties = brush_properties
-            .map_or_else(DefaultBrushProperties::default, |mut d_p| {
+        let default_brush_properties = EngineDefaultBrushProperties::from(
+            brush_properties.map_or_else(DefaultBrushProperties::default, |mut d_p| {
                 DefaultBrushProperties::new(d_p.0.take_value())
-            });
-        let default_thing_properties = thing_properties
-            .map_or_else(DefaultThingProperties::default, |mut d_p| {
+            })
+        );
+        let default_thing_properties = EngineDefaultThingProperties::from(
+            thing_properties.map_or_else(DefaultThingProperties::default, |mut d_p| {
                 DefaultThingProperties::new(d_p.0.take_value())
-            });
-        let mut map_default_brush_properties = default_brush_properties.clone();
-        let mut map_default_thing_properties = default_thing_properties.clone();
+            })
+        );
+        let mut map_default_brush_properties = default_brush_properties.inner();
+        let mut map_default_thing_properties = default_thing_properties.inner();
 
         let mut default_properties = AllDefaultProperties {
             engine_brushes: &default_brush_properties,

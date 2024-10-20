@@ -178,6 +178,7 @@ pub mod ui_mod
             path::{common_edit_path, EditPath, MovementSimulator, Moving, Path},
             properties::{
                 DefaultThingProperties,
+                EngineDefaultThingProperties,
                 Properties,
                 PropertiesRefactor,
                 ThingProperties,
@@ -784,7 +785,10 @@ pub mod ui_mod
 
         /// Refactors the [`Peoperties`] based on `refactor`.
         #[inline]
-        pub fn refactor_properties(&mut self, refactor: &PropertiesRefactor<DefaultThingProperties>)
+        pub fn refactor_properties(
+            &mut self,
+            refactor: &PropertiesRefactor<EngineDefaultThingProperties>
+        )
         {
             self.data.properties.refactor(refactor);
         }

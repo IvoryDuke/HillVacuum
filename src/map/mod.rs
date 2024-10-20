@@ -284,7 +284,6 @@ impl Exporter
 
 /// Reads the version number from `file`.
 #[inline]
-#[must_use]
 fn version_number(file: &mut BufReader<File>) -> Result<String, &'static str>
 {
     ciborium::from_reader(&mut *file).map_err(|_| "Error reading file version")

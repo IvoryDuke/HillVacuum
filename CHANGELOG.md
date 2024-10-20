@@ -6,7 +6,9 @@
 - Simplified texture parallax calculations, changed signature of `draw_offset_with_parallax_and_scroll`;
 - `Tab` and `Alt+Tab` can now be used to scroll through the ui widgets;
 - decreased file size of `Prop`s;
-- `Node`'s fields are now public.
+- `Node`'s fields are now public;
+- reduced crates required to compile;
+- improved drawing of things in `Prop` previews.
 
 ### Fixes
 - Added missing collision overlay in clipped brushes;
@@ -15,7 +17,8 @@
 - fixed a paint tool crash occurring when no prop is selected;
 - fixed crash that could occur when creating a shape with the draw tool;
 - fixed sometimes incorrect camera zoom;
-- fixed path nodes selection.
+- fixed sometimes incorrect path nodes selection;
+- fixed a few user definer properties related issues.
 
 ## 0.8.2
 

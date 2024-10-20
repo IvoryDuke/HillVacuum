@@ -1119,7 +1119,7 @@ impl ActiveTool
                     bundle.edits_history,
                     bundle.grid,
                     Some(intersection_polygon).into_iter(),
-                    bundle.default_properties.engine_brushes.instance()
+                    bundle.default_properties.map_brushes.instance()
                 );
             }
         });
@@ -1188,7 +1188,7 @@ impl ActiveTool
                 Self::Vertex(_) =>
                 {
                     Self::merge_vertexes(
-                        bundle.default_properties.engine_brushes,
+                        bundle.default_properties.map_brushes,
                         bundle.drawing_resources,
                         bundle.manager,
                         bundle.edits_history,
@@ -1200,7 +1200,7 @@ impl ActiveTool
                 Self::Side(_) =>
                 {
                     Self::merge_vertexes(
-                        bundle.default_properties.engine_brushes,
+                        bundle.default_properties.map_brushes,
                         bundle.drawing_resources,
                         bundle.manager,
                         bundle.edits_history,
@@ -1266,7 +1266,7 @@ impl ActiveTool
                 bundle.edits_history,
                 bundle.grid,
                 Some(poly).into_iter(),
-                bundle.default_properties.engine_brushes.instance()
+                bundle.default_properties.map_brushes.instance()
             );
         });
     }
