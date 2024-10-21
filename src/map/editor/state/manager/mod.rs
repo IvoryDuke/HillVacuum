@@ -67,9 +67,9 @@ use crate::{
         hv_vec,
         path::{EditPath, MovementSimulator, Moving, Path},
         properties::{
-            read_default_properties,
             BrushProperties,
             DefaultBrushProperties,
+            DefaultPropertiesViewer,
             DefaultThingProperties,
             EngineDefaultBrushProperties,
             EngineDefaultProperties,
@@ -755,8 +755,15 @@ impl Innards
         let mut with_attachments = hv_vec![];
 
         steps.next_value().assert(FileStructure::Properties);
-        let (file_default_brush_properties, file_default_thing_properties) =
-            read_default_properties(file)?;
+
+        let file_default_brush_properties = DefaultBrushProperties::from_viewer(
+            ciborium::from_reader::<DefaultPropertiesViewer, _>(&mut *file)
+                .map_err(|_| "Error reading Brush default properties")?
+        );
+        let file_default_thing_properties = DefaultThingProperties::from_viewer(
+            ciborium::from_reader::<DefaultPropertiesViewer, _>(&mut *file)
+                .map_err(|_| "Error reading Thing default properties")?
+        );
 
         steps.next_value().assert(FileStructure::Brushes);
         let b_refactor = mismatching_properties(

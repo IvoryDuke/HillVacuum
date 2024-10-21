@@ -234,7 +234,7 @@ impl Prop
     #[inline]
     pub(in crate::map::editor::state::clipboard) fn hull<T: TextureSize>(
         &self,
-        drawing_resources: &T,
+        resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid
     ) -> Hull
@@ -242,7 +242,7 @@ impl Prop
         Hull::from_hulls_iter(
             self.entities
                 .iter()
-                .map(|data| data.hull(drawing_resources, things_catalog, grid))
+                .map(|data| data.hull(resources, things_catalog, grid))
         )
         .unwrap()
     }
@@ -377,7 +377,7 @@ impl Prop
     #[inline]
     fn reset_center<T: TextureSize>(
         &mut self,
-        drawing_resources: &T,
+        resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid
     )
@@ -387,7 +387,7 @@ impl Prop
         self.center = Hull::from_hulls_iter(
             self.entities
                 .iter()
-                .map(|data| data.hull(drawing_resources, things_catalog, &grid))
+                .map(|data| data.hull(resources, things_catalog, &grid))
         )
         .unwrap()
         .center();
@@ -399,7 +399,7 @@ impl Prop
     #[must_use]
     pub(in crate::map::editor::state::clipboard) fn reload_things<T: TextureSize>(
         &mut self,
-        drawing_resources: &T,
+        resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid
     ) -> bool
@@ -409,7 +409,7 @@ impl Prop
             .iter()
             .any(|data| matches!(data, ClipboardData::Thing(..)))
         {
-            self.reset_center(drawing_resources, things_catalog, grid);
+            self.reset_center(resources, things_catalog, grid);
             return true;
         }
 

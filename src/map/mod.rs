@@ -19,7 +19,7 @@ use std::{fs::File, io::BufReader, path::PathBuf};
 
 use hill_vacuum_proc_macros::EnumIter;
 use hill_vacuum_shared::{return_if_none, NextValue};
-use properties::read_default_properties;
+use properties::DefaultPropertiesViewer;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -202,7 +202,12 @@ impl Exporter
 
         // Properties.
         steps.next_value().assert(FileStructure::Properties);
-        _ = read_default_properties(&mut file)?;
+
+        for _ in 0..2
+        {
+            _ = ciborium::from_reader::<DefaultPropertiesViewer, _>(&mut file)
+                .map_err(|_| "Error reading default properties")?;
+        }
 
         // Brushes.
         steps.next_value().assert(FileStructure::Brushes);

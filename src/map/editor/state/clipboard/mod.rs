@@ -203,14 +203,14 @@ impl ClipboardData
     #[inline]
     fn hull<T: TextureSize>(
         &self,
-        drawing_resources: &T,
+        resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid
     ) -> Hull
     {
         match self
         {
-            ClipboardData::Brush(data, _) => data.hull(drawing_resources, grid),
+            ClipboardData::Brush(data, _) => data.hull(resources, grid),
             ClipboardData::Thing(data, _) => data.hull(things_catalog)
         }
     }
@@ -363,7 +363,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
-        drawing_resources: &T,
+        resources: &T,
         catalog: &ThingsCatalog,
         grid: &Grid,
         header: &MapHeader,
@@ -389,7 +389,7 @@ impl Clipboard
             images,
             prop_cameras,
             user_textures,
-            drawing_resources,
+            resources,
             catalog,
             grid,
             header.props,
@@ -408,7 +408,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
-        drawing_resources: &T,
+        resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid,
         props_amount: usize,
@@ -423,7 +423,7 @@ impl Clipboard
                 ciborium::from_reader::<PropViewer, _>(&mut *file)
                     .map_err(|_| "Error loading props")?
             );
-            _ = prop.reload_things(drawing_resources, things_catalog, grid);
+            _ = prop.reload_things(resources, things_catalog, grid);
             props.push(prop);
         }
 
@@ -439,7 +439,7 @@ impl Clipboard
                 images,
                 user_textures,
                 prop_cameras.next(),
-                drawing_resources,
+                resources,
                 things_catalog,
                 grid,
                 index
@@ -456,7 +456,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         user_textures: &mut EguiUserTextures,
         camera: Option<(Entity, Mut<Camera>, Mut<Transform>)>,
-        drawing_resources: &T,
+        resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid,
         index: usize
@@ -478,7 +478,7 @@ impl Clipboard
             images,
             &mut (&mut camera.1, &mut camera.2),
             user_textures,
-            drawing_resources,
+            resources,
             things_catalog,
             grid,
             &mut self.props[index]
@@ -661,7 +661,7 @@ impl Clipboard
         images: &mut Assets<Image>,
         prop_camera: &mut (&mut Camera, &mut Transform),
         user_textures: &mut EguiUserTextures,
-        drawing_resources: &T,
+        resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid,
         prop: &mut Prop
@@ -676,7 +676,7 @@ impl Clipboard
             prop_camera.1,
             (PROP_SCREENSHOT_SIZE.x as f32, PROP_SCREENSHOT_SIZE.y as f32),
             &prop
-                .hull(drawing_resources, things_catalog, grid)
+                .hull(resources, things_catalog, grid)
                 .transformed(|vx| grid.transform_point(vx)),
             32f32
         );

@@ -1104,13 +1104,9 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn sprite_hull<T: TextureSize>(
-            &self,
-            drawing_resources: &T,
-            grid: &Grid
-        ) -> Option<Hull>
+        pub fn sprite_hull<T: TextureSize>(&self, resources: &T, grid: &Grid) -> Option<Hull>
         {
-            self.data.sprite_hull(drawing_resources, grid)
+            self.data.sprite_hull(resources, grid)
         }
 
         #[inline]

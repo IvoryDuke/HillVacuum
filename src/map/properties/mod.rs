@@ -7,12 +7,10 @@ pub mod value;
 //
 //=======================================================================//
 
-use std::{fs::File, io::BufReader};
-
 use serde::{Deserialize, Serialize};
 use value::Value;
 
-use crate::{map::Viewer, HvVec};
+use crate::HvVec;
 
 //=======================================================================//
 // STRUCTS
@@ -22,28 +20,6 @@ use crate::{map::Viewer, HvVec};
 #[must_use]
 #[derive(Serialize, Deserialize)]
 pub(in crate::map) struct DefaultPropertiesViewer(pub HvVec<(String, Value)>);
-
-//=======================================================================//
-// FUNCTIONS
-//
-//=======================================================================//
-
-#[inline]
-pub(in crate::map) fn read_default_properties(
-    file: &mut BufReader<File>
-) -> Result<(DefaultBrushProperties, DefaultThingProperties), &'static str>
-{
-    Ok((
-        DefaultBrushProperties::from_viewer(
-            ciborium::from_reader::<DefaultPropertiesViewer, _>(&mut *file)
-                .map_err(|_| "Error reading Brush default properties")?
-        ),
-        DefaultThingProperties::from_viewer(
-            ciborium::from_reader::<DefaultPropertiesViewer, _>(&mut *file)
-                .map_err(|_| "Error reading Thing default properties")?
-        )
-    ))
-}
 
 //=======================================================================//
 // UI
