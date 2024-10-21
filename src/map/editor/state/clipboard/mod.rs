@@ -52,7 +52,7 @@ use crate::{
     map::{
         brush::{BrushData, BrushDataViewer},
         camera::scale_viewport,
-        drawer::{color::Color, drawing_resources::DrawingResources},
+        drawer::{color::Color, drawing_resources::DrawingResources, TextureSize},
         editor::DrawBundle,
         hv_vec,
         path::Path,
@@ -201,9 +201,9 @@ impl ClipboardData
     }
 
     #[inline]
-    fn hull(
+    fn hull<T: TextureSize>(
         &self,
-        drawing_resources: &DrawingResources,
+        drawing_resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid
     ) -> Hull
@@ -359,11 +359,11 @@ impl Clipboard
 
     /// Creates a new [`Clipboard`] from the data stored in `file`.
     #[inline]
-    pub(in crate::map::editor::state) fn from_file(
+    pub(in crate::map::editor::state) fn from_file<T: TextureSize>(
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
-        drawing_resources: &DrawingResources,
+        drawing_resources: &T,
         catalog: &ThingsCatalog,
         grid: &Grid,
         header: &MapHeader,
@@ -403,12 +403,12 @@ impl Clipboard
 
     /// Import the [`Prop`]s in `file`.
     #[inline]
-    pub(in crate::map::editor::state) fn import_props(
+    pub(in crate::map::editor::state) fn import_props<T: TextureSize>(
         &mut self,
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
-        drawing_resources: &DrawingResources,
+        drawing_resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid,
         props_amount: usize,
@@ -451,12 +451,12 @@ impl Clipboard
 
     /// Queues a [`Prop`] screenshot.
     #[inline]
-    fn queue_prop_screenshot(
+    fn queue_prop_screenshot<T: TextureSize>(
         &mut self,
         images: &mut Assets<Image>,
         user_textures: &mut EguiUserTextures,
         camera: Option<(Entity, Mut<Camera>, Mut<Transform>)>,
-        drawing_resources: &DrawingResources,
+        drawing_resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid,
         index: usize
@@ -657,11 +657,11 @@ impl Clipboard
     /// Assigns a camera to a [`Prop`] to take its screenshot.
     #[allow(clippy::cast_precision_loss)]
     #[inline]
-    pub(in crate::map::editor::state) fn assign_camera_to_prop(
+    pub(in crate::map::editor::state) fn assign_camera_to_prop<T: TextureSize>(
         images: &mut Assets<Image>,
         prop_camera: &mut (&mut Camera, &mut Transform),
         user_textures: &mut EguiUserTextures,
-        drawing_resources: &DrawingResources,
+        drawing_resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid,
         prop: &mut Prop

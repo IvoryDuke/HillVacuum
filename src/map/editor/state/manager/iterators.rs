@@ -160,7 +160,7 @@ pub(in crate::map::editor::state::manager) struct SelectedBrushesMut<'a>
 
 impl<'a> Iterator for SelectedBrushesMut<'a>
 {
-    type Item = BrushMut<'a>;
+    type Item = BrushMut<'a, DrawingResources>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item>

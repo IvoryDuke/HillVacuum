@@ -20,7 +20,11 @@ use std::{fs::File, io::BufReader};
 
 use texture::DefaultAnimation;
 
-use crate::{utils::collections::hv_vec, HvVec};
+use crate::{
+    utils::{collections::hv_hash_map, misc::AssertedInsertRemove},
+    Animation,
+    HvHashMap
+};
 
 //=======================================================================//
 // FUNCTIONS
@@ -32,13 +36,15 @@ use crate::{utils::collections::hv_vec, HvVec};
 pub(in crate::map) fn file_animations(
     amount: usize,
     file: &mut BufReader<File>
-) -> Result<HvVec<DefaultAnimation>, &'static str>
+) -> Result<HvHashMap<String, Animation>, &'static str>
 {
-    let mut animations = hv_vec![];
+    let mut animations = hv_hash_map![];
 
     for _ in 0..amount
     {
-        animations.push(ciborium::from_reader(&mut *file).map_err(|_| "Error loading animations")?);
+        let DefaultAnimation { texture, animation } =
+            ciborium::from_reader(&mut *file).map_err(|_| "Error loading animations")?;
+        animations.asserted_insert((texture, animation));
     }
 
     Ok(animations)
@@ -50,4 +56,30 @@ pub(in crate::map) fn file_animations(
 //=======================================================================//
 
 #[cfg(feature = "ui")]
-pub(in crate::map::drawer) type BevyColor = bevy::color::Color;
+mod ui_mod
+{
+    //=======================================================================//
+    // TRAITS
+    //
+    //=======================================================================//
+
+    use glam::UVec2;
+
+    use crate::TextureSettings;
+
+    pub(in crate::map) trait TextureSize
+    {
+        #[must_use]
+        fn texture_size(&self, texture: &str, settings: &TextureSettings) -> UVec2;
+    }
+
+    //=======================================================================//
+    // TYPES
+    //
+    //=======================================================================//
+
+    pub(in crate::map::drawer) type BevyColor = bevy::color::Color;
+}
+
+#[cfg(feature = "ui")]
+pub(in crate::map) use ui_mod::*;

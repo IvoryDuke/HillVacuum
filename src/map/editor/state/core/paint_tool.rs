@@ -295,7 +295,7 @@ impl PaintTool
                     images,
                     paint_tool_camera,
                     user_textures,
-                    drawing_resources,
+                    *drawing_resources,
                     things_catalog,
                     grid,
                     &mut prop

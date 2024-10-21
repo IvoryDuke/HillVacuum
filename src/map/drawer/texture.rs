@@ -324,12 +324,7 @@ pub(in crate::map) mod ui_mod
         render::texture::{Image, ImageSampler, ImageSamplerDescriptor}
     };
     use glam::{UVec2, Vec2};
-    use hill_vacuum_shared::{
-        match_or_panic,
-        return_if_no_match,
-        return_if_none,
-        TEXTURE_HEIGHT_RANGE
-    };
+    use hill_vacuum_shared::{match_or_panic, return_if_none, TEXTURE_HEIGHT_RANGE};
 
     use super::{OffsetAuxiliary, RotationOffset, Sprite};
     use crate::{
@@ -337,7 +332,8 @@ pub(in crate::map) mod ui_mod
             brush::convex_polygon::ScaleInfo,
             drawer::{
                 animation::{Animator, MoveUpDown},
-                drawing_resources::DrawingResources
+                drawing_resources::DrawingResources,
+                TextureSize
             },
             editor::{state::grid::Grid, Placeholder},
             OutOfBounds
@@ -585,9 +581,9 @@ pub(in crate::map) mod ui_mod
         ) -> &'a Animation;
 
         #[must_use]
-        fn sprite_hull(
+        fn sprite_hull<T: TextureSize>(
             &self,
-            drawing_resources: &DrawingResources,
+            resources: &T,
             grid: &Grid,
             brush_center: Vec2
         ) -> Option<Hull>;
@@ -1027,14 +1023,14 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        fn sprite_hull(
+        fn sprite_hull<T: TextureSize>(
             &self,
-            drawing_resources: &DrawingResources,
+            resources: &T,
             grid: &Grid,
             brush_center: Vec2
         ) -> Option<Hull>
         {
-            self.texture_sprite_vxs(drawing_resources, grid, &self.texture, brush_center)
+            self.texture_sprite_vxs(resources, grid, &self.texture, brush_center)
                 .map(Hull::from_points)
         }
 
@@ -1093,25 +1089,6 @@ pub(in crate::map) mod ui_mod
     impl TextureSettings
     {
         xy!(x, y);
-
-        #[inline]
-        fn texture_draw_size(&self, drawing_resources: &DrawingResources, texture: &str) -> UVec2
-        {
-            let size = drawing_resources.texture_or_error(texture).size;
-
-            if !self.sprite.enabled()
-            {
-                return size;
-            }
-
-            return_if_no_match!(
-                self.overall_animation(drawing_resources),
-                Animation::Atlas(anim),
-                anim,
-                size
-            )
-            .size(size)
-        }
 
         #[inline]
         pub(in crate::map::drawer) const fn sprite_struct(&self) -> &Sprite { &self.sprite }
@@ -1751,9 +1728,9 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        fn texture_sprite_vxs_at_origin_no_offset(
+        fn texture_sprite_vxs_at_origin_no_offset<T: TextureSize>(
             &self,
-            drawing_resources: &DrawingResources,
+            resources: &T,
             grid: &Grid,
             texture: &str
         ) -> Option<[Vec2; 4]>
@@ -1763,7 +1740,7 @@ pub(in crate::map) mod ui_mod
                 return None;
             }
 
-            let size = self.texture_draw_size(drawing_resources, texture).as_vec2() *
+            let size = resources.texture_size(texture, self).as_vec2() *
                 Vec2::new(self.scale_x.abs(), self.scale_y.abs()) /
                 2f32;
             let mut rect = Hull::new(size.y, -size.y, -size.x, size.x).unwrap().rectangle();
@@ -1789,14 +1766,14 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        fn texture_sprite_vxs_at_origin(
+        fn texture_sprite_vxs_at_origin<T: TextureSize>(
             &self,
-            drawing_resources: &DrawingResources,
+            resources: &T,
             grid: &Grid,
             texture: &str
         ) -> Option<[Vec2; 4]>
         {
-            self.texture_sprite_vxs_at_origin_no_offset(drawing_resources, grid, texture)
+            self.texture_sprite_vxs_at_origin_no_offset(resources, grid, texture)
                 .map(|mut rect| {
                     let offset = self.draw_offset();
                     rect.translate(grid.transform_point(offset));
@@ -1805,15 +1782,15 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        fn texture_sprite_vxs(
+        fn texture_sprite_vxs<T: TextureSize>(
             &self,
-            drawing_resources: &DrawingResources,
+            resources: &T,
             grid: &Grid,
             texture: &str,
             brush_center: Vec2
         ) -> Option<[Vec2; 4]>
         {
-            let mut vxs = self.texture_sprite_vxs_at_origin(drawing_resources, grid, texture);
+            let mut vxs = self.texture_sprite_vxs_at_origin(resources, grid, texture);
 
             if let Some(vxs) = &mut vxs
             {

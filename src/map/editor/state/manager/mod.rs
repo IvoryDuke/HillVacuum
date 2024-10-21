@@ -56,11 +56,11 @@ use crate::{
             color::Color,
             drawers::EditDrawer,
             drawing_resources::DrawingResources,
-            texture::{TextureInterface, TextureInterfaceExtra, TextureSettings, TextureSpriteSet}
+            texture::{TextureInterface, TextureInterfaceExtra, TextureSettings, TextureSpriteSet},
+            TextureSize
         },
         editor::{
             state::{editor_state::TargetSwitch, manager::quad_tree::QuadTreeIds},
-            AllDefaultProperties,
             StateUpdateBundle,
             ToolUpdateBundle
         },
@@ -71,7 +71,9 @@ use crate::{
             BrushProperties,
             DefaultBrushProperties,
             DefaultThingProperties,
+            EngineDefaultBrushProperties,
             EngineDefaultProperties,
+            EngineDefaultThingProperties,
             PropertiesRefactor
         },
         thing::{catalog::ThingsCatalog, ThingInstance, ThingInstanceData, ThingInterface},
@@ -678,17 +680,21 @@ impl Innards
     /// Reads the brushes and [`Thing`]s from `file`.
     /// Returns an error if it occurred.
     #[inline]
-    pub(in crate::map::editor::state) fn load<I: Iterator<Item = FileStructure>>(
+    pub(in crate::map::editor::state) fn load<I, D>(
         &mut self,
         header: &MapHeader,
         file: &mut BufReader<File>,
-        drawing_resources: &DrawingResources,
+        drawing_resources: &D,
         things_catalog: &ThingsCatalog,
         grid: &Grid,
-        default_properties: &AllDefaultProperties,
+        engine_default_brush_properties: &EngineDefaultBrushProperties,
+        engine_default_thing_properties: &EngineDefaultThingProperties,
         steps: &mut I,
         quad_trees: &mut Trees
-    ) -> Result<(Option<DefaultBrushProperties>, Option<DefaultThingProperties>), &'static str>
+    ) -> Result<(DefaultBrushProperties, DefaultThingProperties), &'static str>
+    where
+        I: Iterator<Item = FileStructure>,
+        D: TextureSize
     {
         use crate::map::{brush::BrushViewer, thing::ThingViewer};
 
@@ -754,7 +760,7 @@ impl Innards
 
         steps.next_value().assert(FileStructure::Brushes);
         let b_refactor = mismatching_properties(
-            default_properties.engine_brushes,
+            engine_default_brush_properties,
             &file_default_brush_properties,
             "brushes"
         );
@@ -805,7 +811,7 @@ impl Innards
         steps.next_value().assert(FileStructure::Things);
         let mut things = hv_vec![];
         let t_refactor = mismatching_properties(
-            default_properties.engine_things,
+            engine_default_thing_properties,
             &file_default_thing_properties,
             "things"
         );
@@ -860,20 +866,13 @@ impl Innards
         _ = self.id_generator.new_id();
         self.loaded_file_modified =
             b_refactor.is_some() || t_refactor.is_some() || brushes_removed || things_removed;
-        
-        let brushes = match b_refactor
-        {
-            Some(_) => None,
-            None => file_default_brush_properties.into()
-        };
 
-        let things = match t_refactor
-        {
-            Some(_) => None,
-            None => file_default_thing_properties.into()
-        };
-
-        Ok((brushes, things))
+        Ok((
+            b_refactor
+                .map_or(file_default_brush_properties, |r| r.engine_default_properties().inner()),
+            t_refactor
+                .map_or(file_default_thing_properties, |r| r.engine_default_properties().inner())
+        ))
     }
 
     //==============================================================
@@ -1222,13 +1221,13 @@ impl Innards
     /// # Panics
     /// Panics if the brush does not exist.
     #[inline]
-    pub(in crate::map::editor::state) fn brush_mut<'a>(
+    pub(in crate::map::editor::state) fn brush_mut<'a, T: TextureSize>(
         &'a mut self,
-        drawing_resources: &'a DrawingResources,
+        drawing_resources: &'a T,
         grid: &'a Grid,
         quad_trees: &'a mut Trees,
         identifier: Id
-    ) -> BrushMut<'a>
+    ) -> BrushMut<'a, T>
     {
         BrushMut::new(drawing_resources, self, grid, quad_trees, identifier)
     }
@@ -1306,9 +1305,9 @@ impl Innards
     /// Panics if the brush has attached brushes but the [`Hull`] describing the attachments
     /// area could not be retrieved.
     #[inline]
-    fn insert_brush(
+    fn insert_brush<T: TextureSize>(
         &mut self,
-        drawing_resources: &DrawingResources,
+        resources: &T,
         grid: &Grid,
         quad_trees: &mut Trees,
         brush: Brush,
@@ -1355,15 +1354,14 @@ impl Innards
         {
             for id in brush.attachments_iter().unwrap()
             {
-                self.brush_mut(drawing_resources, grid, quad_trees, *id)
-                    .attach(brush.id());
+                self.brush_mut(resources, grid, quad_trees, *id).attach(brush.id());
                 self.possible_moving.asserted_remove(id);
                 self.selected_possible_moving.remove(id);
             }
         }
         else if let Some(id) = attached
         {
-            self.brush_mut(drawing_resources, grid, quad_trees, id)
+            self.brush_mut(resources, grid, quad_trees, id)
                 .insert_attachment(&brush);
         }
 
@@ -1388,7 +1386,7 @@ impl Innards
         {
             assert!(
                 quad_trees
-                    .insert_sprite_hull(drawing_resources, grid, self.brush(id))
+                    .insert_sprite_hull(resources, grid, self.brush(id))
                     .inserted(),
                 "Sprite hull was already in the quad tree."
             );
@@ -1965,15 +1963,19 @@ impl EntitiesManager
     /// Returns a new [`EntitiesManager`] along with the [`MapHeader`] read from `file` if the read
     /// process was successful.
     #[inline]
-    pub(in crate::map::editor::state) fn from_file<I: Iterator<Item = FileStructure>>(
+    pub(in crate::map::editor::state) fn from_file<I, D>(
         header: &MapHeader,
         file: &mut BufReader<File>,
-        drawing_resources: &DrawingResources,
+        drawing_resources: &D,
         things_catalog: &ThingsCatalog,
         grid: &Grid,
-        default_properties: &AllDefaultProperties,
+        engine_default_brush_properties: &EngineDefaultBrushProperties,
+        engine_default_thing_properties: &EngineDefaultThingProperties,
         steps: &mut I
-    ) -> Result<(Self, Option<DefaultBrushProperties>, Option<DefaultThingProperties>), &'static str>
+    ) -> Result<(Self, DefaultBrushProperties, DefaultThingProperties), &'static str>
+    where
+        I: Iterator<Item = FileStructure>,
+        D: TextureSize
     {
         let mut manager = Self::new();
 
@@ -1983,7 +1985,8 @@ impl EntitiesManager
             drawing_resources,
             things_catalog,
             grid,
-            default_properties,
+            engine_default_brush_properties,
+            engine_default_thing_properties,
             steps,
             &mut manager.quad_trees
         )
@@ -2347,12 +2350,12 @@ impl EntitiesManager
 
     /// Returns a [`BrushMut`] wrapping the brush with [`Id`] `identifier`.
     #[inline]
-    pub(in crate::map::editor::state) fn brush_mut<'a>(
+    pub(in crate::map::editor::state) fn brush_mut<'a, T: TextureSize>(
         &'a mut self,
-        drawing_resources: &'a DrawingResources,
+        drawing_resources: &'a T,
         grid: &'a Grid,
         identifier: Id
-    ) -> BrushMut<'a>
+    ) -> BrushMut<'a, T>
     {
         BrushMut::new(drawing_resources, &mut self.innards, grid, &mut self.quad_trees, identifier)
     }
@@ -2382,7 +2385,7 @@ impl EntitiesManager
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         grid: &'a Grid
-    ) -> impl Iterator<Item = BrushMut<'a>>
+    ) -> impl Iterator<Item = BrushMut<'a, DrawingResources>>
     {
         self.auxiliary.replace_values(&self.innards.selected_brushes);
         SelectedBrushesMut::new(
@@ -2441,7 +2444,7 @@ impl EntitiesManager
         grid: &'a Grid,
         cursor_pos: Vec2,
         camera_scale: impl Into<Option<f32>>
-    ) -> impl Iterator<Item = BrushMut<'a>>
+    ) -> impl Iterator<Item = BrushMut<'a, DrawingResources>>
     {
         self.auxiliary.replace_values(
             self.quad_trees
@@ -2731,7 +2734,7 @@ impl EntitiesManager
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         grid: &'a Grid
-    ) -> impl Iterator<Item = BrushMut<'a>>
+    ) -> impl Iterator<Item = BrushMut<'a, DrawingResources>>
     {
         self.auxiliary.clear();
 
@@ -2757,7 +2760,7 @@ impl EntitiesManager
         drawing_resources: &'a DrawingResources,
         grid: &'a Grid,
         texture: &str
-    ) -> Option<impl Iterator<Item = BrushMut<'a>>>
+    ) -> Option<impl Iterator<Item = BrushMut<'a, DrawingResources>>>
     {
         self.auxiliary
             .replace_values(self.innards.selected_sprites.get(texture)?);
@@ -3353,7 +3356,7 @@ impl EntitiesManager
         &'a mut self,
         drawing_resources: &'a DrawingResources,
         grid: &'a Grid
-    ) -> impl Iterator<Item = BrushMut<'a>>
+    ) -> impl Iterator<Item = BrushMut<'a, DrawingResources>>
     {
         self.auxiliary.replace_values(&self.innards.selected_textured);
         SelectedBrushesMut::new(
@@ -4160,9 +4163,9 @@ impl Brushes<'_>
 /// A wrapper for a brush that automatically updates certain [`EntitiesManager`] values when
 /// it's dropped.
 #[must_use]
-pub(in crate::map) struct BrushMut<'a>
+pub(in crate::map) struct BrushMut<'a, T: TextureSize>
 {
-    resources:         &'a DrawingResources,
+    resources:         &'a T,
     /// A mutable reference to the [`EntitiesManager`] core.
     manager:           &'a mut Innards,
     grid:              &'a Grid,
@@ -4176,7 +4179,7 @@ pub(in crate::map) struct BrushMut<'a>
     selected_vertexes: bool
 }
 
-impl Deref for BrushMut<'_>
+impl<T: TextureSize> Deref for BrushMut<'_, T>
 {
     type Target = Brush;
 
@@ -4185,14 +4188,14 @@ impl Deref for BrushMut<'_>
     fn deref(&self) -> &Self::Target { self.manager.brush(self.id) }
 }
 
-impl DerefMut for BrushMut<'_>
+impl<T: TextureSize> DerefMut for BrushMut<'_, T>
 {
     #[inline]
     #[must_use]
     fn deref_mut(&mut self) -> &mut Self::Target { self.manager.brushes.get_mut(&self.id).unwrap() }
 }
 
-impl Drop for BrushMut<'_>
+impl<T: TextureSize> Drop for BrushMut<'_, T>
 {
     #[inline]
     fn drop(&mut self)
@@ -4257,7 +4260,7 @@ impl Drop for BrushMut<'_>
     }
 }
 
-impl EntityId for BrushMut<'_>
+impl<T: TextureSize> EntityId for BrushMut<'_, T>
 {
     #[inline]
     fn id(&self) -> Id { self.deref().id() }
@@ -4266,12 +4269,12 @@ impl EntityId for BrushMut<'_>
     fn id_as_ref(&self) -> &Id { self.deref().id_as_ref() }
 }
 
-impl<'a> BrushMut<'a>
+impl<'a, T: TextureSize> BrushMut<'a, T>
 {
     /// Generates a new [`BrushMut`].
     #[inline]
     fn new(
-        resources: &'a DrawingResources,
+        resources: &'a T,
         manager: &'a mut Innards,
         grid: &'a Grid,
         quad_trees: &'a mut Trees,
@@ -4381,7 +4384,7 @@ impl<'a> ThingMut<'a>
 pub(in crate::map) enum MovingMut<'a>
 {
     /// A brush.
-    Brush(BrushMut<'a>),
+    Brush(BrushMut<'a, DrawingResources>),
     /// A [`ThingInstance`].
     Thing(ThingMut<'a>)
 }

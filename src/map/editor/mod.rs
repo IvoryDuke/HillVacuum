@@ -305,16 +305,18 @@ impl Editor
             map_things:     &mut map_default_thing_properties
         };
 
-        let (state, manager, clipboard, edits_history, grid, path) = State::new(
+        let (state, animations, manager, clipboard, edits_history, grid, path) = State::new(
             asset_server,
             images,
             prop_cameras,
             user_textures,
-            &mut drawing_resources,
+            &drawing_resources,
             &things_catalog,
             &mut default_properties,
             path
         );
+
+        drawing_resources.replace_animations(animations);
 
         match path
         {

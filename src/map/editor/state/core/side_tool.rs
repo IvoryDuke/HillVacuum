@@ -693,7 +693,7 @@ impl SideTool
                 .iter()
                 .filter_set_with_predicate(id, |id| **id)
                 .filter_map(|id| {
-                    let mut brush = manager.brush_mut(drawing_resources, grid, *id);
+                    let mut brush = manager.brush_mut(*drawing_resources, grid, *id);
                     (!brush.polygon_hull().contains_point(side[0]) ||
                         !brush.polygon_hull().contains_point(side[1]))
                     .then(|| brush.deselect_vertexes().map(|idxs| (brush.id(), idxs)).unwrap())
@@ -813,7 +813,7 @@ impl SideTool
             }
 
             let vx_move = manager
-                .brush_mut(drawing_resources, grid, id)
+                .brush_mut(*drawing_resources, grid, id)
                 .apply_vertexes_move_result(payload);
 
             let mov = cumulative_move

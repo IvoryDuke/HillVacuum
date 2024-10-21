@@ -229,7 +229,7 @@ impl Exporter
                 })
                 .collect::<Vec<_>>();
 
-            for animation in animations
+            for (texture, animation) in animations
             {
                 let mut i = 0;
 
@@ -237,9 +237,9 @@ impl Exporter
                 {
                     let brush = &mut brushes[textured_anim_none[i]];
 
-                    if brush.texture.as_ref().unwrap().name() == animation.texture
+                    if brush.texture.as_ref().unwrap().name() == texture
                     {
-                        brush.set_texture_animation(animation.animation.clone());
+                        brush.set_texture_animation(animation.clone());
                         textured_anim_none.swap_remove(i);
                         continue;
                     }

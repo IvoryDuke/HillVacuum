@@ -422,7 +422,7 @@ impl<'a> UndoRedoInterface<'a>
         drawing_resources: &'b DrawingResources,
         grid: &'b Grid,
         identifier: Id
-    ) -> BrushMut<'b>
+    ) -> BrushMut<'b, DrawingResources>
     {
         self.manager.brush_mut(drawing_resources, grid, identifier)
     }

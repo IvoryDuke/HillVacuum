@@ -28,7 +28,7 @@ use bevy::{
 use bevy_egui::{egui, EguiUserTextures};
 use glam::{UVec2, Vec2};
 use hill_vacuum_proc_macros::{meshes_indexes, str_array};
-use hill_vacuum_shared::{continue_if_none, match_or_panic, return_if_none};
+use hill_vacuum_shared::{continue_if_none, match_or_panic, return_if_no_match, return_if_none};
 
 use super::{
     animation::{Animation, AtlasAnimator},
@@ -37,7 +37,8 @@ use super::{
     file_animations,
     texture::{DefaultAnimation, TextureInterface, TextureInterfaceExtra},
     texture_loader::TextureLoader,
-    BevyColor
+    BevyColor,
+    TextureSize
 };
 use crate::{
     embedded_assets::embedded_asset_path,
@@ -63,7 +64,8 @@ use crate::{
     },
     HvHashMap,
     HvHashSet,
-    HvVec
+    HvVec,
+    TextureSettings
 };
 
 //=======================================================================//
@@ -264,6 +266,23 @@ impl Placeholder for DrawingResources
     }
 }
 
+impl TextureSize for DrawingResources
+{
+    #[inline]
+    fn texture_size(&self, texture: &str, settings: &TextureSettings) -> UVec2
+    {
+        let size = self.texture_or_error(texture).size();
+
+        if !settings.sprite()
+        {
+            return size;
+        }
+
+        return_if_no_match!(settings.overall_animation(self), Animation::Atlas(anim), anim, size)
+            .size(size)
+    }
+}
+
 impl DrawingResources
 {
     /// The amount of sides the circle highlight has.
@@ -395,23 +414,11 @@ impl DrawingResources
     pub fn animations_amount(&self) -> usize { self.animated_textures.len() }
 
     #[inline]
-    fn clear_animations(&mut self)
+    fn assign_animations(&mut self, animations: HvHashMap<String, Animation>)
     {
-        for tex in &self.animated_textures
+        for (texture, animation) in animations
         {
-            *self.textures.get_mut(tex).unwrap().texture.animation_mut() = Animation::None;
-        }
-
-        self.animated_textures.clear();
-    }
-
-    #[inline]
-    fn assign_animations(&mut self, animations: HvVec<DefaultAnimation>)
-    {
-        for default in animations
-        {
-            *continue_if_none!(self.texture_mut(&default.texture)).animation_mut_set_dirty() =
-                default.animation;
+            *continue_if_none!(self.texture_mut(&texture)).animation_mut_set_dirty() = animation;
         }
     }
 
@@ -428,23 +435,16 @@ impl DrawingResources
         })
     }
 
-    /// Replaces the animations with the ones contained in `file`.
     #[inline]
-    pub fn replace_animations(
-        &mut self,
-        amount: usize,
-        file: &mut BufReader<File>
-    ) -> Result<(), &'static str>
+    pub fn replace_animations(&mut self, animations: HvHashMap<String, Animation>)
     {
-        file_animations(amount, file).map(|animations| {
-            self.reset_animations(animations);
-        })
-    }
+        for tex in &self.animated_textures
+        {
+            *self.textures.get_mut(tex).unwrap().texture.animation_mut() = Animation::None;
+        }
 
-    #[inline]
-    pub fn reset_animations(&mut self, animations: HvVec<DefaultAnimation>)
-    {
-        self.clear_animations();
+        self.animated_textures.clear();
+
         self.assign_animations(animations);
         self.reset_default_animation_changed();
     }
@@ -457,29 +457,21 @@ impl DrawingResources
     ) -> Result<(), &'static str>
     {
         match self
-            .default_animations()
-            .into_iter()
+            .animated_textures
+            .iter()
+            .map(|tex| {
+                let texture = self.texture(tex).unwrap();
+
+                DefaultAnimation {
+                    texture:   texture.name().to_string(),
+                    animation: texture.animation().clone()
+                }
+            })
             .find(|animation| ciborium::ser::into_writer(&animation, &mut writer).is_err())
         {
             Some(_) => Err("Error saving animations"),
             None => Ok(())
         }
-    }
-
-    #[inline]
-    pub fn default_animations(&self) -> HvVec<DefaultAnimation>
-    {
-        hv_vec![collect; self
-        .animated_textures
-        .iter()
-        .map(|tex| {
-            let texture = self.texture(tex).unwrap();
-
-            DefaultAnimation {
-                texture:   texture.name().to_string(),
-                animation: texture.animation().clone()
-            }
-        })]
     }
 
     /// Whether a default animation was changed.

@@ -17,9 +17,9 @@ use bevy::{
     window::Window
 };
 use bevy_egui::{egui, EguiUserTextures};
-use glam::Vec2;
+use glam::{UVec2, Vec2};
 use hill_vacuum_proc_macros::{EnumFromUsize, EnumIter, EnumSize};
-use hill_vacuum_shared::{return_if_none, NextValue, FILE_EXTENSION};
+use hill_vacuum_shared::{return_if_no_match, return_if_none, NextValue, FILE_EXTENSION};
 use is_executable::IsExecutable;
 
 use super::{
@@ -47,7 +47,8 @@ use crate::{
             drawing_resources::DrawingResources,
             file_animations,
             texture::DefaultAnimation,
-            texture_loader::TextureLoadingProgress
+            texture_loader::TextureLoadingProgress,
+            TextureSize
         },
         editor::{
             state::{
@@ -71,7 +72,12 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
-        properties::{DefaultBrushProperties, DefaultThingProperties},
+        properties::{
+            DefaultBrushProperties,
+            DefaultThingProperties,
+            EngineDefaultBrushProperties,
+            EngineDefaultThingProperties
+        },
         thing::{catalog::ThingsCatalog, Thing, ThingInstance},
         version_number,
         FileStructure,
@@ -84,14 +90,18 @@ use crate::{
         UPGRADE_WARNING
     },
     utils::{
-        collections::hv_vec,
+        collections::{hv_hash_map, hv_vec},
         hull::Hull,
         misc::{next, prev, Camera, TakeValue, Toggle}
     },
     warning_message,
+    Animation,
     EditorState,
     HardcodedActions,
-    HvVec
+    HvHashMap,
+    HvVec,
+    TextureInterface,
+    TextureSettings
 };
 
 //=======================================================================//
@@ -539,11 +549,19 @@ impl State
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
-        drawing_resources: &mut DrawingResources,
+        drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,
         default_properties: &mut AllDefaultProperties,
         file: Option<PathBuf>
-    ) -> (Self, EntitiesManager, Clipboard, EditsHistory, Grid, Option<PathBuf>)
+    ) -> (
+        Self,
+        HvHashMap<String, Animation>,
+        EntitiesManager,
+        Clipboard,
+        EditsHistory,
+        Grid,
+        Option<PathBuf>
+    )
     {
         /// The [`State`] to default to in case of errors in the file load or if there is no file to
         /// load.
@@ -581,6 +599,7 @@ impl State
                     default_properties.map_brushes,
                     default_properties.map_things
                 ),
+                hv_hash_map![],
                 EntitiesManager::new(),
                 Clipboard::new(),
                 EditsHistory::default(),
@@ -596,20 +615,14 @@ impl State
             file,
             drawing_resources,
             things_catalog,
-            default_properties
+            default_properties.engine_brushes,
+            default_properties.engine_things
         )
         {
-            Ok((manager, default_brushes, default_things, clipboard, grid, path)) =>
+            Ok((animations, manager, default_brushes, default_things, clipboard, grid, path)) =>
             {
-                if let Some(default_brushes) = default_brushes
-                {
-                    *default_properties.map_brushes = default_brushes;
-                }
-
-                if let Some(default_things) = default_things
-                {
-                    *default_properties.map_things = default_things;
-                }
+                *default_properties.map_brushes = default_brushes;
+                *default_properties.map_things = default_things;
 
                 let state = Self {
                     core:               Core::default(),
@@ -627,7 +640,15 @@ impl State
                     reloading_textures: false
                 };
 
-                (state, manager, clipboard, EditsHistory::default(), grid, path.into())
+                (
+                    state,
+                    animations,
+                    manager,
+                    clipboard,
+                    EditsHistory::default(),
+                    grid,
+                    path.into()
+                )
             },
             Err(err) =>
             {
@@ -640,6 +661,7 @@ impl State
                         default_properties.map_brushes,
                         default_properties.map_things
                     ),
+                    hv_hash_map![],
                     EntitiesManager::new(),
                     Clipboard::new(),
                     EditsHistory::default(),
@@ -1158,14 +1180,16 @@ impl State
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
         mut path: PathBuf,
-        drawing_resources: &mut DrawingResources,
+        drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,
-        default_properties: &AllDefaultProperties
+        engine_default_brush_properties: &EngineDefaultBrushProperties,
+        engine_default_thing_properties: &EngineDefaultThingProperties
     ) -> Result<
         (
+            HvHashMap<String, Animation>,
             EntitiesManager,
-            Option<DefaultBrushProperties>,
-            Option<DefaultThingProperties>,
+            DefaultBrushProperties,
+            DefaultThingProperties,
             Clipboard,
             Grid,
             PathBuf
@@ -1178,12 +1202,41 @@ impl State
         {
             header:                   MapHeader,
             grid:                     GridSettings,
-            animations:               HvVec<DefaultAnimation>,
+            animations:               HvHashMap<String, Animation>,
             default_brush_properties: DefaultBrushProperties,
             default_thing_properties: DefaultThingProperties,
             brushes:                  HvVec<Brush>,
             things:                   HvVec<ThingInstance>,
             props:                    HvVec<Prop>
+        }
+
+        #[must_use]
+        struct DrawingResourcesTemp<'a>
+        {
+            resources:  &'a DrawingResources,
+            animations: HvHashMap<String, Animation>
+        }
+
+        impl TextureSize for DrawingResourcesTemp<'_>
+        {
+            #[inline]
+            fn texture_size(&self, texture: &str, settings: &TextureSettings) -> UVec2
+            {
+                let size = self.resources.texture_or_error(texture).size();
+
+                if !settings.sprite()
+                {
+                    return size;
+                }
+
+                let animation = match settings.animation()
+                {
+                    Animation::None => return_if_none!(self.animations.get(texture), size),
+                    anim => anim
+                };
+
+                return_if_no_match!(animation, Animation::Atlas(anim), anim, size).size(size)
+            }
         }
 
         #[inline]
@@ -1277,7 +1330,7 @@ impl State
             let OldFileRead {
                 header,
                 grid,
-                animations,
+                mut animations,
                 mut default_brush_properties,
                 mut default_thing_properties,
                 mut brushes,
@@ -1307,9 +1360,13 @@ impl State
                     },
                     FileStructure::Animations =>
                     {
-                        for anim in &animations
+                        for (texture, animation) in animations.take_value()
                         {
-                            test_writer!(anim, &mut writer, "Error converting animations.");
+                            test_writer!(
+                                &DefaultAnimation { texture, animation },
+                                &mut writer,
+                                "Error converting animations."
+                            );
                         }
                     },
                     FileStructure::Properties =>
@@ -1397,48 +1454,47 @@ impl State
         );
 
         steps.next_value().assert(FileStructure::Animations);
-        let animations = drawing_resources.default_animations();
 
-        macro_rules! reset_default_animations {
-            ($result:expr) => {
-                match $result
-                {
-                    Ok(value) => value,
-                    Err(err) =>
-                    {
-                        drawing_resources.reset_animations(animations);
-                        return Err(err);
-                    }
-                }
-            };
-        }
+        let animations = file_animations(header.animations, &mut file)?;
 
-        drawing_resources.replace_animations(header.animations, &mut file)?;
+        let drawing_resources = DrawingResourcesTemp {
+            resources: drawing_resources,
+            animations
+        };
 
-        let manager = reset_default_animations!(EntitiesManager::from_file(
+        let (manager, brush_properties, thing_properties) = EntitiesManager::from_file(
             &header,
             &mut file,
-            drawing_resources,
+            &drawing_resources,
             things_catalog,
             &grid,
-            default_properties,
+            engine_default_brush_properties,
+            engine_default_thing_properties,
             &mut steps
-        ));
+        )?;
 
         steps.next_value().assert(FileStructure::Props);
-        let mut clipboard = reset_default_animations!(Clipboard::from_file(
+        let mut clipboard = Clipboard::from_file(
             images,
             prop_cameras,
             user_textures,
-            drawing_resources,
+            &drawing_resources,
             things_catalog,
             &grid,
             &header,
             &mut file
-        ));
+        )?;
         clipboard.reset_props_changed();
 
-        Ok((manager.0, manager.1, manager.2, clipboard, grid, path))
+        Ok((
+            drawing_resources.animations,
+            manager,
+            brush_properties,
+            thing_properties,
+            clipboard,
+            grid,
+            path
+        ))
     }
 
     #[inline]
@@ -1483,27 +1539,21 @@ impl State
             file_to_open,
             bundle.drawing_resources,
             bundle.things_catalog,
-            bundle.default_properties
+            bundle.default_properties.engine_brushes,
+            bundle.default_properties.engine_things
         )
         {
-            Ok((manager, default_brushes, default_things, clipboard, grid, path)) =>
+            Ok((animations, manager, default_brushes, default_things, clipboard, grid, path)) =>
             {
+                bundle.drawing_resources.replace_animations(animations);
                 *bundle.manager = manager;
                 *bundle.clipboard = clipboard;
                 *bundle.grid = grid;
                 *bundle.inputs = InputsPresses::default();
                 *bundle.edits_history = EditsHistory::default();
                 bundle.config.open_file.update(path, bundle.window);
-
-                if let Some(default_brushes) = default_brushes
-                {
-                    *bundle.default_properties.map_brushes = default_brushes;
-                }
-
-                if let Some(default_things) = default_things
-                {
-                    *bundle.default_properties.map_things = default_things;
-                }
+                *bundle.default_properties.map_brushes = default_brushes;
+                *bundle.default_properties.map_things = default_things;
 
                 self.ui.regenerate_properties_window(
                     bundle.default_properties.map_brushes,

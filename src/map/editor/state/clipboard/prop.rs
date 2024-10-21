@@ -33,7 +33,7 @@ use super::{
 use crate::{
     error_message,
     map::{
-        drawer::{color::Color, drawing_resources::DrawingResources},
+        drawer::{color::Color, drawing_resources::DrawingResources, TextureSize},
         editor::{
             state::{edits_history::EditsHistory, grid::Grid, manager::EntitiesManager},
             DrawBundle
@@ -232,9 +232,9 @@ impl Prop
     // Info
 
     #[inline]
-    pub(in crate::map::editor::state::clipboard) fn hull(
+    pub(in crate::map::editor::state::clipboard) fn hull<T: TextureSize>(
         &self,
-        drawing_resources: &DrawingResources,
+        drawing_resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid
     ) -> Hull
@@ -375,9 +375,9 @@ impl Prop
 
     /// Resets the center of `self`.
     #[inline]
-    fn reset_center(
+    fn reset_center<T: TextureSize>(
         &mut self,
-        drawing_resources: &DrawingResources,
+        drawing_resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid
     )
@@ -397,9 +397,9 @@ impl Prop
     /// whether any [`Thing`]s were changed.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state::clipboard) fn reload_things(
+    pub(in crate::map::editor::state::clipboard) fn reload_things<T: TextureSize>(
         &mut self,
-        drawing_resources: &DrawingResources,
+        drawing_resources: &T,
         things_catalog: &ThingsCatalog,
         grid: &Grid
     ) -> bool

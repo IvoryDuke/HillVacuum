@@ -26,7 +26,8 @@ use crate::{
                 TextureScale,
                 TextureSettings,
                 TextureSpriteSet
-            }
+            },
+            TextureSize
         },
         editor::state::grid::Grid,
         selectable_vector::{
@@ -852,15 +853,14 @@ impl TextureInterfaceExtra for MovingTextureSettings<'_>
     }
 
     #[inline]
-    fn sprite_hull(
+    fn sprite_hull<T: TextureSize>(
         &self,
-        drawing_resources: &DrawingResources,
+        resources: &T,
         grid: &Grid,
         brush_center: Vec2
     ) -> Option<Hull>
     {
-        self.texture
-            .sprite_hull(drawing_resources, grid, brush_center + self.delta)
+        self.texture.sprite_hull(resources, grid, brush_center + self.delta)
     }
 
     #[inline]
@@ -1270,10 +1270,9 @@ impl ConvexPolygon
 
     #[inline]
     #[must_use]
-    pub fn sprite_hull(&self, drawing_resources: &DrawingResources, grid: &Grid) -> Option<Hull>
+    pub fn sprite_hull<T: TextureSize>(&self, resources: &T, grid: &Grid) -> Option<Hull>
     {
-        self.texture_settings()?
-            .sprite_hull(drawing_resources, grid, self.center)
+        self.texture_settings()?.sprite_hull(resources, grid, self.center)
     }
 
     #[inline]

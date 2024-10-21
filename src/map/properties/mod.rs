@@ -593,6 +593,14 @@ pub(in crate::map) mod ui_mod
         engine_default_properties: &'a E
     }
 
+    impl<'a, E> PropertiesRefactor<'a, E>
+    where
+        E: EngineDefaultProperties
+    {
+        #[inline]
+        pub fn engine_default_properties(&self) -> &'a E { self.engine_default_properties }
+    }
+
     //=======================================================================//
 
     impl<T: DefaultProperties> Viewer for T

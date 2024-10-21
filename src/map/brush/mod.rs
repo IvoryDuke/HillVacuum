@@ -101,7 +101,8 @@ pub(in crate::map) mod ui_mod
                     TextureRotation,
                     TextureScale,
                     TextureSpriteSet
-                }
+                },
+                TextureSize
             },
             editor::state::{
                 clipboard::{ClipboardData, CopyToClipboard},
@@ -616,10 +617,9 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn sprite_hull(&self, drawing_resources: &DrawingResources, grid: &Grid)
-            -> Option<Hull>
+        pub fn sprite_hull<T: TextureSize>(&self, resources: &T, grid: &Grid) -> Option<Hull>
         {
-            self.polygon.sprite_hull(drawing_resources, grid)
+            self.polygon.sprite_hull(resources, grid)
         }
 
         #[inline]
@@ -638,11 +638,11 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn hull(&self, drawing_resources: &DrawingResources, grid: &Grid) -> Hull
+        pub fn hull<T: TextureSize>(&self, resources: &T, grid: &Grid) -> Hull
         {
             let mut hull = self.polygon_hull();
 
-            if let Some(h) = self.sprite_hull(drawing_resources, grid)
+            if let Some(h) = self.sprite_hull(resources, grid)
             {
                 hull = hull.merged(&Hull::from_opposite_vertexes(
                     grid.point_projection(h.top_right()),
@@ -1104,8 +1104,11 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn sprite_hull(&self, drawing_resources: &DrawingResources, grid: &Grid)
-            -> Option<Hull>
+        pub fn sprite_hull<T: TextureSize>(
+            &self,
+            drawing_resources: &T,
+            grid: &Grid
+        ) -> Option<Hull>
         {
             self.data.sprite_hull(drawing_resources, grid)
         }
@@ -1116,13 +1119,13 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn sprite_and_anchor_hull(
+        pub fn sprite_and_anchor_hull<T: TextureSize>(
             &self,
-            drawing_resources: &DrawingResources,
+            resources: &T,
             grid: &Grid
         ) -> Option<Hull>
         {
-            self.sprite_hull(drawing_resources, grid).map(|hull| {
+            self.sprite_hull(resources, grid).map(|hull| {
                 Hull::from_points([
                     grid.transform_point(self.center()),
                     hull.top_right(),
@@ -1138,9 +1141,9 @@ pub(in crate::map) mod ui_mod
         pub fn path_hull(&self) -> Option<Hull> { self.data.path_hull() }
 
         #[inline]
-        pub fn hull(&self, drawing_resources: &DrawingResources, grid: &Grid) -> Hull
+        pub fn hull<T: TextureSize>(&self, resources: &T, grid: &Grid) -> Hull
         {
-            self.data.hull(drawing_resources, grid)
+            self.data.hull(resources, grid)
         }
 
         //==============================================================
