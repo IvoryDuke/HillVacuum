@@ -165,7 +165,7 @@ pub(in crate::map) mod ui_mod
                 }
 
                 #[inline]
-                fn generate_refactor(&self, file_default_properties: Self::Inner)
+                fn generate_refactor(&self, file_default_properties: &Self::Inner)
                     -> PropertiesRefactor<'_, Self>
                 {
                     let mut remove = hv_vec![];
@@ -516,7 +516,7 @@ pub(in crate::map) mod ui_mod
 
         fn generate_refactor(
             &self,
-            file_default_properties: Self::Inner
+            file_default_properties: &Self::Inner
         ) -> PropertiesRefactor<'_, Self>;
     }
 

@@ -394,6 +394,27 @@ impl DrawingResources
     #[must_use]
     pub fn animations_amount(&self) -> usize { self.animated_textures.len() }
 
+    #[inline]
+    fn clear_animations(&mut self)
+    {
+        for tex in &self.animated_textures
+        {
+            *self.textures.get_mut(tex).unwrap().texture.animation_mut() = Animation::None;
+        }
+
+        self.animated_textures.clear();
+    }
+
+    #[inline]
+    fn assign_animations(&mut self, animations: HvVec<DefaultAnimation>)
+    {
+        for default in animations
+        {
+            *continue_if_none!(self.texture_mut(&default.texture)).animation_mut_set_dirty() =
+                default.animation;
+        }
+    }
+
     /// Imports the animations contained in `file`.
     #[inline]
     pub fn import_animations(
@@ -402,53 +423,30 @@ impl DrawingResources
         file: &mut BufReader<File>
     ) -> Result<(), &'static str>
     {
-        self.execute_import(amount, file, |_| {})
+        file_animations(amount, file).map(|animations| {
+            self.assign_animations(animations);
+        })
     }
 
     /// Replaces the animations with the ones contained in `file`.
     #[inline]
-    pub fn reset_animations(
+    pub fn replace_animations(
         &mut self,
         amount: usize,
         file: &mut BufReader<File>
     ) -> Result<(), &'static str>
     {
-        self.execute_import(amount, file, |resources| {
-            for tex in &resources.animated_textures
-            {
-                *resources.textures.get_mut(tex).unwrap().texture.animation_mut() = Animation::None;
-            }
-
-            resources.animated_textures.clear();
+        file_animations(amount, file).map(|animations| {
+            self.reset_animations(animations);
         })
     }
 
     #[inline]
-    pub fn execute_import<F>(
-        &mut self,
-        amount: usize,
-        file: &mut BufReader<File>,
-        f: F
-    ) -> Result<(), &'static str>
-    where
-        F: FnOnce(&mut Self)
+    pub fn reset_animations(&mut self, animations: HvVec<DefaultAnimation>)
     {
-        match file_animations(amount, file)
-        {
-            Ok(animations) =>
-            {
-                f(self);
-
-                for default in animations
-                {
-                    *continue_if_none!(self.texture_mut(&default.texture))
-                        .animation_mut_set_dirty() = default.animation;
-                }
-
-                Ok(())
-            },
-            Err(err) => Err(err)
-        }
+        self.clear_animations();
+        self.assign_animations(animations);
+        self.reset_default_animation_changed();
     }
 
     /// Exports the default texture animations to `writer`.
@@ -459,21 +457,29 @@ impl DrawingResources
     ) -> Result<(), &'static str>
     {
         match self
-            .animated_textures
-            .iter()
-            .map(|tex| {
-                let texture = self.texture(tex).unwrap();
-
-                DefaultAnimation {
-                    texture:   texture.name().to_string(),
-                    animation: texture.animation().clone()
-                }
-            })
+            .default_animations()
+            .into_iter()
             .find(|animation| ciborium::ser::into_writer(&animation, &mut writer).is_err())
         {
             Some(_) => Err("Error saving animations"),
             None => Ok(())
         }
+    }
+
+    #[inline]
+    pub fn default_animations(&self) -> HvVec<DefaultAnimation>
+    {
+        hv_vec![collect; self
+        .animated_textures
+        .iter()
+        .map(|tex| {
+            let texture = self.texture(tex).unwrap();
+
+            DefaultAnimation {
+                texture:   texture.name().to_string(),
+                animation: texture.animation().clone()
+            }
+        })]
     }
 
     /// Whether a default animation was changed.

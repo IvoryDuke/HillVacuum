@@ -599,8 +599,18 @@ impl State
             default_properties
         )
         {
-            Ok((manager, clipboard, grid, path)) =>
+            Ok((manager, default_brushes, default_things, clipboard, grid, path)) =>
             {
+                if let Some(default_brushes) = default_brushes
+                {
+                    *default_properties.map_brushes = default_brushes;
+                }
+
+                if let Some(default_things) = default_things
+                {
+                    *default_properties.map_things = default_things;
+                }
+
                 let state = Self {
                     core:               Core::default(),
                     ui:                 Ui::new(
@@ -1150,8 +1160,18 @@ impl State
         mut path: PathBuf,
         drawing_resources: &mut DrawingResources,
         things_catalog: &ThingsCatalog,
-        default_properties: &mut AllDefaultProperties
-    ) -> Result<(EntitiesManager, Clipboard, Grid, PathBuf), &'static str>
+        default_properties: &AllDefaultProperties
+    ) -> Result<
+        (
+            EntitiesManager,
+            Option<DefaultBrushProperties>,
+            Option<DefaultThingProperties>,
+            Clipboard,
+            Grid,
+            PathBuf
+        ),
+        &'static str
+    >
     {
         #[must_use]
         struct OldFileRead
@@ -1377,10 +1397,25 @@ impl State
         );
 
         steps.next_value().assert(FileStructure::Animations);
-        drawing_resources.reset_animations(header.animations, &mut file)?;
-        drawing_resources.reset_default_animation_changed();
+        let animations = drawing_resources.default_animations();
 
-        let manager = EntitiesManager::from_file(
+        macro_rules! reset_default_animations {
+            ($result:expr) => {
+                match $result
+                {
+                    Ok(value) => value,
+                    Err(err) =>
+                    {
+                        drawing_resources.reset_animations(animations);
+                        return Err(err);
+                    }
+                }
+            };
+        }
+
+        drawing_resources.replace_animations(header.animations, &mut file)?;
+
+        let manager = reset_default_animations!(EntitiesManager::from_file(
             &header,
             &mut file,
             drawing_resources,
@@ -1388,10 +1423,10 @@ impl State
             &grid,
             default_properties,
             &mut steps
-        )?;
+        ));
 
         steps.next_value().assert(FileStructure::Props);
-        let mut clipboard = Clipboard::from_file(
+        let mut clipboard = reset_default_animations!(Clipboard::from_file(
             images,
             prop_cameras,
             user_textures,
@@ -1400,10 +1435,10 @@ impl State
             &grid,
             &header,
             &mut file
-        )?;
+        ));
         clipboard.reset_props_changed();
 
-        Ok((manager, clipboard, grid, path))
+        Ok((manager.0, manager.1, manager.2, clipboard, grid, path))
     }
 
     #[inline]
@@ -1451,23 +1486,33 @@ impl State
             bundle.default_properties
         )
         {
-            Ok((manager, clipboard, grid, path)) =>
+            Ok((manager, default_brushes, default_things, clipboard, grid, path)) =>
             {
                 *bundle.manager = manager;
                 *bundle.clipboard = clipboard;
                 *bundle.grid = grid;
+                *bundle.inputs = InputsPresses::default();
+                *bundle.edits_history = EditsHistory::default();
                 bundle.config.open_file.update(path, bundle.window);
-            },
-            Err(err) =>
-            {
-                error_message(err);
-                return;
-            }
-        };
 
-        self.core = Core::default();
-        *bundle.inputs = InputsPresses::default();
-        *bundle.edits_history = EditsHistory::default();
+                if let Some(default_brushes) = default_brushes
+                {
+                    *bundle.default_properties.map_brushes = default_brushes;
+                }
+
+                if let Some(default_things) = default_things
+                {
+                    *bundle.default_properties.map_things = default_things;
+                }
+
+                self.ui.regenerate_properties_window(
+                    bundle.default_properties.map_brushes,
+                    bundle.default_properties.map_things
+                );
+                self.core = Core::default();
+            },
+            Err(err) => error_message(err)
+        };
     }
 
     //==============================================================

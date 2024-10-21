@@ -589,6 +589,17 @@ impl Ui
     }
 
     #[inline]
+    pub fn regenerate_properties_window(
+        &mut self,
+        default_brush_properties: &DefaultBrushProperties,
+        default_thing_properties: &DefaultThingProperties
+    )
+    {
+        self.properties_window =
+            PropertiesWindow::new(default_brush_properties, default_thing_properties);
+    }
+
+    #[inline]
     pub const fn is_focused(&self) -> UiFocus { self.focus }
 
     /// Updates the UI.

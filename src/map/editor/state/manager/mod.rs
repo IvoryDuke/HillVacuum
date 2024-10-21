@@ -685,10 +685,10 @@ impl Innards
         drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,
         grid: &Grid,
-        default_properties: &mut AllDefaultProperties,
+        default_properties: &AllDefaultProperties,
         steps: &mut I,
         quad_trees: &mut Trees
-    ) -> Result<(), &'static str>
+    ) -> Result<(Option<DefaultBrushProperties>, Option<DefaultThingProperties>), &'static str>
     {
         use crate::map::{brush::BrushViewer, thing::ThingViewer};
 
@@ -708,12 +708,11 @@ impl Innards
         #[inline]
         fn mismatching_properties<'a, E: EngineDefaultProperties>(
             engine_default_properties: &'a E,
-            map_default_properties: &'a mut E::Inner,
-            file_default_properties: E::Inner,
+            file_default_properties: &E::Inner,
             entity: &str
         ) -> Option<PropertiesRefactor<'a, E>>
         {
-            if engine_default_properties.eq(&file_default_properties)
+            if engine_default_properties.eq(file_default_properties)
             {
                 return None;
             }
@@ -738,14 +737,9 @@ impl Innards
                 {
                     let refactor =
                         engine_default_properties.generate_refactor(file_default_properties);
-                    *map_default_properties = engine_default_properties.inner();
                     refactor.into()
                 },
-                rfd::MessageDialogResult::No =>
-                {
-                    *map_default_properties = file_default_properties;
-                    None
-                },
+                rfd::MessageDialogResult::No => None,
                 _ => unreachable!()
             }
         }
@@ -761,8 +755,7 @@ impl Innards
         steps.next_value().assert(FileStructure::Brushes);
         let b_refactor = mismatching_properties(
             default_properties.engine_brushes,
-            default_properties.map_brushes,
-            file_default_brush_properties,
+            &file_default_brush_properties,
             "brushes"
         );
         let mut brushes_removed = false;
@@ -813,8 +806,7 @@ impl Innards
         let mut things = hv_vec![];
         let t_refactor = mismatching_properties(
             default_properties.engine_things,
-            default_properties.map_things,
-            file_default_thing_properties,
+            &file_default_thing_properties,
             "things"
         );
         let mut things_removed = false;
@@ -868,8 +860,20 @@ impl Innards
         _ = self.id_generator.new_id();
         self.loaded_file_modified =
             b_refactor.is_some() || t_refactor.is_some() || brushes_removed || things_removed;
+        
+        let brushes = match b_refactor
+        {
+            Some(_) => None,
+            None => file_default_brush_properties.into()
+        };
 
-        Ok(())
+        let things = match t_refactor
+        {
+            Some(_) => None,
+            None => file_default_thing_properties.into()
+        };
+
+        Ok((brushes, things))
     }
 
     //==============================================================
@@ -1967,9 +1971,9 @@ impl EntitiesManager
         drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,
         grid: &Grid,
-        default_properties: &mut AllDefaultProperties,
+        default_properties: &AllDefaultProperties,
         steps: &mut I
-    ) -> Result<Self, &'static str>
+    ) -> Result<(Self, Option<DefaultBrushProperties>, Option<DefaultThingProperties>), &'static str>
     {
         let mut manager = Self::new();
 
@@ -1984,7 +1988,7 @@ impl EntitiesManager
             &mut manager.quad_trees
         )
         {
-            Ok(()) => Ok(manager),
+            Ok(value) => Ok((manager, value.0, value.1)),
             Err(err) => Err(err)
         }
     }
