@@ -49,6 +49,7 @@ use super::{
     properties::{
         BrushUserProperties,
         DefaultBrushProperties,
+        DefaultProperties,
         DefaultThingProperties,
         EngineDefaultBrushProperties,
         EngineDefaultProperties,

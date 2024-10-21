@@ -12,8 +12,7 @@ use std::{fs::File, io::BufReader};
 use serde::{Deserialize, Serialize};
 use value::Value;
 
-use super::indexed_map::IndexedMap;
-use crate::HvHashMap;
+use crate::{HvVec, map::Viewer};
 #[allow(unused_imports)]
 use crate::{Brush, ThingInstance};
 
@@ -22,48 +21,9 @@ use crate::{Brush, ThingInstance};
 //
 //=======================================================================//
 
-/// The default properties to be associated with the [`Brush`]es.
 #[must_use]
-#[derive(Clone, Serialize, Deserialize)]
-pub(in crate::map) struct DefaultBrushProperties
-{
-    user:     IndexedMap<String, Value>,
-    instance: BrushProperties
-}
-
-//=======================================================================//
-
-/// The default properties to be associated with the [`ThingInstance`]s.
-#[must_use]
-#[derive(Clone, Serialize, Deserialize)]
-pub(in crate::map) struct DefaultThingProperties
-{
-    user:     IndexedMap<String, Value>,
-    instance: ThingProperties
-}
-
-//=======================================================================//
-
-/// Key-value pairs associated to a [`Brush`].
-#[must_use]
-#[derive(Clone, Serialize, Deserialize)]
-pub(in crate::map) struct BrushProperties
-{
-    collision: Value,
-    user:      HvHashMap<String, Value>
-}
-
-//=======================================================================//
-
-/// Key-value pairs associated to a [`ThingInstance`].
-#[must_use]
-#[derive(Clone, Serialize, Deserialize)]
-pub(in crate::map) struct ThingProperties
-{
-    angle:  Value,
-    height: Value,
-    user:   HvHashMap<String, Value>
-}
+#[derive(Serialize, Deserialize)]
+pub(in crate::map) struct DefaultPropertiesViewer(pub HvVec<(String, Value)>);
 
 //=======================================================================//
 // FUNCTIONS
@@ -76,10 +36,14 @@ pub(in crate::map) fn read_default_properties(
 ) -> Result<(DefaultBrushProperties, DefaultThingProperties), &'static str>
 {
     Ok((
-        ciborium::from_reader::<DefaultBrushProperties, _>(&mut *file)
-            .map_err(|_| "Error reading Brush default properties")?,
-        ciborium::from_reader::<DefaultThingProperties, _>(&mut *file)
-            .map_err(|_| "Error reading Thing default properties")?
+        DefaultBrushProperties::from_viewer(
+            ciborium::from_reader::<DefaultPropertiesViewer, _>(&mut *file)
+                .map_err(|_| "Error reading Brush default properties")?
+        ),
+        DefaultThingProperties::from_viewer(
+            ciborium::from_reader::<DefaultPropertiesViewer, _>(&mut *file)
+                .map_err(|_| "Error reading Thing default properties")?
+        )
     ))
 }
 
@@ -99,18 +63,14 @@ pub(in crate::map) mod ui_mod
     use bevy::prelude::Resource;
     use hill_vacuum_shared::{return_if_none, NextValue};
 
+    use super::DefaultPropertiesViewer;
     use crate::{
         map::{
             drawer::drawing_resources::DrawingResources,
             editor::state::grid::Grid,
             indexed_map::IndexedMap,
-            properties::{
-                value::{ToValue, Value},
-                BrushProperties,
-                DefaultBrushProperties,
-                DefaultThingProperties,
-                ThingProperties
-            }
+            properties::value::{ToValue, Value},
+            Viewer
         },
         utils::{
             collections::{hv_hash_map, hv_vec},
@@ -126,7 +86,17 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     macro_rules! entity_properties {
-        ($($entity:ident, $entity_str:literal, $entities_str:literal, $len:literal, $(($property:ident, $property_name:ident, $default:expr)),+),+) => { paste::paste! { $(
+        (
+            $entity:ident,
+            $entity_str:literal,
+            $entities_str:literal,
+            $len:literal,
+            $((
+                $property:ident,
+                $property_name:ident,
+                $default:expr
+            )),+
+        ) => { paste::paste! {
             #[doc = concat!("The default properties associated with all ", $entities_str)]
             #[must_use]
             #[derive(Resource)]
@@ -230,6 +200,15 @@ pub(in crate::map) mod ui_mod
 
             //=======================================================================//
 
+            #[doc = concat!("The default properties associated with all ", $entity_str)]
+            #[must_use]
+            #[derive(Clone)]
+            pub(in crate::map) struct [< Default $entity Properties >]
+            {
+                user:     IndexedMap<String, Value>,
+                instance: [< $entity Properties >]
+            }
+
             impl Default for [< Default $entity Properties >]
             {
                 #[inline]
@@ -304,29 +283,7 @@ pub(in crate::map) mod ui_mod
             impl DefaultProperties for [< Default $entity Properties >]
             {
                 #[inline]
-                fn len(&self) -> usize { self.instance.len() }
-
-                #[inline]
-                fn get(&self, k: &str) -> &Value
-                {
-                    $(
-                        if k == $property
-                        {
-                            return &$default;
-                        }
-                    )+
-
-                    self.user.get(k).unwrap()
-                }
-
-                #[inline]
-                fn iter(&self) -> impl Iterator<Item = (&str, &Value)> { self.instance.iter() }
-            }
-
-            impl [< Default $entity Properties >]
-            {
-                #[inline]
-                pub fn new<I, T>(values: I) -> Self
+                fn new<I, T>(values: I) -> Self
                 where
                     I: IntoIterator<Item = (T, Value)>,
                     T: ToString
@@ -361,6 +318,28 @@ pub(in crate::map) mod ui_mod
                     }
                 }
 
+                #[inline]
+                fn len(&self) -> usize { self.instance.len() }
+
+                #[inline]
+                fn get(&self, k: &str) -> &Value
+                {
+                    $(
+                        if k == $property
+                        {
+                            return &$default;
+                        }
+                    )+
+
+                    self.user.get(k).unwrap()
+                }
+
+                #[inline]
+                fn iter(&self) -> impl Iterator<Item = (&str, &Value)> { self.instance.iter() }
+            }
+
+            impl [< Default $entity Properties >]
+            {
                 /// Returns the amount of contained values.
                 #[inline]
                 #[must_use]
@@ -383,6 +362,15 @@ pub(in crate::map) mod ui_mod
             }
 
             //=======================================================================//
+
+            #[doc = concat!("Key-value pairs associated to a ", $entity_str)]
+            #[must_use]
+            #[derive(Clone)]
+            pub(in crate::map) struct [< $entity Properties >]
+            {
+                $($property_name: Value,)+
+                user:   HvHashMap<String, Value>
+            }
 
             impl Default for [< $entity Properties >]
             {
@@ -429,7 +417,7 @@ pub(in crate::map) mod ui_mod
                 #[inline]
                 pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)>
                 {
-                    [$(($property, self.get($property))),+]
+                    [$(($property, &self.$property_name)),+]
                         .into_iter()
                         .chain(self.user.iter().map(|(name, value)| (name.as_str(), value)))
                 }
@@ -442,6 +430,7 @@ pub(in crate::map) mod ui_mod
                     $(
                         if k == $property
                         {
+                            assert!(self.$property_name.eq_discriminant(value), "Mismatching discriminant.");
                             return self.$property_name.set(value);
                         }
                     )+
@@ -476,7 +465,7 @@ pub(in crate::map) mod ui_mod
                     }
                 }
             }
-        )+ }};
+        }};
     }
 
     //=======================================================================//
@@ -485,11 +474,13 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     pub(in crate::map) const COLLISION_LABEL: &str = "collision";
-    pub(in crate::map) const COLLISION_DEFAULT: Value = Value::Bool(true);
+    const COLLISION_DEFAULT: Value = Value::Bool(true);
+
     pub(in crate::map) const ANGLE_LABEL: &str = "angle";
-    pub(in crate::map) const ANGLE_DEFAULT: Value = Value::I16(0);
+    const ANGLE_DEFAULT: Value = Value::I16(0);
+
     pub(in crate::map) const HEIGHT_LABEL: &str = "height";
-    pub(in crate::map) const HEIGHT_DEFAULT: Value = Value::I8(0);
+    const HEIGHT_DEFAULT: Value = Value::I8(0);
 
     //=======================================================================//
     // TRAITS
@@ -535,6 +526,12 @@ pub(in crate::map) mod ui_mod
     where
         Self: Sized + std::fmt::Display + Clone + PartialEq
     {
+        /// Returns a new default properties.
+        fn new<I, T>(values: I) -> Self
+        where
+            I: IntoIterator<Item = (T, Value)>,
+            T: ToString;
+
         /// Returns the amount of contained values.
         #[must_use]
         fn len(&self) -> usize;
@@ -568,7 +565,10 @@ pub(in crate::map) mod ui_mod
         "Brush",
         "[`Brush`]es",
         1,
-        (COLLISION_LABEL, collision, COLLISION_DEFAULT),
+        (COLLISION_LABEL, collision, COLLISION_DEFAULT)
+    );
+
+    entity_properties!(
         Thing,
         "Thing",
         "[`ThingInstance`]s",
@@ -591,6 +591,24 @@ pub(in crate::map) mod ui_mod
         insert:                    HvVec<&'a str>,
         /// A reference to the [`DefaultProperties`] upon which [`PropertiesRefactor`] is based.
         engine_default_properties: &'a E
+    }
+
+    //=======================================================================//
+
+    impl<T: DefaultProperties> Viewer for T
+    {
+        type Item = DefaultPropertiesViewer;
+
+        #[inline]
+        fn from_viewer(value: Self::Item) -> Self { Self::new(value.0) }
+
+        #[inline]
+        fn to_viewer(self) -> Self::Item
+        {
+            DefaultPropertiesViewer(
+                hv_vec![collect; self.iter().map(|(k, v)| (k.to_string(), v.clone()))]
+            )
+        }
     }
 }
 

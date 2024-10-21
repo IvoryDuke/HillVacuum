@@ -1055,12 +1055,12 @@ impl State
                 FileStructure::Properties =>
                 {
                     test_writer!(
-                        default_properties.map_brushes,
+                        &default_properties.map_brushes.clone().to_viewer(),
                         &mut writer,
                         "Error saving Brush default properties."
                     );
                     test_writer!(
-                        default_properties.map_things,
+                        &default_properties.map_things.clone().to_viewer(),
                         &mut writer,
                         "Error saving Thing default properties."
                     );
@@ -1258,8 +1258,8 @@ impl State
                 header,
                 grid,
                 animations,
-                default_brush_properties,
-                default_thing_properties,
+                mut default_brush_properties,
+                mut default_thing_properties,
                 mut brushes,
                 mut things,
                 mut props
@@ -1295,12 +1295,12 @@ impl State
                     FileStructure::Properties =>
                     {
                         test_writer!(
-                            &default_brush_properties,
+                            &default_brush_properties.take_value().to_viewer(),
                             &mut writer,
                             "Error converting Brush default properties."
                         );
                         test_writer!(
-                            &default_thing_properties,
+                            &default_thing_properties.take_value().to_viewer(),
                             &mut writer,
                             "Error converting Thing default properties."
                         );

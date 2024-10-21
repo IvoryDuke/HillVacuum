@@ -736,7 +736,8 @@ impl Innards
             {
                 rfd::MessageDialogResult::Yes =>
                 {
-                    let refactor = engine_default_properties.generate_refactor(file_default_properties);
+                    let refactor =
+                        engine_default_properties.generate_refactor(file_default_properties);
                     *map_default_properties = engine_default_properties.inner();
                     refactor.into()
                 },
