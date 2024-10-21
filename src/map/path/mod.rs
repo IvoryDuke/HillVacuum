@@ -1,3 +1,5 @@
+#[cfg(feature = "ui")]
+pub(in crate::map) mod compatibility;
 pub mod nodes;
 #[cfg(feature = "ui")]
 pub(in crate::map) mod overall_values;
@@ -21,7 +23,6 @@ pub(in crate::map) mod ui_mod
     use bevy_egui::egui;
     use glam::Vec2;
     use hill_vacuum_shared::{continue_if_none, return_if_none, NextValue};
-    use serde::{Deserialize, Deserializer, Serialize};
 
     use crate::{
         map::{
@@ -1601,42 +1602,6 @@ pub(in crate::map) mod ui_mod
                     .iter()
                     .zip(&other.nodes)
                     .all(|(a, b)| a.selectable_vector == b.selectable_vector)
-        }
-    }
-
-    impl Serialize for Path
-    {
-        #[inline]
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer
-        {
-            self.nodes.serialize(serializer)
-        }
-    }
-
-    impl<'de> Deserialize<'de> for Path
-    {
-        #[inline]
-        fn deserialize<D>(deserializer: D) -> Result<Path, D::Error>
-        where
-            D: Deserializer<'de>
-        {
-            HvVec::deserialize(deserializer).map(|nodes| {
-                let hull = Path::nodes_hull(nodes.iter());
-                let mut buckets = Buckets::new();
-
-                for (i, node) in nodes.iter().enumerate()
-                {
-                    buckets.insert(i, node.pos());
-                }
-
-                Self {
-                    nodes,
-                    hull,
-                    buckets
-                }
-            })
         }
     }
 

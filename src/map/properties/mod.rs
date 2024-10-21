@@ -12,9 +12,7 @@ use std::{fs::File, io::BufReader};
 use serde::{Deserialize, Serialize};
 use value::Value;
 
-use crate::{HvVec, map::Viewer};
-#[allow(unused_imports)]
-use crate::{Brush, ThingInstance};
+use crate::{map::Viewer, HvVec};
 
 //=======================================================================//
 // STRUCTS
@@ -79,6 +77,8 @@ pub(in crate::map) mod ui_mod
         HvHashMap,
         HvVec
     };
+    #[allow(unused_imports)]
+    use crate::{Brush, ThingInstance};
 
     //=======================================================================//
     // MACROS

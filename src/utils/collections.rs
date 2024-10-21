@@ -128,13 +128,15 @@ pub(crate) use hv_hash_set;
 //=======================================================================//
 
 #[cfg(feature = "arena_alloc")]
-/// [`Vec`] wrapper.
+/// A contiguous growable array type.  
+/// When the feature `arena_alloc` is enabled an arena allocator is used instead of the default one.
 #[must_use]
 #[derive(Debug, Clone, PartialEq)]
 pub struct HvVec<T>(Vec<T, &'static BlinkAlloc>);
 
 #[cfg(not(feature = "arena_alloc"))]
-/// [`SmallVec`] wrapper.
+/// A contiguous growable array type.  
+/// When the feature `arena_alloc` is enabled an arena allocator is used instead of the default one.
 #[must_use]
 #[derive(Debug, Clone, PartialEq)]
 pub struct HvVec<T>(SmallVec<[T; 1]>);
@@ -301,12 +303,14 @@ impl<T> HvVec<T>
 //=======================================================================//
 
 #[cfg(feature = "arena_alloc")]
-/// [`hashbrown::HashMap`] wrapper.
+/// A hashmap.  
+/// When the feature `arena_alloc` is enabled an arena allocator is used instead of the default one.
 #[derive(Debug, Clone)]
 pub struct HvHashMap<K, V>(hashbrown::HashMap<K, V, DefaultHashBuilder, &'static BlinkAlloc>);
 
 #[cfg(not(feature = "arena_alloc"))]
-/// [`hashbrown::HashMap`] wrapper.
+/// A hashmap.  
+/// When the feature `arena_alloc` is enabled an arena allocator is used instead of the default one.
 #[derive(Debug, Clone)]
 pub struct HvHashMap<K, V>(hashbrown::HashMap<K, V, DefaultHashBuilder>);
 
@@ -485,12 +489,14 @@ impl<K: std::hash::Hash + std::cmp::Eq, V> HvHashMap<K, V>
 //=======================================================================//
 
 #[cfg(feature = "arena_alloc")]
-/// [`hashbrown::HashSet`] wrapper.
+/// A hashset.  
+/// When the feature `arena_alloc` is enabled an arena allocator is used instead of the default one.
 #[derive(Debug, Clone)]
 pub struct HvHashSet<T>(hashbrown::HashSet<T, DefaultHashBuilder, &'static BlinkAlloc>);
 
 #[cfg(not(feature = "arena_alloc"))]
-/// [`hashbrown::HashSet`] wrapper.
+/// A hashset.  
+/// When the feature `arena_alloc` is enabled an arena allocator is used instead of the default one.
 #[derive(Debug, Clone)]
 pub struct HvHashSet<T>(hashbrown::HashSet<T, DefaultHashBuilder>);
 

@@ -6,22 +6,20 @@
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::map::selectable_vector::SelectableVector;
-
 //=======================================================================//
 // STRUCTS
 //
 //=======================================================================//
 
-/// The data concerning the travel of an entity from one [`Node`] to the next one.
+/// The data concerning the travel of an entity from one [`crate::Node`] to the next one.
 #[must_use]
 #[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Movement
 {
-    /// The maximum speed an entity is going to travel from this [`Node`] to the next one.
+    /// The maximum speed an entity is going to travel from this [`crate::Node`] to the next one.
     /// It's a value higher than `min_speed`.
     max_speed:               f32,
-    /// The minimum speed an entity is going to travel from this [`Node`] to the next one.
+    /// The minimum speed an entity is going to travel from this [`crate::Node`] to the next one.
     /// It's a value higher than or equal to 0 and less than or equal to `max_speed`.
     min_speed:               f32,
     /// The percentage of the travel that the entity is going to take to go from the minimum
@@ -73,7 +71,7 @@ impl Movement
     pub fn scaled_decel_travel_percentage(&self) -> f32 { self.decel_travel_percentage / 100f32 }
 
     /// Returns the standby time, that is the time that has to pass before the entity should
-    /// start moving to the next [`Node`].
+    /// start moving to the next [`crate::Node`].
     #[inline]
     #[must_use]
     pub const fn standby_time(&self) -> f32 { self.standby_time }
@@ -83,24 +81,13 @@ impl Movement
 
 /// A node of the travel path of a moving entity.
 /// The position of the node is relative to the center of the entity.
-#[derive(Clone, Copy, Serialize, Deserialize)]
-pub(in crate::map) struct Node
-{
-    /// The position in 2D space with respect to the center of the entity.
-    pub(in crate::map::path) selectable_vector: SelectableVector,
-    /// The data concerning how the moving entity should travel to the next [`Node`].
-    pub(in crate::map::path) movement:          Movement
-}
-
-//=======================================================================//
-
 #[must_use]
 #[derive(Serialize, Deserialize)]
 pub struct NodeViewer
 {
     /// The position in 2D space with respect to the center of the entity.
     pub pos:      Vec2,
-    /// The data concerning how the moving entity should travel to the next [`Node`].
+    /// The data concerning how the moving entity should travel to the next node.
     pub movement: Movement
 }
 
@@ -121,7 +108,6 @@ pub(in crate::map) mod ui_mod
 
     use glam::Vec2;
 
-    use super::Node;
     use crate::{
         map::selectable_vector::SelectableVector,
         utils::{math::AroundEqual, misc::ReplaceValue},
@@ -293,6 +279,17 @@ pub(in crate::map) mod ui_mod
     }
 
     //=======================================================================//
+
+    /// A node of the travel path of a moving entity.
+    /// The position of the node is relative to the center of the entity.
+    #[derive(Clone, Copy)]
+    pub(in crate::map) struct Node
+    {
+        /// The position in 2D space with respect to the center of the entity.
+        pub(in crate::map::path) selectable_vector: SelectableVector,
+        /// The data concerning how the moving entity should travel to the next [`Node`].
+        pub(in crate::map::path) movement:          Movement
+    }
 
     impl AddAssign<Vec2> for Node
     {

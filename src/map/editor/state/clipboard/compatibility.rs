@@ -18,7 +18,7 @@ use serde::Deserialize;
 use crate::{
     map::{
         editor::state::test_writer,
-        path::Path,
+        path::compatibility::Path,
         properties::{compatibility::Properties, BrushProperties, ThingProperties},
         selectable_vector::SelectableVector,
         version_number,
@@ -93,7 +93,7 @@ impl From<ClipboardData> for crate::map::editor::state::clipboard::ClipboardData
                     crate::map::thing::ThingInstanceData::from_parts(
                         thing,
                         pos,
-                        path,
+                        unsafe { std::mem::transmute(path) },
                         ThingProperties::from_parts(properties.0)
                     ),
                     id

@@ -7,12 +7,14 @@ use glam::Vec2;
 use serde::Deserialize;
 
 use crate::{
-    map::{path::nodes::NodeViewer, selectable_vector::SelectableVector, Viewer},
+    map::{
+        path::{compatibility::Node, nodes::NodeViewer},
+        Viewer
+    },
     utils::collections::{hv_vec, Ids},
     HvHashMap,
     HvVec,
     Id,
-    Movement,
     TextureSettings,
     Value
 };
@@ -26,19 +28,13 @@ use crate::{
 #[derive(Deserialize)]
 pub(in crate::map) enum GroupViewer
 {
-    /// No group.
     None,
-    /// Has some attached [`Brush`]es.
     Attachments(Ids),
-    /// Has a path and maybe some attached [`Brush`]es.
     Path
     {
-        /// The travel path.
         path:             HvVec<Node>,
-        /// The attached [`Brush`]es.
         attached_brushes: Ids
     },
-    /// Is attached to a [`Brush`].
     Attached(Id)
 }
 
@@ -72,16 +68,6 @@ impl From<GroupViewer> for crate::map::brush::group::GroupViewer
 //=======================================================================//
 // STRUCTS
 //
-//=======================================================================//
-
-#[must_use]
-#[derive(Deserialize)]
-pub(in crate::map) struct Node
-{
-    pub selectable_vector: SelectableVector,
-    pub movement:          Movement
-}
-
 //=======================================================================//
 
 #[must_use]

@@ -4,6 +4,7 @@
 
 ### Changes
 - Simplified texture parallax calculations, changed signature of `draw_offset_with_parallax_and_scroll`;
+- renamed `BrushProperties` and `ThingProperties` to `BrushUserProperties` and `ThingUserProperties`;
 - `Tab` and `Alt+Tab` can now be used to scroll through the ui widgets;
 - decreased file size of `Prop`s;
 - `Node`'s fields are now public;
