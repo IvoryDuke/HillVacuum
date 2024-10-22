@@ -96,10 +96,8 @@ impl Innards
 
             let any_brushes = bundle.manager.any_selected_brushes();
             let any_things = bundle.manager.any_selected_things();
-            let brushes =
-                ui.add_enabled(bundle.manager.any_selected_brushes(), egui::Button::new("Brushes"));
-            let things =
-                ui.add_enabled(bundle.manager.any_selected_things(), egui::Button::new("Things"));
+            let brushes = ui.add_enabled(any_brushes, egui::Button::new("Brushes"));
+            let things = ui.add_enabled(any_things, egui::Button::new("Things"));
 
             if brushes.clicked()
             {
@@ -150,6 +148,7 @@ impl Innards
         {
             for _ in 0..length
             {
+                ui.label("");
                 ui.label("");
                 ui.label("");
                 ui.end_row();
@@ -238,6 +237,7 @@ impl Innards
 
         ui.label("Name");
         ui.label("Type");
+        ui.label("Value");
         ui.end_row();
 
         match self.target
