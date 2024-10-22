@@ -154,6 +154,12 @@ impl<T> std::ops::Deref for HvVec<T>
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
+impl<T> std::ops::DerefMut for HvVec<T>
+{
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+}
+
 impl<T> IntoIterator for HvVec<T>
 {
     #[cfg(feature = "arena_alloc")]

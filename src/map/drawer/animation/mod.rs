@@ -60,6 +60,28 @@ pub enum Animation
     Atlas(Atlas)
 }
 
+impl Animation
+{
+    /// Whether there is no animation.
+    #[inline]
+    #[must_use]
+    pub const fn is_none(&self) -> bool { matches!(self, Self::None) }
+
+    /// Returns the amount of frames.
+    #[allow(clippy::len_without_is_empty)]
+    #[inline]
+    #[must_use]
+    pub fn len(&self) -> usize
+    {
+        match self
+        {
+            Animation::None => 0,
+            Animation::List(anim) => anim.len(),
+            Animation::Atlas(anim) => anim.len()
+        }
+    }
+}
+
 //=======================================================================//
 
 /// The partitioning of a texture into sub-textures.
@@ -266,25 +288,6 @@ pub(in crate::map) mod ui_mod
         /// Returns a default [`Atlas`] animation.
         #[inline]
         pub(in crate::map) const fn atlas_animation() -> Self { Self::Atlas(Atlas::new()) }
-
-        /// Whether there is no animation.
-        #[inline]
-        #[must_use]
-        pub const fn is_none(&self) -> bool { matches!(self, Self::None) }
-
-        /// Returns the amount of frames.
-        #[allow(clippy::len_without_is_empty)]
-        #[inline]
-        #[must_use]
-        pub fn len(&self) -> usize
-        {
-            match self
-            {
-                Animation::None => 0,
-                Animation::List(anim) => anim.len(),
-                Animation::Atlas(anim) => anim.len()
-            }
-        }
 
         /// Returns a reference to the [`List`] animation.
         #[inline]

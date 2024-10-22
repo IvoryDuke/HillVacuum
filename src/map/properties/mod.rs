@@ -574,7 +574,7 @@ pub(in crate::map) mod ui_mod
         E: EngineDefaultProperties
     {
         #[inline]
-        pub fn engine_default_properties(&self) -> &'a E { self.engine_default_properties }
+        pub const fn engine_default_properties(&self) -> &'a E { self.engine_default_properties }
     }
 
     //=======================================================================//

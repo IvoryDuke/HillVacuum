@@ -18,7 +18,7 @@ pub mod thing;
 use std::{fs::File, io::BufReader, path::PathBuf};
 
 use hill_vacuum_proc_macros::EnumIter;
-use hill_vacuum_shared::{return_if_none, NextValue};
+use hill_vacuum_shared::{continue_if_none, return_if_none, NextValue};
 use properties::DefaultPropertiesViewer;
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +27,6 @@ use crate::{
         collections::{hv_hash_map, hv_vec},
         misc::AssertedInsertRemove
     },
-    Animation,
     HvHashMap,
     Id,
     TextureInterface
@@ -225,31 +224,15 @@ impl Exporter
         if !animations.is_empty()
         {
             // Replaces the empty animations of a brush with the texture's default one.
-            let mut textured_anim_none = brushes
-                .iter()
-                .enumerate()
-                .filter_map(|(i, brush)| {
-                    matches!(return_if_none!(&brush.texture, None).animation(), Animation::None)
-                        .then_some(i)
-                })
-                .collect::<Vec<_>>();
-
-            for (texture, animation) in animations
+            for texture in brushes.iter_mut().filter_map(|brush| {
+                let texture = return_if_none!(brush.texture.as_mut(), None);
+                texture.animation().is_none().then_some(texture)
+            })
             {
-                let mut i = 0;
-
-                while i < textured_anim_none.len()
-                {
-                    let brush = &mut brushes[textured_anim_none[i]];
-
-                    if brush.texture.as_ref().unwrap().name() == texture
-                    {
-                        brush.set_texture_animation(animation.clone());
-                        textured_anim_none.swap_remove(i);
-                        continue;
-                    }
-
-                    i += 1;
+                unsafe {
+                    texture.unsafe_set_animation(
+                        continue_if_none!(animations.get(texture.name())).clone()
+                    );
                 }
             }
         }

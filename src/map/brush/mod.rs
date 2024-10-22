@@ -12,7 +12,7 @@ pub mod group;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{Animation, Group, HvHashMap, HvVec, Id, TextureSettings, Value};
+use crate::{Group, HvHashMap, HvVec, Id, TextureSettings, Value};
 
 //=======================================================================//
 // STRUCTS
@@ -21,7 +21,6 @@ use crate::{Animation, Group, HvHashMap, HvVec, Id, TextureSettings, Value};
 
 /// A convex polygon characterized by an optional [`Group`], an optional texture, and certain
 /// properties.
-#[allow(clippy::unsafe_derive_deserialize)]
 #[must_use]
 #[derive(Serialize, Deserialize)]
 pub struct BrushViewer
@@ -36,18 +35,6 @@ pub struct BrushViewer
     pub group:      Group,
     /// The associated properties.
     pub properties: HvHashMap<String, Value>
-}
-
-impl BrushViewer
-{
-    /// Sets the [`Animation`] of the texture.
-    #[inline]
-    pub(in crate::map) fn set_texture_animation(&mut self, animation: Animation)
-    {
-        unsafe {
-            self.texture.as_mut().unwrap().unsafe_set_animation(animation);
-        }
-    }
 }
 
 //=======================================================================//

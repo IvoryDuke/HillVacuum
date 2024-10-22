@@ -381,6 +381,20 @@ impl ThingPivot
 //
 //=======================================================================//
 
+#[must_use]
+struct FileRead
+{
+    animations: HvHashMap<String, Animation>,
+    manager: EntitiesManager,
+    map_default_brush_properties: DefaultBrushProperties,
+    map_default_thing_properties: DefaultThingProperties,
+    clipboard: Clipboard,
+    grid: Grid,
+    path: PathBuf
+}
+
+//=======================================================================//
+
 /// A collection of settings used by various tools that need to remained store throughout the
 /// application's execution.
 #[derive(Clone, Copy)]
@@ -619,10 +633,10 @@ impl State
             default_properties.engine_things
         )
         {
-            Ok((animations, manager, default_brushes, default_things, clipboard, grid, path)) =>
+            Ok(file_read) =>
             {
-                *default_properties.map_brushes = default_brushes;
-                *default_properties.map_things = default_things;
+                *default_properties.map_brushes = file_read.map_default_brush_properties;
+                *default_properties.map_things = file_read.map_default_thing_properties;
 
                 let state = Self {
                     core:               Core::default(),
@@ -642,12 +656,12 @@ impl State
 
                 (
                     state,
-                    animations,
-                    manager,
-                    clipboard,
+                    file_read.animations,
+                    file_read.manager,
+                    file_read.clipboard,
                     EditsHistory::default(),
-                    grid,
-                    path.into()
+                    file_read.grid,
+                    file_read.path.into()
                 )
             },
             Err(err) =>
@@ -1184,18 +1198,7 @@ impl State
         things_catalog: &ThingsCatalog,
         engine_default_brush_properties: &EngineDefaultBrushProperties,
         engine_default_thing_properties: &EngineDefaultThingProperties
-    ) -> Result<
-        (
-            HvHashMap<String, Animation>,
-            EntitiesManager,
-            DefaultBrushProperties,
-            DefaultThingProperties,
-            Clipboard,
-            Grid,
-            PathBuf
-        ),
-        &'static str
-    >
+    ) -> Result<FileRead, &'static str>
     {
         #[must_use]
         struct OldFileRead
@@ -1462,16 +1465,17 @@ impl State
             animations
         };
 
-        let (manager, brush_properties, thing_properties) = EntitiesManager::from_file(
-            &header,
-            &mut file,
-            &drawing_resources,
-            things_catalog,
-            &grid,
-            engine_default_brush_properties,
-            engine_default_thing_properties,
-            &mut steps
-        )?;
+        let (manager, map_default_brush_properties, map_default_thing_properties) =
+            EntitiesManager::from_file(
+                &header,
+                &mut file,
+                &drawing_resources,
+                things_catalog,
+                &grid,
+                engine_default_brush_properties,
+                engine_default_thing_properties,
+                &mut steps
+            )?;
 
         steps.next_value().assert(FileStructure::Props);
         let mut clipboard = Clipboard::from_file(
@@ -1486,15 +1490,15 @@ impl State
         )?;
         clipboard.reset_props_changed();
 
-        Ok((
-            drawing_resources.animations,
+        Ok(FileRead {
+            animations: drawing_resources.animations,
             manager,
-            brush_properties,
-            thing_properties,
+            map_default_brush_properties,
+            map_default_thing_properties,
             clipboard,
             grid,
             path
-        ))
+        })
     }
 
     #[inline]
@@ -1543,7 +1547,15 @@ impl State
             bundle.default_properties.engine_things
         )
         {
-            Ok((animations, manager, default_brushes, default_things, clipboard, grid, path)) =>
+            Ok(FileRead {
+                animations,
+                manager,
+                map_default_brush_properties,
+                map_default_thing_properties,
+                clipboard,
+                grid,
+                path
+            }) =>
             {
                 bundle.drawing_resources.replace_animations(animations);
                 *bundle.manager = manager;
@@ -1552,8 +1564,8 @@ impl State
                 *bundle.inputs = InputsPresses::default();
                 *bundle.edits_history = EditsHistory::default();
                 bundle.config.open_file.update(path, bundle.window);
-                *bundle.default_properties.map_brushes = default_brushes;
-                *bundle.default_properties.map_things = default_things;
+                *bundle.default_properties.map_brushes = map_default_brush_properties;
+                *bundle.default_properties.map_things = map_default_thing_properties;
 
                 self.ui.regenerate_properties_window(
                     bundle.default_properties.map_brushes,
