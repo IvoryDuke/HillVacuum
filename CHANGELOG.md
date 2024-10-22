@@ -19,7 +19,8 @@
 - fixed crash that could occur when creating a shape with the draw tool;
 - fixed sometimes incorrect camera zoom;
 - fixed sometimes incorrect path nodes selection;
-- fixed a few user defined properties related issues and crashes.
+- fixed a few user defined properties related issues and crashes;
+- fixed look of properties window when no entities are selected.
 
 ## 0.8.2
 
