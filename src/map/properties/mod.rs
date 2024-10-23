@@ -148,7 +148,7 @@ pub(in crate::map) mod ui_mod
 
                     for (k, v) in file_default_properties.iter()
                     {
-                        if !self.0.contains(k) || !v.eq_discriminant(self.0.get(k))
+                        if !self.0.contains(k) || !v.eq_tag(self.0.get(k))
                         {
                             remove.push(k.to_string());
                         }
@@ -158,7 +158,7 @@ pub(in crate::map) mod ui_mod
 
                     for (k, v) in self.0.user.iter()
                     {
-                        if !file_default_properties.contains(k) || !v.eq_discriminant(file_default_properties.get(k))
+                        if !file_default_properties.contains(k) || !v.eq_tag(file_default_properties.get(k))
                         {
                             insert.push(k.as_str());
                         }
@@ -251,7 +251,7 @@ pub(in crate::map) mod ui_mod
 
                     self.user.iter().all(|(k, v0)| {
                         let v1 = return_if_none!(other.user.get(k), false);
-                        v0.eq_discriminant(v1) && v0 == v1
+                        v0.eq_tag(v1) && v0 == v1
                     })
                 }
             }
@@ -406,7 +406,7 @@ pub(in crate::map) mod ui_mod
                     $(
                         if k == $property
                         {
-                            assert!(self.$property_name.eq_discriminant(value), "Mismatching discriminant.");
+                            assert!(self.$property_name.eq_tag(value), "Mismatching discriminant.");
                             return self.$property_name.set(value);
                         }
                     )+

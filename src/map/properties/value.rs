@@ -174,7 +174,7 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
-    use std::{mem::Discriminant, str::FromStr};
+    use std::str::FromStr;
 
     use hill_vacuum_shared::match_or_panic;
 
@@ -215,43 +215,57 @@ pub(in crate::map) mod ui_mod
 
     impl Value
     {
-        /// The [`Discriminant`] of the boolean value.
-        pub(in crate::map) const BOOL_DISCRIMINANT: Discriminant<Self> =
-            std::mem::discriminant(&Self::Bool(true));
+        pub(in crate::map) const BOOL_TAG: u8 = 0;
+
+        #[inline]
+        #[must_use]
+        pub(in crate::map) fn tag(&self) -> u8
+        {
+            match self
+            {
+                Value::Bool(_) => Self::BOOL_TAG,
+                Value::U8(_) => 1,
+                Value::U16(_) => 2,
+                Value::U32(_) => 3,
+                Value::U64(_) => 4,
+                Value::U128(_) => 5,
+                Value::I8(_) => 6,
+                Value::I16(_) => 7,
+                Value::I32(_) => 8,
+                Value::I64(_) => 9,
+                Value::I128(_) => 10,
+                Value::F32(_) => 11,
+                Value::F64(_) => 12,
+                Value::String(_) => 13
+            }
+        }
 
         /// Whether `self` and `other` have the same [`Discriminant`].
         #[inline]
         #[must_use]
-        pub(in crate::map) fn eq_discriminant(&self, other: &Self) -> bool
-        {
-            std::mem::discriminant(self) == std::mem::discriminant(other)
-        }
+        pub(in crate::map) fn eq_tag(&self, other: &Self) -> bool { self.tag() == other.tag() }
 
         #[inline]
         #[must_use]
-        pub(in crate::map) fn discriminant_type(discriminant: Discriminant<Self>) -> &'static str
+        pub(in crate::map) fn type_str(&self) -> &'static str
         {
-            macro_rules! match_discriminant {
-                ($($value:ident, $t:ty, $str:literal, $default:expr),+) => {{
-                    $(
-                        if discriminant == std::mem::discriminant(&Value::$value($default))
-                        {
-                            return $str;
-                        }
-                    )+
-
-                    unreachable!()
-                }};
+            macro_rules! value {
+                ($($value:ident, $t:ty, $str:literal, $default:expr),+) => {
+                    match self
+                    {
+                        $(Self::$value(_) => $str,)+
+                    }
+                }
             }
 
-            for_each_value!(ret, match_discriminant)
+            for_each_value!(ret, value)
         }
 
         /// Sets `self` to `value`. Returns the previous value if different.
         #[inline]
         pub(in crate::map) fn set(&mut self, value: &Self) -> Option<Self>
         {
-            assert!(self.eq_discriminant(value), "Mismatching discriminants.");
+            assert!(self.eq_tag(value), "Mismatching discriminants.");
 
             if *self == *value
             {

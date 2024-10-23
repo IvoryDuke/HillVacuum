@@ -3,8 +3,6 @@
 //
 //=======================================================================//
 
-use std::mem::Discriminant;
-
 use bevy_egui::egui;
 use hill_vacuum_shared::{match_or_panic, NextValue};
 
@@ -39,7 +37,7 @@ use crate::{
 struct OverallProperty
 {
     /// The discriminant of the [`Value`].
-    d:     Discriminant<Value>,
+    tag:   u8,
     /// The overall [`Value`].
     value: OverallValue<Value>,
     /// The UI representation of the overall [`Value`].
@@ -68,8 +66,7 @@ impl UiOverallProperties
 
         for (k, d_v) in values.iter()
         {
-            let d = std::mem::discriminant(d_v);
-            vec.push((k.to_string(), (d, OverallValue::from(d_v.clone()))));
+            vec.push((k.to_string(), (d_v.tag(), OverallValue::from(d_v.clone()))));
         }
 
         vec.sort_by(|(a, _), (b, _)| a.cmp(b));
@@ -77,12 +74,12 @@ impl UiOverallProperties
         let mut values = hv_vec![capacity; vec.len()];
         let mut keys = hv_vec![capacity; vec.len()];
 
-        for (k, (d, value)) in vec
+        for (k, (tag, value)) in vec
         {
             keys.push(k);
 
             let ui = value.clone().ui();
-            values.push(OverallProperty { d, value, ui });
+            values.push(OverallProperty { tag, value, ui });
         }
 
         let mut keys = keys.into_iter();
@@ -105,7 +102,7 @@ impl UiOverallProperties
             for (k, o) in self.0.iter_mut()
             {
                 let b = properties.get(k);
-                assert!(o.d == std::mem::discriminant(b), "Mismatching discriminants.");
+                assert!(o.tag == b.tag(), "Mismatching discriminants.");
                 o.value = b.clone().into();
             }
         }
@@ -119,7 +116,7 @@ impl UiOverallProperties
             for (k, o) in self.0.iter_mut()
             {
                 let b = properties.get(k);
-                assert!(o.d == std::mem::discriminant(b), "Mismatching discriminants.");
+                assert!(o.tag == b.tag(), "Mismatching discriminants.");
                 uniform |= !o.value.stack(b);
             }
 
@@ -149,7 +146,7 @@ impl UiOverallProperties
 
             let o = self.0.get_mut(k).unwrap();
             let b = properties.get(k);
-            assert!(o.d == std::mem::discriminant(b), "Mismatching discriminants.");
+            assert!(o.tag == b.tag(), "Mismatching discriminants.");
             o.value = b.clone().into();
         }
 
@@ -177,12 +174,12 @@ impl UiOverallProperties
         for (k, o) in self.0.iter_mut()
         {
             let d_v = default_properties.get(k);
-            assert!(o.d == std::mem::discriminant(d_v), "Mismatching discriminants.");
+            assert!(o.tag == d_v.tag(), "Mismatching discriminants.");
 
             ui.label(k);
-            ui.label(Value::discriminant_type(o.d));
+            ui.label(d_v.type_str());
 
-            if Value::BOOL_DISCRIMINANT == o.d
+            if Value::BOOL_TAG == o.tag
             {
                 if let Some(value) =
                     CheckBox::show(ui, &o.value, |v| match_or_panic!(v, Value::Bool(value), *value))
