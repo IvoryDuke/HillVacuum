@@ -1,7 +1,5 @@
 #[cfg(feature = "ui")]
 pub(in crate::map) mod catalog;
-#[cfg(feature = "ui")]
-pub(in crate::map) mod compatibility;
 
 //=======================================================================//
 // IMPORTS
@@ -303,22 +301,6 @@ pub mod ui_mod
 
     impl ThingInstanceData
     {
-        #[inline]
-        pub const fn from_parts(
-            thing_id: ThingId,
-            pos: Vec2,
-            path: Option<Path>,
-            properties: ThingProperties
-        ) -> Self
-        {
-            Self {
-                thing_id,
-                pos,
-                path,
-                properties
-            }
-        }
-
         #[inline]
         fn new_thing_hull(things_catalog: &ThingsCatalog, thing_id: ThingId, pos: Vec2) -> Hull
         {

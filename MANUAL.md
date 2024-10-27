@@ -552,17 +552,17 @@ Removes the prop in the selected slot.
 When enabled, the entities are split in three groups:  
 - entities that have a path and are selected, and the brushes attached to them;  
 - entities that are selected, but do not have a path and are not attached to another brush. Therefore they are entities which can have a path;  
-- all other cases, entities that are not selected and/or cannot have a path.  
+- all other cases, entities that are not selected and/or cannot have a path.
 
 ### Path free draw subtool (Alt + Left mouse)  
 <img src="images/path_free_draw.svg" alt="path_free_draw" height="48" width="48"/>  
 
-Selecting it and then clicking an entity that can have a path enables the path creation. Nodes can be added by pressing the `Left mouse` and can be removed by pressing the `Right mouse`. `Enter` concludes the process. 
+Selecting it and then clicking an entity that can have a path enables the path creation. Nodes can be added by pressing the `Left mouse` and can be removed by pressing the `Right mouse`. `Enter` concludes the process.
 
 ### Insert node subtool (Alt + Left mouse)  
 <img src="images/path_insert_node.svg" alt="path_insert_node" height="48" width="48"/>  
 
-After selecting it, if a node is clicked, it inserts a new node in the path of the clicked node, after such node. The node can then be dragged around as long as it does not cause the resulting path to have consecutive overlapping nodes. 
+After selecting it, if a node is clicked, it inserts a new node in the path of the clicked node, after such node. The node can then be dragged around as long as it does not cause the resulting path to have consecutive overlapping nodes.
 
 ### Movement simulation subtool (Enter)  
 <img src="images/path_simulation.svg" alt="path_simulation" height="48" width="48"/>  

@@ -159,6 +159,10 @@ fn main()
             "or a point inside the brush's area.\n\n&nbsp;",
             "or a point inside the brush's area."
         )
+        .replace(
+            "concludes the process.\n\n",
+            "concludes the process.\n\n&nbsp;\n\n"
+        )
     );
 
     _ = std::process::Command::new("pandoc")

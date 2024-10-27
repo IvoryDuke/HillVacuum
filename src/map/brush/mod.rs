@@ -1,6 +1,4 @@
 #[cfg(feature = "ui")]
-pub(in crate::map) mod compatibility;
-#[cfg(feature = "ui")]
 pub(in crate::map) mod convex_polygon;
 pub mod group;
 

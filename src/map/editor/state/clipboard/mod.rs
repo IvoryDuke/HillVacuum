@@ -1,4 +1,3 @@
-pub(in crate::map::editor::state) mod compatibility;
 pub(in crate::map) mod prop;
 
 //=======================================================================//
