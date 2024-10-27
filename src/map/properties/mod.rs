@@ -43,7 +43,7 @@ pub(in crate::map) mod ui_mod
             drawer::drawing_resources::DrawingResources,
             editor::state::grid::Grid,
             indexed_map::IndexedMap,
-            properties::value::{ToValue, Value},
+            properties::value::Value,
             Viewer
         },
         utils::{
@@ -76,22 +76,7 @@ pub(in crate::map) mod ui_mod
             #[doc = concat!("The default properties associated with all ", $entities_str)]
             #[must_use]
             #[derive(Resource)]
-            pub struct [< $entity UserProperties >](pub Vec<(&'static str, Value)>);
-
-            impl [< $entity UserProperties >]
-            {
-                #[doc = concat!("Returns a new [`", $entity_str, "UserProperties`].")]
-                #[inline]
-                pub fn new(values: impl IntoIterator<Item = (&'static str, &'static dyn ToValue)>) -> Self
-                {
-                    Self(
-                        values
-                            .into_iter()
-                            .map(|(key, value)| (key, value.to_value()))
-                            .collect()
-                    )
-                }
-            }
+            pub(crate) struct [< $entity UserProperties >](pub std::collections::HashMap<&'static str, Value>);
 
             //=======================================================================//
 
@@ -597,4 +582,4 @@ pub(in crate::map) mod ui_mod
 }
 
 #[cfg(feature = "ui")]
-pub use ui_mod::*;
+pub(crate) use ui_mod::*;

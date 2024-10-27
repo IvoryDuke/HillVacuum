@@ -100,10 +100,7 @@ impl ThingsCatalog
 
     /// The [`Thing`] representing an error.
     #[inline]
-    fn error_thing() -> Thing
-    {
-        Thing::new("error", Self::ERROR_ID, 64f32, 64f32, "error").unwrap()
-    }
+    fn error_thing() -> Thing { Thing::new("error", Self::ERROR_ID, 64f32, 64f32, "error") }
 
     /// Combines the hardcoded and file loaded things into a single [`IndexedMap`].
     /// If a thing loaded from file has the same [`ThingId`] as an hardcoded one the latter will be
@@ -164,13 +161,13 @@ impl ThingsCatalog
                     continue;
                 }
 
-                let new_thing = continue_if_none!(Thing::new(
+                let new_thing = Thing::new(
                     name,
                     id,
                     value!("width", f32),
                     value!("height", f32),
                     continue_if_none!(values.get("preview")).as_ref().unwrap()
-                ));
+                );
                 let id = new_thing.id();
 
                 for thing in &mut things

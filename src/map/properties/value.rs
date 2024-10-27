@@ -55,30 +55,18 @@ use for_each_value;
 
 //=======================================================================//
 
-/// Generates [`ToValue`] implementations for `t`.
+/// Generates [`From`] implementations for `$t`.
 macro_rules! to_value {
     ($($value:ident, $t:ty, $str:literal, $default:expr),+) => {$(
-        impl ToValue for $t
+        impl From<$t> for Value
         {
             #[inline]
-            fn to_value(&self) -> Value
+            fn from(value: $t) -> Self
             {
-                Value::$value((*self).to_owned())
+                Value::$value(value.to_owned())
             }
         }
     )+};
-}
-
-//=======================================================================//
-// TRAITS
-//
-//=======================================================================//
-
-/// A trait to generate a [`Value`] from `self`.
-pub trait ToValue
-{
-    /// Converts `self` to a [`Value`].
-    fn to_value(&self) -> Value;
 }
 
 //=======================================================================//

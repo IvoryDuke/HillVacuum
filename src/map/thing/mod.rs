@@ -14,31 +14,6 @@ use serde::{Deserialize, Serialize};
 use crate::{HvHashMap, HvVec, Id, Node, Value};
 
 //=======================================================================//
-// TRAITS
-//
-//=======================================================================//
-
-/// A trait to associate a [`Thing`] to a type.
-/// # Example
-/// ```
-/// use hill_vacuum::{MapThing, Thing};
-///
-/// struct Test;
-///
-/// impl MapThing for Test
-/// {
-///     fn thing() -> Thing { Thing::new("test", 0, 32f32, 32f32, "test").unwrap() }
-/// }
-///
-/// let _ = Test::thing();
-/// ```
-pub trait MapThing
-{
-    /// Returns the [`Thing`] associated with `self`.
-    fn thing() -> Thing;
-}
-
-//=======================================================================//
 // STRUCTS
 //
 //=======================================================================//
@@ -84,21 +59,22 @@ pub struct Thing
 
 impl Thing
 {
-    /// Returns a new [`Thing`] with the requested properties, unless width or height are equal
-    /// or less than zero.
-    #[must_use]
+    /// Returns a new [`Thing`] with the requested properties.
+    /// # Panics
+    /// Panics if width and/or height are equal or less than zero.
     #[inline]
-    pub fn new(name: &str, id: u16, width: f32, height: f32, preview: &str) -> Option<Self>
+    pub fn new(name: &str, id: u16, width: f32, height: f32, preview: &str) -> Self
     {
-        (width > 0f32 && height > 0f32).then(|| {
-            Self {
-                name: name.to_string(),
-                id: ThingId::new(id),
-                width,
-                height,
-                preview: preview.to_string()
-            }
-        })
+        assert!(width > 0f32, "Thing named {name} with id {id} has width 0 or less.");
+        assert!(height > 0f32, "Thing named {name} with id {id} has height 0 or less.");
+
+        Self {
+            name: name.to_string(),
+            id: ThingId::new(id),
+            width,
+            height,
+            preview: preview.to_string()
+        }
     }
 
     #[inline]
@@ -163,7 +139,7 @@ pub mod ui_mod
     use hill_vacuum_shared::{match_or_panic, return_if_none};
     use serde::{Deserialize, Serialize};
 
-    use super::{catalog::ThingsCatalog, MapThing, Thing, ThingViewer};
+    use super::{catalog::ThingsCatalog, Thing, ThingViewer};
     use crate::{
         map::{
             drawer::{
@@ -948,7 +924,7 @@ pub mod ui_mod
     /// A resource containing all the [`Thing`]s to be hardcoded into the editor.
     #[must_use]
     #[derive(Resource, Default)]
-    pub struct HardcodedThings(Vec<Thing>);
+    pub(crate) struct HardcodedThings(pub Vec<Thing>);
 
     impl<'a> IntoIterator for &'a HardcodedThings
     {
@@ -961,14 +937,6 @@ pub mod ui_mod
 
     impl HardcodedThings
     {
-        /// Returns a new empty [`HardcodedThings`].
-        #[inline]
-        pub fn new() -> Self { Self::default() }
-
-        /// Pushes a new [`Thing`] from an object that implements the [`MapThing`] trait.
-        #[inline]
-        pub fn push<T: MapThing>(&mut self) { self.0.push(T::thing()); }
-
         /// Returns an iterator to the contained [`Thing`]s.
         #[inline]
         fn iter(&self) -> std::slice::Iter<Thing> { self.0.iter() }
@@ -976,4 +944,4 @@ pub mod ui_mod
 }
 
 #[cfg(feature = "ui")]
-pub use ui_mod::*;
+pub(crate) use ui_mod::*;

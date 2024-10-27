@@ -27,11 +27,6 @@ mod utils;
 //
 //=======================================================================//
 
-#[cfg(feature = "ui")]
-pub use crate::map::{
-    properties::{BrushUserProperties, ThingUserProperties},
-    thing::HardcodedThings
-};
 pub use crate::{
     map::{
         brush::{group::GroupViewer as Group, BrushViewer as Brush},
@@ -40,8 +35,8 @@ pub use crate::{
             texture::{TextureInterface, TextureSettings}
         },
         path::nodes::{Movement, NodeViewer as Node},
-        properties::value::{ToValue, Value},
-        thing::{MapThing, Thing, ThingId, ThingViewer as ThingInstance},
+        properties::value::Value,
+        thing::{Thing, ThingId, ThingViewer as ThingInstance},
         Exporter
     },
     utils::{
@@ -66,7 +61,7 @@ pub(crate) mod ui_mod
     //
     //=======================================================================//
 
-    use std::io::Write;
+    use std::{collections::HashMap, io::Write};
 
     pub use bevy;
     use bevy::{
@@ -90,7 +85,16 @@ pub(crate) mod ui_mod
         DefaultPlugins
     };
 
-    use crate::{config::ConfigPlugin, embedded_assets::EmbeddedPlugin, map::MapEditorPlugin};
+    use crate::{
+        config::ConfigPlugin,
+        embedded_assets::EmbeddedPlugin,
+        map::{
+            properties::{BrushUserProperties, ThingUserProperties},
+            thing::HardcodedThings,
+            MapEditorPlugin
+        },
+        Value
+    };
     #[allow(unused_imports)]
     use crate::{Brush, Thing, ThingInstance};
 
@@ -101,71 +105,6 @@ pub(crate) mod ui_mod
 
     /// The name of the application.
     pub(crate) const NAME: &str = "HillVacuum";
-
-    //=======================================================================//
-    // MACROS
-    //
-    //=======================================================================//
-
-    /// Loads the desired [`Thing`]s as an available resource coded into the executable.
-    /// # Example
-    /// ```
-    /// use hill_vacuum::{hardcoded_things, MapThing, Thing};
-    ///
-    /// struct Test;
-    ///
-    /// impl MapThing for Test
-    /// {
-    ///     fn thing() -> Thing { Thing::new("test", 0, 32f32, 32f32, "test").unwrap() }
-    /// }
-    ///
-    /// let mut app = bevy::app::App::new();
-    /// hardcoded_things!(app, Test);
-    /// ```
-    #[macro_export]
-    macro_rules! hardcoded_things {
-        ($app:expr, $($thing:ident),+) => {{
-            use hill_vacuum::MapThing;
-
-            let mut hardcoded_things = hill_vacuum::HardcodedThings::new();
-            $(hardcoded_things.push::<$thing>();)+
-            $app.insert_resource(hardcoded_things);
-        }}
-    }
-
-    //====================================================================
-
-    /// Inserts the default properties that will be associated to all [`Brush`]es.
-    /// # Example
-    /// ```
-    /// let mut app = bevy::app::App::new();
-    /// hill_vacuum::brush_properties!(app, [("Tag", 0u8), ("Destructible", false)]);
-    /// ```
-    #[macro_export]
-    macro_rules! brush_properties {
-        ($app:expr, [$(($key:literal, $value:literal)),+]) => {
-            $app.insert_resource(hill_vacuum::BrushUserProperties::new([
-                $(($key, &$value as &dyn hill_vacuum::ToValue)),+
-            ]));
-        }
-    }
-
-    //====================================================================
-
-    /// Inserts the default properties that will be associated to all [`ThingInstance`]s.
-    /// # Example
-    /// ```
-    /// let mut app = bevy::app::App::new();
-    /// hill_vacuum::thing_properties!(app, [("Fire resistance", 1f32), ("Invisible", false)]);
-    /// ```
-    #[macro_export]
-    macro_rules! thing_properties {
-        ($app:expr, [$(($key:literal, $value:literal)),+]) => {
-            $app.insert_resource(hill_vacuum::ThingUserProperties::new([
-                $(($key, &$value as &dyn hill_vacuum::ToValue)),+
-            ].into_iter()));
-        }
-    }
 
     //=======================================================================//
     // ENUMS
@@ -300,8 +239,27 @@ pub(crate) mod ui_mod
     //
     //=======================================================================//
 
+    #[must_use]
     /// The main plugin.
-    pub struct HillVacuumPlugin;
+    pub struct HillVacuumPlugin
+    {
+        brush_properties: HashMap<&'static str, Value>,
+        thing_properties: HashMap<&'static str, Value>,
+        things:           Vec<Thing>
+    }
+
+    impl Default for HillVacuumPlugin
+    {
+        #[inline]
+        fn default() -> Self
+        {
+            Self {
+                brush_properties: HashMap::default(),
+                thing_properties: HashMap::default(),
+                things:           Vec::default()
+            }
+        }
+    }
 
     impl bevy::app::Plugin for HillVacuumPlugin
     {
@@ -369,6 +327,9 @@ pub(crate) mod ui_mod
                     .disable::<DiagnosticsPlugin>()
             )
             .add_plugins((EmbeddedPlugin, ConfigPlugin, MapEditorPlugin))
+            .insert_resource(BrushUserProperties(self.brush_properties.clone()))
+            .insert_resource(ThingUserProperties(self.thing_properties.clone()))
+            .insert_resource(HardcodedThings(self.things.clone()))
             .init_state::<EditorState>();
         }
     }
