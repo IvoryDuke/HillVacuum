@@ -4,21 +4,20 @@
 //=======================================================================//
 
 use arrayvec::ArrayVec;
+use bevy::utils::HashMap;
 use glam::Vec2;
 use hill_vacuum_shared::{continue_if_none, NextValue};
 
 use super::{node::SplitSegments, RemoveResult};
 use crate::{
+    hash_map,
     utils::{
-        collections::{hv_hash_map, hv_vec},
         hull::Hull,
         identifiers::Id,
         iterators::SkipIndexIterator,
         math::{lines_and_segments::segments_intersection, AroundEqual},
         misc::AssertedInsertRemove
-    },
-    HvHashMap,
-    HvVec
+    }
 };
 
 //=======================================================================//
@@ -187,14 +186,14 @@ pub(in crate::map::editor::state::manager::quad_tree) struct Vertex
     /// The position.
     pos:     Vec2,
     /// The [`Corner`]s of the entities that share the same position.
-    corners: HvHashMap<Id, Corner>
+    corners: HashMap<Id, Corner>
 }
 
 impl Vertex
 {
     /// Returns a new [`Vertex`].
     #[inline]
-    pub fn new(corners: HvHashMap<Id, Corner>) -> Self
+    pub fn new(corners: HashMap<Id, Corner>) -> Self
     {
         let mut iter = corners.iter();
         let pos = iter.next_value().1.pos();
@@ -377,7 +376,7 @@ pub(in crate::map::editor::state::manager::quad_tree) struct Intersection
     /// The position.
     pos:     Vec2,
     /// The [`Corner`]s whose [`Sides`] have intersected the [`QuadTree`] at `pos`.
-    corners: HvHashMap<Id, Corner>
+    corners: HashMap<Id, Corner>
 }
 
 impl Intersection
@@ -385,7 +384,7 @@ impl Intersection
     /// Returns a new [`Intersection`].
     #[inline]
     #[must_use]
-    pub fn new(pos: Vec2, corners: HvHashMap<Id, Corner>) -> Self
+    pub fn new(pos: Vec2, corners: HashMap<Id, Corner>) -> Self
     {
         assert!(!corners.is_empty(), "No corners associated to the intersection.");
         Self { pos, corners }
@@ -442,20 +441,17 @@ impl Intersection
 /// The [`Intersection`]s between the entities stored in a [`QuadTree`] and the outline of one of
 /// its [`Node`]s.
 #[must_use]
-pub(in crate::map::editor::state::manager::quad_tree) struct Intersections(HvVec<Intersection>);
+pub(in crate::map::editor::state::manager::quad_tree) struct Intersections(Vec<Intersection>);
 
 impl Default for Intersections
 {
     #[inline]
-    fn default() -> Self { Self(hv_vec![]) }
+    fn default() -> Self { Self(Vec::new()) }
 }
 
 impl IntoIterator for Intersections
 {
-    #[cfg(feature = "arena_alloc")]
-    type IntoIter = std::vec::IntoIter<Intersection, &'static blink_alloc::BlinkAlloc>;
-    #[cfg(not(feature = "arena_alloc"))]
-    type IntoIter = smallvec::IntoIter<[Intersection; 1]>;
+    type IntoIter = std::vec::IntoIter<Intersection>;
     type Item = Intersection;
 
     #[inline]
@@ -500,8 +496,7 @@ impl Intersections
             Some(int) => int.insert_corner(identifier, corner),
             None =>
             {
-                self.0
-                    .push(Intersection::new(pos, hv_hash_map![(identifier, *corner)]));
+                self.0.push(Intersection::new(pos, hash_map![(identifier, *corner)]));
             }
         };
     }

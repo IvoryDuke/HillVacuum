@@ -30,7 +30,6 @@ use crate::{
         thing::{catalog::ThingsCatalog, ThingId, ThingInstanceData}
     },
     utils::{hull::Flip, identifiers::Id},
-    HvVec,
     Value
 };
 
@@ -132,15 +131,15 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     /// Vertex inserted.
     VertexInsertion((Vec2, u8)),
     /// Vertex deleted.
-    VertexesDeletion(HvVec<(Vec2, u8)>),
+    VertexesDeletion(Vec<(Vec2, u8)>),
     /// Vertexes moved.
-    VertexesMove(HvVec<VertexesMove>),
+    VertexesMove(Vec<VertexesMove>),
     /// Sides deleted.
-    SidesDeletion(HvVec<(Vec2, u8, bool)>),
+    SidesDeletion(Vec<(Vec2, u8, bool)>),
     /// Vertexes selected.
-    VertexesSelection(HvVec<u8>),
+    VertexesSelection(Vec<u8>),
     /// Vertexes snapped to grid.
-    VertexesSnap(HvVec<(HvVec<u8>, Vec2)>),
+    VertexesSnap(Vec<(Vec<u8>, Vec2)>),
     /// Polygons flipped.
     BrushFlip(Flip, bool),
     /// Path created.
@@ -148,15 +147,15 @@ pub(in crate::map::editor::state::edits_history) enum EditType
     /// Path deleted.
     PathDeletion(Option<Path>),
     /// Path nodes selection.
-    PathNodesSelection(HvVec<u8>),
+    PathNodesSelection(Vec<u8>),
     /// Path node inserion.
     PathNodeInsertion((Vec2, u8)),
     /// Path nodes move.
-    PathNodesMove(HvVec<NodesMove>),
+    PathNodesMove(Vec<NodesMove>),
     /// Path nodes deletion.
-    PathNodesDeletion(HvVec<(Vec2, u8)>),
+    PathNodesDeletion(Vec<(Vec2, u8)>),
     /// Path nodes grid snap.
-    PathNodesSnap(HvVec<(HvVec<u8>, Vec2)>),
+    PathNodesSnap(Vec<(Vec<u8>, Vec2)>),
     /// Changed path node standby time.
     PathNodeStandby(StandbyValueEdit),
     /// Changed path node acceleration percentage.
@@ -568,7 +567,7 @@ impl EditType
         drawing_resources: &DrawingResources,
         grid: &Grid,
         interface: &mut UndoRedoInterface,
-        identifiers: &HvVec<Id>
+        identifiers: &Vec<Id>
     ) -> bool
     {
         match self
@@ -791,7 +790,7 @@ impl EditType
         &mut self,
         things_catalog: &ThingsCatalog,
         interface: &mut UndoRedoInterface,
-        identifiers: &HvVec<Id>
+        identifiers: &Vec<Id>
     ) -> bool
     {
         match self
@@ -957,7 +956,7 @@ impl EditType
         drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,
         grid: &Grid,
-        identifiers: &HvVec<Id>,
+        identifiers: &[Id],
         key: Option<&String>
     ) -> bool
     {
@@ -989,7 +988,7 @@ impl EditType
         things_catalog: &ThingsCatalog,
         grid: &Grid,
         ui: &mut Ui,
-        identifiers: &HvVec<Id>,
+        identifiers: &Vec<Id>,
         property: Option<&String>
     )
     {
@@ -1288,7 +1287,7 @@ impl EditType
         things_catalog: &ThingsCatalog,
         grid: &Grid,
         ui: &mut Ui,
-        identifiers: &HvVec<Id>,
+        identifiers: &Vec<Id>,
         property: Option<&String>
     )
     {

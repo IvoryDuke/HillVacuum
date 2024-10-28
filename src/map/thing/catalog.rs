@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use bevy::math::UVec2;
+use bevy::{math::UVec2, utils::HashMap};
 use bevy_egui::egui;
 use configparser::ini::Ini;
 use hill_vacuum_shared::{continue_if_err, continue_if_none};
@@ -13,12 +13,7 @@ use hill_vacuum_shared::{continue_if_err, continue_if_none};
 use super::{HardcodedThings, Thing, ThingId};
 use crate::{
     map::{drawer::drawing_resources::DrawingResources, indexed_map::IndexedMap},
-    utils::{
-        collections::{hv_hash_map, hv_vec},
-        misc::TakeValue
-    },
-    HvHashMap,
-    HvVec
+    utils::misc::TakeValue
 };
 
 //=======================================================================//
@@ -42,7 +37,7 @@ pub(in crate::map) struct ChunkItem<'a>
 pub(in crate::map) struct ThingsCatalog
 {
     /// The [`Thing`]s that are hardcoded in the editor.
-    hardcoded_things: HvHashMap<ThingId, Thing>,
+    hardcoded_things: HashMap<ThingId, Thing>,
     /// All the loaded [`Thing`]s, both hardcoded and from files.
     things:           IndexedMap<ThingId, Thing>,
     /// The [`Thing`] selected in the UI gallery, if any.
@@ -57,8 +52,8 @@ impl Default for ThingsCatalog
     fn default() -> Self
     {
         Self {
-            hardcoded_things: hv_hash_map![],
-            things:           IndexedMap::new(hv_vec![], Thing::id),
+            hardcoded_things: HashMap::new(),
+            things:           IndexedMap::new(Vec::new(), Thing::id),
             selected_thing:   None,
             error:            Self::error_thing()
         }
@@ -77,7 +72,12 @@ impl ThingsCatalog
     #[inline]
     pub fn new(hardcoded_things: &mut HardcodedThings) -> Self
     {
-        let h_things = hv_hash_map![collect; hardcoded_things.0.take_value().into_iter().map(|thing| (thing.id(), thing))];
+        let h_things = hardcoded_things
+            .0
+            .take_value()
+            .into_iter()
+            .map(|thing| (thing.id(), thing))
+            .collect();
         let things = Self::loaded_things(&h_things);
         let selected_thing = (!things.is_empty()).then_some(0);
 
@@ -97,14 +97,14 @@ impl ThingsCatalog
     /// If a thing loaded from file has the same [`ThingId`] as an hardcoded one the latter will be
     /// overwritten. Things files are searched in the `assets/things/` folder.
     #[inline]
-    fn loaded_things(hardcoded_things: &HvHashMap<ThingId, Thing>) -> IndexedMap<ThingId, Thing>
+    fn loaded_things(hardcoded_things: &HashMap<ThingId, Thing>) -> IndexedMap<ThingId, Thing>
     {
         /// The directory where ini defined things are located.
         const THINGS_DIR: &str = "assets/things/";
 
         /// Gathers all ini files.
         #[inline]
-        fn recurse(path: &Path, inis: &mut HvVec<Ini>)
+        fn recurse(path: &Path, inis: &mut Vec<Ini>)
         {
             if path.is_file()
             {
@@ -125,10 +125,10 @@ impl ThingsCatalog
         }
 
         std::fs::create_dir_all(THINGS_DIR).ok();
-        let mut configs = hv_vec![];
+        let mut configs = Vec::new();
         recurse(Path::new(THINGS_DIR), &mut configs);
 
-        let mut things = hv_vec![collect; hardcoded_things.values().cloned()];
+        let mut things = hardcoded_things.values().cloned().collect::<Vec<_>>();
 
         for ini in configs
         {

@@ -3,6 +3,7 @@
 //
 //=======================================================================//
 
+use bevy::utils::HashSet;
 use hill_vacuum_shared::{return_if_none, NextValue};
 
 use super::{
@@ -29,11 +30,11 @@ use crate::{
         thing::catalog::ThingsCatalog
     },
     utils::{
-        collections::{hv_hash_set, Ids},
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         misc::{AssertedInsertRemove, ReplaceValues, TakeValue}
-    }
+    },
+    Ids
 };
 
 //=======================================================================//
@@ -127,8 +128,8 @@ impl SubtractTool
         ActiveTool::Subtract(SubtractTool {
             drag_selection:       drag_selection.into(),
             selector:             Selector::new(),
-            subtractees:          hv_hash_set![capacity; 4],
-            non_selected_brushes: hv_hash_set![]
+            subtractees:          HashSet::with_capacity(4),
+            non_selected_brushes: HashSet::new()
         })
     }
 
@@ -241,15 +242,13 @@ impl SubtractTool
                     None
                 },
                 |bundle, hull, subtractees| {
-                    let ids_in_range = hv_hash_set![
-                        collect;
-                        bundle
-                            .manager
-                            .brushes_in_range(hull)
-                            .iter()
-                            .filter_set(bundle.manager.selected_brushes_ids().next_value())
-                            .copied()
-                    ];
+                    let ids_in_range = bundle
+                        .manager
+                        .brushes_in_range(hull)
+                        .iter()
+                        .filter_set(bundle.manager.selected_brushes_ids().next_value())
+                        .copied()
+                        .collect::<HashSet<_>>();
 
                     if ids_in_range.is_empty()
                     {

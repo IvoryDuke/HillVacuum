@@ -28,12 +28,10 @@ use crate::{
         }
     },
     utils::{
-        collections::hv_vec,
         hull::{Hull, Side},
         identifiers::{EntityId, Id},
         misc::Camera
-    },
-    HvVec
+    }
 };
 
 //=======================================================================//
@@ -48,7 +46,7 @@ enum Status
     /// Shearing by keyboard.
     Keyboard,
     /// Shearing by cursor drag.
-    Drag(CursorDelta, Option<ShearInfo>, HvVec<(Id, ConvexPolygon)>)
+    Drag(CursorDelta, Option<ShearInfo>, Vec<(Id, ConvexPolygon)>)
 }
 
 //=======================================================================//
@@ -121,7 +119,7 @@ impl ShearTool
 
                 if let Some(delta) = inputs.directional_keys_delta()
                 {
-                    let mut backup_polygons = hv_vec![];
+                    let mut backup_polygons = Vec::new();
 
                     _ = return_if_none!(Self::shear_brushes(
                         bundle.drawing_resources,
@@ -189,7 +187,7 @@ impl ShearTool
 
     /// Pushes the edit to the [`EditsHistory`].
     #[inline]
-    fn push_edit(edits_history: &mut EditsHistory, backup_polygons: HvVec<(Id, ConvexPolygon)>)
+    fn push_edit(edits_history: &mut EditsHistory, backup_polygons: Vec<(Id, ConvexPolygon)>)
     {
         for (id, polygon) in backup_polygons
         {
@@ -208,14 +206,14 @@ impl ShearTool
         selected_side: Side,
         outline: &mut Hull,
         delta: Vec2,
-        backup_polygons: &mut HvVec<(Id, ConvexPolygon)>
+        backup_polygons: &mut Vec<(Id, ConvexPolygon)>
     ) -> Option<ShearInfo>
     {
         /// Shears the brushes according to the parameters.
         macro_rules! shear {
             ($xy:ident, $dimension:ident, $pivot:ident, $check:ident, $shear:ident) => {{
                 let info = ShearInfo::new(delta.$xy, outline.$dimension(), outline.$pivot());
-                let mut payloads = hv_vec![capacity; manager.selected_brushes_amount()];
+                let mut payloads = Vec::with_capacity(manager.selected_brushes_amount());
 
                 let valid = manager.test_operation_validity(|manager| {
                     manager.selected_brushes().find_map(|brush| {
@@ -238,13 +236,16 @@ impl ShearTool
 
                 if backup_polygons.is_empty()
                 {
-                    backup_polygons
-                        .extend(manager.selected_brushes().map(|brush| (brush.id(), brush.polygon())));
+                    backup_polygons.extend(
+                        manager.selected_brushes().map(|brush| (brush.id(), brush.polygon()))
+                    );
                 }
 
                 for payload in payloads.into_iter()
                 {
-                    manager.brush_mut(drawing_resources, grid, payload.id()).$shear(payload);
+                    manager
+                        .brush_mut(drawing_resources, grid, payload.id())
+                        .$shear(payload);
                 }
 
                 info
@@ -301,7 +302,7 @@ impl ShearTool
     fn check_shear_side_proximity(&mut self, cursor_pos: Vec2, camera_scale: f32)
     {
         self.selected_side = return_if_none!(self.outline.nearby_side(cursor_pos, camera_scale));
-        self.status = Status::Drag(CursorDelta::new(cursor_pos), None, hv_vec![]);
+        self.status = Status::Drag(CursorDelta::new(cursor_pos), None, Vec::new());
     }
 
     /// Returns the [`Hull`] describing the tool outline.

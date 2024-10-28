@@ -3,6 +3,7 @@
 //
 //=======================================================================//
 
+use bevy::utils::{HashMap, HashSet};
 use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_shared::{
@@ -56,15 +57,13 @@ use crate::{
         selectable_vector::VectorSelectionResult
     },
     utils::{
-        collections::{hv_hash_map, hv_hash_set, hv_vec, Ids},
         hull::Hull,
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::HashVec2,
         misc::{AssertedInsertRemove, Camera, TakeValue}
     },
-    HvHashMap,
-    HvVec
+    Ids
 };
 
 //=======================================================================//
@@ -81,7 +80,7 @@ enum Status
     /// Preparing for dragging vertexes.
     PreDrag(Vec2),
     /// Dragging vertexes.
-    Drag(CursorDelta, HvVec<(Id, HvVec<VertexesMove>)>),
+    Drag(CursorDelta, Vec<(Id, Vec<VertexesMove>)>),
     /// Inserting a new vertex.
     NewVertex
     {
@@ -139,7 +138,7 @@ struct BrushesWithSelectedVertexes
     /// The selected vertexes.
     selected_vxs:   SelectedVertexes,
     /// The [`Id`]s of the brushes that can be split.
-    splittable_ids: HvHashMap<Id, SplitPayload>,
+    splittable_ids: HashMap<Id, SplitPayload>,
     /// The [`Id`] of the brush that does not allow the split to occur.
     error_id:       Option<Id>
 }
@@ -151,9 +150,9 @@ impl BrushesWithSelectedVertexes
     fn new() -> Self
     {
         Self {
-            ids:            hv_hash_set![],
+            ids:            HashSet::new(),
             selected_vxs:   SelectedVertexes::default(),
-            splittable_ids: hv_hash_map![],
+            splittable_ids: HashMap::new(),
             error_id:       None
         }
     }
@@ -450,7 +449,7 @@ impl VertexTool
                         }
                         else if let Some(dir) = bundle.inputs.directional_keys_delta()
                         {
-                            let mut vxs_move = hv_vec![];
+                            let mut vxs_move = Vec::new();
 
                             if brushes_with_selected_vertexes.selected_vxs.any_selected_vx() &&
                                 Self::move_vertexes(bundle, dir, &mut vxs_move)
@@ -493,7 +492,7 @@ impl VertexTool
 
                 self.0 = Status::Drag(
                     return_if_none!(CursorDelta::try_new(bundle.cursor, bundle.grid, *pos), None),
-                    hv_vec![]
+                    Vec::new()
                 );
                 bundle.edits_history.start_multiframe_edit();
             },
@@ -651,7 +650,7 @@ impl VertexTool
                         None
                     );
 
-                    bundle.edits_history.vertexes_selection(brush.id(), hv_vec![idx]);
+                    bundle.edits_history.vertexes_selection(brush.id(), vec![idx]);
                     (vx_pos, selected).into()
                 }),
                 VertexesToggle::None
@@ -660,9 +659,7 @@ impl VertexTool
             bundle
                 .edits_history
                 .vertexes_selection_cluster(brushes.filter_map(|mut brush| {
-                    brush
-                        .toggle_vertex_at_pos(vx_pos)
-                        .map(|idx| (brush.id(), hv_vec![idx]))
+                    brush.toggle_vertex_at_pos(vx_pos).map(|idx| (brush.id(), vec![idx]))
                 }));
 
             return selected.into();
@@ -733,11 +730,11 @@ impl VertexTool
     fn move_vertexes(
         bundle: &mut ToolUpdateBundle,
         delta: Vec2,
-        cumulative_move: &mut HvVec<(Id, HvVec<VertexesMove>)>
+        cumulative_move: &mut Vec<(Id, Vec<VertexesMove>)>
     ) -> bool
     {
         // Evaluate if the move is valid for all vertexes/sides.
-        let mut move_payloads = hv_vec![];
+        let mut move_payloads = Vec::new();
 
         let valid = bundle.manager.test_operation_validity(|manager| {
             manager
@@ -763,7 +760,7 @@ impl VertexTool
 
         // Since everything went well confirm the move, store the vertexes and ids for
         // the overlap check.
-        let mut moved_vertexes = hv_hash_set![];
+        let mut moved_vertexes = HashSet::new();
 
         for payload in move_payloads
         {
@@ -797,11 +794,11 @@ impl VertexTool
                         mov.push(vx_move);
                     }
                 },
-                None => cumulative_move.push((id, hv_vec![vx_move]))
+                None => cumulative_move.push((id, vec![vx_move]))
             };
         }
 
-        let mut selections = hv_vec![];
+        let mut selections = Vec::new();
 
         for pos in moved_vertexes
         {
@@ -810,7 +807,7 @@ impl VertexTool
                     .manager
                     .selected_brushes_mut_at_pos(bundle.drawing_resources, bundle.grid, pos.0, None)
                     .filter_map(|mut brush| {
-                        brush.try_select_vertex(pos.0).map(|idx| (brush.id(), hv_vec![idx]))
+                        brush.try_select_vertex(pos.0).map(|idx| (brush.id(), vec![idx]))
                     })
             );
         }

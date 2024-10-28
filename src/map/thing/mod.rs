@@ -1,15 +1,18 @@
 #[cfg(feature = "ui")]
 pub(in crate::map) mod catalog;
+#[cfg(feature = "ui")]
+pub(in crate::map) mod compatibility;
 
 //=======================================================================//
 // IMPORTS
 //
 //=======================================================================//
 
+use bevy::utils::HashMap;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{HvHashMap, HvVec, Id, Node, Value};
+use crate::{Id, Node, Value};
 
 //=======================================================================//
 // STRUCTS
@@ -113,9 +116,9 @@ pub struct ThingViewer
     /// The position of the center.
     pub pos:        Vec2,
     /// The optional associated path.
-    pub path:       Option<HvVec<Node>>,
+    pub path:       Option<Vec<Node>>,
     /// The associated properties.
-    pub properties: HvHashMap<String, Value>
+    pub properties: HashMap<String, Value>
 }
 
 //=======================================================================//
@@ -131,7 +134,12 @@ pub mod ui_mod
     //
     //=======================================================================//
 
-    use bevy::{prelude::Resource, transform::components::Transform, window::Window};
+    use bevy::{
+        prelude::Resource,
+        transform::components::Transform,
+        utils::HashMap,
+        window::Window
+    };
     use bevy_egui::egui;
     use glam::Vec2;
     use hill_vacuum_shared::{match_or_panic, return_if_none};
@@ -168,8 +176,6 @@ pub mod ui_mod
             identifiers::{EntityCenter, EntityId},
             misc::{Camera, ReplaceValue, TakeValue}
         },
-        HvHashMap,
-        HvVec,
         Id,
         Node,
         ThingId,
@@ -215,8 +221,29 @@ pub mod ui_mod
     {
         pub thing_id:   ThingId,
         pub pos:        Vec2,
-        pub path:       Option<HvVec<Node>>,
-        pub properties: HvHashMap<String, Value>
+        pub path:       Option<Vec<Node>>,
+        pub properties: HashMap<String, Value>
+    }
+
+    impl From<super::compatibility::ThingInstanceDataViewer> for ThingInstanceDataViewer
+    {
+        #[inline]
+        fn from(value: super::compatibility::ThingInstanceDataViewer) -> Self
+        {
+            let super::compatibility::ThingInstanceDataViewer {
+                thing_id,
+                pos,
+                path,
+                properties
+            } = value;
+
+            Self {
+                thing_id,
+                pos,
+                path,
+                properties: properties.0
+            }
+        }
     }
 
     //=======================================================================//

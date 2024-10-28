@@ -37,7 +37,6 @@ use crate::{
         }
     },
     utils::{
-        collections::hv_vec,
         identifiers::{EntityId, Id},
         math::{
             angles::vectors_angle_cosine,
@@ -46,8 +45,7 @@ use crate::{
             FastNormalize
         },
         misc::{TakeValue, Toggle}
-    },
-    HvVec
+    }
 };
 
 //=======================================================================//
@@ -66,7 +64,7 @@ enum Status
     /// Moving the pivot through the UI.
     MovePivotUi,
     /// Dragging the mouse to rotate.
-    Drag(Vec2, HvVec<(Id, ConvexPolygon)>, f32)
+    Drag(Vec2, Vec<(Id, ConvexPolygon)>, f32)
 }
 
 impl Default for Status
@@ -326,7 +324,7 @@ impl RotateTool
                 }
                 else if bundle.inputs.left_mouse.just_pressed()
                 {
-                    self.status = Status::Drag(cursor_pos, hv_vec![], 0f32);
+                    self.status = Status::Drag(cursor_pos, Vec::new(), 0f32);
                 }
                 else if let Some(dir) = bundle.inputs.directional_keys_delta()
                 {
@@ -436,7 +434,7 @@ impl RotateTool
         }
         .rem_euclid(360f32);
 
-        let mut backup_polygons = hv_vec![];
+        let mut backup_polygons = Vec::new();
 
         settings.target_switch().edit_target(
             bundle,
@@ -477,13 +475,14 @@ impl RotateTool
     }
 
     #[inline]
+    #[must_use]
     fn check_textures_rotation(
         bundle: &mut ToolUpdateBundle,
         pivot: Vec2,
         angle: f32
-    ) -> Option<HvVec<TextureRotationPayload>>
+    ) -> Option<Vec<TextureRotationPayload>>
     {
-        let mut payloads = hv_vec![];
+        let mut payloads = Vec::new();
 
         let valid = bundle.manager.test_operation_validity(|manager| {
             manager
@@ -517,7 +516,7 @@ impl RotateTool
         pos: &mut Vec2,
         pivot: Vec2,
         cursor_pos: Vec2,
-        backup_polygons: &mut HvVec<(Id, ConvexPolygon)>,
+        backup_polygons: &mut Vec<(Id, ConvexPolygon)>,
         cumulative_angle: &mut f32
     )
     {
@@ -527,7 +526,7 @@ impl RotateTool
             bundle: &mut ToolUpdateBundle,
             pivot: Vec2,
             angle: f32,
-            backup_polygons: &mut HvVec<(Id, ConvexPolygon)>
+            backup_polygons: &mut Vec<(Id, ConvexPolygon)>
         ) -> bool
         {
             let payloads =
@@ -598,10 +597,10 @@ impl RotateTool
         pivot: Vec2,
         angle: f32,
         rotate_texture: bool,
-        backup_polygons: &mut HvVec<(Id, ConvexPolygon)>
+        backup_polygons: &mut Vec<(Id, ConvexPolygon)>
     ) -> bool
     {
-        let mut payloads = hv_vec![];
+        let mut payloads = Vec::new();
 
         let valid = bundle.manager.test_operation_validity(|manager| {
             manager

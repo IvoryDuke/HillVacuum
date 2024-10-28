@@ -14,11 +14,7 @@ use crate::{
         },
         path::MovementSimulator
     },
-    utils::{
-        collections::hv_box,
-        identifiers::{EntityId, Id}
-    },
-    HvVec
+    utils::identifiers::{EntityId, Id}
 };
 
 //=======================================================================//
@@ -32,7 +28,7 @@ pub(in crate::map::editor::state::core) struct MapPreviewTool
     /// The previously active tool.
     prev_tool: PreviousActiveTool,
     /// The movement simulators.
-    movement:  HvVec<MovementSimulator>,
+    movement:  Vec<MovementSimulator>,
     /// The texture animators.
     animators: Animators
 }
@@ -44,7 +40,7 @@ impl MapPreviewTool
     pub fn tool(bundle: &StateUpdateBundle, active_tool: &mut ActiveTool) -> ActiveTool
     {
         ActiveTool::MapPreview(MapPreviewTool {
-            prev_tool: hv_box!(std::mem::take(active_tool)),
+            prev_tool: Box::new(std::mem::take(active_tool)),
             movement:  bundle.manager.movement_simulators(),
             animators: bundle.manager.texture_animators(bundle)
         })

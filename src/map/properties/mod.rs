@@ -8,8 +8,6 @@ pub mod value;
 use serde::{Deserialize, Serialize};
 use value::Value;
 
-use crate::HvVec;
-
 //=======================================================================//
 // STRUCTS
 //
@@ -17,7 +15,7 @@ use crate::HvVec;
 
 #[must_use]
 #[derive(Serialize, Deserialize)]
-pub(in crate::map) struct DefaultPropertiesViewer(pub HvVec<(String, Value)>);
+pub(in crate::map) struct DefaultPropertiesViewer(pub Vec<(String, Value)>);
 
 //=======================================================================//
 // UI
@@ -32,7 +30,7 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
-    use bevy::prelude::Resource;
+    use bevy::{prelude::Resource, utils::HashMap};
     use hill_vacuum_shared::{return_if_none, NextValue};
 
     use super::DefaultPropertiesViewer;
@@ -44,12 +42,7 @@ pub(in crate::map) mod ui_mod
             properties::value::Value,
             Viewer
         },
-        utils::{
-            collections::{hv_hash_map, hv_vec},
-            misc::AssertedInsertRemove
-        },
-        HvHashMap,
-        HvVec
+        utils::misc::AssertedInsertRemove
     };
     #[allow(unused_imports)]
     use crate::{Brush, ThingInstance};
@@ -74,7 +67,7 @@ pub(in crate::map) mod ui_mod
             #[doc = concat!("The default properties associated with all ", $entities_str)]
             #[must_use]
             #[derive(Resource)]
-            pub(crate) struct [< $entity UserProperties >](pub std::collections::HashMap<&'static str, Value>);
+            pub(crate) struct [< $entity UserProperties >](pub HashMap<&'static str, Value>);
 
             //=======================================================================//
 
@@ -127,7 +120,7 @@ pub(in crate::map) mod ui_mod
                 fn generate_refactor(&self, file_default_properties: &Self::Inner)
                     -> PropertiesRefactor<'_, Self>
                 {
-                    let mut remove = hv_vec![];
+                    let mut remove = Vec::new();
 
                     for (k, v) in file_default_properties.iter()
                     {
@@ -137,7 +130,7 @@ pub(in crate::map) mod ui_mod
                         }
                     }
 
-                    let mut insert = hv_vec![];
+                    let mut insert = Vec::new();
 
                     for (k, v) in self.0.user.iter()
                     {
@@ -175,7 +168,7 @@ pub(in crate::map) mod ui_mod
                 {
                     Self {
                         user:      IndexedMap::default(),
-                        instance:  [< $entity Properties >]::from_parts(hv_hash_map![])
+                        instance:  [< $entity Properties >]::from_parts(HashMap::new())
                     }
                 }
             }
@@ -247,7 +240,7 @@ pub(in crate::map) mod ui_mod
                     I: IntoIterator<Item = (T, Value)>,
                     T: ToString
                 {
-                    let mut properties = hv_hash_map![];
+                    let mut properties = HashMap::new();
 
                     for (name, value) in values
                     {
@@ -256,11 +249,11 @@ pub(in crate::map) mod ui_mod
 
                     $(_ = properties.remove($property);)+
 
-                    let mut properties = hv_vec![collect; properties];
+                    let mut properties = properties.into_iter().collect::<Vec<_>>();
                     properties.sort_by(|a, b| a.0.cmp(&b.0));
 
-                    let mut values = hv_vec![];
-                    let mut keys = hv_vec![];
+                    let mut values = Vec::new();
+                    let mut keys = Vec::new();
 
                     for (k, v) in &properties
                     {
@@ -273,7 +266,7 @@ pub(in crate::map) mod ui_mod
 
                     Self {
                         user:      map,
-                        instance:  [< $entity Properties >]::from_parts(hv_hash_map![collect; properties])
+                        instance:  [< $entity Properties >]::from_parts(properties.into_iter().collect())
                     }
                 }
 
@@ -328,7 +321,7 @@ pub(in crate::map) mod ui_mod
             pub(in crate::map) struct [< $entity Properties >]
             {
                 $($property_name: Value,)+
-                user:   HvHashMap<String, Value>
+                user:   HashMap<String, Value>
             }
 
             impl Default for [< $entity Properties >]
@@ -338,7 +331,7 @@ pub(in crate::map) mod ui_mod
                 {
                     Self {
                         $($property_name: $default,)+
-                        user:  HvHashMap::default()
+                        user:  HashMap::default()
                     }
                 }
             }
@@ -365,7 +358,7 @@ pub(in crate::map) mod ui_mod
             impl [< $entity Properties >]
             {
                 #[inline]
-                pub fn from_parts(mut map: HvHashMap<String, Value>) -> Self
+                pub fn from_parts(mut map: HashMap<String, Value>) -> Self
                 {
                     Self {
                         $($property_name: map.remove($property).unwrap_or($default),)+
@@ -399,7 +392,7 @@ pub(in crate::map) mod ui_mod
 
                 /// Consumes `self` and returns the underlying hashmap of values.
                 #[inline]
-                pub fn take(self) -> HvHashMap<String, Value>
+                pub fn take(self) -> HashMap<String, Value>
                 {
                     let mut map = self.user;
                     $(map.asserted_insert(($property.to_string(), self.$property_name.clone()));)+
@@ -545,9 +538,9 @@ pub(in crate::map) mod ui_mod
         E: EngineDefaultProperties
     {
         /// The keys of the values to be removed.
-        remove:                    HvVec<String>,
+        remove:                    Vec<String>,
         /// The keys of the values inside `engine_default_properties` to be inserted.
-        insert:                    HvVec<&'a str>,
+        insert:                    Vec<&'a str>,
         /// A reference to the [`DefaultProperties`] upon which [`PropertiesRefactor`] is based.
         engine_default_properties: &'a E
     }
@@ -572,9 +565,7 @@ pub(in crate::map) mod ui_mod
         #[inline]
         fn to_viewer(self) -> Self::Item
         {
-            DefaultPropertiesViewer(
-                hv_vec![collect; self.iter().map(|(k, v)| (k.to_string(), v.clone()))]
-            )
+            DefaultPropertiesViewer(self.iter().map(|(k, v)| (k.to_string(), v.clone())).collect())
         }
     }
 }

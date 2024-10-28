@@ -3,6 +3,7 @@
 //
 //=======================================================================//
 
+use bevy::utils::{HashMap, HashSet};
 use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_shared::{match_or_panic, return_if_no_match, return_if_none};
@@ -25,6 +26,7 @@ use super::{
     VertexesToggle
 };
 use crate::{
+    hash_map,
     map::{
         brush::{
             convex_polygon::{
@@ -56,15 +58,13 @@ use crate::{
         }
     },
     utils::{
-        collections::{hv_hash_map, hv_hash_set, hv_vec, Ids},
         hull::Hull,
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::{lines_and_segments::closest_point_on_line, AroundEqual, HashVec2},
         misc::{Camera, TakeValue}
     },
-    HvHashMap,
-    HvVec
+    Ids
 };
 
 //=======================================================================//
@@ -122,17 +122,17 @@ impl XTrusionDrag
 enum XtrusionMode
 {
     /// Started.
-    Xtrusion(HvHashMap<Id, XtrusionPayload>),
+    Xtrusion(HashMap<Id, XtrusionPayload>),
     /// Intrusion.
     Intrusion
     {
         /// The intrusion info of the brushes.
-        payloads: HvHashMap<Id, XtrusionPayload>,
+        payloads: HashMap<Id, XtrusionPayload>,
         /// The generated polygons.
-        results:  HvVec<ClipResult>
+        results:  Vec<ClipResult>
     },
     /// Extrusion.
-    Extrusion(HvVec<(Id, XtrusionInfo, ConvexPolygon)>)
+    Extrusion(Vec<(Id, XtrusionInfo, ConvexPolygon)>)
 }
 
 //=======================================================================//
@@ -145,7 +145,7 @@ enum Status
     /// Preparing to drag sides.
     PreDrag(Vec2),
     /// Dragging sides.
-    Drag(CursorDelta, HvVec<(Id, HvVec<VertexesMove>)>),
+    Drag(CursorDelta, Vec<(Id, Vec<VertexesMove>)>),
     /// Xtruding.
     Xtrusion
     {
@@ -214,9 +214,9 @@ impl BrushesWithSelectedSides
     fn new() -> Self
     {
         Self {
-            ids:               hv_hash_set![],
+            ids:               HashSet::new(),
             selected_sides:    SelectedVertexes::default(),
-            one_selected_side: hv_hash_set![],
+            one_selected_side: HashSet::new(),
             error_id:          None
         }
     }
@@ -333,7 +333,7 @@ impl BrushesWithSelectedSides
             .find_map(|brush| brush.xtrusion_info(cursor_pos, camera_scale))?;
 
         let id = payload.id();
-        let mut payloads = hv_hash_map![(id, payload)];
+        let mut payloads = hash_map![(id, payload)];
 
         let valid = manager.test_operation_validity(|manager| {
             manager
@@ -493,7 +493,7 @@ impl SideTool
                             }
                             else if let Some(dir) = bundle.inputs.directional_keys_delta()
                             {
-                                let mut vxs_move = hv_vec![];
+                                let mut vxs_move = Vec::new();
 
                                 if brushes_with_selected_sides.selected_sides.any_selected_vx() &&
                                     Self::move_sides(bundle, dir, &mut vxs_move)
@@ -568,7 +568,7 @@ impl SideTool
 
                 self.status = Status::Drag(
                     return_if_none!(CursorDelta::try_new(bundle.cursor, bundle.grid, *pos)),
-                    hv_vec![]
+                    Vec::new()
                 );
                 bundle.edits_history.start_multiframe_edit();
             },
@@ -736,17 +736,17 @@ impl SideTool
                     None
                 );
 
-                bundle.edits_history.vertexes_selection(brush.id(), hv_vec![idx]);
+                bundle.edits_history.vertexes_selection(brush.id(), vec![idx]);
                 (side, selected).into()
             }),
             VertexesToggle::None
         );
 
-        bundle
-            .edits_history
-            .vertexes_selection_cluster(brushes.filter_map(|mut brush| {
-                brush.toggle_side(&side).map(|idx| (brush.id(), hv_vec![idx]))
-            }));
+        bundle.edits_history.vertexes_selection_cluster(
+            brushes.filter_map(|mut brush| {
+                brush.toggle_side(&side).map(|idx| (brush.id(), vec![idx]))
+            })
+        );
 
         selected.into()
     }
@@ -757,7 +757,7 @@ impl SideTool
     fn move_sides(
         bundle: &mut ToolUpdateBundle,
         delta: Vec2,
-        cumulative_move: &mut HvVec<(Id, HvVec<VertexesMove>)>
+        cumulative_move: &mut Vec<(Id, Vec<VertexesMove>)>
     ) -> bool
     {
         let ToolUpdateBundle {
@@ -768,7 +768,7 @@ impl SideTool
         } = bundle;
 
         // Evaluate if the move is valid for all vertexes/sides.
-        let mut move_payloads = hv_vec![];
+        let mut move_payloads = Vec::new();
 
         let valid = manager.test_operation_validity(|manager| {
             manager
@@ -794,7 +794,7 @@ impl SideTool
 
         // Since everything went well confirm the move, store the vertexes and ids for
         // the overlap check.
-        let mut moved_sides = hv_hash_set![];
+        let mut moved_sides = HashSet::new();
 
         for payload in move_payloads
         {
@@ -830,11 +830,11 @@ impl SideTool
                         mov.push(vx_move);
                     }
                 },
-                None => cumulative_move.push((id, hv_vec![vx_move]))
+                None => cumulative_move.push((id, vec![vx_move]))
             };
         }
 
-        let mut selections = hv_vec![];
+        let mut selections = Vec::new();
 
         for (vx_j, vx_i) in moved_sides
         {
@@ -846,7 +846,7 @@ impl SideTool
                         .filter_map(|mut brush| {
                             brush
                                 .try_select_side(&[vx_j.0, vx_i.0])
-                                .map(|idx| (brush.id(), hv_vec![idx]))
+                                .map(|idx| (brush.id(), vec![idx]))
                         })
                 );
             }
@@ -861,7 +861,7 @@ impl SideTool
     #[inline]
     fn delete_selected_sides(bundle: &mut ToolUpdateBundle)
     {
-        let mut payloads = hv_vec![];
+        let mut payloads = Vec::new();
         let valid = bundle.manager.test_operation_validity(|manager| {
             manager.selected_brushes().find_map(|brush| {
                 match brush.check_selected_sides_deletion()
@@ -917,11 +917,11 @@ impl SideTool
     #[must_use]
     fn intrusion_polygons(
         manager: &mut EntitiesManager,
-        payloads: &HvHashMap<Id, XtrusionPayload>,
+        payloads: &HashMap<Id, XtrusionPayload>,
         delta: Vec2
-    ) -> Option<HvVec<ClipResult>>
+    ) -> Option<Vec<ClipResult>>
     {
-        let mut polygons = hv_vec![capacity; payloads.len() * 2];
+        let mut polygons = Vec::with_capacity(payloads.len() * 2);
 
         let valid = manager.test_operation_validity(|manager| {
             payloads.iter().find_map(|(id, payload)| {
@@ -987,7 +987,7 @@ impl SideTool
                 else
                 {
                     // Extrusion.
-                    let mut polys = hv_vec![capacity; payloads.len()];
+                    let mut polys = Vec::with_capacity(payloads.len());
 
                     let valid = bundle.manager.test_operation_validity(|manager| {
                         // Generate the extrusion polygons.
@@ -1029,8 +1029,8 @@ impl SideTool
     #[inline]
     fn intrude_sides(
         bundle: &mut ToolUpdateBundle,
-        payloads: &HvHashMap<Id, XtrusionPayload>,
-        polygons: &mut HvVec<ClipResult>,
+        payloads: &HashMap<Id, XtrusionPayload>,
+        polygons: &mut Vec<ClipResult>,
         line: &[Vec2; 2],
         drag: &mut XTrusionDrag
     )
@@ -1046,7 +1046,7 @@ impl SideTool
     #[inline]
     fn extrude_sides(
         bundle: &mut ToolUpdateBundle,
-        polygons: &mut HvVec<(Id, XtrusionInfo, ConvexPolygon)>,
+        polygons: &mut [(Id, XtrusionInfo, ConvexPolygon)],
         line: &[Vec2; 2],
         drag: &mut XTrusionDrag
     )

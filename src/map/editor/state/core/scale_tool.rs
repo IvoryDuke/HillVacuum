@@ -33,13 +33,11 @@ use crate::{
         }
     },
     utils::{
-        collections::hv_vec,
         hull::{Corner, Flip, Hull, ScaleResult},
         identifiers::{EntityId, Id},
         math::AroundEqual,
         misc::{Camera, TakeValue}
     },
-    HvVec,
     TextureInterface
 };
 
@@ -59,16 +57,17 @@ macro_rules! scale_func {
         $(, $scale_texture:ident)?
     ) => {{
         #[inline]
+        #[must_use]
         fn scale<const CAP: usize>(
             bundle: &mut ToolUpdateBundle,
             flip_queue: &ArrayVec<Flip, CAP>,
             hull: &Hull,
             new_hull: &Hull
             $(, $scale_texture: bool)?
-        ) -> Option<HvVec<$ret>>
+        ) -> Option<Vec<$ret>>
         {
             let info = ScaleInfo::new(hull, new_hull, flip_queue)?;
-            let mut payloads = hv_vec![capacity; bundle.manager.selected_brushes_amount()];
+            let mut payloads = Vec::with_capacity(bundle.manager.selected_brushes_amount());
 
             let valid = bundle.manager.test_operation_validity(|manager| {
                 manager.selected_brushes_mut(bundle.drawing_resources, bundle.grid).find_map(|mut brush| {
@@ -130,7 +129,7 @@ macro_rules! common_scale_textures {
              grid,
              brush: &mut Brush,
              info,
-             payloads: &mut HvVec<TextureScalePayload>| {
+             payloads: &mut Vec<TextureScalePayload>| {
                 let id = brush.id();
 
                 match brush.check_texture_scale(drawing_resources, grid, info)
@@ -159,7 +158,7 @@ enum Status
     /// Scaling with the keyboard.
     Keyboard,
     /// Scaling with cursor drag.
-    Drag(HvVec<(Id, ConvexPolygon)>, Vec2, Hull)
+    Drag(Vec<(Id, ConvexPolygon)>, Vec2, Hull)
 }
 
 //=======================================================================//
@@ -240,7 +239,7 @@ impl ScaleTool
                     self.selected_corner = return_if_none!(self
                         .outline
                         .nearby_corner(cursor_pos, bundle.camera.scale()));
-                    self.status = Status::Drag(hv_vec![], cursor_pos, self.outline);
+                    self.status = Status::Drag(Vec::new(), cursor_pos, self.outline);
                 }
                 else if let Some(dir) = bundle.inputs.directional_keys_delta()
                 {
@@ -255,7 +254,7 @@ impl ScaleTool
                     hull: &mut Hull,
                     selected_corner: &mut Corner,
                     new_corner_position: Vec2,
-                    backup_polygons: &mut HvVec<(Id, ConvexPolygon)>
+                    backup_polygons: &mut Vec<(Id, ConvexPolygon)>
                 )
                 {
                     let (new_hull, payloads) =
@@ -366,7 +365,7 @@ impl ScaleTool
             bundle,
             (&mut self.outline, &mut self.selected_corner),
             |bundle, scale_texture, (outline, selected_corner)| {
-                let mut backup_polygons = hv_vec![];
+                let mut backup_polygons = Vec::new();
 
                 Self::scale_brushes(
                     bundle,
@@ -398,7 +397,7 @@ impl ScaleTool
         hull: &mut Hull,
         selected_corner: &mut Corner,
         new_corner_position: Vec2,
-        backup_polygons: &mut HvVec<(Id, ConvexPolygon)>,
+        backup_polygons: &mut Vec<(Id, ConvexPolygon)>,
         scale_texture: bool
     )
     {
@@ -412,7 +411,7 @@ impl ScaleTool
              grid,
              brush: &mut Brush,
              info,
-             payloads: &mut HvVec<ScalePayload>,
+             payloads: &mut Vec<ScalePayload>,
              scale_texture| {
                 use crate::map::brush::ScaleResult;
 

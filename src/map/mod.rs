@@ -17,20 +17,13 @@ pub mod thing;
 
 use std::{fs::File, io::BufReader, path::PathBuf};
 
+use bevy::utils::HashMap;
 use hill_vacuum_proc_macros::EnumIter;
 use hill_vacuum_shared::{continue_if_none, return_if_none, NextValue};
 use properties::DefaultPropertiesViewer;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    utils::{
-        collections::{hv_hash_map, hv_vec},
-        misc::AssertedInsertRemove
-    },
-    HvHashMap,
-    Id,
-    TextureInterface
-};
+use crate::{utils::misc::AssertedInsertRemove, Id, TextureInterface};
 #[allow(unused_imports)]
 use crate::{Brush, ThingInstance};
 
@@ -153,9 +146,9 @@ pub struct Exporter
     /// The skew angle of the grid.
     pub grid_skew:  i8,
     /// The [`Brush`]es inside the map.
-    pub brushes:    HvHashMap<Id, crate::Brush>,
+    pub brushes:    HashMap<Id, crate::Brush>,
     /// The [`ThingInstance`]s inside the map.
-    pub things:     HvHashMap<Id, crate::ThingInstance>
+    pub things:     HashMap<Id, crate::ThingInstance>
 }
 
 impl Exporter
@@ -211,7 +204,7 @@ impl Exporter
         // Brushes.
         steps.next_value().assert(FileStructure::Brushes);
 
-        let mut brushes = hv_vec![];
+        let mut brushes = Vec::new();
 
         for _ in 0..header.brushes
         {
@@ -240,7 +233,7 @@ impl Exporter
         // Things.
         steps.next_value().assert(FileStructure::Things);
 
-        let mut things = hv_hash_map![];
+        let mut things = HashMap::new();
 
         for _ in 0..header.things
         {
@@ -249,7 +242,7 @@ impl Exporter
             things.asserted_insert((thing.id, thing));
         }
 
-        let mut brushes_map = hv_hash_map![];
+        let mut brushes_map = HashMap::new();
 
         for brush in brushes
         {
@@ -374,7 +367,7 @@ pub(in crate::map) mod ui_mod
         8 * (PROP_CAMERAS_ROWS * (PROP_CAMERAS_ROWS + 1)) / 2;
     pub(in crate::map) const PREVIOUS_FILE_VERSION: &str = "0.9";
     // /// The string that is appended to the name of a converted `.hv` file.
-    // pub(in crate::map) const CONVERTED_FILE_APPENDIX: &str = "_010.hv";
+    pub(in crate::map) const CONVERTED_FILE_APPENDIX: &str = "_010.hv";
     /// The warning that is displayed when trying to convert a no longer supported `.hv` file.
     pub(in crate::map) const UPGRADE_WARNING: &str =
         "This file appears to use a no longer supported format, only files with version 0.9.0 are \

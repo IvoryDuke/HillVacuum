@@ -1,3 +1,5 @@
+#[cfg(feature = "ui")]
+pub(in crate::map) mod compatibility;
 pub(in crate::map) mod prop;
 
 //=======================================================================//
@@ -53,7 +55,6 @@ use crate::{
         camera::scale_viewport,
         drawer::{color::Color, drawing_resources::DrawingResources, TextureSize},
         editor::DrawBundle,
-        hv_vec,
         path::Path,
         thing::{catalog::ThingsCatalog, ThingInstanceData, ThingInstanceDataViewer},
         MapHeader,
@@ -65,8 +66,7 @@ use crate::{
         hull::Hull,
         identifiers::{EntityId, Id},
         misc::ReplaceValue
-    },
-    HvVec
+    }
 };
 
 //=======================================================================//
@@ -300,7 +300,7 @@ pub(in crate::map) struct Clipboard
     /// The quick prop created with the paint tool.
     quick_prop: Prop,
     /// The slotted [`Prop`]s.
-    props: HvVec<Prop>,
+    props: Vec<Prop>,
     /// The index of the [`Prop`] selected in the UI, if any.
     selected_prop: Option<usize>,
     /// The text copied from the UI fields.
@@ -312,7 +312,7 @@ pub(in crate::map) struct Clipboard
     /// The [`Prop`]s which have an assigned camera to take their screenshot.
     props_with_assigned_camera: ArrayVec<(PropScreenshotTimer, usize), PROP_CAMERAS_AMOUNT>,
     /// The [`Prop`]s with no assigned camera to take their screenshot.
-    props_with_no_camera: HvVec<usize>,
+    props_with_no_camera: Vec<usize>,
     /// The frames that must pass before the [`Prop`] screenshots can be taken.
     props_import_wait_frames: usize,
     /// The function used to run the frame update.
@@ -344,13 +344,13 @@ impl Clipboard
             copy_paste: Prop::default(),
             duplicate: Prop::default(),
             quick_prop: Prop::default(),
-            props: HvVec::new(),
+            props: Vec::new(),
             selected_prop: None,
             ui_text: String::new(),
             platform_path: None,
             props_changed: false,
             props_with_assigned_camera: ArrayVec::new(),
-            props_with_no_camera: hv_vec![],
+            props_with_no_camera: Vec::new(),
             props_import_wait_frames: Self::IMPORTS_WAIT_FRAMES,
             update_func: Self::delay_update
         }
@@ -373,13 +373,13 @@ impl Clipboard
             copy_paste: Prop::default(),
             duplicate: Prop::default(),
             quick_prop: Prop::default(),
-            props: HvVec::new(),
+            props: Vec::new(),
             selected_prop: None,
             ui_text: String::new(),
             platform_path: None,
             props_changed: false,
             props_with_assigned_camera: ArrayVec::new(),
-            props_with_no_camera: hv_vec![],
+            props_with_no_camera: Vec::new(),
             props_import_wait_frames: Self::IMPORTS_WAIT_FRAMES,
             update_func: Self::delay_update
         };
@@ -414,7 +414,7 @@ impl Clipboard
         file: &mut BufReader<File>
     ) -> Result<(), &'static str>
     {
-        let mut props = hv_vec![];
+        let mut props = Vec::new();
 
         for _ in 0..props_amount
         {

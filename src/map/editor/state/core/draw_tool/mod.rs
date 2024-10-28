@@ -5,6 +5,7 @@ pub(in crate::map::editor::state) mod cursor_polygon;
 //
 //=======================================================================//
 
+use bevy::utils::HashSet;
 use bevy_egui::egui::{self, Color32};
 use glam::Vec2;
 use hill_vacuum_shared::match_or_panic;
@@ -34,10 +35,10 @@ use crate::{
         AssertedInsertRemove
     },
     utils::{
-        collections::{hv_hash_set, Ids},
         identifiers::{EntityId, Id},
         misc::TakeValue
-    }
+    },
+    Ids
 };
 
 //=======================================================================//
@@ -105,7 +106,7 @@ impl Default for DrawTool
     fn default() -> Self
     {
         Self {
-            drawn_brushes: hv_hash_set![],
+            drawn_brushes: HashSet::new(),
             shape:         Shape::Square(SquareCursorPolygon::default())
         }
     }
@@ -169,7 +170,7 @@ impl DrawTool
     fn shape_tool(shape: Shape) -> ActiveTool
     {
         ActiveTool::Draw(Self {
-            drawn_brushes: hv_hash_set![],
+            drawn_brushes: HashSet::new(),
             shape
         })
     }

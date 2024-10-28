@@ -41,8 +41,7 @@ use crate::{
         thing::catalog::ThingsCatalog,
         Viewer
     },
-    utils::{collections::hv_vec, hull::Hull, identifiers::EntityId},
-    HvVec
+    utils::{hull::Hull, identifiers::EntityId}
 };
 
 //=======================================================================//
@@ -54,10 +53,31 @@ use crate::{
 #[derive(Serialize, Deserialize)]
 pub(in crate::map) struct PropViewer
 {
-    entities:         HvVec<ClipboardDataViewer>,
+    entities:         Vec<ClipboardDataViewer>,
     attached_brushes: Range<usize>,
     pivot:            Vec2,
     center:           Vec2
+}
+
+impl From<super::compatibility::PropViewer> for PropViewer
+{
+    #[inline]
+    fn from(value: super::compatibility::PropViewer) -> Self
+    {
+        let super::compatibility::PropViewer {
+            entities,
+            attached_brushes,
+            pivot,
+            center
+        } = value;
+
+        Self {
+            entities: entities.into_iter().map(ClipboardDataViewer::from).collect(),
+            attached_brushes,
+            pivot,
+            center
+        }
+    }
 }
 
 //=======================================================================//
@@ -68,7 +88,7 @@ pub(in crate::map) struct PropViewer
 pub(in crate::map) struct Prop
 {
     /// The entities in their [`ClipboardData`] representation.
-    entities: HvVec<ClipboardData>,
+    entities: Vec<ClipboardData>,
     /// The point used as reference for the spawn process.
     pivot: Vec2,
     /// The center of the area covered by the entities.
@@ -85,7 +105,7 @@ impl Default for Prop
     fn default() -> Self
     {
         Self {
-            entities:         hv_vec![],
+            entities:         Vec::new(),
             pivot:            Vec2::ZERO,
             center:           Vec2::ZERO,
             attached_brushes: 0..0,
@@ -109,7 +129,7 @@ impl Viewer for Prop
         } = value;
 
         Self {
-            entities: hv_vec![collect; entities.into_iter().map(ClipboardData::from_viewer)],
+            entities: entities.into_iter().map(ClipboardData::from_viewer).collect(),
             pivot,
             center,
             attached_brushes,
@@ -129,7 +149,7 @@ impl Viewer for Prop
         } = self;
 
         Self::Item {
-            entities: hv_vec![collect; entities.into_iter().map(ClipboardData::to_viewer)],
+            entities: entities.into_iter().map(ClipboardData::to_viewer).collect(),
             attached_brushes,
             pivot,
             center
@@ -301,13 +321,11 @@ impl Prop
             let attachments_len = attachments.len();
             assert!(attachments_len != 0, "Brush has no attachments.");
 
-            let to_remove = hv_vec![
-                collect;
-                attachments
-                    .iter()
-                    .copied()
-                    .filter(|id| !attached_brushes.iter().any(|item| item.id() == *id))
-            ];
+            let to_remove = attachments
+                .iter()
+                .copied()
+                .filter(|id| !attached_brushes.iter().any(|item| item.id() == *id))
+                .collect::<Vec<_>>();
             attached += attachments_len - to_remove.len();
 
             for id in to_remove

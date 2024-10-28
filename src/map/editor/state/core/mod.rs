@@ -66,11 +66,7 @@ use crate::{
         path::Path,
         thing::{catalog::ThingsCatalog, ThingId, ThingInstanceData}
     },
-    utils::{
-        collections::HvBox,
-        identifiers::{EntityId, Id}
-    },
-    HvVec,
+    utils::identifiers::{EntityId, Id},
     Value
 };
 
@@ -194,12 +190,12 @@ macro_rules! selected_vertexes {
     ($count:ident) => {
         /// A record of the selected brushes selected vertexes.
         #[must_use]
-        struct SelectedVertexes(crate::utils::collections::HvHashMap<Id, u8>, usize);
+        struct SelectedVertexes(bevy::utils::HashMap<Id, u8>, usize);
 
         impl Default for SelectedVertexes
         {
             #[inline]
-            fn default() -> Self { Self(crate::utils::collections::hv_hash_map![], 0) }
+            fn default() -> Self { Self(bevy::utils::HashMap::new(), 0) }
         }
 
         impl SelectedVertexes
@@ -299,7 +295,7 @@ impl From<bool> for VertexesToggle
 //=======================================================================//
 
 #[allow(clippy::missing_docs_in_private_items)]
-type PreviousActiveTool = HvBox<ActiveTool>;
+type PreviousActiveTool = Box<ActiveTool>;
 
 //=======================================================================//
 
@@ -1076,7 +1072,7 @@ fn draw_non_selected_brushes(bundle: &mut DrawBundle)
 //=======================================================================//
 
 #[inline]
-fn fill_backup_polygons(manager: &EntitiesManager, backup_polygons: &mut HvVec<(Id, ConvexPolygon)>)
+fn fill_backup_polygons(manager: &EntitiesManager, backup_polygons: &mut Vec<(Id, ConvexPolygon)>)
 {
     if backup_polygons.is_empty()
     {

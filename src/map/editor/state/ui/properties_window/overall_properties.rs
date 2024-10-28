@@ -21,10 +21,7 @@ use crate::{
         indexed_map::IndexedMap,
         properties::{DefaultProperties, Properties, SetProperty}
     },
-    utils::{
-        collections::hv_vec,
-        overall_value::{OverallValue, OverallValueInterface, OverallValueToUi, UiOverallValue}
-    },
+    utils::overall_value::{OverallValue, OverallValueInterface, OverallValueToUi, UiOverallValue},
     Value
 };
 
@@ -62,7 +59,7 @@ impl UiOverallProperties
     #[inline]
     pub fn new<D: DefaultProperties>(values: &D) -> Self
     {
-        let mut vec = hv_vec![capacity; values.len()];
+        let mut vec = Vec::with_capacity(values.len());
 
         for (k, d_v) in values.iter()
         {
@@ -71,8 +68,8 @@ impl UiOverallProperties
 
         vec.sort_by(|(a, _), (b, _)| a.cmp(b));
 
-        let mut values = hv_vec![capacity; vec.len()];
-        let mut keys = hv_vec![capacity; vec.len()];
+        let mut values = Vec::with_capacity(vec.len());
+        let mut keys = Vec::with_capacity(vec.len());
 
         for (k, (tag, value)) in vec
         {

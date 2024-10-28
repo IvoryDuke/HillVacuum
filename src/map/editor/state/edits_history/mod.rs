@@ -36,7 +36,6 @@ use crate::{
             }
         },
         editor::state::core::UndoRedoInterface,
-        hv_vec,
         path::{MovementValueEdit, NodesMove, Path, StandbyValueEdit},
         properties::value::Value,
         thing::{catalog::ThingsCatalog, ThingId, ThingInstanceData}
@@ -45,8 +44,7 @@ use crate::{
         hull::Flip,
         identifiers::{EntityId, Id},
         misc::TakeValue
-    },
-    HvVec
+    }
 };
 
 //=======================================================================//
@@ -114,14 +112,14 @@ macro_rules! push_with_amount_assertion {
 macro_rules! push_snap {
     ($(($func:ident, $edit:ident)),+) => { paste::paste! { $(
         #[inline]
-        pub(in crate::map::editor::state) fn [< $func _snap >](&mut self, identifier: Id, value: HvVec<(HvVec<u8>, Vec2)>)
+        pub(in crate::map::editor::state) fn [< $func _snap >](&mut self, identifier: Id, value: Vec<(Vec<u8>, Vec2)>)
         {
             let empty = value.is_empty();
             let edit = EditType::[< $edit Snap >](value);
 
             assert!(!empty, "Edit {edit:?} has no associated entities.");
 
-            self.push_onto_current_edit(hv_vec![identifier], edit);
+            self.push_onto_current_edit(vec![identifier], edit);
         }
 	)+}};
 }
@@ -134,7 +132,7 @@ macro_rules! default_animation {
         #[inline]
         pub(in crate::map::editor::state) fn [< default_animation $(_$func)? >](&mut self, $($arg: $t, )+)
         {
-            self.push_onto_current_edit(hv_vec![], $edit);
+            self.push_onto_current_edit(Vec::new(), $edit);
         }
 	)+}};
 }
@@ -186,7 +184,7 @@ macro_rules! purge {
 pub(in crate::map::editor) struct EditsHistory
 {
     /// The chronology of the edits.
-    stack: HvVec<Edit>,
+    stack: Vec<Edit>,
     /// The edit of the current frame, to be pushed onto the stack at the end of the current frame
     /// if it's not empty.
     current_edit: Edit,
@@ -213,7 +211,7 @@ impl Default for EditsHistory
     fn default() -> Self
     {
         Self {
-            stack: hv_vec![capacity; 100],
+            stack: Vec::with_capacity(100),
             current_edit: Edit::default(),
             multiframe_edit: false,
             index: 0,
@@ -233,73 +231,73 @@ impl EditsHistory
 
     #[rustfmt::skip]
     push_edit!(
-        (brush_draw, (identifier: Id), (hv_vec![identifier], EditType::DrawnBrush(None))),
-		(brush_spawn, (identifier: Id, selected: bool), (hv_vec![identifier], EditType::BrushSpawn(None, selected))),
-        (drawn_brush_despawn, (brush: Brush), (hv_vec![brush.id()], EditType::DrawnBrushDespawn(Some(brush.into_parts().0)))),
-        (polygon_edit, (identifier: Id, polygon: ConvexPolygon), (hv_vec![identifier], EditType::PolygonEdit(polygon))),
-        (path_creation, (identifier: Id), (hv_vec![identifier], EditType::PathCreation(None))),
-        (free_draw_point_insertion, (p: Vec2, index: u8), (hv_vec![], EditType::FreeDrawPointInsertion(p, index))),
-        (free_draw_point_deletion, (p: Vec2, index: u8), (hv_vec![], EditType::FreeDrawPointDeletion(p, index))),
-        (entity_selection, (identifier: Id), (hv_vec![identifier], EditType::EntitySelection)),
-        (entity_deselection, (identifier: Id), (hv_vec![identifier], EditType::EntityDeselection)),
-		(vertex_insertion, (brush: &Brush, vx: (Vec2, u8)), (hv_vec![brush.id()], EditType::VertexInsertion(vx))),
-		(vertexes_deletion, (identifier: Id, vxs: HvVec<(Vec2, u8)>), (hv_vec![identifier], EditType::VertexesDeletion(vxs))),
-        (sides_deletion, (identifier: Id, vxs: HvVec<(Vec2, u8, bool)>), (hv_vec![identifier], EditType::SidesDeletion(vxs))),
-        (subtractee_selection, (identifier: Id), (hv_vec![identifier], EditType::SubtracteeSelection)),
-        (subtractee_deselection, (identifier: Id), (hv_vec![identifier], EditType::SubtracteeDeselection)),
-        (vertexes_selection, (identifier: Id, idxs: HvVec<u8>), (hv_vec![identifier], EditType::VertexesSelection(idxs))),
-        (path_deletion, (identifier: Id, path: Path), (hv_vec![identifier], EditType::PathDeletion(Some(path)))),
-        (path_nodes_selection, (identifier: Id, idxs: HvVec<u8>), (hv_vec![identifier], EditType::PathNodesSelection(idxs))),
-        (path_node_insertion, (identifier: Id, pos: Vec2, index: u8), (hv_vec![identifier], EditType::PathNodeInsertion((pos, index)))),
-        (path_nodes_deletion, (identifier: Id, nodes: HvVec<(Vec2, u8)>), (hv_vec![identifier], EditType::PathNodesDeletion(nodes))),
-        (path_nodes_standby_time, (identifier: Id, edit: StandbyValueEdit), (hv_vec![identifier], EditType::PathNodeStandby(edit))),
-        (path_nodes_max_speed, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeMaxSpeed(edit))),
-        (path_nodes_min_speed, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeMinSpeed(edit))),
-        (path_nodes_accel_travel_percentage, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeAcceleration(edit))),
-        (path_nodes_decel_travel_percentage, (identifier: Id, edit: MovementValueEdit), (hv_vec![identifier], EditType::PathNodeDeceleration(edit))),
-        (attach, (identifier: Id, attachment: Id), (hv_vec![identifier], EditType::BrushAttachment(attachment))),
-        (detach, (identifier: Id, attachment: Id), (hv_vec![identifier], EditType::BrushDetachment(attachment))),
-        (thing_draw, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::DrawnThing(thing.into()))),
-        (drawn_thing_despawn, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::DrawnThingDespawn(thing.into()))),
-        (thing_spawn, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::ThingSpawn(thing.into()))),
-        (thing_despawn, (identifier: Id, thing: ThingInstanceData), (hv_vec![identifier], EditType::ThingDespawn(thing.into()))),
-        (thing_change, (identifier: Id, thing: ThingId), (hv_vec![identifier], EditType::ThingChange(thing))),
-        (texture, (identifier: Id, texture: Option<String>), (hv_vec![identifier], EditType::TextureChange(texture))),
-        (texture_removal, (identifier: Id, texture: TextureSettings), (hv_vec![identifier], EditType::TextureRemoval(Some(texture)))),
-        (texture_offset_x, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureOffsetX(value))),
-        (texture_offset_y, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureOffsetY(value))),
-        (texture_scroll_x, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureScrollX(value))),
-        (texture_scroll_y, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureScrollY(value))),
-        (texture_scale, (identifier: Id, value: TextureScale), (hv_vec![identifier], EditType::TextureScale(value))),
-        (texture_scale_x, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureScaleX(value))),
-        (texture_scale_y, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureScaleY(value))),
-        (texture_parallax_x, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureParallaxX(value))),
-        (texture_parallax_y, (identifier: Id, value: f32), (hv_vec![identifier], EditType::TextureParallaxY(value))),
-        (texture_angle, (identifier: Id, value: TextureRotation), (hv_vec![identifier], EditType::TextureRotation(value))),
-        (texture_rotation, (identifier: Id, value: TextureRotation), (hv_vec![identifier], EditType::TextureRotation(value))),
-        (texture_height, (identifier: Id, value: i8), (hv_vec![identifier], EditType::TextureHeight(value))),
-        (sprite, (identifier: Id, value: TextureSpriteSet), (hv_vec![identifier], EditType::SpriteToggle(value))),
-        (texture_reset, (identifier: Id, value: TextureReset), (hv_vec![identifier], EditType::TextureReset(value))),
-        (animation, (identifier: Id, animation: Animation), (hv_vec![identifier], EditType::AnimationChange(animation))),
-        (atlas_x, (identifier: Id, x: u32), (hv_vec![identifier], EditType::AtlasAnimationColumns(x))),
-        (atlas_y, (identifier: Id, y: u32), (hv_vec![identifier], EditType::AtlasAnimationRows(y))),
-        (atlas_len, (identifier: Id, len: usize), (hv_vec![identifier], EditType::AtlasAnimationLen(len))),
-        (atlas_timing, (identifier: Id, timing: Timing), (hv_vec![identifier], EditType::AtlasAnimationTiming(timing.into()))),
-        (atlas_uniform_time, (identifier: Id, time: f32), (hv_vec![identifier], EditType::AtlasAnimationUniformTime(time))),
-        (atlas_frame_time, (identifier: Id, value: (usize, f32)), (hv_vec![identifier], EditType::AtlasAnimationFrameTime(value.0, value.1)))
+        (brush_draw, (identifier: Id), (vec![identifier], EditType::DrawnBrush(None))),
+		(brush_spawn, (identifier: Id, selected: bool), (vec![identifier], EditType::BrushSpawn(None, selected))),
+        (drawn_brush_despawn, (brush: Brush), (vec![brush.id()], EditType::DrawnBrushDespawn(Some(brush.into_parts().0)))),
+        (polygon_edit, (identifier: Id, polygon: ConvexPolygon), (vec![identifier], EditType::PolygonEdit(polygon))),
+        (path_creation, (identifier: Id), (vec![identifier], EditType::PathCreation(None))),
+        (free_draw_point_insertion, (p: Vec2, index: u8), (Vec::new(), EditType::FreeDrawPointInsertion(p, index))),
+        (free_draw_point_deletion, (p: Vec2, index: u8), (Vec::new(), EditType::FreeDrawPointDeletion(p, index))),
+        (entity_selection, (identifier: Id), (vec![identifier], EditType::EntitySelection)),
+        (entity_deselection, (identifier: Id), (vec![identifier], EditType::EntityDeselection)),
+		(vertex_insertion, (brush: &Brush, vx: (Vec2, u8)), (vec![brush.id()], EditType::VertexInsertion(vx))),
+		(vertexes_deletion, (identifier: Id, vxs: Vec<(Vec2, u8)>), (vec![identifier], EditType::VertexesDeletion(vxs))),
+        (sides_deletion, (identifier: Id, vxs: Vec<(Vec2, u8, bool)>), (vec![identifier], EditType::SidesDeletion(vxs))),
+        (subtractee_selection, (identifier: Id), (vec![identifier], EditType::SubtracteeSelection)),
+        (subtractee_deselection, (identifier: Id), (vec![identifier], EditType::SubtracteeDeselection)),
+        (vertexes_selection, (identifier: Id, idxs: Vec<u8>), (vec![identifier], EditType::VertexesSelection(idxs))),
+        (path_deletion, (identifier: Id, path: Path), (vec![identifier], EditType::PathDeletion(Some(path)))),
+        (path_nodes_selection, (identifier: Id, idxs: Vec<u8>), (vec![identifier], EditType::PathNodesSelection(idxs))),
+        (path_node_insertion, (identifier: Id, pos: Vec2, index: u8), (vec![identifier], EditType::PathNodeInsertion((pos, index)))),
+        (path_nodes_deletion, (identifier: Id, nodes: Vec<(Vec2, u8)>), (vec![identifier], EditType::PathNodesDeletion(nodes))),
+        (path_nodes_standby_time, (identifier: Id, edit: StandbyValueEdit), (vec![identifier], EditType::PathNodeStandby(edit))),
+        (path_nodes_max_speed, (identifier: Id, edit: MovementValueEdit), (vec![identifier], EditType::PathNodeMaxSpeed(edit))),
+        (path_nodes_min_speed, (identifier: Id, edit: MovementValueEdit), (vec![identifier], EditType::PathNodeMinSpeed(edit))),
+        (path_nodes_accel_travel_percentage, (identifier: Id, edit: MovementValueEdit), (vec![identifier], EditType::PathNodeAcceleration(edit))),
+        (path_nodes_decel_travel_percentage, (identifier: Id, edit: MovementValueEdit), (vec![identifier], EditType::PathNodeDeceleration(edit))),
+        (attach, (identifier: Id, attachment: Id), (vec![identifier], EditType::BrushAttachment(attachment))),
+        (detach, (identifier: Id, attachment: Id), (vec![identifier], EditType::BrushDetachment(attachment))),
+        (thing_draw, (identifier: Id, thing: ThingInstanceData), (vec![identifier], EditType::DrawnThing(thing.into()))),
+        (drawn_thing_despawn, (identifier: Id, thing: ThingInstanceData), (vec![identifier], EditType::DrawnThingDespawn(thing.into()))),
+        (thing_spawn, (identifier: Id, thing: ThingInstanceData), (vec![identifier], EditType::ThingSpawn(thing.into()))),
+        (thing_despawn, (identifier: Id, thing: ThingInstanceData), (vec![identifier], EditType::ThingDespawn(thing.into()))),
+        (thing_change, (identifier: Id, thing: ThingId), (vec![identifier], EditType::ThingChange(thing))),
+        (texture, (identifier: Id, texture: Option<String>), (vec![identifier], EditType::TextureChange(texture))),
+        (texture_removal, (identifier: Id, texture: TextureSettings), (vec![identifier], EditType::TextureRemoval(Some(texture)))),
+        (texture_offset_x, (identifier: Id, value: f32), (vec![identifier], EditType::TextureOffsetX(value))),
+        (texture_offset_y, (identifier: Id, value: f32), (vec![identifier], EditType::TextureOffsetY(value))),
+        (texture_scroll_x, (identifier: Id, value: f32), (vec![identifier], EditType::TextureScrollX(value))),
+        (texture_scroll_y, (identifier: Id, value: f32), (vec![identifier], EditType::TextureScrollY(value))),
+        (texture_scale, (identifier: Id, value: TextureScale), (vec![identifier], EditType::TextureScale(value))),
+        (texture_scale_x, (identifier: Id, value: f32), (vec![identifier], EditType::TextureScaleX(value))),
+        (texture_scale_y, (identifier: Id, value: f32), (vec![identifier], EditType::TextureScaleY(value))),
+        (texture_parallax_x, (identifier: Id, value: f32), (vec![identifier], EditType::TextureParallaxX(value))),
+        (texture_parallax_y, (identifier: Id, value: f32), (vec![identifier], EditType::TextureParallaxY(value))),
+        (texture_angle, (identifier: Id, value: TextureRotation), (vec![identifier], EditType::TextureRotation(value))),
+        (texture_rotation, (identifier: Id, value: TextureRotation), (vec![identifier], EditType::TextureRotation(value))),
+        (texture_height, (identifier: Id, value: i8), (vec![identifier], EditType::TextureHeight(value))),
+        (sprite, (identifier: Id, value: TextureSpriteSet), (vec![identifier], EditType::SpriteToggle(value))),
+        (texture_reset, (identifier: Id, value: TextureReset), (vec![identifier], EditType::TextureReset(value))),
+        (animation, (identifier: Id, animation: Animation), (vec![identifier], EditType::AnimationChange(animation))),
+        (atlas_x, (identifier: Id, x: u32), (vec![identifier], EditType::AtlasAnimationColumns(x))),
+        (atlas_y, (identifier: Id, y: u32), (vec![identifier], EditType::AtlasAnimationRows(y))),
+        (atlas_len, (identifier: Id, len: usize), (vec![identifier], EditType::AtlasAnimationLen(len))),
+        (atlas_timing, (identifier: Id, timing: Timing), (vec![identifier], EditType::AtlasAnimationTiming(timing.into()))),
+        (atlas_uniform_time, (identifier: Id, time: f32), (vec![identifier], EditType::AtlasAnimationUniformTime(time))),
+        (atlas_frame_time, (identifier: Id, value: (usize, f32)), (vec![identifier], EditType::AtlasAnimationFrameTime(value.0, value.1)))
 	);
 
     #[rustfmt::skip]
     push_cluster!(
         (polygon_edit, ConvexPolygon),
-        (vertexes_selection, HvVec<u8>),
-        (path_nodes_deletion, HvVec<(Vec2, u8)>),
+        (vertexes_selection, Vec<u8>),
+        (path_nodes_deletion, Vec<(Vec2, u8)>),
         (path_nodes_standby_time, StandbyValueEdit),
         (path_nodes_max_speed, MovementValueEdit),
         (path_nodes_min_speed, MovementValueEdit),
         (path_nodes_accel_travel_percentage, MovementValueEdit),
         (path_nodes_decel_travel_percentage, MovementValueEdit),
-        (sides_deletion, HvVec<(Vec2, u8, bool)>),
+        (sides_deletion, Vec<(Vec2, u8, bool)>),
         (thing_change, ThingId),
         (texture, Option<String>),
         (texture_removal, TextureSettings),
@@ -369,7 +367,7 @@ impl EditsHistory
 
     /// Push a new sub-edits on the current [`Edit`].
     #[inline]
-    fn push_onto_current_edit(&mut self, identifiers: HvVec<Id>, edit: EditType)
+    fn push_onto_current_edit(&mut self, identifiers: Vec<Id>, edit: EditType)
     {
         if self.selections_only_edit_halted
         {
@@ -387,7 +385,7 @@ impl EditsHistory
         edit_type: EditType
     )
     {
-        let identifiers = hv_vec![collect; identifiers];
+        let identifiers = identifiers.into_iter().collect::<Vec<_>>();
         assert!(!identifiers.is_empty(), "Edit {edit_type:?} has no associated entities.");
         self.push_onto_current_edit(identifiers, edit_type);
     }
@@ -400,7 +398,7 @@ impl EditsHistory
         edit_type: EditType
     )
     {
-        let identifiers = hv_vec![collect; identifiers.into_iter().copied()];
+        let identifiers = identifiers.into_iter().copied().collect::<Vec<_>>();
 
         if identifiers.is_empty()
         {
@@ -415,14 +413,14 @@ impl EditsHistory
     pub(in crate::map::editor::state) fn brush_despawn(&mut self, brush: Brush, selected: bool)
     {
         let (data, id) = brush.into_parts();
-        self.push_onto_current_edit(hv_vec![id], EditType::BrushDespawn(Some(data), selected));
+        self.push_onto_current_edit(vec![id], EditType::BrushDespawn(Some(data), selected));
     }
 
     #[allow(clippy::missing_docs_in_private_items)]
     #[inline]
     pub(in crate::map::editor::state) fn vertexes_move(
         &mut self,
-        vxs_move: HvVec<(Id, HvVec<VertexesMove>)>
+        vxs_move: Vec<(Id, Vec<VertexesMove>)>
     )
     {
         if vxs_move.is_empty()
@@ -432,7 +430,7 @@ impl EditsHistory
 
         for (id, vx_move) in vxs_move
         {
-            self.push_onto_current_edit(hv_vec![id], EditType::VertexesMove(vx_move));
+            self.push_onto_current_edit(vec![id], EditType::VertexesMove(vx_move));
         }
     }
 
@@ -447,7 +445,7 @@ impl EditsHistory
     {
         if manager.any_selected_brushes()
         {
-            let identifiers = hv_vec![collect; manager.selected_brushes_ids().copied()];
+            let identifiers = manager.selected_brushes_ids().copied().collect::<Vec<_>>();
             assert!(!identifiers.is_empty(), "EditType::BrushMove has no associated entities.");
             self.push_onto_current_edit(identifiers, EditType::BrushMove(delta, move_texture));
         }
@@ -457,7 +455,7 @@ impl EditsHistory
             return;
         }
 
-        let identifiers = hv_vec![collect; manager.selected_things().map(EntityId::id)];
+        let identifiers = manager.selected_things().map(EntityId::id).collect::<Vec<_>>();
         assert!(!identifiers.is_empty(), "EditType::ThingMove has no associated entities.");
         self.push_onto_current_edit(identifiers, EditType::ThingMove(delta));
     }
@@ -466,7 +464,7 @@ impl EditsHistory
     #[inline]
     pub(in crate::map::editor::state) fn thing_move(&mut self, identifier: Id, delta: Vec2)
     {
-        self.push_onto_current_edit(hv_vec![identifier], EditType::ThingMove(delta));
+        self.push_onto_current_edit(vec![identifier], EditType::ThingMove(delta));
     }
 
     #[allow(clippy::missing_docs_in_private_items)]
@@ -477,7 +475,7 @@ impl EditsHistory
         delta: Vec2
     )
     {
-        let mut identifiers = hv_vec![];
+        let mut identifiers = Vec::new();
 
         for brush in manager.selected_textured_brushes()
         {
@@ -497,7 +495,7 @@ impl EditsHistory
     #[inline]
     pub(in crate::map::editor::state) fn path_nodes_move(
         &mut self,
-        nodes_move: HvVec<(Id, HvVec<NodesMove>)>
+        nodes_move: Vec<(Id, Vec<NodesMove>)>
     )
     {
         if nodes_move.is_empty()
@@ -507,7 +505,7 @@ impl EditsHistory
 
         for (id, node_move) in nodes_move
         {
-            self.push_onto_current_edit(hv_vec![id], EditType::PathNodesMove(node_move));
+            self.push_onto_current_edit(vec![id], EditType::PathNodesMove(node_move));
         }
     }
 
@@ -516,7 +514,7 @@ impl EditsHistory
     #[must_use]
     pub(in crate::map::editor::state) fn path_nodes_selection_cluster(
         &mut self,
-        iter: impl IntoIterator<Item = (Id, HvVec<u8>)>
+        iter: impl IntoIterator<Item = (Id, Vec<u8>)>
     ) -> bool
     {
         iter.into_iter().fold(false, |_, item| {

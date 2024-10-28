@@ -3,6 +3,7 @@
 //
 //=======================================================================//
 
+use bevy::utils::HashMap;
 use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_proc_macros::{EnumFromUsize, EnumSize};
@@ -31,8 +32,7 @@ use crate::{
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         misc::{next, prev, Camera, TakeValue}
-    },
-    HvHashMap
+    }
 };
 
 //=======================================================================//
@@ -43,7 +43,7 @@ use crate::{
 /// A macro to clip the selected brushes.
 macro_rules! clip_brushes {
     ($self:ident, $clip_line:expr, $iter:expr) => {
-        let mut results = crate::utils::collections::hv_hash_map![];
+        let mut results = bevy::utils::HashMap::new();
 
         // Until I figure out how to properly annotate the F lifetimes.
         for brush in $iter
@@ -109,7 +109,7 @@ enum Status
     {
         /// The polygons picked to spawn the brushes.
         pick:    PickedPolygons,
-        results: HvHashMap<Id, ClipResult>
+        results: HashMap<Id, ClipResult>
     },
     /// Choosing the side to clip the brushes.
     PickSideUi(Option<ClipSide>)

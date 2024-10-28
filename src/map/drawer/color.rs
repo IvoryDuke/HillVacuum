@@ -6,16 +6,16 @@
 use bevy::{
     asset::{Assets, Handle},
     color::{Alpha, Srgba},
-    sprite::ColorMaterial
+    sprite::ColorMaterial,
+    utils::HashMap
 };
 use bevy_egui::egui;
 use configparser::ini::Ini;
-use hashbrown::HashMap;
 use hill_vacuum_proc_macros::{color_enum, EnumFromUsize, EnumIter, EnumSize};
 use hill_vacuum_shared::{match_or_panic, return_if_none};
 
 use super::BevyColor;
-use crate::{config::IniConfig, utils::collections::hv_vec};
+use crate::config::IniConfig;
 
 //=======================================================================//
 // CONSTANTS
@@ -376,7 +376,7 @@ impl ColorResources
                     #[must_use]
                     fn parse(string: &str) -> Option<[f32; 3]>
                     {
-                        let mut vs = hv_vec![];
+                        let mut vs = Vec::new();
 
                         for v in string.split(',')
                         {

@@ -16,7 +16,7 @@ use crate::{
         drawer::color::Color,
         editor::{DrawBundle, ToolUpdateBundle}
     },
-    utils::{collections::hv_box, misc::Camera}
+    utils::misc::Camera
 };
 
 //=======================================================================//
@@ -47,7 +47,7 @@ impl ZoomTool
     {
         ActiveTool::Zoom(Self {
             drag_selection,
-            previous_active_tool: hv_box!(std::mem::take(active_tool))
+            previous_active_tool: Box::new(std::mem::take(active_tool))
         })
     }
 

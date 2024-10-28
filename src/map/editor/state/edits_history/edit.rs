@@ -8,12 +8,10 @@ use crate::{
     map::{
         drawer::drawing_resources::DrawingResources,
         editor::state::{core::UndoRedoInterface, grid::Grid, ui::Ui},
-        hv_vec,
         properties::value::Value,
         thing::catalog::ThingsCatalog
     },
-    utils::{identifiers::Id, misc::ReplaceValue},
-    HvVec
+    utils::{identifiers::Id, misc::ReplaceValue}
 };
 
 //=======================================================================//
@@ -24,7 +22,7 @@ use crate::{
 /// A map edit which can be undone and redone, and be made of multiple sub-edits.
 pub(in crate::map::editor::state::edits_history) struct Edit
 {
-    edits:    HvVec<(HvVec<Id>, EditType)>,
+    edits:    Vec<(Vec<Id>, EditType)>,
     property: Option<String>,
     tag:      String
 }
@@ -36,7 +34,7 @@ impl Default for Edit
     fn default() -> Self
     {
         Self {
-            edits:    hv_vec![],
+            edits:    Vec::new(),
             property: None,
             tag:      String::new()
         }
@@ -131,7 +129,7 @@ impl Edit
     /// # Panics
     /// Panics if `identifiers` has a an amount of elements that is not appropriate for `edit`.
     #[inline]
-    pub fn push(&mut self, identifiers: HvVec<Id>, edit: EditType)
+    pub fn push(&mut self, identifiers: Vec<Id>, edit: EditType)
     {
         let despawn = if matches!(
             edit,
@@ -218,7 +216,7 @@ impl Edit
 
         for (id, value) in iter
         {
-            self.edits.push((hv_vec![id], EditType::PropertyChange(value)));
+            self.edits.push((vec![id], EditType::PropertyChange(value)));
         }
     }
 

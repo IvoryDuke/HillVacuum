@@ -82,7 +82,6 @@ pub(in crate::map) mod ui_mod
 
     use super::SelectableVector;
     use crate::utils::{
-        collections::{hv_vec, HvVec},
         hull::Hull,
         misc::{NoneIfEmpty, Toggle}
     };
@@ -100,7 +99,7 @@ pub(in crate::map) mod ui_mod
         Selected,
         /// The vector was not selected, it was exclusively selected and n >= 0 other vectors were
         /// deselected.
-        NotSelected(Vec2, HvVec<u8>),
+        NotSelected(Vec2, Vec<u8>),
         /// Nothing occurred.
         None
     }
@@ -164,11 +163,12 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[inline]
-    pub(in crate::map) fn deselect_vectors<'a, I>(iter: I) -> Option<HvVec<u8>>
+    #[must_use]
+    pub(in crate::map) fn deselect_vectors<'a, I>(iter: I) -> Option<Vec<u8>>
     where
         I: Iterator<Item = (Vec2, &'a mut bool)>
     {
-        let mut idxs = hv_vec![];
+        let mut idxs = Vec::new();
 
         for (i, value) in iter.enumerate()
         {
@@ -185,11 +185,12 @@ pub(in crate::map) mod ui_mod
     //=======================================================================//
 
     #[inline]
-    pub(in crate::map) fn select_vectors_in_range<'a, I>(iter: I, range: &Hull) -> Option<HvVec<u8>>
+    #[must_use]
+    pub(in crate::map) fn select_vectors_in_range<'a, I>(iter: I, range: &Hull) -> Option<Vec<u8>>
     where
         I: Iterator<Item = (Vec2, &'a mut bool)>
     {
-        let mut idxs = hv_vec![];
+        let mut idxs = Vec::new();
 
         for (i, value) in iter.enumerate()
         {

@@ -35,12 +35,10 @@ use crate::{
         }
     },
     utils::{
-        collections::hv_vec,
         identifiers::EntityId,
         misc::Toggle,
         overall_value::{OverallValue, OverallValueInterface, OverallValueToUi, UiOverallValue}
-    },
-    HvVec
+    }
 };
 
 //=======================================================================//
@@ -604,7 +602,7 @@ impl Innards
         &mut self,
         ui: &mut egui::Ui,
         bundle: &mut UiBundle,
-        chunked_textures_container: &mut HvVec<&'static TextureMaterials>
+        chunked_textures_container: &mut Vec<&'static TextureMaterials>
     )
     {
         #[inline]
@@ -612,7 +610,7 @@ impl Innards
             ui: &mut egui::Ui,
             drawing_resources: &'a DrawingResources,
             textures_per_row: usize,
-            chunked_textures_container: &'a mut HvVec<&'static TextureMaterials>,
+            chunked_textures_container: &'a mut Vec<&'static TextureMaterials>,
             filter: Option<F>,
             mut click_func: G
         ) where
@@ -812,7 +810,7 @@ impl Innards
         &mut self,
         ui: &mut egui::Ui,
         bundle: &mut UiBundle,
-        chunked_textures_container: &mut HvVec<&'static TextureMaterials>
+        chunked_textures_container: &mut Vec<&'static TextureMaterials>
     )
     {
         const X_SPACING: f32 = 2f32;
@@ -1067,7 +1065,7 @@ pub(in crate::map::editor::state::ui) struct TextureEditor
     window:                     Window,
     /// The core of the editor.
     innards:                    Innards,
-    chunked_textures_container: HvVec<&'static TextureMaterials>
+    chunked_textures_container: Vec<&'static TextureMaterials>
 }
 
 impl Default for TextureEditor
@@ -1079,7 +1077,7 @@ impl Default for TextureEditor
         Self {
             window:                     Window::new(),
             innards:                    Innards::default(),
-            chunked_textures_container: hv_vec![]
+            chunked_textures_container: Vec::new()
         }
     }
 }

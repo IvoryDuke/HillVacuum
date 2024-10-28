@@ -1,4 +1,6 @@
 #[cfg(feature = "ui")]
+pub(in crate::map) mod compatibility;
+#[cfg(feature = "ui")]
 pub(in crate::map) mod convex_polygon;
 pub mod group;
 
@@ -7,10 +9,11 @@ pub mod group;
 //
 //=======================================================================//
 
+use bevy::utils::HashMap;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{Group, HvHashMap, HvVec, Id, TextureSettings, Value};
+use crate::{Group, Id, TextureSettings, Value};
 
 //=======================================================================//
 // STRUCTS
@@ -26,13 +29,13 @@ pub struct BrushViewer
     /// The [`Id`].
     pub id:         Id,
     /// The vertexes.
-    pub vertexes:   HvVec<Vec2>,
+    pub vertexes:   Vec<Vec2>,
     /// The texture.
     pub texture:    Option<TextureSettings>,
     /// The group of brushes this brush belong to.
     pub group:      Group,
     /// The associated properties.
-    pub properties: HvHashMap<String, Value>
+    pub properties: HashMap<String, Value>
 }
 
 //=======================================================================//
@@ -51,7 +54,7 @@ pub(in crate::map) mod ui_mod
     use std::borrow::Cow;
 
     use arrayvec::ArrayVec;
-    use bevy::{transform::components::Transform, window::Window};
+    use bevy::{transform::components::Transform, utils::HashMap, window::Window};
     use glam::Vec2;
     use hill_vacuum_shared::{match_or_panic, return_if_no_match, return_if_none};
     use serde::{Deserialize, Serialize};
@@ -107,7 +110,6 @@ pub(in crate::map) mod ui_mod
             Viewer
         },
         utils::{
-            collections::{hv_vec, Ids},
             hull::Hull,
             identifiers::{EntityCenter, EntityId},
             iterators::SlicePairIter,
@@ -115,9 +117,8 @@ pub(in crate::map) mod ui_mod
             misc::TakeValue
         },
         Animation,
-        HvHashMap,
-        HvVec,
         Id,
+        Ids,
         TextureSettings,
         Timing,
         Value
@@ -328,7 +329,7 @@ pub(in crate::map) mod ui_mod
     }
 
     #[must_use]
-    pub(in crate::map) struct SidesDeletionPayload(Id, HvVec<(Vec2, u8, bool)>);
+    pub(in crate::map) struct SidesDeletionPayload(Id, Vec<(Vec2, u8, bool)>);
 
     //=======================================================================//
 
@@ -367,7 +368,7 @@ pub(in crate::map) mod ui_mod
     }
 
     #[must_use]
-    pub(in crate::map) struct ScalePayload(Id, HvVec<Vec2>, Option<TextureScale>);
+    pub(in crate::map) struct ScalePayload(Id, Vec<Vec2>, Option<TextureScale>);
 
     //=======================================================================//
 
@@ -406,7 +407,7 @@ pub(in crate::map) mod ui_mod
     impl ShearResult
     {
         #[inline]
-        fn from_result(value: Option<(Vec2, HvVec<f32>)>, brush: &Brush) -> Self
+        fn from_result(value: Option<(Vec2, Vec<f32>)>, brush: &Brush) -> Self
         {
             match value
             {
@@ -425,7 +426,7 @@ pub(in crate::map) mod ui_mod
     }
 
     #[must_use]
-    pub(in crate::map) struct ShearPayload(Id, HvVec<f32>);
+    pub(in crate::map) struct ShearPayload(Id, Vec<f32>);
 
     //=======================================================================//
 
@@ -508,7 +509,7 @@ pub(in crate::map) mod ui_mod
     {
         pub id:    Id,
         pub main:  ConvexPolygon,
-        pub walls: HvVec<ConvexPolygon>
+        pub walls: Vec<ConvexPolygon>
     }
 
     //=======================================================================//
@@ -517,23 +518,44 @@ pub(in crate::map) mod ui_mod
     pub(in crate::map) struct ShatterResult
     {
         pub main:   ConvexPolygon,
-        pub shards: HvVec<ConvexPolygon>
+        pub shards: Vec<ConvexPolygon>
     }
 
     //=======================================================================//
 
     #[must_use]
-    pub(in crate::map) struct RotatePayload(Id, HvVec<Vec2>, Option<TextureRotation>);
+    pub(in crate::map) struct RotatePayload(Id, Vec<Vec2>, Option<TextureRotation>);
 
     //=======================================================================//
 
     #[derive(Serialize, Deserialize)]
     pub(in crate::map) struct BrushDataViewer
     {
-        vertexes:   HvVec<Vec2>,
+        vertexes:   Vec<Vec2>,
         texture:    Option<TextureSettings>,
         group:      GroupViewer,
-        properties: HvHashMap<String, Value>
+        properties: HashMap<String, Value>
+    }
+
+    impl From<super::compatibility::BrushDataViewer> for BrushDataViewer
+    {
+        #[inline]
+        fn from(value: super::compatibility::BrushDataViewer) -> Self
+        {
+            let super::compatibility::BrushDataViewer {
+                vertexes,
+                texture,
+                group,
+                properties
+            } = value;
+
+            Self {
+                vertexes,
+                texture,
+                group,
+                properties: properties.0
+            }
+        }
     }
 
     //=======================================================================//
@@ -587,7 +609,7 @@ pub(in crate::map) mod ui_mod
             } = self;
 
             Self::Item {
-                vertexes:   hv_vec![collect; polygon.vertexes()],
+                vertexes:   polygon.vertexes().collect(),
                 texture:    polygon.take_texture_settings(),
                 group:      group.to_viewer(),
                 properties: properties.take()
@@ -1197,30 +1219,30 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        fn snap<F>(&mut self, grid: &Grid, f: F) -> Option<HvVec<(HvVec<u8>, Vec2)>>
+        fn snap<F>(&mut self, grid: &Grid, f: F) -> Option<Vec<(Vec<u8>, Vec2)>>
         where
-            F: Fn(&mut ConvexPolygon, &Grid) -> Option<HvVec<(HvVec<u8>, Vec2)>>
+            F: Fn(&mut ConvexPolygon, &Grid) -> Option<Vec<(Vec<u8>, Vec2)>>
         {
             f(&mut self.data.polygon, grid)
         }
 
         #[inline]
         #[must_use]
-        pub fn snap_vertexes(&mut self, grid: &Grid) -> Option<HvVec<(HvVec<u8>, Vec2)>>
+        pub fn snap_vertexes(&mut self, grid: &Grid) -> Option<Vec<(Vec<u8>, Vec2)>>
         {
             self.snap(grid, ConvexPolygon::snap_vertexes)
         }
 
         #[inline]
         #[must_use]
-        pub fn snap_selected_vertexes(&mut self, grid: &Grid) -> Option<HvVec<(HvVec<u8>, Vec2)>>
+        pub fn snap_selected_vertexes(&mut self, grid: &Grid) -> Option<Vec<(Vec<u8>, Vec2)>>
         {
             self.snap(grid, ConvexPolygon::snap_selected_vertexes)
         }
 
         #[inline]
         #[must_use]
-        pub fn snap_selected_sides(&mut self, grid: &Grid) -> Option<HvVec<(HvVec<u8>, Vec2)>>
+        pub fn snap_selected_sides(&mut self, grid: &Grid) -> Option<Vec<(Vec<u8>, Vec2)>>
         {
             self.snap(grid, ConvexPolygon::snap_selected_sides)
         }
@@ -1307,7 +1329,7 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        pub fn take_mover(&mut self) -> Option<Group>
+        pub fn take_group(&mut self) -> Option<Group>
         {
             if matches!(self.data.group, Group::None)
             {
@@ -1864,28 +1886,28 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn try_exclusively_select_vertex(&mut self, pos: Vec2) -> Option<HvVec<u8>>
+        pub fn try_exclusively_select_vertex(&mut self, pos: Vec2) -> Option<Vec<u8>>
         {
             self.data.polygon.try_exclusively_select_vertex(pos)
         }
 
         #[inline]
         #[must_use]
-        pub fn select_vertexes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
+        pub fn select_vertexes_in_range(&mut self, range: &Hull) -> Option<Vec<u8>>
         {
             self.data.polygon.select_vertexes_in_range(range)
         }
 
         #[inline]
         #[must_use]
-        pub fn exclusively_select_vertexes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
+        pub fn exclusively_select_vertexes_in_range(&mut self, range: &Hull) -> Option<Vec<u8>>
         {
             self.data.polygon.exclusively_select_vertexes_in_range(range)
         }
 
         #[inline]
         #[must_use]
-        pub fn select_all_vertexes(&mut self) -> Option<HvVec<u8>>
+        pub fn select_all_vertexes(&mut self) -> Option<Vec<u8>>
         {
             self.data.polygon.select_all_vertexes()
         }
@@ -1917,7 +1939,7 @@ pub(in crate::map) mod ui_mod
         /// Deselects all `SelectableVertex` of the underlying `ConvexPolygon`.
         #[inline]
         #[must_use]
-        pub fn deselect_vertexes(&mut self) -> Option<HvVec<u8>>
+        pub fn deselect_vertexes(&mut self) -> Option<Vec<u8>>
         {
             self.data.polygon.deselect_vertexes()
         }
@@ -1986,7 +2008,8 @@ pub(in crate::map) mod ui_mod
         /// Tries to remove the selected `SelectableVertexes`, does nothing if the
         /// result `ConvexPolygon` would have less than 3 sides.
         #[inline]
-        pub fn delete_selected_vertexes(&mut self) -> Option<HvVec<(Vec2, u8)>>
+        #[must_use]
+        pub fn delete_selected_vertexes(&mut self) -> Option<Vec<(Vec2, u8)>>
         {
             self.data.polygon.delete_selected_vertexes()
         }
@@ -2133,7 +2156,7 @@ pub(in crate::map) mod ui_mod
         /// indexes of the sides whose selection has changed, if any.
         #[inline]
         #[must_use]
-        pub fn try_exclusively_select_side(&mut self, side: &[Vec2; 2]) -> Option<HvVec<u8>>
+        pub fn try_exclusively_select_side(&mut self, side: &[Vec2; 2]) -> Option<Vec<u8>>
         {
             self.data.polygon.try_exclusively_select_side(side)
         }
@@ -2142,7 +2165,7 @@ pub(in crate::map) mod ui_mod
         /// any.
         #[inline]
         #[must_use]
-        pub fn select_sides_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
+        pub fn select_sides_in_range(&mut self, range: &Hull) -> Option<Vec<u8>>
         {
             self.data.polygon.select_sides_in_range(range)
         }
@@ -2151,7 +2174,7 @@ pub(in crate::map) mod ui_mod
         /// selection has changed, if any.
         #[inline]
         #[must_use]
-        pub fn exclusively_select_sides_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>
+        pub fn exclusively_select_sides_in_range(&mut self, range: &Hull) -> Option<Vec<u8>>
         {
             self.data.polygon.exclusively_select_sides_in_range(range)
         }
@@ -2193,10 +2216,11 @@ pub(in crate::map) mod ui_mod
         /// Tries to remove the selected sides as long as the resulting
         /// `ConvexPolygon` has at least 3 sides.
         #[inline]
+        #[must_use]
         pub fn delete_selected_sides(
             &mut self,
             payload: SidesDeletionPayload
-        ) -> HvVec<(Vec2, u8, bool)>
+        ) -> Vec<(Vec2, u8, bool)>
         {
             assert!(
                 payload.id() == self.id,

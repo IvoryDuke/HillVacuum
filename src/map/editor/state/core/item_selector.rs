@@ -19,8 +19,7 @@ use crate::{
         },
         thing::catalog::ThingsCatalog
     },
-    utils::{collections::hv_vec, identifiers::EntityId, misc::next},
-    HvVec
+    utils::{identifiers::EntityId, misc::next}
 };
 
 //=======================================================================//
@@ -63,9 +62,9 @@ where
     T: EntityId + Copy + PartialEq
 {
     /// The selected items.
-    selected:     HvVec<T>,
+    selected:     Vec<T>,
     /// The non selected items.
-    non_selected: HvVec<T>
+    non_selected: Vec<T>
 }
 
 impl<T> Default for ItemsBeneathCursor<T>
@@ -77,8 +76,8 @@ where
     fn default() -> Self
     {
         Self {
-            selected:     hv_vec![],
-            non_selected: hv_vec![]
+            selected:     Vec::new(),
+            non_selected: Vec::new()
         }
     }
 }

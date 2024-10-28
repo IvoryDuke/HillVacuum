@@ -10,10 +10,6 @@ readme = "README.md"
 keywords = ["gamedev", "mapeditor", "bevy"]
 
 [features]
-arena_alloc = [
-    "dep:blink-alloc",
-    "hashbrown/nightly"
-]
 dynamic_linking = ["bevy/dynamic_linking"]
 ui = [
     "dep:bevy",
@@ -58,11 +54,6 @@ optional = true
 [dependencies.arrayvec]
 version = "0.7"
 
-[dependencies.blink-alloc]
-version = "0.3"
-features = ["nightly"]
-optional = true
-
 [dependencies.ciborium]
 version = "0.2"
 
@@ -78,10 +69,6 @@ optional = true
 [dependencies.glam]
 version = "0.27"
 features = ["serde"]
-
-[dependencies.hashbrown]
-version = "0.14"
-features = ["inline-more"]
 
 [dependencies.is_executable]
 version = "1.*"
@@ -102,7 +89,7 @@ version = "1.*"
 
 [dependencies.smallvec]
 version = "1.*"
-features = ["union"]
+features = ["union", "serde"]
 
 [dependencies.threadpool]
 version = "1.*"

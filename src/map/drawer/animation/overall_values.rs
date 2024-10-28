@@ -4,13 +4,7 @@
 //=======================================================================//
 
 use super::{Animation, Atlas, Timing};
-use crate::{
-    utils::{
-        collections::hv_vec,
-        overall_value::{OverallValue, OverallValueInterface, UiOverallValue}
-    },
-    HvVec
-};
+use crate::utils::overall_value::{OverallValue, OverallValueInterface, UiOverallValue};
 
 //=======================================================================//
 // ENUMS
@@ -30,7 +24,7 @@ pub(in crate::map) enum OverallTiming
     /// Uniform frame time.
     Uniform(OverallValue<f32>),
     /// Per frame time.
-    PerFrame(OverallValue<HvVec<f32>>)
+    PerFrame(OverallValue<Vec<f32>>)
 }
 
 impl From<&Timing> for OverallTiming
@@ -112,7 +106,7 @@ pub(in crate::map) enum UiOverallTiming
     /// Uniform frame time.
     Uniform(UiOverallValue<f32>),
     /// Per frame time.
-    PerFrame(HvVec<UiOverallValue<f32>>)
+    PerFrame(Vec<UiOverallValue<f32>>)
 }
 
 impl From<OverallTiming> for UiOverallTiming
@@ -130,15 +124,10 @@ impl From<OverallTiming> for UiOverallTiming
                 match vec
                 {
                     OverallValue::None => unreachable!(),
-                    OverallValue::NonUniform =>
-                    {
-                        Self::PerFrame(hv_vec![UiOverallValue::non_uniform()])
-                    },
+                    OverallValue::NonUniform => Self::PerFrame(vec![UiOverallValue::non_uniform()]),
                     OverallValue::Uniform(vec) =>
                     {
-                        Self::PerFrame(
-                            hv_vec![collect; vec.into_iter().map(std::convert::Into::into)]
-                        )
+                        Self::PerFrame(vec.into_iter().map(std::convert::Into::into).collect())
                     },
                 }
             },
@@ -161,7 +150,7 @@ pub(in crate::map) enum OverallAnimation
     /// Non uniform.
     NonUniform,
     /// [`List`] animation.
-    List(OverallValue<HvVec<(String, f32)>>),
+    List(OverallValue<Vec<(String, f32)>>),
     /// [`Atlas`] animation.
     Atlas(OverallAtlasAnimation)
 }
@@ -290,13 +279,13 @@ pub(in crate::map) enum UiOverallListAnimation
     /// Non uniform frames.
     NonUniform(UiOverallValue<String>),
     /// Uniform frames.
-    Uniform(HvVec<(UiOverallValue<String>, UiOverallValue<f32>)>, UiOverallValue<String>)
+    Uniform(Vec<(UiOverallValue<String>, UiOverallValue<f32>)>, UiOverallValue<String>)
 }
 
-impl From<OverallValue<HvVec<(String, f32)>>> for UiOverallListAnimation
+impl From<OverallValue<Vec<(String, f32)>>> for UiOverallListAnimation
 {
     #[inline]
-    fn from(value: OverallValue<HvVec<(String, f32)>>) -> Self
+    fn from(value: OverallValue<Vec<(String, f32)>>) -> Self
     {
         match value
         {
@@ -305,9 +294,9 @@ impl From<OverallValue<HvVec<(String, f32)>>> for UiOverallListAnimation
             OverallValue::Uniform(vec) =>
             {
                 Self::Uniform(
-                    hv_vec![collect; vec.into_iter().map(|(name, time)| {
-                        (name.into(), time.into())
-                    })],
+                    vec.into_iter()
+                        .map(|(name, time)| (name.into(), time.into()))
+                        .collect(),
                     UiOverallValue::non_uniform()
                 )
             },

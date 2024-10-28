@@ -3,7 +3,10 @@
 //
 //=======================================================================//
 
-use bevy::input::{keyboard::KeyCode, ButtonInput};
+use bevy::{
+    input::{keyboard::KeyCode, ButtonInput},
+    utils::HashSet
+};
 use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_proc_macros::{EnumFromUsize, EnumIter, EnumSize, SubToolEnum, ToolEnum};
@@ -55,13 +58,11 @@ use crate::{
         thing::catalog::ThingsCatalog
     },
     utils::{
-        collections::hv_vec,
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::{polygons::convex_hull, HashVec2},
         misc::FromToStr
-    },
-    HvHashSet
+    }
 };
 
 //=======================================================================//
@@ -1028,7 +1029,7 @@ impl ActiveTool
     #[inline]
     fn hollow_tool(bundle: &mut StateUpdateBundle)
     {
-        let mut wall_brushes = hv_vec![];
+        let mut wall_brushes = Vec::new();
         let valid = bundle.manager.test_operation_validity(|manager| {
             manager.selected_brushes().find_map(|brush| {
                 match brush.hollow(bundle.grid.size_f32())
@@ -1144,7 +1145,7 @@ impl ActiveTool
         sides: bool
     )
     {
-        let mut vertexes = HvHashSet::new();
+        let mut vertexes = HashSet::new();
 
         if sides
         {
@@ -1172,7 +1173,7 @@ impl ActiveTool
             drawing_resources,
             edits_history,
             grid,
-            ConvexPolygon::from(hv_vec![collect; vertexes]),
+            ConvexPolygon::from(vertexes.collect::<Vec<_>>()),
             brush_default_properties.instance()
         );
     }
@@ -1214,7 +1215,7 @@ impl ActiveTool
         }
 
         // Place all vertexes of the selected brushes in one vector.
-        let mut vertexes = HvHashSet::new();
+        let mut vertexes = HashSet::new();
         let mut brushes = bundle.manager.selected_brushes();
 
         let mut texture = {
@@ -1254,7 +1255,7 @@ impl ActiveTool
         }
 
         self.draw_tool_despawn(bundle, |bundle| {
-            let mut poly = ConvexPolygon::from(hv_vec![collect; convex_hull(vertexes).unwrap()]);
+            let mut poly = ConvexPolygon::from(convex_hull(vertexes).unwrap().collect::<Vec<_>>());
 
             if let Some(texture) = texture
             {

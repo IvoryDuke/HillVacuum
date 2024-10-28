@@ -29,7 +29,6 @@ use crate::{
         MAP_SIZE
     },
     utils::{
-        collections::{hv_vec, Ids},
         hull::{CircleIterator, Hull, TriangleOrientation},
         math::{
             points::{sort_vxs_ccw, vertexes_orientation, vxs_center, VertexesOrientation},
@@ -37,7 +36,7 @@ use crate::{
         },
         misc::{next, Camera, PointInsideUiHighlight, ReplaceValues, TakeValue}
     },
-    HvVec
+    Ids
 };
 
 //=======================================================================//
@@ -169,9 +168,9 @@ enum SpawnStatus
 enum DrawMode
 {
     /// Spawn on click.
-    Spawn(Hull, SpawnStatus, HvVec<Vec2>),
+    Spawn(Hull, SpawnStatus, Vec<Vec2>),
     /// Drag cursor and release to spawn.
-    Drag(Rect, HvVec<Vec2>)
+    Drag(Rect, Vec<Vec2>)
 }
 
 impl Default for DrawMode
@@ -184,7 +183,7 @@ impl Default for DrawMode
             Hull::new(MAP_SIZE, MAP_SIZE - 64f32, MAP_SIZE - 64f32, MAP_SIZE).unwrap(),
             SpawnStatus::MouseNotPressed,
             // Not very cool, only needed at startup.
-            hv_vec![Vec2::splat(MAP_HALF_SIZE); 4]
+            vec![Vec2::splat(MAP_HALF_SIZE); 4]
         )
     }
 }
@@ -196,7 +195,7 @@ impl DrawMode
     fn new<I: IntoIterator<Item = Vec2>, V: Fn(&Hull) -> I>(cursor: &Cursor, v: V) -> Self
     {
         let hull = cursor.grid_square();
-        Self::Spawn(*hull, SpawnStatus::MouseNotPressed, hv_vec![collect; v(hull)])
+        Self::Spawn(*hull, SpawnStatus::MouseNotPressed, v(hull).into_iter().collect())
     }
 
     /// The vertexes of the drawn shape, if any.
@@ -209,7 +208,7 @@ impl DrawMode
 
     /// Returns a mutable reference to the vector containing the vertexes of the drawn shape.
     #[inline]
-    fn shape_mut(&mut self) -> &mut HvVec<Vec2>
+    fn shape_mut(&mut self) -> &mut Vec<Vec2>
     {
         let (Self::Spawn(_, _, shape) | Self::Drag(_, shape)) = self;
         shape

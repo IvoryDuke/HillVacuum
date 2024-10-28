@@ -5,9 +5,8 @@
 
 use std::hash::Hash;
 
+use bevy::utils::HashMap;
 use serde::{Deserialize, Serialize};
-
-use crate::{HvHashMap, HvVec};
 
 //=======================================================================//
 // STRUCTS
@@ -23,9 +22,9 @@ where
     K: Hash + Eq
 {
     /// The ordered vector of values
-    vec: HvVec<T>,
+    vec: Vec<T>,
     /// The keys with the indexes of the associated values contained in `vec`.
-    map: HvHashMap<K, usize>
+    map: HashMap<K, usize>
 }
 
 //=======================================================================//
@@ -43,10 +42,9 @@ pub(in crate::map) mod ui_only
 
     use std::{hash::Hash, ops::Index, slice::Chunks};
 
-    use hashbrown::Equivalent;
+    use bevy::utils::{hashbrown::Equivalent, HashMap};
 
     use super::IndexedMap;
-    use crate::{utils::collections::hv_hash_map, HvHashMap, HvVec};
 
     //=======================================================================//
     // STRUCTS
@@ -61,8 +59,8 @@ pub(in crate::map) mod ui_only
         fn default() -> Self
         {
             Self {
-                vec: HvVec::default(),
-                map: HvHashMap::default()
+                vec: Vec::default(),
+                map: HashMap::default()
             }
         }
     }
@@ -86,9 +84,9 @@ pub(in crate::map) mod ui_only
 
         /// Creates a new [`IndexedMap`] from a vector of elements.
         #[inline]
-        pub fn new<F: FnMut(&T) -> K>(vec: HvVec<T>, mut f: F) -> Self
+        pub fn new<F: FnMut(&T) -> K>(vec: Vec<T>, mut f: F) -> Self
         {
-            let map = hv_hash_map![collect; vec.iter().enumerate().map(|(i, item)| (f(item), i))];
+            let map = vec.iter().enumerate().map(|(i, item)| (f(item), i)).collect();
             Self { vec, map }
         }
 

@@ -40,7 +40,6 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
-        hv_vec,
         path::{
             EditPath,
             IdNodesDeletionResult,
@@ -58,8 +57,7 @@ use crate::{
         identifiers::{EntityCenter, EntityId, Id},
         iterators::FilterSet,
         misc::{Camera, TakeValue, Toggle}
-    },
-    HvVec
+    }
 };
 
 //=======================================================================//
@@ -76,13 +74,13 @@ enum Status
     /// Preparing for dragging [`Node`]s.
     PreDrag(Vec2, Option<ItemBeneathCursor>),
     /// Dragging [`Node`]s.
-    Drag(CursorDelta, HvVec<(Id, HvVec<NodesMove>)>),
+    Drag(CursorDelta, Vec<(Id, Vec<NodesMove>)>),
     /// Editing an existing [`Path`].
     SingleEditing(Id, PathEditing),
     /// Attaching a [`Path`] to an entity.
     PathConnection(Option<Path>, Option<ItemBeneathCursor>),
     /// Simulating the entity movement.
-    Simulation(HvVec<MovementSimulator>, bool),
+    Simulation(Vec<MovementSimulator>, bool),
     /// Starting a [`Path`] free draw from the UI.
     FreeDrawUi(Option<Id>),
     /// Starting a [`Node`] insertion from the UI.
@@ -511,7 +509,7 @@ impl PathTool
                             else if let Some(dir) = bundle.inputs.directional_keys_delta()
                             {
                                 // Moving vertex with directional keys.
-                                let mut nodes_move = hv_vec![];
+                                let mut nodes_move = Vec::new();
                                 Self::move_nodes(bundle, dir, &mut nodes_move);
                                 bundle.edits_history.path_nodes_move(nodes_move);
                             }
@@ -610,7 +608,7 @@ impl PathTool
 
                 self.status = Status::Drag(
                     return_if_none!(CursorDelta::try_new(bundle.cursor, bundle.grid, *pos)),
-                    hv_vec![]
+                    Vec::new()
                 );
                 bundle.edits_history.start_multiframe_edit();
             },
@@ -795,7 +793,7 @@ impl PathTool
             .moving_mut(bundle.drawing_resources, bundle.things_catalog, bundle.grid, identifier)
             .toggle_path_node_at_index(usize::from(index));
         bundle.manager.schedule_overall_node_update();
-        bundle.edits_history.path_nodes_selection(identifier, hv_vec![index]);
+        bundle.edits_history.path_nodes_selection(identifier, vec![index]);
         selected
     }
 
@@ -847,10 +845,10 @@ impl PathTool
     fn move_nodes(
         bundle: &mut ToolUpdateBundle,
         delta: Vec2,
-        cumulative_move: &mut HvVec<(Id, HvVec<NodesMove>)>
+        cumulative_move: &mut Vec<(Id, Vec<NodesMove>)>
     ) -> bool
     {
-        let mut move_payloads = hv_vec![];
+        let mut move_payloads = Vec::new();
 
         for moving in bundle.manager.selected_moving()
         {
@@ -889,7 +887,7 @@ impl PathTool
                         mov.push(nodes_move);
                     }
                 },
-                None => cumulative_move.push((id, hv_vec![nodes_move]))
+                None => cumulative_move.push((id, vec![nodes_move]))
             };
         }
 
@@ -986,7 +984,7 @@ impl PathTool
         }
 
         // Delete all selected nodes if that's fine.
-        let mut payloads = hv_vec![];
+        let mut payloads = Vec::new();
 
         for moving in manager.selected_moving()
         {

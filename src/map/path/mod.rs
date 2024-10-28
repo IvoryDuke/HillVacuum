@@ -17,12 +17,17 @@ pub(in crate::map) mod ui_mod
 
     use std::{fmt::Write, iter::Enumerate};
 
-    use bevy::{transform::components::Transform, window::Window};
+    use bevy::{
+        transform::components::Transform,
+        utils::{HashMap, HashSet},
+        window::Window
+    };
     use bevy_egui::egui;
     use glam::Vec2;
     use hill_vacuum_shared::{continue_if_none, return_if_none, NextValue};
 
     use crate::{
+        hash_set,
         map::{
             drawer::{
                 color::Color,
@@ -50,7 +55,6 @@ pub(in crate::map) mod ui_mod
             TOOLTIP_OFFSET
         },
         utils::{
-            collections::{hv_hash_map, hv_hash_set, hv_vec, HvHashMap, HvHashSet, HvVec},
             hull::Hull,
             identifiers::{EntityCenter, EntityId},
             iterators::{FilterSet, PairIterator, SkipIndexIterator, TripletIterator},
@@ -259,7 +263,7 @@ pub(in crate::map) mod ui_mod
 
             #[inline]
             #[must_use]
-            fn deselect_path_nodes(&mut self) -> Option<crate::utils::collections::HvVec<u8>>
+            fn deselect_path_nodes(&mut self) -> Option<Vec<u8>>
             {
                 let center = self.center();
                 self.path_mut().deselect_nodes(center)
@@ -273,21 +277,21 @@ pub(in crate::map) mod ui_mod
 
             #[inline]
             #[must_use]
-            fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<crate::utils::collections::HvVec<u8>>
+            fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<Vec<u8>>
             {
                 let center = self.center();
                 self.path_mut().select_nodes_in_range(center, range)
             }
 
             #[inline]
-            fn select_all_path_nodes(&mut self) -> Option<crate::utils::collections::HvVec<u8>>
+            fn select_all_path_nodes(&mut self) -> Option<Vec<u8>>
             {
                 self.path_mut().select_all_nodes()
             }
 
             #[inline]
             #[must_use]
-            fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<crate::utils::collections::HvVec<u8>>
+            fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<Vec<u8>>
             {
                 let center = self.center();
                 self.path_mut().exclusively_select_nodes_in_range(center, range)
@@ -308,7 +312,7 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            fn insert_path_nodes_at_indexes(&mut self, nodes: &crate::utils::collections::HvVec<(Vec2, u8)>)
+            fn insert_path_nodes_at_indexes(&mut self, nodes: &[(Vec2, u8)])
             {
                 self.path_mut().insert_nodes_at_indexes(nodes);
             }
@@ -326,13 +330,13 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            fn move_path_nodes_at_indexes(&mut self, snap: &crate::utils::collections::HvVec<(crate::utils::collections::HvVec<u8>, Vec2)>)
+            fn move_path_nodes_at_indexes(&mut self, snap: &[(Vec<u8>, Vec2)])
             {
                 self.path_mut().move_nodes_at_indexes(snap);
             }
 
             #[inline]
-            fn remove_selected_path_nodes(&mut self, payload: crate::map::path::NodesDeletionPayload) -> crate::utils::collections::HvVec<(Vec2, u8)>
+            fn remove_selected_path_nodes(&mut self, payload: crate::map::path::NodesDeletionPayload) -> Vec<(Vec2, u8)>
             {
                 assert!(
                     self.id() == payload.id(),
@@ -361,7 +365,7 @@ pub(in crate::map) mod ui_mod
             fn snap_selected_path_nodes(
                 &mut self,
                 grid: &crate::map::editor::state::grid::Grid
-            ) -> Option<crate::utils::collections::HvVec<(crate::utils::collections::HvVec<u8>, Vec2)>>
+            ) -> Option<Vec<(Vec<u8>, Vec2)>>
             {
                 let center = self.center();
                 self.path_mut().snap_selected_nodes(grid, center)
@@ -580,7 +584,7 @@ pub(in crate::map) mod ui_mod
         /// # Panics
         /// Panics if the entity has no [`Path`].
         #[must_use]
-        fn deselect_path_nodes(&mut self) -> Option<HvVec<u8>>;
+        fn deselect_path_nodes(&mut self) -> Option<Vec<u8>>;
 
         /// Deselects the [`Nodes`] of the [`Path`].
         /// # Panics
@@ -592,19 +596,19 @@ pub(in crate::map) mod ui_mod
         /// # Panics
         /// Panics if the entity has no [`Path`].
         #[must_use]
-        fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>;
+        fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<Vec<u8>>;
 
         /// Selects all the [`Nodes`] of the [`Path`] and returns the indexes of the selected nodes.
         /// # Panics
         /// Panics if the entity has no [`Path`].
         #[must_use]
-        fn select_all_path_nodes(&mut self) -> Option<HvVec<u8>>;
+        fn select_all_path_nodes(&mut self) -> Option<Vec<u8>>;
 
         /// Exclusively the [`Nodes`] of the [`Path`] and returns the indexes of the deselected
         /// nodes. # Panics
         /// Panics if the entity has no [`Path`].
         #[must_use]
-        fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<HvVec<u8>>;
+        fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<Vec<u8>>;
 
         /// Tries to insert a [`Node`] with position `cursor_pos` at `index`, returns whether the
         /// operation was successful.
@@ -621,7 +625,7 @@ pub(in crate::map) mod ui_mod
         /// Inserts some [`Node`]s with certain position at a certain index in the [`Path`].
         /// # Panics
         /// Panics if the entity has no [`Path`] or the resulting path was invalid.
-        fn insert_path_nodes_at_indexes(&mut self, nodes: &HvVec<(Vec2, u8)>);
+        fn insert_path_nodes_at_indexes(&mut self, nodes: &[(Vec2, u8)]);
 
         /// Executes the [`Path`]'s [`Node`]s move described by `payload` and returns the wrapped
         /// [`NodesMove`].
@@ -651,16 +655,14 @@ pub(in crate::map) mod ui_mod
         /// Undoes a [`Path`] [`Node`]s snap.
         /// # Panics
         /// Panics if the entity has no [`Path`] or the resulting path was invalid.
-        fn move_path_nodes_at_indexes(&mut self, snap: &HvVec<(HvVec<u8>, Vec2)>);
+        fn move_path_nodes_at_indexes(&mut self, snap: &[(Vec<u8>, Vec2)]);
 
         /// Removes the selected [`Path`] [`Node`]s as described by `payload` and returns the list
         /// of removed indexes and positions.
         /// # Panics
         /// Panics if the entity has no [`Path`] or the resulting path was invalid.
-        fn remove_selected_path_nodes(
-            &mut self,
-            payload: NodesDeletionPayload
-        ) -> HvVec<(Vec2, u8)>;
+        #[must_use]
+        fn remove_selected_path_nodes(&mut self, payload: NodesDeletionPayload) -> Vec<(Vec2, u8)>;
 
         /// Redoes the [`Path`]'s [`Node`] at `index`.
         /// # Panics
@@ -676,7 +678,7 @@ pub(in crate::map) mod ui_mod
         /// # Panics
         /// Panics if the entity has no [`Path`] or the resulting path was invalid.
         #[must_use]
-        fn snap_selected_path_nodes(&mut self, grid: &Grid) -> Option<HvVec<(HvVec<u8>, Vec2)>>;
+        fn snap_selected_path_nodes(&mut self, grid: &Grid) -> Option<Vec<(Vec<u8>, Vec2)>>;
 
         /// Sets the standby time of the selected [`Path`]'s [`Node`]s to `value`, returns a
         /// [`StandbyValueEdit`] describing the outcome.
@@ -849,9 +851,9 @@ pub(in crate::map) mod ui_mod
     pub(in crate::map) struct NodesMove
     {
         /// The indexes of the moved nodes.
-        moved:  HvVec<u8>,
+        moved:  Vec<u8>,
         /// The indexes of the nodes that were merged.
-        merged: HvVec<(Vec2, u8)>,
+        merged: Vec<(Vec2, u8)>,
         /// The distance the nodes were moved.
         delta:  Vec2
     }
@@ -889,7 +891,7 @@ pub(in crate::map) mod ui_mod
         Selected,
         /// The node beneath the cursor was not previously selected, it was exclusively selected,
         /// and the vertexes at indexes were deselected.
-        NotSelected(HvVec<u8>)
+        NotSelected(Vec<u8>)
     }
 
     //=======================================================================//
@@ -903,7 +905,7 @@ pub(in crate::map) mod ui_mod
         /// Deleting the nodes creates an invalid [`Path`].
         Invalid,
         /// The deletion is valid, contains the positions and indexes of the deleted nodes.
-        Valid(HvVec<(Vec2, u8)>)
+        Valid(Vec<(Vec2, u8)>)
     }
 
     //=======================================================================//
@@ -939,7 +941,7 @@ pub(in crate::map) mod ui_mod
 
     /// The struct describing which nodes of the [`Path`] of an entity should be removed.
     #[must_use]
-    pub(in crate::map) struct NodesDeletionPayload(Id, HvVec<(Vec2, u8)>);
+    pub(in crate::map) struct NodesDeletionPayload(Id, Vec<(Vec2, u8)>);
 
     impl EntityId for NodesDeletionPayload
     {
@@ -954,7 +956,8 @@ pub(in crate::map) mod ui_mod
     {
         /// Consumes `self` and returns the underlying data.
         #[inline]
-        pub fn payload(self) -> HvVec<(Vec2, u8)> { self.1 }
+        #[must_use]
+        pub fn payload(self) -> Vec<(Vec2, u8)> { self.1 }
     }
 
     //=======================================================================//
@@ -993,7 +996,7 @@ pub(in crate::map) mod ui_mod
     /// A struct containing the values of the standby time of the selected [`Node`]s of a [`Path`]
     /// before they were changed.
     #[must_use]
-    pub(in crate::map) struct StandbyValueEdit(HvHashMap<HashF32, HvHashSet<usize>>);
+    pub(in crate::map) struct StandbyValueEdit(HashMap<HashF32, HashSet<usize>>);
 
     impl NoneIfEmpty for StandbyValueEdit
     {
@@ -1010,7 +1013,7 @@ pub(in crate::map) mod ui_mod
     {
         /// Returns a new [`StandbyValueEdit`].
         #[inline]
-        fn new() -> Self { Self(hv_hash_map![]) }
+        fn new() -> Self { Self(HashMap::new()) }
 
         /// Inserts the standby time of the [`Node`] of a [`Path`] at index [`index`].
         #[inline]
@@ -1020,8 +1023,8 @@ pub(in crate::map) mod ui_mod
 
             match self.0.get_mut(&value)
             {
-                Some(vec) => vec.asserted_insert(index),
-                None => self.0.asserted_insert((value, hv_hash_set![index]))
+                Some(set) => set.asserted_insert(index),
+                None => self.0.asserted_insert((value, hash_set![index]))
             };
         }
     }
@@ -1031,7 +1034,7 @@ pub(in crate::map) mod ui_mod
     /// A struct containing the values of the edited movement value and its opposite of the selected
     /// [`Node`]s of a [`Path`] before they were changed.
     #[must_use]
-    pub(in crate::map) struct MovementValueEdit(HvHashMap<HashVec2, HvHashSet<usize>>);
+    pub(in crate::map) struct MovementValueEdit(HashMap<HashVec2, HashSet<usize>>);
 
     impl NoneIfEmpty for MovementValueEdit
     {
@@ -1048,7 +1051,7 @@ pub(in crate::map) mod ui_mod
     {
         /// Returns a new [`MovementValueEdit`].
         #[inline]
-        fn new() -> Self { Self(hv_hash_map![]) }
+        fn new() -> Self { Self(HashMap::new()) }
 
         /// Inserts the values of the [`Node`] at `index` before the edit.
         #[inline]
@@ -1059,7 +1062,7 @@ pub(in crate::map) mod ui_mod
             match self.0.get_mut(&value)
             {
                 Some(vec) => vec.asserted_insert(index),
-                None => self.0.asserted_insert((value, hv_hash_set![index]))
+                None => self.0.asserted_insert((value, hash_set![index]))
             };
         }
     }
@@ -1518,11 +1521,11 @@ pub(in crate::map) mod ui_mod
         /// Returns the indexes of the [`Node`]s at `pos`, if any.
         #[inline]
         #[must_use]
-        pub fn get(&self, pos: Vec2) -> Option<&HvVec<usize>> { self.0.get(&HashVec2(pos)) }
+        pub fn get(&self, pos: Vec2) -> Option<&Vec<usize>> { self.0.get(&HashVec2(pos)) }
 
         /// Returns an iterator to the grouped [`Node`]s.
         #[inline]
-        pub fn iter(&self) -> impl Iterator<Item = (&HashVec2, &HvVec<usize>)> { self.0.iter() }
+        pub fn iter(&self) -> impl Iterator<Item = (&HashVec2, &Vec<usize>)> { self.0.iter() }
 
         /// Returns the position of the bucket containing `index`.
         /// # Panics
@@ -1581,7 +1584,7 @@ pub(in crate::map) mod ui_mod
     pub struct Path
     {
         /// The [`Node`]s describing the travel.
-        nodes:   HvVec<Node>,
+        nodes:   Vec<Node>,
         /// The [`Hull`] describing the area encompassing the path and the center of the owning
         /// entity.
         hull:    Hull,
@@ -1617,12 +1620,12 @@ pub(in crate::map) mod ui_mod
             }
 
             let path = Self {
-                nodes: hv_vec![collect; value.into_iter().copied()],
+                nodes: value.into_iter().copied().collect(),
                 hull,
                 buckets
             };
 
-            assert!(path.valid(), "From<HvVec<Node>> generated an invalid Path.");
+            assert!(path.valid(), "From<Vec<Node>> generated an invalid Path.");
 
             path
         }
@@ -1630,17 +1633,20 @@ pub(in crate::map) mod ui_mod
 
     impl Viewer for Path
     {
-        type Item = HvVec<NodeViewer>;
+        type Item = Vec<NodeViewer>;
 
         #[inline]
         fn from_viewer(value: Self::Item) -> Self
         {
-            let nodes = hv_vec![collect; value.into_iter().map(|node| {
-                Node {
-                    selectable_vector: SelectableVector::new(node.pos),
-                    movement:          node.movement
-                }
-            })];
+            let nodes = value
+                .into_iter()
+                .map(|node| {
+                    Node {
+                        selectable_vector: SelectableVector::new(node.pos),
+                        movement:          node.movement
+                    }
+                })
+                .collect::<Vec<_>>();
             let hull = Path::nodes_hull(nodes.iter());
             let mut buckets = Buckets::new();
 
@@ -1660,12 +1666,15 @@ pub(in crate::map) mod ui_mod
         #[must_use]
         fn to_viewer(self) -> Self::Item
         {
-            hv_vec![collect; self.nodes.into_iter().map(|node| {
-                NodeViewer {
-                    pos:      node.pos(),
-                    movement: node.movement
-                }
-            })]
+            self.nodes
+                .into_iter()
+                .map(|node| {
+                    NodeViewer {
+                        pos:      node.pos(),
+                        movement: node.movement
+                    }
+                })
+                .collect()
         }
     }
 
@@ -1708,7 +1717,7 @@ pub(in crate::map) mod ui_mod
             buckets.insert(1, node_1.pos());
 
             Self {
-                nodes: hv_vec![node_0, node_1],
+                nodes: vec![node_0, node_1],
                 hull,
                 buckets
             }
@@ -1729,7 +1738,7 @@ pub(in crate::map) mod ui_mod
 
         /// Returns a reference to the vector containing the [`Node`]s of the path.
         #[inline]
-        pub const fn nodes(&self) -> &HvVec<Node> { &self.nodes }
+        pub const fn nodes(&self) -> &Vec<Node> { &self.nodes }
 
         /// Returns an instance of [`NodesWorld`] representing the [`Node`]s in world coordinates.
         #[inline]
@@ -1784,17 +1793,17 @@ pub(in crate::map) mod ui_mod
 
         /// Returns the indexes of the selected [`Node`]s.
         #[inline]
-        pub(in crate::map) fn selected_nodes(&self) -> Option<HvVec<u8>>
+        #[must_use]
+        pub(in crate::map) fn selected_nodes(&self) -> Option<Vec<u8>>
         {
-            hv_vec![collect; self
-                .nodes()
+            self.nodes()
                 .iter()
                 .enumerate()
                 .filter_map(|(i, node)| {
                     node.selectable_vector.selected.then_some(u8::try_from(i).unwrap())
                 })
-            ]
-            .none_if_empty()
+                .collect::<Vec<_>>()
+                .none_if_empty()
         }
 
         /// Returns the position of the [`Node`] at `index`.
@@ -1821,11 +1830,11 @@ pub(in crate::map) mod ui_mod
             &mut self,
             grid: &Grid,
             center: Vec2
-        ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
+        ) -> Option<Vec<(Vec<u8>, Vec2)>>
         {
             use hill_vacuum_shared::continue_if_none;
 
-            let mut moved_nodes: HvVec<(HvVec<u8>, Vec2)> = hv_vec![];
+            let mut moved_nodes: Vec<(Vec<u8>, Vec2)> = Vec::new();
 
             'outer: for (i, node) in self
                 .nodes
@@ -1848,7 +1857,7 @@ pub(in crate::map) mod ui_mod
                     }
                 }
 
-                moved_nodes.push((hv_vec![idx], delta));
+                moved_nodes.push((vec![idx], delta));
             }
 
             if moved_nodes.is_empty()
@@ -2047,7 +2056,7 @@ pub(in crate::map) mod ui_mod
         /// selected. # Panic
         /// Panics if the resulting path is invalid.
         #[inline]
-        pub(in crate::map) fn insert_nodes_at_indexes(&mut self, nodes: &HvVec<(Vec2, u8)>)
+        pub(in crate::map) fn insert_nodes_at_indexes(&mut self, nodes: &[(Vec2, u8)])
         {
             for (vec, idx) in nodes
             {
@@ -2099,7 +2108,7 @@ pub(in crate::map) mod ui_mod
                 return NodesDeletionResult::None;
             }
 
-            let mut to_be_deleted_nodes = hv_vec![];
+            let mut to_be_deleted_nodes = Vec::new();
 
             for ([_, j, _], [v_i, v_j, v_k]) in nodes
                 .triplet_iter()
@@ -2179,7 +2188,7 @@ pub(in crate::map) mod ui_mod
         /// Returns the indexes of the deselected nodes, if any.
         #[inline]
         #[must_use]
-        pub(in crate::map) fn deselect_nodes(&mut self, center: Vec2) -> Option<HvVec<u8>>
+        pub(in crate::map) fn deselect_nodes(&mut self, center: Vec2) -> Option<Vec<u8>>
         {
             deselect_vectors(self.nodes_world_mut(center).iter())
         }
@@ -2220,7 +2229,7 @@ pub(in crate::map) mod ui_mod
             }
 
             self.nodes[index].selectable_vector.toggle();
-            let mut idxs = hv_vec![u8::try_from(index).unwrap()];
+            let mut idxs = vec![u8::try_from(index).unwrap()];
 
             for (i, node) in self
                 .nodes_world_mut(center)
@@ -2245,7 +2254,7 @@ pub(in crate::map) mod ui_mod
             &mut self,
             center: Vec2,
             range: &Hull
-        ) -> Option<HvVec<u8>>
+        ) -> Option<Vec<u8>>
         {
             select_vectors_in_range(self.nodes_world_mut(center).iter(), range)
         }
@@ -2258,34 +2267,31 @@ pub(in crate::map) mod ui_mod
             &mut self,
             center: Vec2,
             range: &Hull
-        ) -> Option<HvVec<u8>>
+        ) -> Option<Vec<u8>>
         {
             if !range.overlaps(&(self.hull + center))
             {
                 return self.deselect_nodes(center);
             }
 
-            hv_vec![collect; self.nodes_world_mut(center)
+            self.nodes_world_mut(center)
                 .iter()
                 .enumerate()
                 .filter_map(|(i, node)| {
-                    let selected = std::mem::replace(
-                        node.1,
-                        range.contains_point(node.0)
-                    );
+                    let selected = std::mem::replace(node.1, range.contains_point(node.0));
 
                     (*node.1 != selected).then(|| u8::try_from(i).unwrap())
                 })
-            ]
-            .none_if_empty()
+                .collect::<Vec<_>>()
+                .none_if_empty()
         }
 
         /// Selects all the [`Node`]s and returns the indexes of the nodes that were selected.
         #[inline]
         #[must_use]
-        pub(in crate::map) fn select_all_nodes(&mut self) -> Option<HvVec<u8>>
+        pub(in crate::map) fn select_all_nodes(&mut self) -> Option<Vec<u8>>
         {
-            hv_vec![collect; self.nodes
+            self.nodes
                 .iter_mut()
                 .enumerate()
                 .filter_map(|(i, node)| {
@@ -2297,8 +2303,8 @@ pub(in crate::map) mod ui_mod
                     node.selectable_vector.selected = true;
                     Some(u8::try_from(i).unwrap())
                 })
-            ]
-            .none_if_empty()
+                .collect::<Vec<_>>()
+                .none_if_empty()
         }
 
         //==============================================================
@@ -2323,7 +2329,7 @@ pub(in crate::map) mod ui_mod
         /// # Panic
         /// Panics if the resulting path is invalid, or if any of the indexes is out of bounds.
         #[inline]
-        pub(in crate::map) fn move_nodes_at_indexes(&mut self, snap: &HvVec<(HvVec<u8>, Vec2)>)
+        pub(in crate::map) fn move_nodes_at_indexes(&mut self, snap: &[(Vec<u8>, Vec2)])
         {
             for (idxs, delta) in snap
             {
@@ -2352,7 +2358,7 @@ pub(in crate::map) mod ui_mod
             }
 
             let len = self.len();
-            let mut merged = hv_vec![];
+            let mut merged = Vec::new();
 
             for i in moved.iter().map(|idx| *idx as usize)
             {
@@ -3002,13 +3008,13 @@ pub(in crate::map) mod ui_mod
     /// A struct sorting the [`Node`]s of a [`Path`] in buckets based on their position.
     #[must_use]
     #[derive(Clone)]
-    struct Buckets(HvHashMap<HashVec2, HvVec<usize>>);
+    struct Buckets(HashMap<HashVec2, Vec<usize>>);
 
     impl Buckets
     {
         /// Returns an empty [`Buckets`].
         #[inline]
-        pub fn new() -> Self { Self(hv_hash_map![]) }
+        pub fn new() -> Self { Self(HashMap::new()) }
 
         /// Inserts the `index` of a [`Node`] at `pos`.
         /// # Panics
@@ -3034,7 +3040,7 @@ pub(in crate::map) mod ui_mod
                     idxs.push(index);
                     idxs.sort_unstable();
                 },
-                None => _ = self.0.insert(key, hv_vec![index])
+                None => _ = self.0.insert(key, vec![index])
             };
         }
     }

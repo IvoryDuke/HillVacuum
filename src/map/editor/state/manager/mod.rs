@@ -15,7 +15,7 @@ use std::{
     ops::{Deref, DerefMut}
 };
 
-use bevy::{transform::components::Transform, window::Window};
+use bevy::{transform::components::Transform, utils::HashSet, window::Window};
 use glam::Vec2;
 use hill_vacuum_shared::{continue_if_none, return_if_none, NextValue};
 use quad_tree::InsertResult;
@@ -45,6 +45,7 @@ use super::{
     ui::Ui
 };
 use crate::{
+    hash_set,
     map::{
         brush::{
             convex_polygon::{ConvexPolygon, TextureSetResult},
@@ -64,7 +65,6 @@ use crate::{
             StateUpdateBundle,
             ToolUpdateBundle
         },
-        hv_vec,
         path::{EditPath, MovementSimulator, Moving, Path},
         properties::{
             BrushProperties,
@@ -79,21 +79,19 @@ use crate::{
         thing::{catalog::ThingsCatalog, ThingInstance, ThingInstanceData, ThingInterface},
         AssertedInsertRemove,
         FileStructure,
-        HvHashMap,
+        HashMap,
         MapHeader,
         OutOfBounds,
         Viewer
     },
     utils::{
-        collections::{hv_hash_map, hv_hash_set, Ids},
         hull::Hull,
         identifiers::{EntityCenter, EntityId, Id, IdGenerator},
         math::AroundEqual,
         misc::{Blinker, ReplaceValues, TakeValue}
     },
     warning_message,
-    HvHashSet,
-    HvVec
+    Ids
 };
 
 //=======================================================================//
@@ -228,7 +226,7 @@ enum PropertyUpdate
 //
 //=======================================================================//
 
-/// A [`HvHashSet`] of [`Id`]s used to avoid unsafe operations in certain [`EntitiesManager`]'s
+/// A [`HashSet`] of [`Id`]s used to avoid unsafe operations in certain [`EntitiesManager`]'s
 /// procedures.
 #[must_use]
 struct AuxiliaryIds(Ids);
@@ -250,7 +248,7 @@ impl<'a> ReplaceValues<&'a Id> for AuxiliaryIds
 
 impl<'a> IntoIterator for &'a AuxiliaryIds
 {
-    type IntoIter = hashbrown::hash_set::Iter<'a, Id>;
+    type IntoIter = bevy::utils::hashbrown::hash_set::Iter<'a, Id>;
     type Item = &'a Id;
 
     #[inline]
@@ -261,7 +259,7 @@ impl AuxiliaryIds
 {
     /// Returns a new [`AuxiliaryIds`].
     #[inline]
-    fn new() -> Self { Self(hv_hash_set![capacity; 10]) }
+    fn new() -> Self { Self(HashSet::with_capacity(10)) }
 
     /// Whether `self` contains `id`.
     #[inline]
@@ -270,7 +268,7 @@ impl AuxiliaryIds
 
     /// Returns an iterator to the contained elements.
     #[inline]
-    pub fn iter(&self) -> hashbrown::hash_set::Iter<Id> { self.0.iter() }
+    pub fn iter(&self) -> bevy::utils::hashbrown::hash_set::Iter<Id> { self.0.iter() }
 
     /// Pushes the [`Id`]s of the attached brushes of `brushes`.
     #[inline]
@@ -296,12 +294,12 @@ impl AuxiliaryIds
 //=======================================================================//
 
 #[must_use]
-struct SelectedSprites(HvHashMap<String, Ids>, usize);
+struct SelectedSprites(HashMap<String, Ids>, usize);
 
 impl Default for SelectedSprites
 {
     #[inline]
-    fn default() -> Self { Self(hv_hash_map![capacity; 10], 0) }
+    fn default() -> Self { Self(HashMap::with_capacity(10), 0) }
 }
 
 impl SelectedSprites
@@ -326,7 +324,7 @@ impl SelectedSprites
             Some(ids) => ids.asserted_insert(brush.id()),
             None =>
             {
-                self.0.asserted_insert((texture.to_owned(), hv_hash_set![brush.id()]));
+                self.0.asserted_insert((texture.to_owned(), hash_set![brush.id()]));
             }
         };
 
@@ -373,7 +371,7 @@ impl SelectedSprites
     }
 
     #[inline]
-    fn values(&self) -> hashbrown::hash_map::Values<String, Ids> { self.0.values() }
+    fn values(&self) -> bevy::utils::hashbrown::hash_map::Values<String, Ids> { self.0.values() }
 }
 
 //=======================================================================//
@@ -473,8 +471,8 @@ impl ErrorHighlight
 #[must_use]
 pub(in crate::map) struct Animators
 {
-    brushes: HvHashMap<Id, Animator>,
-    things:  HvHashMap<String, Animator>
+    brushes: HashMap<Id, Animator>,
+    things:  HashMap<String, Animator>
 }
 
 impl Animators
@@ -492,18 +490,33 @@ impl Animators
             ..
         } = bundle;
 
-        let previews = hv_hash_set![collect; manager.things().filter_map(|thing| {
-            let texture = things_catalog.texture(thing.thing_id());
-            drawing_resources.is_animated(texture).then_some(texture)
-        })];
+        let previews = manager
+            .things()
+            .filter_map(|thing| {
+                let texture = things_catalog.texture(thing.thing_id());
+                drawing_resources.is_animated(texture).then_some(texture)
+            })
+            .collect::<HashSet<_>>();
 
         Self {
-            brushes: hv_hash_map![collect; manager.innards.textured.iter().filter_map(|id| {
-                manager.brush(*id).animator(drawing_resources).map(|anim| (*id, anim))
-            })],
-            things:  hv_hash_map![collect; previews.into_iter().map(|texture| {
-                (texture.to_string(), Animator::new(drawing_resources.texture(texture).unwrap().animation()).unwrap())
-            })]
+            brushes: manager
+                .innards
+                .textured
+                .iter()
+                .filter_map(|id| {
+                    manager.brush(*id).animator(drawing_resources).map(|anim| (*id, anim))
+                })
+                .collect(),
+            things:  previews
+                .into_iter()
+                .map(|texture| {
+                    (
+                        texture.to_string(),
+                        Animator::new(drawing_resources.texture(texture).unwrap().animation())
+                            .unwrap()
+                    )
+                })
+                .collect()
         }
     }
 
@@ -596,9 +609,9 @@ impl Animators
 struct Innards
 {
     /// All the brushes on the map.
-    brushes: HvHashMap<Id, Brush>,
+    brushes: HashMap<Id, Brush>,
     /// All the [`Thing`]s on the map.
-    things: HvHashMap<Id, ThingInstance>,
+    things: HashMap<Id, ThingInstance>,
     /// The currently selected brushes.
     selected_brushes: Ids,
     /// The currently selected [`Thing`]s.
@@ -618,7 +631,7 @@ struct Innards
     /// The [`Id`]s of the selected brushes with associated sprites.
     selected_sprites: SelectedSprites,
     /// The [`Id`]s of the moving brushes with attachments.
-    brushes_with_attachments: HvHashMap<Id, Hull>,
+    brushes_with_attachments: HashMap<Id, Hull>,
     /// The generator of the [`Id`]s of the new entities.
     id_generator: IdGenerator,
     /// The error drawer.
@@ -651,22 +664,22 @@ impl Innards
     pub fn new() -> Self
     {
         Self {
-            brushes: hv_hash_map![],
-            things: hv_hash_map![],
-            selected_brushes: hv_hash_set![capacity; 10],
-            selected_things: hv_hash_set![capacity; 10],
-            moving: hv_hash_set![capacity; 10],
-            selected_moving: hv_hash_set![capacity; 10],
-            possible_moving: hv_hash_set![capacity; 10],
-            selected_possible_moving: hv_hash_set![capacity; 10],
-            textured: hv_hash_set![capacity; 10],
-            selected_textured: hv_hash_set![capacity; 10],
+            brushes: HashMap::new(),
+            things: HashMap::new(),
+            selected_brushes: HashSet::with_capacity(10),
+            selected_things: HashSet::with_capacity(10),
+            moving: HashSet::with_capacity(10),
+            selected_moving: HashSet::with_capacity(10),
+            possible_moving: HashSet::with_capacity(10),
+            selected_possible_moving: HashSet::with_capacity(10),
+            textured: HashSet::with_capacity(10),
+            selected_textured: HashSet::with_capacity(10),
             selected_sprites: SelectedSprites::default(),
-            brushes_with_attachments: hv_hash_map![],
+            brushes_with_attachments: HashMap::new(),
             id_generator: IdGenerator::default(),
             error_highlight: ErrorHighlight::new(),
             outline_update: false,
-            selected_vertexes_update: hv_hash_set![capacity; 10],
+            selected_vertexes_update: HashSet::with_capacity(10),
             overall_texture_update: false,
             overall_node_update: false,
             overall_collision_update: false,
@@ -751,8 +764,8 @@ impl Innards
         }
 
         let mut max_id = Id::ZERO;
-        let mut brushes = hv_vec![];
-        let mut with_attachments = hv_vec![];
+        let mut brushes = Vec::new();
+        let mut with_attachments = Vec::new();
 
         steps.next_value().assert(FileStructure::Properties);
 
@@ -796,7 +809,7 @@ impl Innards
 
             if brush.attached().is_some()
             {
-                _ = brush.take_mover();
+                _ = brush.take_group();
             }
 
             brushes.push(brush);
@@ -816,7 +829,7 @@ impl Innards
         }
 
         steps.next_value().assert(FileStructure::Things);
-        let mut things = hv_vec![];
+        let mut things = Vec::new();
         let t_refactor = mismatching_properties(
             engine_default_thing_properties,
             &file_default_thing_properties,
@@ -1949,7 +1962,7 @@ pub(in crate::map::editor) struct EntitiesManager
     /// The auxiliary container used to avoid using unsafe code in certain procedures.
     auxiliary:       AuxiliaryIds,
     /// Vector to help in the despawn of the selected brushes.
-    brushes_despawn: HvVec<Id>
+    brushes_despawn: Vec<Id>
 }
 
 impl EntitiesManager
@@ -1963,7 +1976,7 @@ impl EntitiesManager
             innards:         Innards::new(),
             quad_trees:      Trees::new(),
             auxiliary:       AuxiliaryIds::new(),
-            brushes_despawn: hv_vec![]
+            brushes_despawn: Vec::new()
         }
     }
 
@@ -2699,9 +2712,9 @@ impl EntitiesManager
         struct Iter<'a>
         {
             /// All the identifiers.
-            iter:     hashbrown::hash_map::Values<'a, String, Ids>,
+            iter:     bevy::utils::hashbrown::hash_map::Values<'a, String, Ids>,
             /// Identifiers of the brushes with same sprite.
-            sub_iter: hashbrown::hash_set::Iter<'a, Id>
+            sub_iter: bevy::utils::hashbrown::hash_set::Iter<'a, Id>
         }
 
         impl<'a> Iterator for Iter<'a>
@@ -2913,9 +2926,9 @@ impl EntitiesManager
             grid: &Grid,
             mut polygons: impl ExactSizeIterator<Item = ConvexPolygon>,
             properties: BrushProperties
-        ) -> HvHashSet<Id>
+        ) -> HashSet<Id>
         {
-            let mut ids = hv_hash_set![];
+            let mut ids = HashSet::new();
 
             if polygons.len() == 0
             {
@@ -3682,7 +3695,7 @@ impl EntitiesManager
         grid: &Grid
     )
     {
-        let mut errors = hv_hash_set![];
+        let mut errors = HashSet::new();
         self.auxiliary.replace_values(&self.innards.textured);
 
         for id in &self.auxiliary
@@ -3933,7 +3946,7 @@ impl EntitiesManager
         things_catalog: &ThingsCatalog
     )
     {
-        let mut errors = hv_hash_set![];
+        let mut errors = HashSet::new();
         self.auxiliary.replace_values(self.innards.things.keys());
 
         for id in &self.auxiliary
@@ -4038,24 +4051,27 @@ impl EntitiesManager
 
     /// Returns all the [`MovementSimulator`] of the entities with a [`Path`].
     #[inline]
-    pub(in crate::map::editor::state) fn movement_simulators(&self) -> HvVec<MovementSimulator>
+    #[must_use]
+    pub(in crate::map::editor::state) fn movement_simulators(&self) -> Vec<MovementSimulator>
     {
-        hv_vec![collect; self.innards.moving.iter()
+        self.innards
+            .moving
+            .iter()
             .map(|id| self.moving(*id).movement_simulator())
-        ]
+            .collect()
     }
 
     /// Returns a vector containing the [`MovingSimulator`]s of the moving brushes for the map
     /// preview.
     #[inline]
+    #[must_use]
     pub(in crate::map::editor::state) fn selected_movement_simulators(
         &self
-    ) -> HvVec<MovementSimulator>
+    ) -> Vec<MovementSimulator>
     {
-        hv_vec![collect; self
-            .selected_moving_ids()
+        self.selected_moving_ids()
             .map(|id| self.moving(*id).movement_simulator())
-        ]
+            .collect()
     }
 
     /// Returns a reference to the entity with id `identifier` as a trait object which implements
@@ -4150,7 +4166,7 @@ impl EntitiesManager
 
 /// A wrapper for all the brushes in the map.
 #[derive(Clone, Copy)]
-pub(in crate::map) struct Brushes<'a>(&'a HvHashMap<Id, Brush>);
+pub(in crate::map) struct Brushes<'a>(&'a HashMap<Id, Brush>);
 
 impl Brushes<'_>
 {

@@ -41,7 +41,6 @@ use crate::{
         TOOLTIP_OFFSET
     },
     utils::{
-        collections::hv_vec,
         hull::{Flip, Hull},
         identifiers::EntityCenter,
         iterators::{
@@ -91,7 +90,6 @@ use crate::{
         }
     },
     Animation,
-    HvVec,
     TextureInterface
 };
 
@@ -131,7 +129,7 @@ pub(in crate::map::brush) enum VertexesMoveResult
 pub(in crate::map) struct VertexesMove
 {
     merged: MergedVertexes,
-    moved:  HvVec<u8>,
+    moved:  Vec<u8>,
     delta:  Vec2
 }
 
@@ -307,7 +305,7 @@ pub(in crate::map::brush) enum SidesDeletionResult
 {
     None,
     Invalid,
-    Valid(HvVec<(Vec2, u8, bool)>)
+    Valid(Vec<(Vec2, u8, bool)>)
 }
 
 //=======================================================================//
@@ -326,7 +324,7 @@ pub(in crate::map) enum SplitResult
 pub(in crate::map) enum SideSelectionResult
 {
     Selected,
-    NotSelected([Vec2; 2], HvVec<u8>),
+    NotSelected([Vec2; 2], Vec<u8>),
     None
 }
 
@@ -359,7 +357,7 @@ pub(in crate::map) enum SubtractResult
     Some
     {
         main:   ConvexPolygon,
-        others: HvVec<ConvexPolygon>
+        others: Vec<ConvexPolygon>
     }
 }
 
@@ -372,7 +370,7 @@ pub(in crate::map::brush) enum ScaleResult
     Valid
     {
         new_center:    Vec2,
-        vxs:           HvVec<Vec2>,
+        vxs:           Vec<Vec2>,
         texture_scale: Option<TextureScale>
     }
 }
@@ -386,7 +384,7 @@ pub(in crate::map::brush) enum RotateResult
     Valid
     {
         new_center:       Vec2,
-        vxs:              HvVec<Vec2>,
+        vxs:              Vec<Vec2>,
         texture_rotation: Option<TextureRotation>
     }
 }
@@ -540,11 +538,10 @@ impl XtrusionInfo
         {
             return Some(
                 (
-                    hv_vec![collect;
-                        test_polygon
-                            .into_iter()
-                            .filter_map(|vx| vx.map(SelectableVector::new))
-                    ],
+                    test_polygon
+                        .into_iter()
+                        .filter_map(|vx| vx.map(SelectableVector::new))
+                        .collect::<Vec<_>>(),
                     texture
                 )
                     .into()
@@ -776,7 +773,7 @@ impl ShearInfo
 pub(in crate::map::brush) struct HollowResult
 {
     pub main:  ConvexPolygon,
-    pub walls: HvVec<ConvexPolygon>
+    pub walls: Vec<ConvexPolygon>
 }
 
 //=======================================================================//
@@ -908,7 +905,7 @@ impl TextureInterfaceExtra for MovingTextureSettings<'_>
 #[derive(Clone)]
 pub(in crate::map) struct ConvexPolygon
 {
-    vertexes:          HvVec<SelectableVector>,
+    vertexes:          Vec<SelectableVector>,
     center:            Vec2,
     hull:              Hull,
     selected_vertexes: u8,
@@ -916,19 +913,23 @@ pub(in crate::map) struct ConvexPolygon
     texture_edited:    bool
 }
 
-impl From<HvVec<Vec2>> for ConvexPolygon
+impl From<Vec<Vec2>> for ConvexPolygon
 {
     #[inline]
-    fn from(vertexes: HvVec<Vec2>) -> Self
+    fn from(vertexes: Vec<Vec2>) -> Self
     {
-        hv_vec![collect; vertexes.into_iter().map(SelectableVector::new)].into()
+        vertexes
+            .into_iter()
+            .map(SelectableVector::new)
+            .collect::<Vec<_>>()
+            .into()
     }
 }
 
-impl From<crate::HvVec<crate::map::selectable_vector::SelectableVector>> for ConvexPolygon
+impl From<Vec<crate::map::selectable_vector::SelectableVector>> for ConvexPolygon
 {
     #[inline]
-    fn from(vertexes: crate::HvVec<crate::map::selectable_vector::SelectableVector>) -> Self
+    fn from(vertexes: Vec<crate::map::selectable_vector::SelectableVector>) -> Self
     {
         assert!(vertexes.len() >= 3, "Not enough vertexes to create a polygon.\n{vertexes:?}.");
 
@@ -974,12 +975,12 @@ impl EntityCenter for ConvexPolygon
     fn center(&self) -> Vec2 { self.center }
 }
 
-impl From<(HvVec<SelectableVector>, Option<&TextureSettings>)> for ConvexPolygon
+impl From<(Vec<SelectableVector>, Option<&TextureSettings>)> for ConvexPolygon
 {
     #[inline]
-    fn from(value: (HvVec<SelectableVector>, Option<&TextureSettings>)) -> Self
+    fn from(value: (Vec<SelectableVector>, Option<&TextureSettings>)) -> Self
     {
-        let mut poly = Self::from(hv_vec![collect; value.0]);
+        let mut poly = Self::from(value.0);
 
         if let Some(tex) = value.1
         {
@@ -993,21 +994,13 @@ impl From<(HvVec<SelectableVector>, Option<&TextureSettings>)> for ConvexPolygon
     }
 }
 
-impl From<Vec<Vec2>> for ConvexPolygon
+impl From<(Vec<Vec2>, Option<&TextureSettings>)> for ConvexPolygon
 {
     #[inline]
-    fn from(vertexes: Vec<Vec2>) -> Self
+    fn from(value: (Vec<Vec2>, Option<&TextureSettings>)) -> Self
     {
-        hv_vec![collect; vertexes.into_iter().map(SelectableVector::new)].into()
-    }
-}
-
-impl From<(HvVec<Vec2>, Option<&TextureSettings>)> for ConvexPolygon
-{
-    #[inline]
-    fn from(value: (HvVec<Vec2>, Option<&TextureSettings>)) -> Self
-    {
-        let mut poly = Self::from(hv_vec![collect; value.0.into_iter().map(SelectableVector::new)]);
+        let mut poly =
+            Self::from(value.0.into_iter().map(SelectableVector::new).collect::<Vec<_>>());
 
         if let Some(tex) = value.1
         {
@@ -1043,7 +1036,7 @@ impl ConvexPolygon
     where
         T: IntoIterator<Item = Vec2>
     {
-        hv_vec![collect; vxs].into()
+        vxs.into_iter().collect::<Vec<_>>().into()
     }
 
     /// Returns true if vxs represents a valid polygon.
@@ -1127,7 +1120,7 @@ impl ConvexPolygon
     where
         T: Iterator<Item = Vec2>
     {
-        let mut vec = hv_vec![collect; vxs.map(SelectableVector::new)];
+        let mut vec = vxs.map(SelectableVector::new).collect::<Vec<_>>();
         let center = vxs_center(vec.iter().map(|svx| svx.vec));
         vec.sort_by(|a, b| sort_vxs_ccw(a.vec, b.vec, center));
         (vec, texture).into()
@@ -1137,7 +1130,7 @@ impl ConvexPolygon
     #[must_use]
     fn new_cleaned_up<T: IntoIterator<Item = Vec2>>(vxs: T) -> Option<Self>
     {
-        let vertexes = hv_vec![collect; vxs.into_iter().map(SelectableVector::new)];
+        let vertexes = vxs.into_iter().map(SelectableVector::new).collect::<Vec<_>>();
         let center = vxs_center(vertexes.iter().map(|svx| svx.vec));
         let hull = Hull::from_points(vertexes.iter().map(|svx| svx.vec));
         let mut cp = ConvexPolygon {
@@ -1227,12 +1220,12 @@ impl ConvexPolygon
     #[inline]
     pub(in crate::map::brush) fn selected_vertexes(&self) -> Option<impl Iterator<Item = Vec2>>
     {
-        hv_vec![collect; self.vertexes
-        .iter()
-        .filter_map(|svx| svx.selected.then_some(svx.vec))
-        ]
-        .none_if_empty()
-        .map(IntoIterator::into_iter)
+        self.vertexes
+            .iter()
+            .filter_map(|svx| svx.selected.then_some(svx.vec))
+            .collect::<Vec<_>>()
+            .none_if_empty()
+            .map(IntoIterator::into_iter)
     }
 
     #[inline]
@@ -1241,7 +1234,7 @@ impl ConvexPolygon
         &self
     ) -> Option<impl Iterator<Item = Vec2>>
     {
-        let mut selected_sides_vertexes = hv_vec![];
+        let mut selected_sides_vertexes = Vec::new();
         let len = self.sides();
         let (mut j, mut i) = (len - 1, 0);
 
@@ -2048,14 +2041,15 @@ impl ConvexPolygon
     // Snap
 
     #[inline]
-    fn snap_filtered_vertexes<F>(&mut self, grid: &Grid, f: F) -> Option<HvVec<(HvVec<u8>, Vec2)>>
+    #[must_use]
+    fn snap_filtered_vertexes<F>(&mut self, grid: &Grid, f: F) -> Option<Vec<(Vec<u8>, Vec2)>>
     where
         F: Fn(&SelectableVector) -> bool
     {
         #[inline]
         fn round<F, G>(
-            vertexes: &mut HvVec<SelectableVector>,
-            moved_vxs: &mut HvVec<(HvVec<u8>, Vec2)>,
+            vertexes: &mut [SelectableVector],
+            moved_vxs: &mut Vec<(Vec<u8>, Vec2)>,
             f: &F,
             g: G
         ) where
@@ -2078,11 +2072,11 @@ impl ConvexPolygon
                     }
                 }
 
-                moved_vxs.push((hv_vec![idx], delta));
+                moved_vxs.push((vec![idx], delta));
             }
         }
 
-        let mut moved_vxs = hv_vec![];
+        let mut moved_vxs = Vec::new();
 
         round(&mut self.vertexes, &mut moved_vxs, &f, |vec| grid.snap_point(vec));
 
@@ -2133,7 +2127,7 @@ impl ConvexPolygon
     pub(in crate::map::brush) fn snap_vertexes(
         &mut self,
         grid: &Grid
-    ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
+    ) -> Option<Vec<(Vec<u8>, Vec2)>>
     {
         self.snap_filtered_vertexes(grid, |_| true)
     }
@@ -2143,7 +2137,7 @@ impl ConvexPolygon
     pub(in crate::map::brush) fn snap_selected_vertexes(
         &mut self,
         grid: &Grid
-    ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
+    ) -> Option<Vec<(Vec<u8>, Vec2)>>
     {
         self.snap_filtered_vertexes(grid, |svx| svx.selected)
     }
@@ -2153,7 +2147,7 @@ impl ConvexPolygon
     pub(in crate::map::brush) fn snap_selected_sides(
         &mut self,
         grid: &Grid
-    ) -> Option<HvVec<(HvVec<u8>, Vec2)>>
+    ) -> Option<Vec<(Vec<u8>, Vec2)>>
     {
         let vertexes_to_deselect = self.select_vertexes_of_selected_sides();
         let result = self.snap_filtered_vertexes(grid, |svx| svx.selected);
@@ -2282,7 +2276,7 @@ impl ConvexPolygon
                 }
                 else
                 {
-                    VectorSelectionResult::NotSelected(nth.vec, hv_vec![u8::try_from(idx).unwrap()])
+                    VectorSelectionResult::NotSelected(nth.vec, vec![u8::try_from(idx).unwrap()])
                 }
             },
             None => VectorSelectionResult::None
@@ -2338,7 +2332,7 @@ impl ConvexPolygon
     pub(in crate::map::brush) fn try_exclusively_select_vertex(
         &mut self,
         pos: Vec2
-    ) -> Option<HvVec<u8>>
+    ) -> Option<Vec<u8>>
     {
         let mut idxs = self.deselect_vertexes();
 
@@ -2347,7 +2341,7 @@ impl ConvexPolygon
             if idxs.is_none()
             {
                 self.selected_vertexes = 1;
-                return Some(hv_vec![s_idx]);
+                return Some(vec![s_idx]);
             }
 
             let idxs_mut = idxs.as_mut().unwrap();
@@ -2381,7 +2375,7 @@ impl ConvexPolygon
     pub(in crate::map::brush) fn select_vertexes_in_range(
         &mut self,
         range: &Hull
-    ) -> Option<HvVec<u8>>
+    ) -> Option<Vec<u8>>
     {
         if !range.overlaps(&self.hull)
         {
@@ -2404,7 +2398,7 @@ impl ConvexPolygon
     pub(in crate::map::brush) fn exclusively_select_vertexes_in_range(
         &mut self,
         range: &Hull
-    ) -> Option<HvVec<u8>>
+    ) -> Option<Vec<u8>>
     {
         if !range.overlaps(&self.hull)
         {
@@ -2413,14 +2407,11 @@ impl ConvexPolygon
 
         self.selected_vertexes = 0;
 
-        let idxs = hv_vec![collect; self.vertexes
+        self.vertexes
             .iter_mut()
             .enumerate()
             .filter_map(|(i, svx)| {
-                let selected = std::mem::replace(
-                    &mut svx.selected,
-                    range.contains_point(svx.vec)
-                );
+                let selected = std::mem::replace(&mut svx.selected, range.contains_point(svx.vec));
 
                 if svx.selected
                 {
@@ -2429,18 +2420,17 @@ impl ConvexPolygon
 
                 (svx.selected != selected).then(|| u8::try_from(i).unwrap())
             })
-        ];
-
-        idxs.none_if_empty()
+            .collect::<Vec<_>>()
+            .none_if_empty()
     }
 
     #[inline]
     #[must_use]
-    pub(in crate::map::brush) fn select_all_vertexes(&mut self) -> Option<HvVec<u8>>
+    pub(in crate::map::brush) fn select_all_vertexes(&mut self) -> Option<Vec<u8>>
     {
         self.selected_vertexes = u8::try_from(self.sides()).unwrap();
 
-        hv_vec![collect; self.vertexes
+        self.vertexes
             .iter_mut()
             .enumerate()
             .filter_map(|(i, svx)| {
@@ -2452,8 +2442,8 @@ impl ConvexPolygon
                 svx.selected = true;
                 Some(u8::try_from(i).unwrap())
             })
-        ]
-        .none_if_empty()
+            .collect::<Vec<_>>()
+            .none_if_empty()
     }
 
     #[inline]
@@ -2497,7 +2487,7 @@ impl ConvexPolygon
 
     #[inline]
     #[must_use]
-    pub(in crate::map::brush) fn deselect_vertexes(&mut self) -> Option<HvVec<u8>>
+    pub(in crate::map::brush) fn deselect_vertexes(&mut self) -> Option<Vec<u8>>
     {
         self.selected_vertexes = 0;
         deselect_vectors(VertexesSelectionIterMut(&mut self.vertexes).iter())
@@ -2753,9 +2743,10 @@ impl ConvexPolygon
     }
 
     #[inline]
-    pub(in crate::map::brush) fn delete_selected_vertexes(&mut self) -> Option<HvVec<(Vec2, u8)>>
+    #[must_use]
+    pub(in crate::map::brush) fn delete_selected_vertexes(&mut self) -> Option<Vec<(Vec2, u8)>>
     {
-        let mut deleted_vxs = hv_vec![];
+        let mut deleted_vxs = Vec::new();
         let mut i = 0;
         let mut index = 0u8;
 
@@ -2794,7 +2785,7 @@ impl ConvexPolygon
         delta: Vec2
     ) -> VertexesMoveResult
     {
-        let mut moved_vxs = hv_vec![];
+        let mut moved_vxs = Vec::new();
 
         for (idx, svx) in self.vertexes.iter().enumerate().filter(|(_, svx)| svx.selected)
         {
@@ -2950,7 +2941,7 @@ impl ConvexPolygon
     pub(in crate::map::brush) fn split(&mut self, indexes: &ArrayVec<u8, 2>) -> Self
     {
         let mut indexes = [usize::from(indexes[0]), usize::from(indexes[1])];
-        let mut vertexes = hv_vec![capacity; indexes[1] - indexes[0]];
+        let mut vertexes = Vec::with_capacity(indexes[1] - indexes[0]);
 
         vertexes.push(self.vertexes[indexes[0]]);
         indexes[0] += 1;
@@ -3036,7 +3027,7 @@ impl ConvexPolygon
                             self.vertexes[idx].vec,
                             next_element(idx, &self.vertexes).vec
                         ],
-                        hv_vec![u8::try_from(idx).unwrap()]
+                        vec![u8::try_from(idx).unwrap()]
                     )
                 }
             },
@@ -3106,7 +3097,7 @@ impl ConvexPolygon
     pub(in crate::map::brush) fn try_exclusively_select_side(
         &mut self,
         side: &[Vec2; 2]
-    ) -> Option<HvVec<u8>>
+    ) -> Option<Vec<u8>>
     {
         let mut idxs = self.deselect_vertexes();
 
@@ -3114,7 +3105,7 @@ impl ConvexPolygon
         {
             if idxs.is_none()
             {
-                return Some(hv_vec![s_idx]);
+                return Some(vec![s_idx]);
             }
 
             let idxs_mut = idxs.as_mut().unwrap();
@@ -3144,15 +3135,14 @@ impl ConvexPolygon
 
     #[inline]
     #[must_use]
-    pub(in crate::map::brush) fn select_sides_in_range(&mut self, range: &Hull)
-        -> Option<HvVec<u8>>
+    pub(in crate::map::brush) fn select_sides_in_range(&mut self, range: &Hull) -> Option<Vec<u8>>
     {
         if !self.hull.overlaps(range)
         {
             return None;
         }
 
-        let mut idxs = hv_vec![];
+        let mut idxs = Vec::new();
 
         for ([j, _], [vx_j, vx_i]) in self.vertexes.pair_iter_mut().unwrap().enumerate()
         {
@@ -3179,14 +3169,14 @@ impl ConvexPolygon
     pub(in crate::map::brush) fn exclusively_select_sides_in_range(
         &mut self,
         range: &Hull
-    ) -> Option<HvVec<u8>>
+    ) -> Option<Vec<u8>>
     {
         if !self.hull.overlaps(range)
         {
             return self.deselect_vertexes();
         }
 
-        let mut idxs = hv_vec![];
+        let mut idxs = Vec::new();
 
         for ([j, _], [vx_j, vx_i]) in self.vertexes.pair_iter_mut().unwrap().enumerate()
         {
@@ -3255,7 +3245,7 @@ impl ConvexPolygon
     pub(in crate::map::brush) fn check_selected_sides_deletion(&self) -> SidesDeletionResult
     {
         let len = self.sides();
-        let mut deletion_result = hv_vec![];
+        let mut deletion_result = Vec::new();
 
         // Check deletion and create the deletion payload.
         let (mut j, mut i) = (len - 1, 0);
@@ -3329,9 +3319,10 @@ impl ConvexPolygon
     }
 
     #[inline]
-    fn select_vertexes_of_selected_sides(&mut self) -> HvVec<u8>
+    #[must_use]
+    fn select_vertexes_of_selected_sides(&mut self) -> Vec<u8>
     {
-        let mut vertexes_to_deselect = hv_vec![];
+        let mut vertexes_to_deselect = Vec::new();
 
         let len = self.sides();
         let (mut j, mut i) = (len - 1, 0);
@@ -3481,7 +3472,7 @@ impl ConvexPolygon
     #[inline]
     fn clip_self(&mut self, clip_segment: &[Vec2; 2]) -> Option<Self>
     {
-        let mut vec = hv_vec![];
+        let mut vec = Vec::new();
         vec.extend(clip_polygon(
             self.vertexes.pair_iter().unwrap().map(|[a, b]| [a.vec, b.vec]),
             clip_segment
@@ -3526,7 +3517,7 @@ impl ConvexPolygon
     pub(in crate::map::brush) fn hollow(&self, grid_size: f32) -> Option<HollowResult>
     {
         let sides = self.sides();
-        let mut walls = hv_vec![capacity; sides];
+        let mut walls = Vec::with_capacity(sides);
         let mut leftover = self.clone();
 
         if leftover.has_sprite()
@@ -3600,19 +3591,20 @@ impl ConvexPolygon
             }
         };
 
-        let mut shards: HvVec<ConvexPolygon> = hv_vec![collect;
-            std::iter::from_fn(|| {
-                i = j;
-                j = next(i, self.sides());
-                Some((hv_vec![common_vx, self.vertexes[i], self.vertexes[j]], self.texture_settings()).into())
-            })
-            .take(capacity)
-        ];
+        let mut shards = std::iter::from_fn(|| {
+            i = j;
+            j = next(i, self.sides());
+            let vxs: Vec<SelectableVector> = vec![common_vx, self.vertexes[i], self.vertexes[j]];
+
+            Some(ConvexPolygon::from((vxs, self.texture_settings())))
+        })
+        .take(capacity)
+        .collect::<Vec<_>>();
 
         let mut main = shards.swap_remove(0);
         self.transfer_sprite(&mut main);
 
-        ShatterResult { main, shards }.into()
+        Some(ShatterResult { main, shards })
     }
 
     //==============================================================
@@ -3621,15 +3613,15 @@ impl ConvexPolygon
     #[inline]
     pub(in crate::map::brush) fn intersection(&self, other: &Self) -> Option<Self>
     {
-        let mut polygon = hv_vec![collect; self.vertexes()];
+        let mut polygon = self.vertexes().collect::<Vec<_>>();
 
         for [svx_j, svx_i] in other.vertexes.pair_iter().unwrap()
         {
-            polygon = hv_vec![collect;
-                clip_polygon(polygon.pair_iter().unwrap().map(|[a, b]| [*a, *b]), &[
-                    svx_j.vec, svx_i.vec
-                ])?
-            ];
+            polygon = clip_polygon(polygon.pair_iter().unwrap().map(|[a, b]| [*a, *b]), &[
+                svx_j.vec, svx_i.vec
+            ])?
+            .into_iter()
+            .collect();
         }
 
         let mut poly = Self::new_cleaned_up(polygon).unwrap();
@@ -3658,10 +3650,10 @@ impl ConvexPolygon
         }
 
         #[inline]
-        fn simple_ear_clipping(input: HvVec<Vec2>) -> impl Iterator<Item = HvVec<Vec2>>
+        fn simple_ear_clipping(input: Vec<Vec2>) -> impl Iterator<Item = Vec<Vec2>>
         {
             let input_len = input.len();
-            let mut triangles = hv_vec![capacity; input_len - 2];
+            let mut triangles = Vec::with_capacity(input_len - 2);
 
             if input_len == 3
             {
@@ -3675,11 +3667,11 @@ impl ConvexPolygon
             {
                 for n in span
                 {
-                    triangles.push(hv_vec![input[i], input[n], input[prev(n, input_len)]]);
+                    triangles.push(vec![input[i], input[n], input[prev(n, input_len)]]);
                 }
             }
 
-            triangles.push(hv_vec![input[0], input[input_len - 1], input[i - 1]]);
+            triangles.push(vec![input[0], input[input_len - 1], input[i - 1]]);
             triangles.into_iter()
         }
 
@@ -3701,7 +3693,7 @@ impl ConvexPolygon
 
         // Catalog the vertexes of 'intersection' and 'self' based on their properties.
         // While doing this, calculate the center of the intersection polygon.
-        let mut subtract_vertexes = hv_vec![];
+        let mut subtract_vertexes = Vec::new();
 
         for svx in &self.vertexes
         {
@@ -3754,7 +3746,7 @@ impl ConvexPolygon
         // constitute the subtract polygon. These polygon may be either convex
         // or concave. If one of the sets has 3 sides immediately add it to
         // 'polygons'.
-        let mut polygons = hv_vec![];
+        let mut polygons = Vec::new();
 
         let sub_vxs_len = subtract_vertexes.len();
         let mut scan_index = {
@@ -3779,7 +3771,7 @@ impl ConvexPolygon
 
         loop
         {
-            let mut vxs = hv_vec![capacity; 5];
+            let mut vxs = Vec::with_capacity(5);
 
             vxs.push(subtract_vertexes[scan_index].1);
             scan_index = next(scan_index, sub_vxs_len);
@@ -3869,7 +3861,7 @@ impl ConvexPolygon
         scale_texture: bool
     ) -> ScaleResult
     {
-        let mut vxs = hv_vec![capacity; self.sides()];
+        let mut vxs = Vec::with_capacity(self.sides());
         let mut new_center = Vec2::ZERO;
 
         for vx in self.vertexes.iter().map(|svx| svx.vec)
@@ -3949,9 +3941,9 @@ impl ConvexPolygon
         drawing_resources: &DrawingResources,
         grid: &Grid,
         info: &ShearInfo
-    ) -> Option<(Vec2, HvVec<f32>)>
+    ) -> Option<(Vec2, Vec<f32>)>
     {
-        let mut xs = hv_vec![capacity; self.sides()];
+        let mut xs = Vec::with_capacity(self.sides());
         let mut new_center = Vec2::ZERO;
 
         for vx in self.vertexes()
@@ -3978,7 +3970,7 @@ impl ConvexPolygon
     }
 
     #[inline]
-    pub(in crate::map::brush) fn set_x_coordinates(&mut self, xs: HvVec<f32>)
+    pub(in crate::map::brush) fn set_x_coordinates(&mut self, xs: Vec<f32>)
     {
         for (vx, x) in self.vertexes.iter_mut().map(|svx| &mut svx.vec).zip(xs)
         {
@@ -3996,9 +3988,9 @@ impl ConvexPolygon
         drawing_resources: &DrawingResources,
         grid: &Grid,
         info: &ShearInfo
-    ) -> Option<(Vec2, HvVec<f32>)>
+    ) -> Option<(Vec2, Vec<f32>)>
     {
-        let mut ys = hv_vec![capacity; self.sides()];
+        let mut ys = Vec::with_capacity(self.sides());
         let mut new_center = Vec2::ZERO;
 
         for vx in self.vertexes()
@@ -4025,7 +4017,7 @@ impl ConvexPolygon
     }
 
     #[inline]
-    pub(in crate::map::brush) fn set_y_coordinates(&mut self, ys: HvVec<f32>)
+    pub(in crate::map::brush) fn set_y_coordinates(&mut self, ys: Vec<f32>)
     {
         for (vx, y) in self.vertexes.iter_mut().map(|svx| &mut svx.vec).zip(ys)
         {
@@ -4054,7 +4046,7 @@ impl ConvexPolygon
 
         let angle_rad = angle.to_radians();
         let mut new_center = Vec2::ZERO;
-        let mut vxs = hv_vec![capacity; self.sides()];
+        let mut vxs = Vec::with_capacity(self.sides());
 
         for vx in self.vertexes()
         {
@@ -4428,7 +4420,7 @@ impl ConvexPolygon
     #[inline]
     fn draw_side_mode(&self, drawer: &mut EditDrawer, collision: bool)
     {
-        let mut sides_colors = hv_vec![capacity; self.sides()];
+        let mut sides_colors = Vec::with_capacity(self.sides());
 
         for svx in &self.vertexes
         {
@@ -4744,7 +4736,7 @@ impl ConvexPolygon
 #[derive(Clone)]
 struct NewVertexIterator<'a>
 {
-    vertexes:        &'a HvVec<SelectableVector>,
+    vertexes:        &'a Vec<SelectableVector>,
     new_vx:          Vec2,
     new_vx_index:    usize,
     new_vx_returned: bool,
@@ -4797,7 +4789,7 @@ impl Iterator for NewVertexIterator<'_>
 impl<'a> NewVertexIterator<'a>
 {
     #[inline]
-    fn new(vertexes: &'a HvVec<SelectableVector>, pos: Vec2, index: usize) -> Self
+    fn new(vertexes: &'a Vec<SelectableVector>, pos: Vec2, index: usize) -> Self
     {
         Self {
             vertexes,
@@ -4812,7 +4804,7 @@ impl<'a> NewVertexIterator<'a>
 
 //=======================================================================//
 
-struct VertexesSelectionIterMut<'a>(&'a mut HvVec<SelectableVector>);
+struct VertexesSelectionIterMut<'a>(&'a mut Vec<SelectableVector>);
 
 impl VertexesSelectionIterMut<'_>
 {

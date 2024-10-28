@@ -90,7 +90,7 @@ Removed texture pivoted rotation, requires refinements.
 - Allowed zoom in/out with keyboard even when an UI element is hovered;
 - renamed `Mover` to `Group` to clarify the purpose of the enum;
 - made `Node::world_pos` private;
-- replaced `Path` with `HvVec<Node>`;
+- replaced `Path` with `Vec<Node>`;
 - made `Path` and `Hull` private as they are no longer required to be public.
 
 ### Fixes

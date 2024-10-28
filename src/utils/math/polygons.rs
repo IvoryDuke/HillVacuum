@@ -12,16 +12,12 @@ use super::{
     points::{vertexes_orientation, VertexesOrientation},
     HashVec2
 };
-use crate::{
-    utils::{
-        math::{
-            lines_and_segments::{is_point_inside_clip_edge, lines_intersection},
-            AroundEqual
-        },
-        misc::prev
+use crate::utils::{
+    math::{
+        lines_and_segments::{is_point_inside_clip_edge, lines_intersection},
+        AroundEqual
     },
-    HvHashSet,
-    HvVec
+    misc::prev
 };
 
 //=======================================================================//
@@ -33,7 +29,7 @@ use crate::{
 /// # Panics
 /// Panics if there are issues comparing calculated cosines.
 #[inline]
-pub fn convex_hull(vertexes: HvHashSet<HashVec2>) -> Option<impl Iterator<Item = Vec2>>
+pub fn convex_hull(vertexes: bevy::utils::HashSet<HashVec2>) -> Option<impl Iterator<Item = Vec2>>
 {
     let mut convex_hull = Vec::with_capacity(vertexes.len());
     let mut pivot = (Vec2::new(f32::MAX, f32::MAX), 0);
@@ -148,12 +144,12 @@ pub fn convex_hull(vertexes: HvHashSet<HashVec2>) -> Option<impl Iterator<Item =
 pub fn clip_polygon(
     input: impl Iterator<Item = [Vec2; 2]> + Clone,
     clip_segment: &[Vec2; 2]
-) -> Option<HvVec<Vec2>>
+) -> Option<Vec<Vec2>>
 {
     /// Inserts `point` into `collected_points` if it is not around equal to any other point inside
     /// it.
     #[inline]
-    fn check_clip_point(point: Vec2, collected_points: &mut HvVec<Vec2>)
+    fn check_clip_point(point: Vec2, collected_points: &mut Vec<Vec2>)
     {
         if collected_points.iter().any(|vx| vx.around_equal(&point))
         {
@@ -163,7 +159,7 @@ pub fn clip_polygon(
         collected_points.push(point);
     }
 
-    let mut output = HvVec::new();
+    let mut output = Vec::new();
 
     for side in input
     {

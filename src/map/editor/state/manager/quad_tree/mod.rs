@@ -7,8 +7,8 @@ mod subnodes;
 //
 //=======================================================================//
 
+use bevy::utils::{hashbrown::hash_map::Iter, HashMap};
 use glam::Vec2;
-use hashbrown::hash_map::Iter;
 use hill_vacuum_shared::return_if_none;
 
 use self::{
@@ -16,16 +16,14 @@ use self::{
     points::{Corner, Intersections, Sides, Vertex, Vertexes}
 };
 use crate::{
+    hash_map,
     map::MAP_SIZE,
     utils::{
-        collections::{hv_hash_map, hv_vec},
         hull::Hull,
         identifiers::{EntityId, Id},
         math::AroundEqual,
         misc::{bumped_vertex_highlight_square, AssertedInsertRemove, TakeValue}
-    },
-    HvHashMap,
-    HvVec
+    }
 };
 
 //=======================================================================//
@@ -107,13 +105,13 @@ impl MaybeNode
 pub(in crate::map::editor::state::manager) struct QuadTree
 {
     size:                  f32,
-    entities:              HvHashMap<Id, Hull>,
+    entities:              HashMap<Id, Hull>,
     /// The nodes of the tree.
-    nodes:                 HvVec<MaybeNode>,
+    nodes:                 Vec<MaybeNode>,
     /// The nodes that are currently unused.
-    vacant_spots:          HvVec<usize>,
+    vacant_spots:          Vec<usize>,
     /// The recycled [`Intersections`].
-    recycle_intersections: HvVec<Intersections>
+    recycle_intersections: Vec<Intersections>
 }
 
 impl QuadTree
@@ -127,20 +125,20 @@ impl QuadTree
     #[must_use]
     pub fn with_size(size: f32) -> Self
     {
-        let mut vec = hv_vec![capacity; 256];
+        let mut vec = Vec::with_capacity(256);
         Self::start_nodes(&mut vec, size);
 
         Self {
             size,
-            entities: hv_hash_map![],
+            entities: HashMap::new(),
             nodes: vec,
-            vacant_spots: hv_vec![],
-            recycle_intersections: hv_vec![capacity; 32]
+            vacant_spots: Vec::new(),
+            recycle_intersections: Vec::with_capacity(32)
         }
     }
 
     #[inline]
-    fn start_nodes(vec: &mut HvVec<MaybeNode>, size: f32)
+    fn start_nodes(vec: &mut Vec<MaybeNode>, size: f32)
     {
         vec.clear();
         vec.push(MaybeNode(Node::from_size(size).into()));
@@ -217,7 +215,7 @@ impl QuadTree
         for corner in hull.corners().map(|(corner, _)| Corner::from_hull(hull, corner))
         {
             assert!(
-                Node::insert(self, 0, Vertex::new(hv_hash_map![(identifier, corner)])),
+                Node::insert(self, 0, Vertex::new(hash_map![(identifier, corner)])),
                 "Hull corner insertion failed."
             );
         }
@@ -347,11 +345,11 @@ impl QuadTree
 //=======================================================================//
 
 /// A struct to store the [`Id`]s collected from a [`QuadTree`].
-pub(in crate::map::editor::state::manager) struct QuadTreeIds(HvHashMap<Id, Hull>);
+pub(in crate::map::editor::state::manager) struct QuadTreeIds(HashMap<Id, Hull>);
 
 impl<'a> IntoIterator for &'a QuadTreeIds
 {
-    type IntoIter = hashbrown::hash_map::Iter<'a, Id, Hull>;
+    type IntoIter = bevy::utils::hashbrown::hash_map::Iter<'a, Id, Hull>;
     type Item = (&'a Id, &'a Hull);
 
     #[inline]
@@ -363,7 +361,7 @@ impl QuadTreeIds
     /// Returns a new [`QuadTreeIds`].
     #[inline]
     #[must_use]
-    pub fn new() -> Self { Self(hv_hash_map![]) }
+    pub fn new() -> Self { Self(HashMap::new()) }
 
     /// Returns an iterator to the ([`Id`], [`Hull`]) pairs.
     #[inline]
@@ -371,7 +369,7 @@ impl QuadTreeIds
 
     /// Returns an iterator to the stored [`Id`]s.
     #[inline]
-    pub fn ids(&self) -> hashbrown::hash_map::Keys<'_, Id, Hull> { self.0.keys() }
+    pub fn ids(&self) -> bevy::utils::hashbrown::hash_map::Keys<'_, Id, Hull> { self.0.keys() }
 
     /// Whether it contains a value for the specified key.
     #[inline]

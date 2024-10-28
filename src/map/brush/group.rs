@@ -7,11 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
 use crate::Brush;
-use crate::{
-    utils::{collections::Ids, identifiers::Id},
-    HvVec,
-    Node
-};
+use crate::{utils::identifiers::Id, Ids, Node};
 
 //=======================================================================//
 // ENUMS
@@ -30,7 +26,7 @@ pub enum GroupViewer
     Path
     {
         /// The travel path.
-        path:             HvVec<Node>,
+        path:             Vec<Node>,
         /// The attached [`Brush`]es.
         attached_brushes: Ids
     },
@@ -51,16 +47,16 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
+    use bevy::utils::HashSet;
     use hill_vacuum_shared::{match_or_panic, return_if_no_match};
 
     use super::GroupViewer;
     use crate::{
+        hash_set,
         map::{path::Path, Viewer},
-        utils::{
-            collections::{hv_hash_set, Ids},
-            misc::{AssertedInsertRemove, TakeValue}
-        },
-        Id
+        utils::misc::{AssertedInsertRemove, TakeValue},
+        Id,
+        Ids
     };
 
     //=======================================================================//
@@ -199,7 +195,7 @@ pub(in crate::map) mod ui_mod
         {
             match self
             {
-                Self::None => *self = Self::Attachments(hv_hash_set![identifier]),
+                Self::None => *self = Self::Attachments(hash_set![identifier]),
                 Self::Attachments(ids) => ids.asserted_insert(identifier),
                 Self::Path {
                     attached_brushes, ..
@@ -258,7 +254,7 @@ pub(in crate::map) mod ui_mod
                 {
                     *self = Self::Path {
                         path,
-                        attached_brushes: hv_hash_set![]
+                        attached_brushes: HashSet::new()
                     }
                 },
                 Self::Attachments(ids) =>

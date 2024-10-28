@@ -23,7 +23,8 @@ use bevy::{
         view::NoFrustumCulling
     },
     sprite::{ColorMaterial, MaterialMesh2dBundle, Mesh2dHandle},
-    transform::components::Transform
+    transform::components::Transform,
+    utils::{HashMap, HashSet}
 };
 use bevy_egui::{egui, EguiUserTextures};
 use glam::{UVec2, Vec2};
@@ -57,14 +58,10 @@ use crate::{
         thing::{catalog::ThingsCatalog, ThingInterface}
     },
     utils::{
-        collections::{hv_hash_map, hv_hash_set, hv_vec},
         hull::Hull,
         math::{points::rotate_point_around_origin, HashVec2},
         misc::{vertex_highlight_square, AssertedInsertRemove, Camera, TakeValue, Translate}
     },
-    HvHashMap,
-    HvHashSet,
-    HvVec,
     TextureSettings
 };
 
@@ -221,7 +218,7 @@ pub(in crate::map) struct DrawingResources
     /// The [`Mesh2dHandle`] of the [`Prop`] pivot displayed in front of the the paint tool camera.
     paint_tool_vertex_highlight_mesh: Mesh2dHandle,
     /// The [`Mesh2dHandle`]s of the [`Prop`] pivots displayed in front of the prop cameras.
-    props_pivots_mesh: HvHashMap<Entity, Mesh2dHandle>,
+    props_pivots_mesh: HashMap<Entity, Mesh2dHandle>,
     /// The [`Mesh2dHandle`] of the circular highlight of the brushes other brushes are
     /// tied to.
     attachment_highlight_mesh: Mesh2dHandle,
@@ -238,7 +235,7 @@ pub(in crate::map) struct DrawingResources
     /// The clip overlay texture.
     clip_texture: Handle<ColorMaterial>,
     /// The names of the textures with [`Animations`].
-    animated_textures: HvHashSet<String>,
+    animated_textures: HashSet<String>,
     /// Whether any default texture animation was changed.
     default_animation_changed: bool
 }
@@ -252,15 +249,15 @@ impl Placeholder for DrawingResources
             brush_meshes: Meshes::default(),
             vertex_highlight_mesh: Mesh2dHandle::default(),
             paint_tool_vertex_highlight_mesh: Mesh2dHandle::default(),
-            props_pivots_mesh: hv_hash_map![],
+            props_pivots_mesh: HashMap::new(),
             attachment_highlight_mesh: Mesh2dHandle::default(),
             sprite_highlight_mesh: Mesh2dHandle::default(),
             tt_label_gen: TooltipLabelGenerator::default(),
             default_material: Handle::default(),
-            textures: IndexedMap::new(hv_vec![], |tex| tex.texture.name().to_owned()),
+            textures: IndexedMap::new(Vec::new(), |tex| tex.texture.name().to_owned()),
             error_texture: TextureMaterials::placeholder(),
             clip_texture: Handle::default(),
-            animated_textures: hv_hash_set![],
+            animated_textures: HashSet::new(),
             default_animation_changed: false
         }
     }
@@ -354,11 +351,10 @@ impl DrawingResources
 
         square_mesh.insert_indices(Indices::U16(idxs));
 
-        let props_vertex_highlight_mesh = hv_hash_map![collect;
-            prop_cameras
-                .iter()
-                .map(|(id, ..)| (id, meshes.add(square_mesh.clone()).into()))
-        ];
+        let props_vertex_highlight_mesh = prop_cameras
+            .iter()
+            .map(|(id, ..)| (id, meshes.add(square_mesh.clone()).into()))
+            .collect();
         let err_tex = {
             let handle = asset_server.load(embedded_asset_path(ERROR_TEXTURE_NAME));
             let clamp = handle.clone_weak();
@@ -379,7 +375,7 @@ impl DrawingResources
             error_texture: TextureMaterials::error((err_tex, err_id), materials),
             clip_texture: materials
                 .add(asset_server.load(embedded_asset_path(CLIP_OVERLAY_TEXTURE_NAME))),
-            animated_textures: hv_hash_set![],
+            animated_textures: HashSet::new(),
             default_animation_changed: false
         }
     }
@@ -414,7 +410,7 @@ impl DrawingResources
     pub fn animations_amount(&self) -> usize { self.animated_textures.len() }
 
     #[inline]
-    fn assign_animations(&mut self, animations: HvHashMap<String, Animation>)
+    fn assign_animations(&mut self, animations: HashMap<String, Animation>)
     {
         for (texture, animation) in animations
         {
@@ -436,7 +432,7 @@ impl DrawingResources
     }
 
     #[inline]
-    pub fn replace_animations(&mut self, animations: HvHashMap<String, Animation>)
+    pub fn replace_animations(&mut self, animations: HashMap<String, Animation>)
     {
         for tex in &self.animated_textures
         {
@@ -600,7 +596,7 @@ impl DrawingResources
     pub fn chunked_textures<'a, F>(
         &'a self,
         chunk_size: usize,
-        chunks_container: &'a mut HvVec<&'static TextureMaterials>,
+        chunks_container: &'a mut Vec<&'static TextureMaterials>,
         f: Option<F>
     ) -> ChunkedTextures<'a, F>
     where
@@ -634,9 +630,10 @@ impl DrawingResources
     ) -> IndexedMap<String, TextureMaterials>
     {
         textures.sort_by(|a, b| a.0.name().cmp(b.0.name()));
-        let textures = hv_vec![collect; textures.into_iter().map(|(tex, id)| {
-            TextureMaterials::new(tex, id, materials)
-        })];
+        let textures = textures
+            .into_iter()
+            .map(|(tex, id)| TextureMaterials::new(tex, id, materials))
+            .collect();
 
         IndexedMap::new(textures, |tex| tex.texture.name().to_owned())
     }
@@ -650,7 +647,7 @@ impl DrawingResources
     )
     {
         let mut textures = Self::sort_textures(materials, textures);
-        let mut to_remove = hv_hash_set![];
+        let mut to_remove = HashSet::new();
 
         for t in &self.animated_textures
         {
@@ -1007,7 +1004,7 @@ impl DrawingResources
 struct TooltipLabelGenerator
 {
     /// The vertexes which already have an assigned tooltip.
-    assigned_vertexes: HvHashSet<HashVec2>,
+    assigned_vertexes: HashSet<HashVec2>,
     /// The amount of labels used by tooltips in this frame.
     vx_labels_index:   usize
 }
@@ -1019,7 +1016,7 @@ impl Default for TooltipLabelGenerator
     fn default() -> Self
     {
         Self {
-            assigned_vertexes: hv_hash_set![],
+            assigned_vertexes: HashSet::new(),
             vx_labels_index:   0
         }
     }
@@ -1095,7 +1092,7 @@ struct Meshes
     /// The meshes to batch spawn at the end of the frame.
     spawn:       Vec<MaterialMesh2dBundle<ColorMaterial>>,
     /// The meshes to remove from the assets at the start of the frame.
-    remove:      HvVec<Handle<Mesh>>,
+    remove:      Vec<Handle<Mesh>>,
     /// The meshes that can be reused to generate new ones.
     parts:       MeshParts,
     /// The grid [`Mesh`] to spawn.
@@ -1112,7 +1109,7 @@ impl Default for Meshes
     {
         Self {
             spawn:       Vec::new(),
-            remove:      hv_vec![],
+            remove:      Vec::new(),
             parts:       MeshParts::default(),
             grid:        None,
             grid_handle: None
@@ -1205,11 +1202,11 @@ impl Meshes
 struct MeshParts
 {
     /// The positions vectors
-    pos:        HvVec<Vec<VxPos>>,
+    pos:        Vec<Vec<VxPos>>,
     /// The color vectors.
-    color:      HvVec<Vec<VxColor>>,
+    color:      Vec<Vec<VxColor>>,
     /// The uv vectors.
-    uv:         HvVec<Vec<Uv>>,
+    uv:         Vec<Vec<Uv>>,
     /// A positions vector just for the grid.
     grid_pos:   Vec<VxPos>,
     /// A colors vector just for the grid.
@@ -1223,9 +1220,9 @@ impl Default for MeshParts
     fn default() -> Self
     {
         Self {
-            pos:        hv_vec![Vec::with_capacity(4); 500],
-            color:      hv_vec![Vec::with_capacity(4); 500],
-            uv:         hv_vec![Vec::with_capacity(4); 500],
+            pos:        (0..500).map(|_| Vec::with_capacity(4)).collect::<Vec<_>>(),
+            color:      (0..500).map(|_| Vec::with_capacity(4)).collect::<Vec<_>>(),
+            uv:         (0..500).map(|_| Vec::with_capacity(4)).collect::<Vec<_>>(),
             grid_pos:   Vec::with_capacity(256),
             grid_color: Vec::with_capacity(256)
         }
@@ -1713,7 +1710,7 @@ where
 {
     iter:       TexturesIter<'a, F>,
     chunk_size: usize,
-    container:  &'a mut HvVec<&'static TextureMaterials>
+    container:  &'a mut Vec<&'static TextureMaterials>
 }
 
 impl<'a, F> ChunkedTextures<'a, F>

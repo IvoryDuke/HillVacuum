@@ -13,7 +13,6 @@
 #![forbid(clippy::enum_glob_use)]
 // #![forbid(clippy::wildcard_imports)]
 // #![warn(clippy::missing_docs_in_private_items)]
-#![cfg_attr(feature = "arena_alloc", feature(allocator_api))]
 
 #[cfg(feature = "ui")]
 mod config;
@@ -39,10 +38,7 @@ pub use crate::{
         thing::{Thing, ThingId, ThingViewer as ThingInstance},
         Exporter
     },
-    utils::{
-        collections::{HvHashMap, HvHashSet, HvVec},
-        identifiers::Id
-    }
+    utils::identifiers::Id
 };
 
 //=======================================================================//
@@ -61,7 +57,7 @@ pub(crate) mod ui_mod
     //
     //=======================================================================//
 
-    use std::{collections::HashMap, io::Write};
+    use std::io::Write;
 
     pub use bevy;
     use bevy::{
@@ -73,6 +69,7 @@ pub(crate) mod ui_mod
         log::LogPlugin,
         render::texture::{ImageAddressMode, ImagePlugin, ImageSamplerDescriptor},
         state::{app::AppExtStates, state::States},
+        utils::HashMap,
         window::{
             Cursor,
             CursorIcon,
@@ -93,6 +90,7 @@ pub(crate) mod ui_mod
             thing::HardcodedThings,
             MapEditorPlugin
         },
+        utils::misc::{NoneIfEmpty, ReplaceValues},
         Value
     };
     #[allow(unused_imports)]
@@ -105,6 +103,33 @@ pub(crate) mod ui_mod
 
     /// The name of the application.
     pub(crate) const NAME: &str = "HillVacuum";
+
+    //=======================================================================//
+    // MACROS
+    //
+    //=======================================================================//
+
+    macro_rules! hash_set {
+        [$($v:expr),+] => {{
+            let mut map = bevy::utils::HashSet::new();
+            $(map.insert($v);)+
+            map
+        }};
+    }
+
+    pub(crate) use hash_set;
+
+    //=======================================================================//
+
+    macro_rules! hash_map {
+        [$(($k:expr, $v:expr)),+] => {{
+            let mut map = bevy::utils::HashMap::new();
+            $(map.insert($k, $v);)+
+            map
+        }};
+    }
+
+    pub(crate) use hash_map;
 
     //=======================================================================//
     // ENUMS
@@ -237,6 +262,35 @@ pub(crate) mod ui_mod
     //=======================================================================//
     // STRUCTS
     //
+    //=======================================================================//
+
+    pub(crate) type HvVec<T> = smallvec::SmallVec<[T; 1]>;
+
+    impl<T> NoneIfEmpty for HvVec<T>
+    {
+        #[inline]
+        fn none_if_empty(self) -> Option<Self>
+        where
+            Self: Sized
+        {
+            (self.is_empty()).then_some(self)
+        }
+    }
+
+    impl<T> ReplaceValues<T> for HvVec<T>
+    {
+        #[inline]
+        fn replace_values<I: IntoIterator<Item = T>>(&mut self, iter: I)
+        {
+            self.clear();
+            self.extend(iter);
+        }
+    }
+
+    //=======================================================================//
+
+    pub(crate) type Ids = bevy::utils::HashSet<crate::Id>;
+
     //=======================================================================//
 
     #[must_use]
