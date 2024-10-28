@@ -243,9 +243,9 @@ pub(crate) mod ui_mod
     /// The main plugin.
     pub struct HillVacuumPlugin
     {
-        brush_properties: HashMap<&'static str, Value>,
-        thing_properties: HashMap<&'static str, Value>,
-        things:           Vec<Thing>
+        pub brush_properties: HashMap<&'static str, Value>,
+        pub thing_properties: HashMap<&'static str, Value>,
+        pub things:           Vec<Thing>
     }
 
     impl Default for HillVacuumPlugin
