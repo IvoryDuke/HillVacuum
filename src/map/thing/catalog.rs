@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use bevy::{ecs::system::Res, math::UVec2};
+use bevy::math::UVec2;
 use bevy_egui::egui;
 use configparser::ini::Ini;
 use hill_vacuum_shared::{continue_if_err, continue_if_none};
@@ -15,7 +15,7 @@ use crate::{
     map::{drawer::drawing_resources::DrawingResources, indexed_map::IndexedMap},
     utils::{
         collections::{hv_hash_map, hv_vec},
-        misc::AssertedInsertRemove
+        misc::TakeValue
     },
     HvHashMap,
     HvVec
@@ -75,18 +75,9 @@ impl ThingsCatalog
 
     /// Returns a new [`ThingsCatalog`].
     #[inline]
-    pub fn new(hardcoded_things: Option<Res<HardcodedThings>>) -> Self
+    pub fn new(hardcoded_things: &mut HardcodedThings) -> Self
     {
-        let mut h_things = hv_hash_map![];
-
-        if let Some(hardcoded_things) = hardcoded_things
-        {
-            for thing in hardcoded_things.as_ref()
-            {
-                h_things.asserted_insert((thing.id(), thing.clone()));
-            }
-        }
-
+        let h_things = hv_hash_map![collect; hardcoded_things.0.take_value().into_iter().map(|thing| (thing.id(), thing))];
         let things = Self::loaded_things(&h_things);
         let selected_thing = (!things.is_empty()).then_some(0);
 

@@ -907,22 +907,6 @@ pub mod ui_mod
     #[must_use]
     #[derive(Resource, Default)]
     pub(crate) struct HardcodedThings(pub Vec<Thing>);
-
-    impl<'a> IntoIterator for &'a HardcodedThings
-    {
-        type IntoIter = std::slice::Iter<'a, Thing>;
-        type Item = &'a Thing;
-
-        #[inline]
-        fn into_iter(self) -> Self::IntoIter { self.iter() }
-    }
-
-    impl HardcodedThings
-    {
-        /// Returns an iterator to the contained [`Thing`]s.
-        #[inline]
-        fn iter(&self) -> std::slice::Iter<Thing> { self.0.iter() }
-    }
 }
 
 #[cfg(feature = "ui")]

@@ -839,9 +839,9 @@ pub(in crate::map) mod ui_mod
         mut editor: NonSendMut<Editor>,
         mut config: ResMut<Config>,
         mut texture_loader: NonSendMut<TextureLoader>,
-        hardcoded_things: Option<Res<HardcodedThings>>,
-        brush_properties: Option<ResMut<BrushUserProperties>>,
-        thing_properties: Option<ResMut<ThingUserProperties>>,
+        mut hardcoded_things: ResMut<HardcodedThings>,
+        mut brush_properties: ResMut<BrushUserProperties>,
+        mut thing_properties: ResMut<ThingUserProperties>,
         state: Res<State<EditorState>>,
         mut next_state: ResMut<NextState<EditorState>>
     )
@@ -864,9 +864,9 @@ pub(in crate::map) mod ui_mod
                 &mut user_textures,
                 &mut config,
                 &mut texture_loader,
-                hardcoded_things,
-                brush_properties,
-                thing_properties
+                &mut hardcoded_things,
+                &mut brush_properties,
+                &mut thing_properties
             );
 
             next_state.set(EditorState::Run);

@@ -12,7 +12,7 @@ use bevy::{
         entity::Entity,
         event::EventReader,
         query::With,
-        system::{Commands, Query, Res, ResMut}
+        system::{Commands, Query}
     },
     input::{
         keyboard::KeyCode,
@@ -265,9 +265,9 @@ impl Editor
         user_textures: &mut EguiUserTextures,
         config: &mut Config,
         texture_loader: &mut TextureLoader,
-        hardcoded_things: Option<Res<HardcodedThings>>,
-        brush_properties: Option<ResMut<BrushUserProperties>>,
-        thing_properties: Option<ResMut<ThingUserProperties>>
+        hardcoded_things: &mut HardcodedThings,
+        brush_properties: &mut BrushUserProperties,
+        thing_properties: &mut ThingUserProperties
     ) -> Self
     {
         let mut drawing_resources = DrawingResources::new(
@@ -286,14 +286,10 @@ impl Editor
         };
 
         let default_brush_properties = EngineDefaultBrushProperties::from(
-            brush_properties.map_or_else(DefaultBrushProperties::default, |mut d_p| {
-                DefaultBrushProperties::new(d_p.0.take_value())
-            })
+            DefaultBrushProperties::new(brush_properties.0.take_value())
         );
         let default_thing_properties = EngineDefaultThingProperties::from(
-            thing_properties.map_or_else(DefaultThingProperties::default, |mut d_p| {
-                DefaultThingProperties::new(d_p.0.take_value())
-            })
+            DefaultThingProperties::new(thing_properties.0.take_value())
         );
         let mut map_default_brush_properties = default_brush_properties.inner();
         let mut map_default_thing_properties = default_thing_properties.inner();
