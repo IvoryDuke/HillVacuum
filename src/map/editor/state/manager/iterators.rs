@@ -3,7 +3,7 @@
 //
 //=======================================================================//
 
-use std::cell::Ref;
+use std::sync::RwLockReadGuard;
 
 use super::{
     entities_trees::Trees,
@@ -12,13 +12,16 @@ use super::{
     EntitiesManager,
     Innards,
     MovingMut,
-    ThingMut
+    QuadTreeIds,
+    QuadTreeIdsNearPos,
+    ThingMut,
+    VisibleQuadTreeIds
 };
 use crate::{
     map::{
         brush::Brush,
         drawer::drawing_resources::DrawingResources,
-        editor::state::{grid::Grid, manager::quad_tree::QuadTreeIds},
+        editor::state::grid::Grid,
         path::Moving,
         thing::{catalog::ThingsCatalog, ThingInstance}
     },
@@ -26,58 +29,84 @@ use crate::{
 };
 
 //=======================================================================//
+// MACROS
+//
+//=======================================================================//
+
+macro_rules! brushes_iter {
+    ($(($name:ident, $ids:ident)),+) => { paste::paste! { $(
+        /// A wrapper that returns an iterator to certain brushes of the map defined on creation.
+        #[must_use]
+        pub(in crate::map::editor::state) struct $name<'a>(
+            &'a EntitiesManager,
+            RwLockReadGuard<'a, $ids>
+        );
+
+        impl<'a> $name<'a>
+        {
+            #[inline]
+            pub(in crate::map::editor::state::manager) const fn new(
+                manager: &'a EntitiesManager,
+                ids: RwLockReadGuard<'a, $ids>
+            ) -> Self
+            {
+                Self(manager, ids)
+            }
+
+            /// Returns an iterator to the brushes whose [`Id`] are contained in `self`.
+            #[inline]
+            pub fn iter(&self) -> impl Iterator<Item = &Brush> { self.1.ids().map(|id| self.0.brush(*id)) }
+        }
+    )+}};
+}
+
+//=======================================================================//
+
+macro_rules! things_iter {
+    ($(($name:ident, $ids:ident)),+) => { paste::paste! { $(
+        /// A wrapper that returns an iterator to certain [`ThingInstance`]s of the map defined on creation.
+        #[must_use]
+        pub(in crate::map::editor::state) struct $name<'a>(
+            &'a EntitiesManager,
+            RwLockReadGuard<'a, $ids>
+        );
+
+        impl<'a> $name<'a>
+        {
+            /// Returns a new [`ThingsIter`] that returns an iterator to the [`ThingInstance`]s with [`Id`]s
+            /// in `ids`.
+            #[inline]
+            pub(in crate::map::editor::state::manager) const fn new(
+                manager: &'a EntitiesManager,
+                ids: RwLockReadGuard<'a, $ids>
+            ) -> Self
+            {
+                Self(manager, ids)
+            }
+
+            /// Returns an iterator to the [`ThingInstance`]s whose [`Id`] are contained in `self`.
+            #[inline]
+            pub fn iter(&self) -> impl Iterator<Item = &ThingInstance>
+            {
+                self.1.ids().map(|id| self.0.thing(*id))
+            }
+        }
+    )+}};
+}
+
+//=======================================================================//
 // STRUCTS
 //
 //=======================================================================//
 
-/// A wrapper that returns an iterator to certain brushes of the map defined on creation.
-#[must_use]
-pub(in crate::map::editor::state) struct BrushesIter<'a>(&'a EntitiesManager, Ref<'a, QuadTreeIds>);
-
-impl<'a> BrushesIter<'a>
-{
-    /// Returns a new [`BrushesIter`] that returns an iterator to the brushes with [`Id`]s in
-    /// `ids`.
-    #[inline]
-    pub(in crate::map::editor::state::manager) const fn new(
-        manager: &'a EntitiesManager,
-        ids: Ref<'a, QuadTreeIds>
-    ) -> Self
-    {
-        Self(manager, ids)
-    }
-
-    /// Returns an iterator to the brushes whose [`Id`] are contained in `self`.
-    #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = &Brush> { self.1.ids().map(|id| self.0.brush(*id)) }
-}
+brushes_iter!(
+    (VisibleBrushesIter, VisibleQuadTreeIds),
+    (BrushesNearPosIter, QuadTreeIdsNearPos)
+);
 
 //=======================================================================//
 
-/// A wrapper that returns an iterator to certain [`ThingInstance`]s of the map defined on creation.
-#[must_use]
-pub(in crate::map::editor::state) struct ThingsIter<'a>(&'a EntitiesManager, Ref<'a, QuadTreeIds>);
-
-impl<'a> ThingsIter<'a>
-{
-    /// Returns a new [`ThingsIter`] that returns an iterator to the [`ThingInstance`]s with [`Id`]s
-    /// in `ids`.
-    #[inline]
-    pub(in crate::map::editor::state::manager) const fn new(
-        manager: &'a EntitiesManager,
-        ids: Ref<'a, QuadTreeIds>
-    ) -> Self
-    {
-        Self(manager, ids)
-    }
-
-    /// Returns an iterator to the [`ThingInstance`]s whose [`Id`] are contained in `self`.
-    #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = &ThingInstance>
-    {
-        self.1.ids().map(|id| self.0.thing(*id))
-    }
-}
+things_iter!((VisibleThingsIter, VisibleQuadTreeIds), (ThingsNearPosIter, QuadTreeIdsNearPos));
 
 //=======================================================================//
 
@@ -86,7 +115,7 @@ impl<'a> ThingsIter<'a>
 #[must_use]
 pub(in crate::map::editor::state) struct SelectedBrushesIter<'a>(
     &'a EntitiesManager,
-    Ref<'a, QuadTreeIds>
+    RwLockReadGuard<'a, QuadTreeIdsNearPos>
 );
 
 impl<'a> SelectedBrushesIter<'a>
@@ -96,7 +125,7 @@ impl<'a> SelectedBrushesIter<'a>
     #[inline]
     pub(in crate::map::editor::state::manager) const fn new(
         manager: &'a EntitiesManager,
-        ids: Ref<'a, QuadTreeIds>
+        ids: RwLockReadGuard<'a, QuadTreeIdsNearPos>
     ) -> Self
     {
         Self(manager, ids)
@@ -117,7 +146,7 @@ impl<'a> SelectedBrushesIter<'a>
 //=======================================================================//
 
 /// A wrapper that returns an iterator to the [`Id`]s of the entities within a certain range.
-pub(in crate::map::editor::state) struct IdsInRange<'a>(Ref<'a, QuadTreeIds>);
+pub(in crate::map::editor::state) struct IdsInRange<'a>(RwLockReadGuard<'a, QuadTreeIds>);
 
 impl<'a, 'b: 'a> IntoIterator for &'b IdsInRange<'a>
 {
@@ -132,7 +161,9 @@ impl<'a> IdsInRange<'a>
 {
     /// Returns a new [`IdsInRange`] from `ids`.
     #[inline]
-    pub(in crate::map::editor::state::manager) const fn new(ids: Ref<'a, QuadTreeIds>) -> Self
+    pub(in crate::map::editor::state::manager) const fn new(
+        ids: RwLockReadGuard<'a, QuadTreeIds>
+    ) -> Self
     {
         Self(ids)
     }
@@ -207,7 +238,7 @@ impl<'a> SelectedBrushesMut<'a>
 #[must_use]
 pub(in crate::map::editor::state) struct SelectedThingsIter<'a>(
     &'a EntitiesManager,
-    Ref<'a, QuadTreeIds>
+    RwLockReadGuard<'a, QuadTreeIdsNearPos>
 );
 
 impl<'a> SelectedThingsIter<'a>
@@ -216,7 +247,7 @@ impl<'a> SelectedThingsIter<'a>
     #[inline]
     pub(in crate::map::editor::state::manager) const fn new(
         manager: &'a EntitiesManager,
-        ids: Ref<'a, QuadTreeIds>
+        ids: RwLockReadGuard<'a, QuadTreeIdsNearPos>
     ) -> Self
     {
         Self(manager, ids)
@@ -294,7 +325,7 @@ impl<'a> SelectedThingsMut<'a>
 #[must_use]
 pub(in crate::map::editor::state) struct SelectedMovingsIter<'a>(
     &'a EntitiesManager,
-    Ref<'a, QuadTreeIds>
+    RwLockReadGuard<'a, QuadTreeIdsNearPos>
 );
 
 impl<'a> SelectedMovingsIter<'a>
@@ -303,7 +334,7 @@ impl<'a> SelectedMovingsIter<'a>
     #[inline]
     pub(in crate::map::editor::state::manager) const fn new(
         manager: &'a EntitiesManager,
-        ids: Ref<'a, QuadTreeIds>
+        ids: RwLockReadGuard<'a, QuadTreeIdsNearPos>
     ) -> Self
     {
         Self(manager, ids)
@@ -330,7 +361,10 @@ impl<'a> SelectedMovingsIter<'a>
 
 /// A wrapper to the [`Id`]s of entities which implement the [`Moving`] trait.
 #[must_use]
-pub(in crate::map::editor::state) struct MovingsIter<'a>(&'a EntitiesManager, Ref<'a, QuadTreeIds>);
+pub(in crate::map::editor::state) struct MovingsIter<'a>(
+    &'a EntitiesManager,
+    RwLockReadGuard<'a, VisibleQuadTreeIds>
+);
 
 impl<'a> MovingsIter<'a>
 {
@@ -338,7 +372,7 @@ impl<'a> MovingsIter<'a>
     #[inline]
     pub(in crate::map::editor::state::manager) const fn new(
         manager: &'a EntitiesManager,
-        ids: Ref<'a, QuadTreeIds>
+        ids: RwLockReadGuard<'a, VisibleQuadTreeIds>
     ) -> Self
     {
         Self(manager, ids)

@@ -9,21 +9,22 @@ mod quad_tree;
 
 use std::{
     borrow::Cow,
-    cell::Ref,
     fs::File,
     io::BufReader,
-    ops::{Deref, DerefMut}
+    ops::{Deref, DerefMut},
+    sync::RwLockReadGuard
 };
 
 use bevy::{transform::components::Transform, window::Window};
+use entities_trees::{QuadTreeIdsNearPos, VisibleQuadTreeIds};
 use glam::Vec2;
 use hill_vacuum_shared::{continue_if_none, return_if_none, NextValue};
+use iterators::{BrushesNearPosIter, ThingsNearPosIter, VisibleBrushesIter, VisibleThingsIter};
 use quad_tree::InsertResult;
 
 use self::{
     entities_trees::Trees,
     iterators::{
-        BrushesIter,
         IdsInRange,
         MovingsIter,
         SelectedBrushesIter,
@@ -31,8 +32,7 @@ use self::{
         SelectedMovingsIter,
         SelectedMovingsMut,
         SelectedThingsIter,
-        SelectedThingsMut,
-        ThingsIter
+        SelectedThingsMut
     }
 };
 use super::{
@@ -2348,18 +2348,11 @@ impl EntitiesManager
         self.innards.selected_brushes.iter()
     }
 
-    /// Returns a [`BrushesIter`] created from `ids`.
-    #[inline]
-    const fn brushes_iter<'a>(&'a self, ids: Ref<'a, QuadTreeIds>) -> BrushesIter<'a>
-    {
-        BrushesIter::new(self, ids)
-    }
-
     /// Returns a [`SelectedBrushesIter`] created from `ids`
     #[inline]
     const fn selected_brushes_iter<'a>(
         &'a self,
-        ids: Ref<'a, QuadTreeIds>
+        ids: RwLockReadGuard<'a, QuadTreeIdsNearPos>
     ) -> SelectedBrushesIter<'a>
     {
         SelectedBrushesIter::new(self, ids)
@@ -2425,9 +2418,9 @@ impl EntitiesManager
         &self,
         cursor_pos: Vec2,
         camera_scale: Option<f32>
-    ) -> BrushesIter<'_>
+    ) -> BrushesNearPosIter<'_>
     {
-        self.brushes_iter(self.quad_trees.brushes_at_pos(cursor_pos, camera_scale))
+        BrushesNearPosIter::new(self, self.quad_trees.brushes_at_pos(cursor_pos, camera_scale))
     }
 
     /// Returns an iterator to the visible brushes.
@@ -2437,9 +2430,9 @@ impl EntitiesManager
         window: &Window,
         camera: &Transform,
         grid: &Grid
-    ) -> BrushesIter<'_>
+    ) -> VisibleBrushesIter<'_>
     {
-        self.brushes_iter(self.quad_trees.visible_brushes(camera, window, grid))
+        VisibleBrushesIter::new(self, self.quad_trees.visible_brushes(camera, window, grid))
     }
 
     /// Returns a [`SelectedBrushesIter`] that returns the selected brushes near `cursor_pos`.
@@ -3327,9 +3320,9 @@ impl EntitiesManager
         window: &Window,
         camera: &Transform,
         grid: &Grid
-    ) -> BrushesIter<'_>
+    ) -> VisibleBrushesIter
     {
-        self.brushes_iter(self.quad_trees.visible_anchors(camera, window, grid))
+        VisibleBrushesIter::new(self, self.quad_trees.visible_anchors(camera, window, grid))
     }
 
     /// Returns the amount of selected textured brushes.
@@ -3392,10 +3385,12 @@ impl EntitiesManager
     /// Returns a [`BrushesIter`] returning the brushes with sprites at the position
     /// `cursor_pos`.
     #[inline]
-    pub(in crate::map::editor::state) fn sprites_at_pos(&self, cursor_pos: Vec2)
-        -> BrushesIter<'_>
+    pub(in crate::map::editor::state) fn sprites_at_pos(
+        &self,
+        cursor_pos: Vec2
+    ) -> BrushesNearPosIter
     {
-        self.brushes_iter(self.quad_trees.sprites_at_pos(cursor_pos))
+        BrushesNearPosIter::new(self, self.quad_trees.sprites_at_pos(cursor_pos))
     }
 
     /// Returns the visible brushes with sprites.
@@ -3405,9 +3400,9 @@ impl EntitiesManager
         window: &Window,
         camera: &Transform,
         grid: &Grid
-    ) -> BrushesIter<'_>
+    ) -> VisibleBrushesIter
     {
-        self.brushes_iter(self.quad_trees.visible_sprites(camera, window, grid))
+        VisibleBrushesIter::new(self, self.quad_trees.visible_sprites(camera, window, grid))
     }
 
     #[inline]
@@ -3901,9 +3896,9 @@ impl EntitiesManager
         &self,
         cursor_pos: Vec2,
         camera_scale: impl Into<Option<f32>>
-    ) -> ThingsIter<'_>
+    ) -> ThingsNearPosIter<'_>
     {
-        ThingsIter::new(self, self.quad_trees.things_at_pos(cursor_pos, camera_scale.into()))
+        ThingsNearPosIter::new(self, self.quad_trees.things_at_pos(cursor_pos, camera_scale.into()))
     }
 
     /// Returns a [`SelectedThingsIter`] returning the selected [`ThingInstance`]s at the cursor
@@ -3928,9 +3923,9 @@ impl EntitiesManager
         window: &Window,
         camera: &Transform,
         grid: &Grid
-    ) -> ThingsIter<'_>
+    ) -> VisibleThingsIter<'_>
     {
-        ThingsIter::new(self, self.quad_trees.visible_things(camera, window, grid))
+        VisibleThingsIter::new(self, self.quad_trees.visible_things(camera, window, grid))
     }
 
     /// Remove the [`ThingInstance`] with [`Id`] `identifier` from the map.

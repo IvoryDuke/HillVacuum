@@ -19,6 +19,7 @@ use bevy::{
         mouse::{MouseButton, MouseScrollUnit, MouseWheel},
         ButtonInput
     },
+    prelude::Resource,
     render::{mesh::Mesh, texture::Image},
     sprite::{ColorMaterial, Mesh2dHandle},
     state::state::NextState,
@@ -193,8 +194,9 @@ struct DrawBundleMapPreview<'w, 's, 'a, 'b>
 
 //=======================================================================//
 
-/// The map editor .
+/// The map editor.
 #[must_use]
+#[derive(Resource)]
 pub(in crate::map) struct Editor
 {
     /// The current state.

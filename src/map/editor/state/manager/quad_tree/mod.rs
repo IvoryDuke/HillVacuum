@@ -367,7 +367,6 @@ impl QuadTreeIds
     #[inline]
     pub fn iter(&self) -> Iter<'_, Id, Hull> { self.0.iter() }
 
-    /// Returns an iterator to the stored [`Id`]s.
     #[inline]
     pub fn ids(&self) -> hashbrown::hash_map::Keys<'_, Id, Hull> { self.0.keys() }
 
@@ -378,7 +377,7 @@ impl QuadTreeIds
 
     /// Inserts a ([`Id`], [`Hull`]) pair.
     #[inline]
-    pub fn insert(&mut self, identifier: Id, hull: &Hull) { self.0.insert(identifier, *hull); }
+    fn insert(&mut self, identifier: Id, hull: &Hull) { self.0.insert(identifier, *hull); }
 
     /// Retains only the elements specified by the predicate.
     #[inline]

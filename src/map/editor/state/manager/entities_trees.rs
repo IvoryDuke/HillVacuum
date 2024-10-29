@@ -3,7 +3,7 @@
 //
 //=======================================================================//
 
-use std::cell::{Ref, RefCell};
+use std::sync::{RwLock, RwLockReadGuard};
 
 use bevy::{transform::components::Transform, window::Window};
 use glam::Vec2;
@@ -21,7 +21,8 @@ use crate::{
         thing::{catalog::ThingsCatalog, ThingInstance, ThingInterface},
         MAP_SIZE
     },
-    utils::{hull::Hull, identifiers::EntityId, math::AroundEqual, misc::Camera}
+    utils::{hull::Hull, identifiers::EntityId, math::AroundEqual, misc::Camera},
+    Id
 };
 
 //=======================================================================//
@@ -38,16 +39,16 @@ macro_rules! visible_iters {
             camera: &Transform,
             window: &Window,
             grid: &Grid
-        ) -> Ref<'_, QuadTreeIds>
+        ) -> VisibleIds<'_>
         {
-            self.[< visible_ $entities >].borrow_mut().update(camera, window, grid, |ids, viewport| {
+            self.[< visible_ $entities >].write().unwrap().update(camera, window, grid, |ids, viewport| {
                 self.[< $entities _tree >]
                     .entities_intersect_range(ids, &viewport);
             });
 
-            Ref::map(self.[< visible_ $entities >].borrow(), |v| &v.ids)
+            self.[< visible_ $entities >].read().unwrap()
         }
-)+ }}
+    )+}}
 }
 
 //=======================================================================//
@@ -69,29 +70,29 @@ pub(in crate::map::editor::state::manager) struct Trees
     /// All [`ThingInstance`]s.
     things_tree:      QuadTree,
     /// The brushes at a certain position.
-    brushes_at_pos:   RefCell<QuadTreeIdsNearPos>,
+    brushes_at_pos:   RwLock<QuadTreeIdsNearPos>,
     /// The visible brushes.
-    visible_brushes:  RefCell<VisibleQuadTreeIds>,
+    visible_brushes:  RwLock<VisibleQuadTreeIds>,
     /// The brushes in a certain range.
-    brushes_in_range: RefCell<QuadTreeIds>,
+    brushes_in_range: RwLock<QuadTreeIds>,
     /// The visible [`Path`]s.
-    visible_paths:    RefCell<VisibleQuadTreeIds>,
+    visible_paths:    RwLock<VisibleQuadTreeIds>,
     /// The [`Path`]s at a certain pos.
-    paths_at_pos:     RefCell<QuadTreeIdsNearPos>,
+    paths_at_pos:     RwLock<QuadTreeIdsNearPos>,
     /// The visible attachments.
-    visible_anchors:  RefCell<VisibleQuadTreeIds>,
+    visible_anchors:  RwLock<VisibleQuadTreeIds>,
     /// The sprites at a certain position.
-    sprites_at_pos:   RefCell<QuadTreeIdsNearPos>,
+    sprites_at_pos:   RwLock<QuadTreeIdsNearPos>,
     /// The visible sprites.
-    visible_sprites:  RefCell<VisibleQuadTreeIds>,
+    visible_sprites:  RwLock<VisibleQuadTreeIds>,
     /// The sprites in a certain range.
-    sprites_in_range: RefCell<QuadTreeIds>,
+    sprites_in_range: RwLock<QuadTreeIds>,
     /// The [`ThingInstance`]s at a certain pos.
-    things_at_pos:    RefCell<QuadTreeIdsNearPos>,
+    things_at_pos:    RwLock<QuadTreeIdsNearPos>,
     /// The visible [`ThingInstance`].
-    visible_things:   RefCell<VisibleQuadTreeIds>,
+    visible_things:   RwLock<VisibleQuadTreeIds>,
     /// The [`ThingInstance`] in a certain range.
-    things_in_range:  RefCell<QuadTreeIds>
+    things_in_range:  RwLock<QuadTreeIds>
 }
 
 impl Trees
@@ -249,48 +250,44 @@ impl Trees
     #[inline]
     fn set_brushes_dirty(&mut self)
     {
-        self.brushes_at_pos.borrow_mut().set_dirty();
-        self.visible_brushes.borrow_mut().set_dirty();
+        self.brushes_at_pos.write().unwrap().set_dirty();
+        self.visible_brushes.write().unwrap().set_dirty();
     }
 
     /// Marks the paths [`DirtyQuadTreeIdsNearPos`]es as dirty.
     #[inline]
     fn set_paths_dirty(&mut self)
     {
-        self.paths_at_pos.borrow_mut().set_dirty();
-        self.visible_paths.borrow_mut().set_dirty();
+        self.paths_at_pos.write().unwrap().set_dirty();
+        self.visible_paths.write().unwrap().set_dirty();
     }
 
     /// Marks the sprites [`DirtyQuadTreeIdsNearPos`]es as dirty.
     #[inline]
     fn set_sprites_dirty(&mut self)
     {
-        self.sprites_at_pos.borrow_mut().set_dirty();
-        self.visible_sprites.borrow_mut().set_dirty();
+        self.sprites_at_pos.write().unwrap().set_dirty();
+        self.visible_sprites.write().unwrap().set_dirty();
     }
 
     /// Marks the things [`DirtyQuadTreeIdsNearPos`]es as dirty.
     #[inline]
     fn set_things_dirty(&mut self)
     {
-        self.things_at_pos.borrow_mut().set_dirty();
-        self.visible_things.borrow_mut().set_dirty();
+        self.things_at_pos.write().unwrap().set_dirty();
+        self.visible_things.write().unwrap().set_dirty();
     }
 
     /// Sets the attachments [`DirtyQuadTreeIdsNearPos`] as dirty.
     #[inline]
-    pub fn set_anchors_dirty(&mut self) { self.visible_anchors.borrow_mut().set_dirty(); }
+    pub fn set_anchors_dirty(&mut self) { self.visible_anchors.write().unwrap().set_dirty(); }
 
     /// Stores the [`Id`]s of the brushes at `cursor_pos` (or near it if `camera_scale` contains
     /// a value) and returns their container.
     #[inline]
-    pub fn brushes_at_pos(
-        &self,
-        cursor_pos: Vec2,
-        camera_scale: Option<f32>
-    ) -> Ref<'_, QuadTreeIds>
+    pub fn brushes_at_pos(&self, cursor_pos: Vec2, camera_scale: Option<f32>) -> IdsNearPos<'_>
     {
-        self.brushes_at_pos.borrow_mut().update(
+        self.brushes_at_pos.write().unwrap().update(
             cursor_pos,
             camera_scale,
             |ids, pos, camera_scale| {
@@ -304,24 +301,24 @@ impl Trees
             }
         );
 
-        Ref::map(self.brushes_at_pos.borrow(), |v| &v.ids)
+        self.brushes_at_pos.read().unwrap()
     }
 
     /// Stores the [`Id`]s of the brushes in `range` and returns their container.
     #[inline]
-    pub fn brushes_in_range(&self, range: &Hull) -> Ref<'_, QuadTreeIds>
+    pub fn brushes_in_range(&self, range: &Hull) -> Ids<'_>
     {
         self.brushes_tree
-            .entities_in_range(&mut self.brushes_in_range.borrow_mut(), range);
-        self.brushes_in_range.borrow()
+            .entities_in_range(&mut self.brushes_in_range.write().unwrap(), range);
+        self.brushes_in_range.read().unwrap()
     }
 
     /// Stores the [`Id`]s of the entities that own the [`Path`]s at `cursor_pos` (or near it if
     /// `camera_scale` contains a value) and returns their container.
     #[inline]
-    pub fn paths_at_pos(&self, cursor_pos: Vec2, camera_scale: f32) -> Ref<'_, QuadTreeIds>
+    pub fn paths_at_pos(&self, cursor_pos: Vec2, camera_scale: f32) -> IdsNearPos<'_>
     {
-        self.paths_at_pos.borrow_mut().update(
+        self.paths_at_pos.write().unwrap().update(
             cursor_pos,
             camera_scale.into(),
             |ids, pos, camera_scale| {
@@ -329,40 +326,40 @@ impl Trees
             }
         );
 
-        Ref::map(self.paths_at_pos.borrow(), |v| &v.ids)
+        self.paths_at_pos.read().unwrap()
     }
 
     /// Stores the [`Id`]s of the [`ThingInstance`]s at `cursor_pos` (or near it if `camera_scale`
     /// contains a value) and returns their container.
     #[inline]
-    pub fn sprites_at_pos(&self, cursor_pos: Vec2) -> Ref<'_, QuadTreeIds>
+    pub fn sprites_at_pos(&self, cursor_pos: Vec2) -> IdsNearPos<'_>
     {
         self.sprites_at_pos
-            .borrow_mut()
+            .write()
+            .unwrap()
             .update(cursor_pos, None, |ids, pos, _| {
                 self.sprites_tree.entities_at_pos(ids, pos);
             });
 
-        Ref::map(self.sprites_at_pos.borrow(), |v| &v.ids)
+        self.sprites_at_pos.read().unwrap()
     }
 
     /// Stores the [`Id`]s of the brushes that own the sprites in `range` and returns their
     /// container.
     #[inline]
-    pub fn sprites_in_range(&self, range: &Hull) -> Ref<'_, QuadTreeIds>
+    pub fn sprites_in_range(&self, range: &Hull) -> Ids<'_>
     {
         self.sprites_tree
-            .entities_in_range(&mut self.sprites_in_range.borrow_mut(), range);
-        self.sprites_in_range.borrow()
+            .entities_in_range(&mut self.sprites_in_range.write().unwrap(), range);
+        self.sprites_in_range.read().unwrap()
     }
 
     /// Stores the [`Id`]s of the [`ThingInstance`]s at `cursor_pos` (or near it if `camera_scale`
     /// contains a value) and returns their container.
     #[inline]
-    pub fn things_at_pos(&self, cursor_pos: Vec2, camera_scale: Option<f32>)
-        -> Ref<'_, QuadTreeIds>
+    pub fn things_at_pos(&self, cursor_pos: Vec2, camera_scale: Option<f32>) -> IdsNearPos<'_>
     {
-        self.things_at_pos.borrow_mut().update(
+        self.things_at_pos.write().unwrap().update(
             cursor_pos,
             camera_scale,
             |ids, pos, camera_scale| {
@@ -376,23 +373,31 @@ impl Trees
             }
         );
 
-        Ref::map(self.things_at_pos.borrow(), |v| &v.ids)
+        self.things_at_pos.read().unwrap()
     }
 
     /// Stores the [`Id`]s of the [`ThingInstance`]s in `range` and returns their container.
     #[inline]
-    pub fn things_in_range(&self, range: &Hull) -> Ref<'_, QuadTreeIds>
+    pub fn things_in_range(&self, range: &Hull) -> Ids<'_>
     {
         self.things_tree
-            .entities_in_range(&mut self.things_in_range.borrow_mut(), range);
-        self.things_in_range.borrow()
+            .entities_in_range(&mut self.things_in_range.write().unwrap(), range);
+        self.things_in_range.read().unwrap()
     }
 }
 
 //=======================================================================//
 
+type Ids<'a> = RwLockReadGuard<'a, QuadTreeIds>;
+
+//=======================================================================//
+
+type IdsNearPos<'a> = RwLockReadGuard<'a, QuadTreeIdsNearPos>;
+
+//=======================================================================//
+
 /// A container of [`Id`]s of entities at a certain pos with a dirty flag.
-struct QuadTreeIdsNearPos
+pub(in crate::map::editor::state::manager) struct QuadTreeIdsNearPos
 {
     /// The [`Id`]s.
     ids:               QuadTreeIds,
@@ -419,13 +424,16 @@ impl QuadTreeIdsNearPos
         }
     }
 
+    #[inline]
+    pub fn ids(&self) -> hashbrown::hash_map::Keys<'_, Id, Hull> { self.ids.ids() }
+
     /// Sets the dirty flag to true.
     #[inline]
     fn set_dirty(&mut self) { self.dirty = true; }
 
     /// Updates the contained [`Id`]s if necessary.
     #[inline]
-    pub fn update<F: FnOnce(&mut QuadTreeIds, Vec2, Option<f32>)>(
+    fn update<F: FnOnce(&mut QuadTreeIds, Vec2, Option<f32>)>(
         &mut self,
         pos: Vec2,
         camera_scale: Option<f32>,
@@ -450,8 +458,12 @@ impl QuadTreeIdsNearPos
 
 //=======================================================================//
 
+type VisibleIds<'a> = RwLockReadGuard<'a, VisibleQuadTreeIds>;
+
+//=======================================================================//
+
 /// A container of [`Id`]s of visible entities with a dirty flag.
-struct VisibleQuadTreeIds
+pub(in crate::map::editor::state::manager) struct VisibleQuadTreeIds
 {
     /// The [`Id`]s.
     ids:           QuadTreeIds,
@@ -476,13 +488,16 @@ impl VisibleQuadTreeIds
         }
     }
 
+    #[inline]
+    pub fn ids(&self) -> hashbrown::hash_map::Keys<'_, Id, Hull> { self.ids.ids() }
+
     /// Sets the dirty flag to true.
     #[inline]
     fn set_dirty(&mut self) { self.dirty = true; }
 
     /// Updates the contained [`Id`]s if necessary.
     #[inline]
-    pub fn update<F: FnOnce(&mut QuadTreeIds, &Hull)>(
+    fn update<F: FnOnce(&mut QuadTreeIds, &Hull)>(
         &mut self,
         camera: &Transform,
         window: &Window,

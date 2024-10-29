@@ -613,7 +613,7 @@ pub(in crate::map) mod ui_mod
             .add_plugins(EguiPlugin)
             .add_systems(PreUpdate, process_egui_inputs.after(EguiSet::ProcessInput).before(EguiSet::BeginPass))
             // Init resources
-            .insert_non_send_resource(unsafe { Editor::placeholder() })
+            .insert_resource(unsafe { Editor::placeholder() })
             .init_state::<TextureLoadingProgress>()
             .insert_resource(ClearColor(Color::Clear.default_bevy_color()))
             .insert_resource(WinitSettings::default())
@@ -771,7 +771,7 @@ pub(in crate::map) mod ui_mod
     /// Processes the `egui` inputs for some custom behaviors.
     #[allow(clippy::needless_pass_by_value)]
     #[inline]
-    fn process_egui_inputs(mut input: Query<&mut EguiInput>, editor: NonSend<Editor>)
+    fn process_egui_inputs(mut input: Query<&mut EguiInput>, editor: Res<Editor>)
     {
         let ui_focus = editor.is_ui_focused();
         let events = &mut return_if_err!(input.get_single_mut()).0.events;
@@ -835,7 +835,7 @@ pub(in crate::map) mod ui_mod
         mut meshes: ResMut<Assets<Mesh>>,
         mut materials: ResMut<Assets<ColorMaterial>>,
         mut user_textures: ResMut<EguiUserTextures>,
-        mut editor: NonSendMut<Editor>,
+        mut editor: ResMut<Editor>,
         mut config: ResMut<Config>,
         mut texture_loader: ResMut<TextureLoader>,
         mut hardcoded_things: ResMut<HardcodedThings>,
@@ -889,7 +889,7 @@ pub(in crate::map) mod ui_mod
         mut window: Query<&mut Window, With<PrimaryWindow>>,
         mut close_events: ResMut<Events<WindowCloseRequested>>,
         mut config: ResMut<Config>,
-        mut editor: NonSendMut<Editor>,
+        mut editor: ResMut<Editor>,
         mut next_editor_state: ResMut<NextState<EditorState>>
     )
     {
@@ -925,7 +925,7 @@ pub(in crate::map) mod ui_mod
         time: Res<Time>,
         mut egui_context: Query<&'static mut EguiContext, With<PrimaryWindow>>,
         mut user_textures: ResMut<EguiUserTextures>,
-        mut editor: NonSendMut<Editor>,
+        mut editor: ResMut<Editor>,
         mut config: ResMut<Config>,
         mut next_editor_state: ResMut<NextState<EditorState>>,
         mut next_tex_load: ResMut<NextState<TextureLoadingProgress>>
@@ -982,7 +982,7 @@ pub(in crate::map) mod ui_mod
         time: Res<Time>,
         mut egui_context: Query<&'static mut EguiContext, With<PrimaryWindow>>,
         meshes_query: Query<Entity, With<Mesh2dHandle>>,
-        mut editor: NonSendMut<Editor>,
+        mut editor: ResMut<Editor>,
         config: Res<Config>
     )
     {
@@ -1005,7 +1005,7 @@ pub(in crate::map) mod ui_mod
     /// Shutdown cleanup.
     #[allow(clippy::needless_pass_by_value)]
     #[inline]
-    fn cleanup(mut meshes: ResMut<Assets<Mesh>>, editor: NonSend<Editor>)
+    fn cleanup(mut meshes: ResMut<Assets<Mesh>>, editor: Res<Editor>)
     {
         editor.cleanup(&mut meshes);
     }
