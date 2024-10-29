@@ -617,7 +617,7 @@ pub(in crate::map) mod ui_mod
             .init_state::<TextureLoadingProgress>()
             .insert_resource(ClearColor(Color::Clear.default_bevy_color()))
             .insert_resource(WinitSettings::default())
-            .init_non_send_resource::<TextureLoader>()
+            .init_resource::<TextureLoader>()
             // Setup
             .add_systems(PostStartup, initialize)
             // Texture loading
@@ -837,7 +837,7 @@ pub(in crate::map) mod ui_mod
         mut user_textures: ResMut<EguiUserTextures>,
         mut editor: NonSendMut<Editor>,
         mut config: ResMut<Config>,
-        mut texture_loader: NonSendMut<TextureLoader>,
+        mut texture_loader: ResMut<TextureLoader>,
         mut hardcoded_things: ResMut<HardcodedThings>,
         mut brush_properties: ResMut<BrushUserProperties>,
         mut thing_properties: ResMut<ThingUserProperties>,
@@ -1018,7 +1018,7 @@ pub(in crate::map) mod ui_mod
     fn load_textures(
         mut images: ResMut<Assets<Image>>,
         mut user_textures: ResMut<EguiUserTextures>,
-        mut texture_loader: NonSendMut<TextureLoader>,
+        mut texture_loader: ResMut<TextureLoader>,
         mut load_state: ResMut<NextState<TextureLoadingProgress>>
     )
     {
@@ -1033,7 +1033,7 @@ pub(in crate::map) mod ui_mod
     fn texture_loading_ui(
         window: Query<&Window, With<PrimaryWindow>>,
         mut egui_context: EguiContexts,
-        texture_loader: NonSend<TextureLoader>
+        texture_loader: Res<TextureLoader>
     )
     {
         texture_loader.ui(window.single(), egui_context.ctx_mut());
