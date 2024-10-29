@@ -5,8 +5,7 @@ pub(in crate::map::editor::state) mod cursor_polygon;
 //
 //=======================================================================//
 
-use bevy::utils::HashSet;
-use bevy_egui::egui::{self, Color32};
+use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_shared::match_or_panic;
 
@@ -35,10 +34,10 @@ use crate::{
         AssertedInsertRemove
     },
     utils::{
+        collections::{hash_set, Ids},
         identifiers::{EntityId, Id},
         misc::TakeValue
-    },
-    Ids
+    }
 };
 
 //=======================================================================//
@@ -106,7 +105,7 @@ impl Default for DrawTool
     fn default() -> Self
     {
         Self {
-            drawn_brushes: HashSet::new(),
+            drawn_brushes: hash_set![],
             shape:         Shape::Square(SquareCursorPolygon::default())
         }
     }
@@ -170,7 +169,7 @@ impl DrawTool
     fn shape_tool(shape: Shape) -> ActiveTool
     {
         ActiveTool::Draw(Self {
-            drawn_brushes: HashSet::new(),
+            drawn_brushes: hash_set![],
             shape
         })
     }
@@ -347,7 +346,7 @@ impl DrawTool
                     CircleCursorPolygon::circle_resolution_range()
                 )
                 .show_value(false)
-                .text_color(Color32::WHITE)
+                .text_color(egui::Color32::WHITE)
                 .integer()
             );
             ui.label(egui::RichText::new(format!("{}", settings.circle_draw_resolution)));

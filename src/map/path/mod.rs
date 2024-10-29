@@ -17,17 +17,12 @@ pub(in crate::map) mod ui_mod
 
     use std::{fmt::Write, iter::Enumerate};
 
-    use bevy::{
-        transform::components::Transform,
-        utils::{HashMap, HashSet},
-        window::Window
-    };
+    use bevy::{transform::components::Transform, window::Window};
     use bevy_egui::egui;
     use glam::Vec2;
     use hill_vacuum_shared::{continue_if_none, return_if_none, NextValue};
 
     use crate::{
-        hash_set,
         map::{
             drawer::{
                 color::Color,
@@ -37,6 +32,7 @@ pub(in crate::map) mod ui_mod
                 grid::Grid,
                 manager::{Animators, Brushes}
             },
+            hash_map,
             path::{
                 nodes::{
                     Node,
@@ -55,6 +51,7 @@ pub(in crate::map) mod ui_mod
             TOOLTIP_OFFSET
         },
         utils::{
+            collections::{hash_set, HashMap, HashSet},
             hull::Hull,
             identifiers::{EntityCenter, EntityId},
             iterators::{FilterSet, PairIterator, SkipIndexIterator, TripletIterator},
@@ -1013,7 +1010,7 @@ pub(in crate::map) mod ui_mod
     {
         /// Returns a new [`StandbyValueEdit`].
         #[inline]
-        fn new() -> Self { Self(HashMap::new()) }
+        fn new() -> Self { Self(hash_map![]) }
 
         /// Inserts the standby time of the [`Node`] of a [`Path`] at index [`index`].
         #[inline]
@@ -1051,7 +1048,7 @@ pub(in crate::map) mod ui_mod
     {
         /// Returns a new [`MovementValueEdit`].
         #[inline]
-        fn new() -> Self { Self(HashMap::new()) }
+        fn new() -> Self { Self(hash_map![]) }
 
         /// Inserts the values of the [`Node`] at `index` before the edit.
         #[inline]
@@ -1521,11 +1518,17 @@ pub(in crate::map) mod ui_mod
         /// Returns the indexes of the [`Node`]s at `pos`, if any.
         #[inline]
         #[must_use]
-        pub fn get(&self, pos: Vec2) -> Option<&Vec<usize>> { self.0.get(&HashVec2(pos)) }
+        pub fn get(&self, pos: Vec2) -> Option<&[usize]>
+        {
+            self.0.get(&HashVec2(pos)).map(Vec::as_slice)
+        }
 
         /// Returns an iterator to the grouped [`Node`]s.
         #[inline]
-        pub fn iter(&self) -> impl Iterator<Item = (&HashVec2, &Vec<usize>)> { self.0.iter() }
+        pub fn iter(&self) -> impl Iterator<Item = (&HashVec2, &[usize])>
+        {
+            self.0.iter().map(|(k, v)| (k, v.as_slice()))
+        }
 
         /// Returns the position of the bucket containing `index`.
         /// # Panics
@@ -1738,14 +1741,11 @@ pub(in crate::map) mod ui_mod
 
         /// Returns a reference to the vector containing the [`Node`]s of the path.
         #[inline]
-        pub const fn nodes(&self) -> &Vec<Node> { &self.nodes }
+        pub fn nodes(&self) -> &[Node] { &self.nodes }
 
         /// Returns an instance of [`NodesWorld`] representing the [`Node`]s in world coordinates.
         #[inline]
-        const fn nodes_world(&self, center: Vec2) -> NodesWorld
-        {
-            NodesWorld::new(self.nodes(), center)
-        }
+        fn nodes_world(&self, center: Vec2) -> NodesWorld { NodesWorld::new(self.nodes(), center) }
 
         /// Returns an instance of [`NodesWorldMut`] representing the [`Node`]s in world
         /// coordinates.
@@ -3014,7 +3014,7 @@ pub(in crate::map) mod ui_mod
     {
         /// Returns an empty [`Buckets`].
         #[inline]
-        pub fn new() -> Self { Self(HashMap::new()) }
+        pub fn new() -> Self { Self(hash_map![]) }
 
         /// Inserts the `index` of a [`Node`] at `pos`.
         /// # Panics

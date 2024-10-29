@@ -3,7 +3,6 @@
 //
 //=======================================================================//
 
-use bevy::utils::HashMap;
 use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_proc_macros::{EnumFromUsize, EnumSize};
@@ -29,6 +28,7 @@ use crate::{
         }
     },
     utils::{
+        collections::HashMap,
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         misc::{next, prev, Camera, TakeValue}
@@ -43,7 +43,7 @@ use crate::{
 /// A macro to clip the selected brushes.
 macro_rules! clip_brushes {
     ($self:ident, $clip_line:expr, $iter:expr) => {
-        let mut results = bevy::utils::HashMap::new();
+        let mut results = crate::utils::collections::hash_map![];
 
         // Until I figure out how to properly annotate the F lifetimes.
         for brush in $iter

@@ -121,7 +121,7 @@ pub(in crate::map::editor::state) struct IdsInRange<'a>(Ref<'a, QuadTreeIds>);
 
 impl<'a, 'b: 'a> IntoIterator for &'b IdsInRange<'a>
 {
-    type IntoIter = bevy::utils::hashbrown::hash_map::Keys<'a, Id, Hull>;
+    type IntoIter = hashbrown::hash_map::Keys<'a, Id, Hull>;
     type Item = &'a Id;
 
     #[inline]
@@ -139,7 +139,7 @@ impl<'a> IdsInRange<'a>
 
     /// Returns an iterator to the [`Id`]s.
     #[inline]
-    pub fn iter(&'a self) -> bevy::utils::hashbrown::hash_map::Keys<'a, Id, Hull> { self.0.ids() }
+    pub fn iter(&'a self) -> hashbrown::hash_map::Keys<'a, Id, Hull> { self.0.ids() }
 }
 
 //=======================================================================//
@@ -149,7 +149,7 @@ impl<'a> IdsInRange<'a>
 pub(in crate::map::editor::state::manager) struct SelectedBrushesMut<'a>
 {
     /// The [`Id`]s iterator.
-    iter:       bevy::utils::hashbrown::hash_set::Iter<'a, Id>,
+    iter:       hashbrown::hash_set::Iter<'a, Id>,
     resources:  &'a DrawingResources,
     /// The manager.
     manager:    &'a mut Innards,
@@ -240,7 +240,7 @@ impl<'a> SelectedThingsIter<'a>
 pub(in crate::map::editor::state::manager) struct SelectedThingsMut<'a>
 {
     /// The [`Id`]s iterator.
-    iter:           bevy::utils::hashbrown::hash_set::Iter<'a, Id>,
+    iter:           hashbrown::hash_set::Iter<'a, Id>,
     things_catalog: &'a ThingsCatalog,
     /// The manager.
     manager:        &'a mut Innards,
@@ -368,7 +368,7 @@ impl<'a> MovingsIter<'a>
 pub(in crate::map::editor::state::manager) struct SelectedMovingsMut<'a>
 {
     /// The iterator of the [`Id`]s.
-    iter:           bevy::utils::hashbrown::hash_set::Iter<'a, Id>,
+    iter:           hashbrown::hash_set::Iter<'a, Id>,
     things_catalog: &'a ThingsCatalog,
     resources:      &'a DrawingResources,
     /// The entities manager.

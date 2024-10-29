@@ -13,6 +13,7 @@ use super::{
     HashVec2
 };
 use crate::utils::{
+    collections::HashSet,
     math::{
         lines_and_segments::{is_point_inside_clip_edge, lines_intersection},
         AroundEqual
@@ -29,7 +30,7 @@ use crate::utils::{
 /// # Panics
 /// Panics if there are issues comparing calculated cosines.
 #[inline]
-pub fn convex_hull(vertexes: bevy::utils::HashSet<HashVec2>) -> Option<impl Iterator<Item = Vec2>>
+pub fn convex_hull(vertexes: HashSet<HashVec2>) -> Option<impl Iterator<Item = Vec2>>
 {
     let mut convex_hull = Vec::with_capacity(vertexes.len());
     let mut pivot = (Vec2::new(f32::MAX, f32::MAX), 0);

@@ -4736,7 +4736,7 @@ impl ConvexPolygon
 #[derive(Clone)]
 struct NewVertexIterator<'a>
 {
-    vertexes:        &'a Vec<SelectableVector>,
+    vertexes:        &'a [SelectableVector],
     new_vx:          Vec2,
     new_vx_index:    usize,
     new_vx_returned: bool,
@@ -4789,7 +4789,7 @@ impl Iterator for NewVertexIterator<'_>
 impl<'a> NewVertexIterator<'a>
 {
     #[inline]
-    fn new(vertexes: &'a Vec<SelectableVector>, pos: Vec2, index: usize) -> Self
+    fn new(vertexes: &'a [SelectableVector], pos: Vec2, index: usize) -> Self
     {
         Self {
             vertexes,

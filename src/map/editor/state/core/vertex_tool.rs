@@ -3,7 +3,6 @@
 //
 //=======================================================================//
 
-use bevy::utils::{HashMap, HashSet};
 use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_shared::{
@@ -57,13 +56,13 @@ use crate::{
         selectable_vector::VectorSelectionResult
     },
     utils::{
+        collections::{hash_map, hash_set, HashMap, Ids},
         hull::Hull,
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::HashVec2,
         misc::{AssertedInsertRemove, Camera, TakeValue}
-    },
-    Ids
+    }
 };
 
 //=======================================================================//
@@ -150,9 +149,9 @@ impl BrushesWithSelectedVertexes
     fn new() -> Self
     {
         Self {
-            ids:            HashSet::new(),
+            ids:            hash_set![],
             selected_vxs:   SelectedVertexes::default(),
-            splittable_ids: HashMap::new(),
+            splittable_ids: hash_map![],
             error_id:       None
         }
     }
@@ -760,7 +759,7 @@ impl VertexTool
 
         // Since everything went well confirm the move, store the vertexes and ids for
         // the overlap check.
-        let mut moved_vertexes = HashSet::new();
+        let mut moved_vertexes = hash_set![];
 
         for payload in move_payloads
         {

@@ -190,12 +190,12 @@ macro_rules! selected_vertexes {
     ($count:ident) => {
         /// A record of the selected brushes selected vertexes.
         #[must_use]
-        struct SelectedVertexes(bevy::utils::HashMap<Id, u8>, usize);
+        struct SelectedVertexes(crate::utils::collections::HashMap<Id, u8>, usize);
 
         impl Default for SelectedVertexes
         {
             #[inline]
-            fn default() -> Self { Self(bevy::utils::HashMap::new(), 0) }
+            fn default() -> Self { Self(crate::utils::collections::hash_map![], 0) }
         }
 
         impl SelectedVertexes

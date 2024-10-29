@@ -1,8 +1,7 @@
-use bevy::utils::HashMap;
 use glam::Vec2;
 use serde::{Deserialize, Deserializer};
 
-use crate::{Group, Id, TextureSettings, Value};
+use crate::{utils::collections::HashMap, Group, Id, TextureSettings, Value};
 
 #[must_use]
 #[derive(Deserialize)]

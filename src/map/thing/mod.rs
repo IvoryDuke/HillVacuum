@@ -8,11 +8,10 @@ pub(in crate::map) mod compatibility;
 //
 //=======================================================================//
 
-use bevy::utils::HashMap;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{Id, Node, Value};
+use crate::{utils::collections::HashMap, Id, Node, Value};
 
 //=======================================================================//
 // STRUCTS
@@ -134,12 +133,7 @@ pub mod ui_mod
     //
     //=======================================================================//
 
-    use bevy::{
-        prelude::Resource,
-        transform::components::Transform,
-        utils::HashMap,
-        window::Window
-    };
+    use bevy::{prelude::Resource, transform::components::Transform, window::Window};
     use bevy_egui::egui;
     use glam::Vec2;
     use hill_vacuum_shared::{match_or_panic, return_if_none};
@@ -172,6 +166,7 @@ pub mod ui_mod
             TOOLTIP_OFFSET
         },
         utils::{
+            collections::HashMap,
             hull::Hull,
             identifiers::{EntityCenter, EntityId},
             misc::{Camera, ReplaceValue, TakeValue}

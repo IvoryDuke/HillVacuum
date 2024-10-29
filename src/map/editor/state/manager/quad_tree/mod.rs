@@ -7,8 +7,8 @@ mod subnodes;
 //
 //=======================================================================//
 
-use bevy::utils::{hashbrown::hash_map::Iter, HashMap};
 use glam::Vec2;
+use hashbrown::hash_map::Iter;
 use hill_vacuum_shared::return_if_none;
 
 use self::{
@@ -16,9 +16,9 @@ use self::{
     points::{Corner, Intersections, Sides, Vertex, Vertexes}
 };
 use crate::{
-    hash_map,
     map::MAP_SIZE,
     utils::{
+        collections::{hash_map, HashMap},
         hull::Hull,
         identifiers::{EntityId, Id},
         math::AroundEqual,
@@ -130,7 +130,7 @@ impl QuadTree
 
         Self {
             size,
-            entities: HashMap::new(),
+            entities: hash_map![],
             nodes: vec,
             vacant_spots: Vec::new(),
             recycle_intersections: Vec::with_capacity(32)
@@ -349,7 +349,7 @@ pub(in crate::map::editor::state::manager) struct QuadTreeIds(HashMap<Id, Hull>)
 
 impl<'a> IntoIterator for &'a QuadTreeIds
 {
-    type IntoIter = bevy::utils::hashbrown::hash_map::Iter<'a, Id, Hull>;
+    type IntoIter = hashbrown::hash_map::Iter<'a, Id, Hull>;
     type Item = (&'a Id, &'a Hull);
 
     #[inline]
@@ -361,7 +361,7 @@ impl QuadTreeIds
     /// Returns a new [`QuadTreeIds`].
     #[inline]
     #[must_use]
-    pub fn new() -> Self { Self(HashMap::new()) }
+    pub fn new() -> Self { Self(hash_map![]) }
 
     /// Returns an iterator to the ([`Id`], [`Hull`]) pairs.
     #[inline]
@@ -369,7 +369,7 @@ impl QuadTreeIds
 
     /// Returns an iterator to the stored [`Id`]s.
     #[inline]
-    pub fn ids(&self) -> bevy::utils::hashbrown::hash_map::Keys<'_, Id, Hull> { self.0.keys() }
+    pub fn ids(&self) -> hashbrown::hash_map::Keys<'_, Id, Hull> { self.0.keys() }
 
     /// Whether it contains a value for the specified key.
     #[inline]

@@ -23,8 +23,7 @@ use bevy::{
         view::NoFrustumCulling
     },
     sprite::{ColorMaterial, MaterialMesh2dBundle, Mesh2dHandle},
-    transform::components::Transform,
-    utils::{HashMap, HashSet}
+    transform::components::Transform
 };
 use bevy_egui::{egui, EguiUserTextures};
 use glam::{UVec2, Vec2};
@@ -58,6 +57,7 @@ use crate::{
         thing::{catalog::ThingsCatalog, ThingInterface}
     },
     utils::{
+        collections::{hash_map, hash_set, HashMap, HashSet},
         hull::Hull,
         math::{points::rotate_point_around_origin, HashVec2},
         misc::{vertex_highlight_square, AssertedInsertRemove, Camera, TakeValue, Translate}
@@ -249,7 +249,7 @@ impl Placeholder for DrawingResources
             brush_meshes: Meshes::default(),
             vertex_highlight_mesh: Mesh2dHandle::default(),
             paint_tool_vertex_highlight_mesh: Mesh2dHandle::default(),
-            props_pivots_mesh: HashMap::new(),
+            props_pivots_mesh: hash_map![],
             attachment_highlight_mesh: Mesh2dHandle::default(),
             sprite_highlight_mesh: Mesh2dHandle::default(),
             tt_label_gen: TooltipLabelGenerator::default(),
@@ -257,7 +257,7 @@ impl Placeholder for DrawingResources
             textures: IndexedMap::new(Vec::new(), |tex| tex.texture.name().to_owned()),
             error_texture: TextureMaterials::placeholder(),
             clip_texture: Handle::default(),
-            animated_textures: HashSet::new(),
+            animated_textures: hash_set![],
             default_animation_changed: false
         }
     }
@@ -375,7 +375,7 @@ impl DrawingResources
             error_texture: TextureMaterials::error((err_tex, err_id), materials),
             clip_texture: materials
                 .add(asset_server.load(embedded_asset_path(CLIP_OVERLAY_TEXTURE_NAME))),
-            animated_textures: HashSet::new(),
+            animated_textures: hash_set![],
             default_animation_changed: false
         }
     }
@@ -647,7 +647,7 @@ impl DrawingResources
     )
     {
         let mut textures = Self::sort_textures(materials, textures);
-        let mut to_remove = HashSet::new();
+        let mut to_remove = hash_set![];
 
         for t in &self.animated_textures
         {
@@ -1016,7 +1016,7 @@ impl Default for TooltipLabelGenerator
     fn default() -> Self
     {
         Self {
-            assigned_vertexes: HashSet::new(),
+            assigned_vertexes: hash_set![],
             vx_labels_index:   0
         }
     }

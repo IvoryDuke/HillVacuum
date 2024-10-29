@@ -69,7 +69,6 @@ pub(crate) mod ui_mod
         log::LogPlugin,
         render::texture::{ImageAddressMode, ImagePlugin, ImageSamplerDescriptor},
         state::{app::AppExtStates, state::States},
-        utils::HashMap,
         window::{
             Cursor,
             CursorIcon,
@@ -90,7 +89,7 @@ pub(crate) mod ui_mod
             thing::HardcodedThings,
             MapEditorPlugin
         },
-        utils::misc::{NoneIfEmpty, ReplaceValues},
+        utils::collections::HashMap,
         Value
     };
     #[allow(unused_imports)]
@@ -103,33 +102,6 @@ pub(crate) mod ui_mod
 
     /// The name of the application.
     pub(crate) const NAME: &str = "HillVacuum";
-
-    //=======================================================================//
-    // MACROS
-    //
-    //=======================================================================//
-
-    macro_rules! hash_set {
-        [$($v:expr),+] => {{
-            let mut map = bevy::utils::HashSet::new();
-            $(map.insert($v);)+
-            map
-        }};
-    }
-
-    pub(crate) use hash_set;
-
-    //=======================================================================//
-
-    macro_rules! hash_map {
-        [$(($k:expr, $v:expr)),+] => {{
-            let mut map = bevy::utils::HashMap::new();
-            $(map.insert($k, $v);)+
-            map
-        }};
-    }
-
-    pub(crate) use hash_map;
 
     //=======================================================================//
     // ENUMS
@@ -262,35 +234,6 @@ pub(crate) mod ui_mod
     //=======================================================================//
     // STRUCTS
     //
-    //=======================================================================//
-
-    pub(crate) type HvVec<T> = smallvec::SmallVec<[T; 1]>;
-
-    impl<T> NoneIfEmpty for HvVec<T>
-    {
-        #[inline]
-        fn none_if_empty(self) -> Option<Self>
-        where
-            Self: Sized
-        {
-            (self.is_empty()).then_some(self)
-        }
-    }
-
-    impl<T> ReplaceValues<T> for HvVec<T>
-    {
-        #[inline]
-        fn replace_values<I: IntoIterator<Item = T>>(&mut self, iter: I)
-        {
-            self.clear();
-            self.extend(iter);
-        }
-    }
-
-    //=======================================================================//
-
-    pub(crate) type Ids = bevy::utils::HashSet<crate::Id>;
-
     //=======================================================================//
 
     #[must_use]

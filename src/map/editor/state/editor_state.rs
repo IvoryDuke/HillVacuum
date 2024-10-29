@@ -14,7 +14,6 @@ use bevy::{
     input::{keyboard::KeyCode, ButtonInput},
     prelude::NextState,
     render::texture::Image,
-    utils::HashMap,
     window::Window
 };
 use bevy_egui::{egui, EguiUserTextures};
@@ -92,6 +91,7 @@ use crate::{
         UPGRADE_WARNING
     },
     utils::{
+        collections::{hash_map, HashMap},
         hull::Hull,
         misc::{next, prev, Camera, TakeValue, Toggle}
     },
@@ -612,7 +612,7 @@ impl State
                     default_properties.map_brushes,
                     default_properties.map_things
                 ),
-                HashMap::new(),
+                hash_map![],
                 EntitiesManager::new(),
                 Clipboard::new(),
                 EditsHistory::default(),
@@ -674,7 +674,7 @@ impl State
                         default_properties.map_brushes,
                         default_properties.map_things
                     ),
-                    HashMap::new(),
+                    hash_map![],
                     EntitiesManager::new(),
                     Clipboard::new(),
                     EditsHistory::default(),

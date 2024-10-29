@@ -18,10 +18,15 @@ pub(in crate::map) mod texture_loader;
 
 use std::{fs::File, io::BufReader};
 
-use bevy::utils::HashMap;
 use texture::DefaultAnimation;
 
-use crate::{utils::misc::AssertedInsertRemove, Animation};
+use crate::{
+    utils::{
+        collections::{hash_map, HashMap},
+        misc::AssertedInsertRemove
+    },
+    Animation
+};
 
 //=======================================================================//
 // FUNCTIONS
@@ -35,7 +40,7 @@ pub(in crate::map) fn file_animations(
     file: &mut BufReader<File>
 ) -> Result<HashMap<String, Animation>, &'static str>
 {
-    let mut animations = HashMap::new();
+    let mut animations = hash_map![];
 
     for _ in 0..amount
     {

@@ -17,13 +17,19 @@ pub mod thing;
 
 use std::{fs::File, io::BufReader, path::PathBuf};
 
-use bevy::utils::HashMap;
 use hill_vacuum_proc_macros::EnumIter;
 use hill_vacuum_shared::{continue_if_none, return_if_none, NextValue};
 use properties::DefaultPropertiesViewer;
 use serde::{Deserialize, Serialize};
 
-use crate::{utils::misc::AssertedInsertRemove, Id, TextureInterface};
+use crate::{
+    utils::{
+        collections::{hash_map, HashMap},
+        misc::AssertedInsertRemove
+    },
+    Id,
+    TextureInterface
+};
 #[allow(unused_imports)]
 use crate::{Brush, ThingInstance};
 
@@ -233,7 +239,7 @@ impl Exporter
         // Things.
         steps.next_value().assert(FileStructure::Things);
 
-        let mut things = HashMap::new();
+        let mut things = hash_map![];
 
         for _ in 0..header.things
         {
@@ -242,7 +248,7 @@ impl Exporter
             things.asserted_insert((thing.id, thing));
         }
 
-        let mut brushes_map = HashMap::new();
+        let mut brushes_map = hash_map![];
 
         for brush in brushes
         {

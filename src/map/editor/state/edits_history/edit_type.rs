@@ -567,7 +567,7 @@ impl EditType
         drawing_resources: &DrawingResources,
         grid: &Grid,
         interface: &mut UndoRedoInterface,
-        identifiers: &Vec<Id>
+        identifiers: &[Id]
     ) -> bool
     {
         match self
@@ -790,7 +790,7 @@ impl EditType
         &mut self,
         things_catalog: &ThingsCatalog,
         interface: &mut UndoRedoInterface,
-        identifiers: &Vec<Id>
+        identifiers: &[Id]
     ) -> bool
     {
         match self
@@ -988,7 +988,7 @@ impl EditType
         things_catalog: &ThingsCatalog,
         grid: &Grid,
         ui: &mut Ui,
-        identifiers: &Vec<Id>,
+        identifiers: &[Id],
         property: Option<&String>
     )
     {
@@ -1287,7 +1287,7 @@ impl EditType
         things_catalog: &ThingsCatalog,
         grid: &Grid,
         ui: &mut Ui,
-        identifiers: &Vec<Id>,
+        identifiers: &[Id],
         property: Option<&String>
     )
     {

@@ -30,7 +30,7 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
-    use bevy::{prelude::Resource, utils::HashMap};
+    use bevy::prelude::Resource;
     use hill_vacuum_shared::{return_if_none, NextValue};
 
     use super::DefaultPropertiesViewer;
@@ -42,7 +42,10 @@ pub(in crate::map) mod ui_mod
             properties::value::Value,
             Viewer
         },
-        utils::misc::AssertedInsertRemove
+        utils::{
+            collections::{hash_map, HashMap},
+            misc::AssertedInsertRemove
+        }
     };
     #[allow(unused_imports)]
     use crate::{Brush, ThingInstance};
@@ -168,7 +171,7 @@ pub(in crate::map) mod ui_mod
                 {
                     Self {
                         user:      IndexedMap::default(),
-                        instance:  [< $entity Properties >]::from_parts(HashMap::new())
+                        instance:  [< $entity Properties >]::from_parts(hash_map![])
                     }
                 }
             }
@@ -240,7 +243,7 @@ pub(in crate::map) mod ui_mod
                     I: IntoIterator<Item = (T, Value)>,
                     T: ToString
                 {
-                    let mut properties = HashMap::new();
+                    let mut properties = hash_map![];
 
                     for (name, value) in values
                     {

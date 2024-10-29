@@ -3,10 +3,7 @@
 //
 //=======================================================================//
 
-use bevy::{
-    input::{keyboard::KeyCode, ButtonInput},
-    utils::HashSet
-};
+use bevy::input::{keyboard::KeyCode, ButtonInput};
 use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_proc_macros::{EnumFromUsize, EnumIter, EnumSize, SubToolEnum, ToolEnum};
@@ -58,6 +55,7 @@ use crate::{
         thing::catalog::ThingsCatalog
     },
     utils::{
+        collections::hash_set,
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::{polygons::convex_hull, HashVec2},
@@ -1145,7 +1143,7 @@ impl ActiveTool
         sides: bool
     )
     {
-        let mut vertexes = HashSet::new();
+        let mut vertexes = hash_set![];
 
         if sides
         {
@@ -1215,7 +1213,7 @@ impl ActiveTool
         }
 
         // Place all vertexes of the selected brushes in one vector.
-        let mut vertexes = HashSet::new();
+        let mut vertexes = hash_set![];
         let mut brushes = bundle.manager.selected_brushes();
 
         let mut texture = {

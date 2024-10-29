@@ -5,15 +5,15 @@
 
 use std::path::Path;
 
-use bevy::{math::UVec2, utils::HashMap};
 use bevy_egui::egui;
 use configparser::ini::Ini;
+use glam::UVec2;
 use hill_vacuum_shared::{continue_if_err, continue_if_none};
 
 use super::{HardcodedThings, Thing, ThingId};
 use crate::{
-    map::{drawer::drawing_resources::DrawingResources, indexed_map::IndexedMap},
-    utils::misc::TakeValue
+    map::{drawer::drawing_resources::DrawingResources, hash_map, indexed_map::IndexedMap},
+    utils::{collections::HashMap, misc::TakeValue}
 };
 
 //=======================================================================//
@@ -52,7 +52,7 @@ impl Default for ThingsCatalog
     fn default() -> Self
     {
         Self {
-            hardcoded_things: HashMap::new(),
+            hardcoded_things: hash_map![],
             things:           IndexedMap::new(Vec::new(), Thing::id),
             selected_thing:   None,
             error:            Self::error_thing()

@@ -7,7 +7,10 @@ use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
 use crate::Brush;
-use crate::{utils::identifiers::Id, Ids, Node};
+use crate::{
+    utils::{collections::Ids, identifiers::Id},
+    Node
+};
 
 //=======================================================================//
 // ENUMS
@@ -47,16 +50,16 @@ pub(in crate::map) mod ui_mod
     //
     //=======================================================================//
 
-    use bevy::utils::HashSet;
     use hill_vacuum_shared::{match_or_panic, return_if_no_match};
 
-    use super::GroupViewer;
+    use super::{GroupViewer, Ids};
     use crate::{
-        hash_set,
         map::{path::Path, Viewer},
-        utils::misc::{AssertedInsertRemove, TakeValue},
-        Id,
-        Ids
+        utils::{
+            collections::hash_set,
+            misc::{AssertedInsertRemove, TakeValue}
+        },
+        Id
     };
 
     //=======================================================================//
@@ -254,7 +257,7 @@ pub(in crate::map) mod ui_mod
                 {
                     *self = Self::Path {
                         path,
-                        attached_brushes: HashSet::new()
+                        attached_brushes: hash_set![]
                     }
                 },
                 Self::Attachments(ids) =>

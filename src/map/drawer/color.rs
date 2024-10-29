@@ -6,8 +6,7 @@
 use bevy::{
     asset::{Assets, Handle},
     color::{Alpha, Srgba},
-    sprite::ColorMaterial,
-    utils::HashMap
+    sprite::ColorMaterial
 };
 use bevy_egui::egui;
 use configparser::ini::Ini;
@@ -15,7 +14,10 @@ use hill_vacuum_proc_macros::{color_enum, EnumFromUsize, EnumIter, EnumSize};
 use hill_vacuum_shared::{match_or_panic, return_if_none};
 
 use super::BevyColor;
-use crate::config::IniConfig;
+use crate::{
+    config::IniConfig,
+    utils::collections::{hash_map, HashMap}
+};
 
 //=======================================================================//
 // CONSTANTS
@@ -350,7 +352,7 @@ impl Default for ColorResources
     fn default() -> Self
     {
         Self {
-            colors:      HashMap::with_capacity(Color::SIZE - 1),
+            colors:      hash_map![capacity; Color::SIZE - 1],
             solid_white: Handle::default(),
             solid_black: Handle::default()
         }

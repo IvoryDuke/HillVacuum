@@ -382,7 +382,7 @@ pub(in crate::map) mod ui_mod
     pub(in crate::map) struct NodesWorld<'a>
     {
         /// The [`Node`]s.
-        slice:  &'a Vec<Node>,
+        slice:  &'a [Node],
         /// The center of the entity the [`Node`]s belong to.
         center: Vec2
     }
@@ -392,7 +392,7 @@ pub(in crate::map) mod ui_mod
         /// Creates a new [`NodesWorld`].
         #[inline]
         #[must_use]
-        pub const fn new(slice: &'a Vec<Node>, center: Vec2) -> Self { Self { slice, center } }
+        pub const fn new(slice: &'a [Node], center: Vec2) -> Self { Self { slice, center } }
 
         /// Returns the first [`NodeWorld`].
         #[inline]
@@ -447,7 +447,7 @@ pub(in crate::map) mod ui_mod
     pub(in crate::map) struct NodesInsertionIter<'a>
     {
         /// The [`Node`]s of the [`Path`] the new [`Node`] is being inserted into.
-        slice:             &'a Vec<Node>,
+        slice:             &'a [Node],
         /// The center of the entity the [`Path`] belongs to.
         center:            Vec2,
         /// The new [`Node`] being inserted expressed in world coordinates.
@@ -554,7 +554,7 @@ pub(in crate::map) mod ui_mod
         /// Creates a new [`NodesInsertionIter`].
         #[inline]
         #[must_use]
-        pub fn new(slice: &'a Vec<Node>, pos: Vec2, index: usize, center: Vec2) -> Self
+        pub fn new(slice: &'a [Node], pos: Vec2, index: usize, center: Vec2) -> Self
         {
             Self {
                 slice,

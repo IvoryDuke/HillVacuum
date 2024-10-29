@@ -1,3 +1,4 @@
+pub mod collections;
 #[cfg(feature = "ui")]
 pub mod hull;
 pub mod identifiers;

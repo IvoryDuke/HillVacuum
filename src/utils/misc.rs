@@ -15,38 +15,6 @@ pub(crate) trait AssertedInsertRemove<T, U, V, X>
     fn asserted_remove(&mut self, value: &U) -> X;
 }
 
-impl<K, V> AssertedInsertRemove<(K, V), K, (), V> for HashMap<K, V>
-where
-    K: Eq + std::hash::Hash
-{
-    /// Inserts `value`, a (key, element) pair. Panics if the collection already contains the key.
-    #[inline]
-    fn asserted_insert(&mut self, value: (K, V))
-    {
-        assert!(self.insert(value.0, value.1).is_none(), "Key is a already present.");
-    }
-
-    /// Remove the element associated with the key `value`. Panics if the collection does not
-    /// contain `value`. Returns the removed element.
-    #[inline]
-    fn asserted_remove(&mut self, value: &K) -> V { self.remove(value).unwrap() }
-}
-
-impl<T: std::hash::Hash + Eq> AssertedInsertRemove<T, T, (), ()> for HashSet<T>
-{
-    #[inline]
-    fn asserted_insert(&mut self, value: T)
-    {
-        assert!(self.insert(value), "Value is already present.");
-    }
-
-    #[inline]
-    fn asserted_remove(&mut self, value: &T)
-    {
-        assert!(self.remove(value), "Value is not present.");
-    }
-}
-
 //=======================================================================//
 // UI
 //
@@ -60,10 +28,7 @@ pub(crate) mod ui_mod
     //
     //=======================================================================//
 
-    use bevy::{
-        utils::HashSet,
-        window::{Window, WindowMode}
-    };
+    use bevy::window::{Window, WindowMode};
     use bevy_egui::egui;
     use glam::Vec2;
 
@@ -134,26 +99,6 @@ pub(crate) mod ui_mod
     {
         #[inline]
         fn replace_values<I: IntoIterator<Item = char>>(&mut self, iter: I)
-        {
-            self.clear();
-            self.extend(iter);
-        }
-    }
-
-    impl<T: Eq + std::hash::Hash> ReplaceValues<T> for HashSet<T>
-    {
-        #[inline]
-        fn replace_values<I: IntoIterator<Item = T>>(&mut self, iter: I)
-        {
-            self.clear();
-            self.extend(iter);
-        }
-    }
-
-    impl<'a, T: 'a + Eq + std::hash::Hash + Copy> ReplaceValues<&'a T> for HashSet<T>
-    {
-        #[inline]
-        fn replace_values<I: IntoIterator<Item = &'a T>>(&mut self, iter: I)
         {
             self.clear();
             self.extend(iter);
@@ -735,6 +680,5 @@ pub(crate) mod ui_mod
     }
 }
 
-use bevy::utils::{HashMap, HashSet};
 #[cfg(feature = "ui")]
 pub use ui_mod::*;

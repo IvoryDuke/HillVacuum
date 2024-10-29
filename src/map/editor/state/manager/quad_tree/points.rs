@@ -4,20 +4,17 @@
 //=======================================================================//
 
 use arrayvec::ArrayVec;
-use bevy::utils::HashMap;
 use glam::Vec2;
 use hill_vacuum_shared::{continue_if_none, NextValue};
 
 use super::{node::SplitSegments, RemoveResult};
-use crate::{
-    hash_map,
-    utils::{
-        hull::Hull,
-        identifiers::Id,
-        iterators::SkipIndexIterator,
-        math::{lines_and_segments::segments_intersection, AroundEqual},
-        misc::AssertedInsertRemove
-    }
+use crate::utils::{
+    collections::{hash_map, HashMap},
+    hull::Hull,
+    identifiers::Id,
+    iterators::SkipIndexIterator,
+    math::{lines_and_segments::segments_intersection, AroundEqual},
+    misc::AssertedInsertRemove
 };
 
 //=======================================================================//

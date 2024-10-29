@@ -5,8 +5,9 @@
 
 use std::hash::Hash;
 
-use bevy::utils::HashMap;
 use serde::{Deserialize, Serialize};
+
+use crate::utils::collections::HashMap;
 
 //=======================================================================//
 // STRUCTS
@@ -42,9 +43,10 @@ pub(in crate::map) mod ui_only
 
     use std::{hash::Hash, ops::Index, slice::Chunks};
 
-    use bevy::utils::{hashbrown::Equivalent, HashMap};
+    use hashbrown::Equivalent;
 
     use super::IndexedMap;
+    use crate::utils::collections::HashMap;
 
     //=======================================================================//
     // STRUCTS

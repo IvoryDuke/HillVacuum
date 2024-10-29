@@ -3,7 +3,6 @@
 //
 //=======================================================================//
 
-use bevy::utils::HashSet;
 use bevy_egui::egui;
 use hill_vacuum_shared::return_if_none;
 
@@ -24,10 +23,10 @@ use crate::{
         }
     },
     utils::{
+        collections::{hash_set, Ids},
         identifiers::{EntityId, Id},
         misc::AssertedInsertRemove
-    },
-    Ids
+    }
 };
 
 //=======================================================================//
@@ -101,7 +100,7 @@ impl ThingTool
     pub fn tool() -> ActiveTool
     {
         ActiveTool::Thing(ThingTool {
-            drawn_things:            HashSet::new(),
+            drawn_things:            hash_set![],
             max_bottom_panel_height: 0f32,
             status:                  Status::default()
         })

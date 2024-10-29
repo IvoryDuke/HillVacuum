@@ -15,7 +15,7 @@ use std::{
     ops::{Deref, DerefMut}
 };
 
-use bevy::{transform::components::Transform, utils::HashSet, window::Window};
+use bevy::{transform::components::Transform, window::Window};
 use glam::Vec2;
 use hill_vacuum_shared::{continue_if_none, return_if_none, NextValue};
 use quad_tree::InsertResult;
@@ -45,7 +45,6 @@ use super::{
     ui::Ui
 };
 use crate::{
-    hash_set,
     map::{
         brush::{
             convex_polygon::{ConvexPolygon, TextureSetResult},
@@ -85,13 +84,13 @@ use crate::{
         Viewer
     },
     utils::{
+        collections::{hash_map, hash_set, HashSet, Ids},
         hull::Hull,
         identifiers::{EntityCenter, EntityId, Id, IdGenerator},
         math::AroundEqual,
         misc::{Blinker, ReplaceValues, TakeValue}
     },
-    warning_message,
-    Ids
+    warning_message
 };
 
 //=======================================================================//
@@ -248,7 +247,7 @@ impl<'a> ReplaceValues<&'a Id> for AuxiliaryIds
 
 impl<'a> IntoIterator for &'a AuxiliaryIds
 {
-    type IntoIter = bevy::utils::hashbrown::hash_set::Iter<'a, Id>;
+    type IntoIter = hashbrown::hash_set::Iter<'a, Id>;
     type Item = &'a Id;
 
     #[inline]
@@ -259,7 +258,7 @@ impl AuxiliaryIds
 {
     /// Returns a new [`AuxiliaryIds`].
     #[inline]
-    fn new() -> Self { Self(HashSet::with_capacity(10)) }
+    fn new() -> Self { Self(hash_set![capacity; 10]) }
 
     /// Whether `self` contains `id`.
     #[inline]
@@ -268,7 +267,7 @@ impl AuxiliaryIds
 
     /// Returns an iterator to the contained elements.
     #[inline]
-    pub fn iter(&self) -> bevy::utils::hashbrown::hash_set::Iter<Id> { self.0.iter() }
+    pub fn iter(&self) -> hashbrown::hash_set::Iter<Id> { self.0.iter() }
 
     /// Pushes the [`Id`]s of the attached brushes of `brushes`.
     #[inline]
@@ -299,7 +298,7 @@ struct SelectedSprites(HashMap<String, Ids>, usize);
 impl Default for SelectedSprites
 {
     #[inline]
-    fn default() -> Self { Self(HashMap::with_capacity(10), 0) }
+    fn default() -> Self { Self(hash_map![capacity; 10], 0) }
 }
 
 impl SelectedSprites
@@ -371,7 +370,7 @@ impl SelectedSprites
     }
 
     #[inline]
-    fn values(&self) -> bevy::utils::hashbrown::hash_map::Values<String, Ids> { self.0.values() }
+    fn values(&self) -> hashbrown::hash_map::Values<String, Ids> { self.0.values() }
 }
 
 //=======================================================================//
@@ -664,22 +663,22 @@ impl Innards
     pub fn new() -> Self
     {
         Self {
-            brushes: HashMap::new(),
-            things: HashMap::new(),
-            selected_brushes: HashSet::with_capacity(10),
-            selected_things: HashSet::with_capacity(10),
-            moving: HashSet::with_capacity(10),
-            selected_moving: HashSet::with_capacity(10),
-            possible_moving: HashSet::with_capacity(10),
-            selected_possible_moving: HashSet::with_capacity(10),
-            textured: HashSet::with_capacity(10),
-            selected_textured: HashSet::with_capacity(10),
+            brushes: hash_map![],
+            things: hash_map![],
+            selected_brushes: hash_set![capacity; 10],
+            selected_things: hash_set![capacity; 10],
+            moving: hash_set![capacity; 10],
+            selected_moving: hash_set![capacity; 10],
+            possible_moving: hash_set![capacity; 10],
+            selected_possible_moving: hash_set![capacity; 10],
+            textured: hash_set![capacity; 10],
+            selected_textured: hash_set![capacity; 10],
             selected_sprites: SelectedSprites::default(),
-            brushes_with_attachments: HashMap::new(),
+            brushes_with_attachments: hash_map![],
             id_generator: IdGenerator::default(),
             error_highlight: ErrorHighlight::new(),
             outline_update: false,
-            selected_vertexes_update: HashSet::with_capacity(10),
+            selected_vertexes_update: hash_set![capacity; 10],
             overall_texture_update: false,
             overall_node_update: false,
             overall_collision_update: false,
@@ -1262,7 +1261,8 @@ impl Innards
     {
         _ = self.remove_anchors_hull(quad_trees, owner);
 
-        let [o_brush, a_brush] = self.brushes.get_many_mut([&owner, &attachment]).unwrap();
+        let [o_brush, a_brush] = self.brushes.get_many_mut([&owner, &attachment]);
+        let [o_brush, a_brush] = [o_brush.unwrap(), a_brush.unwrap()];
         o_brush.attach_brush(a_brush);
         self.possible_moving.asserted_remove(&attachment);
         self.selected_possible_moving.asserted_remove(&attachment);
@@ -1284,7 +1284,8 @@ impl Innards
             "Could not remove hull from quad trees."
         );
 
-        let [o_brush, a_brush] = self.brushes.get_many_mut([&owner, &attachment]).unwrap();
+        let [o_brush, a_brush] = self.brushes.get_many_mut([&owner, &attachment]);
+        let [o_brush, a_brush] = [o_brush.unwrap(), a_brush.unwrap()];
         o_brush.detach_brush(a_brush);
         self.possible_moving.asserted_insert(attachment);
         self.selected_possible_moving.asserted_insert(attachment);
@@ -2712,9 +2713,9 @@ impl EntitiesManager
         struct Iter<'a>
         {
             /// All the identifiers.
-            iter:     bevy::utils::hashbrown::hash_map::Values<'a, String, Ids>,
+            iter:     hashbrown::hash_map::Values<'a, String, Ids>,
             /// Identifiers of the brushes with same sprite.
-            sub_iter: bevy::utils::hashbrown::hash_set::Iter<'a, Id>
+            sub_iter: hashbrown::hash_set::Iter<'a, Id>
         }
 
         impl<'a> Iterator for Iter<'a>
@@ -2928,7 +2929,7 @@ impl EntitiesManager
             properties: BrushProperties
         ) -> HashSet<Id>
         {
-            let mut ids = HashSet::new();
+            let mut ids = hash_set![];
 
             if polygons.len() == 0
             {
@@ -3695,7 +3696,7 @@ impl EntitiesManager
         grid: &Grid
     )
     {
-        let mut errors = HashSet::new();
+        let mut errors = hash_set![];
         self.auxiliary.replace_values(&self.innards.textured);
 
         for id in &self.auxiliary
@@ -3946,7 +3947,7 @@ impl EntitiesManager
         things_catalog: &ThingsCatalog
     )
     {
-        let mut errors = HashSet::new();
+        let mut errors = hash_set![];
         self.auxiliary.replace_values(self.innards.things.keys());
 
         for id in &self.auxiliary

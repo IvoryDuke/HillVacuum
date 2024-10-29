@@ -3,6 +3,8 @@
 //
 //=======================================================================//
 
+use smallvec::smallvec;
+
 use super::edit_type::EditType;
 use crate::{
     map::{
@@ -11,7 +13,7 @@ use crate::{
         properties::value::Value,
         thing::catalog::ThingsCatalog
     },
-    utils::{identifiers::Id, misc::ReplaceValue}
+    utils::{collections::HvVec, identifiers::Id, misc::ReplaceValue}
 };
 
 //=======================================================================//
@@ -22,7 +24,7 @@ use crate::{
 /// A map edit which can be undone and redone, and be made of multiple sub-edits.
 pub(in crate::map::editor::state::edits_history) struct Edit
 {
-    edits:    Vec<(Vec<Id>, EditType)>,
+    edits:    Vec<(HvVec<Id>, EditType)>,
     property: Option<String>,
     tag:      String
 }
@@ -129,7 +131,7 @@ impl Edit
     /// # Panics
     /// Panics if `identifiers` has a an amount of elements that is not appropriate for `edit`.
     #[inline]
-    pub fn push(&mut self, identifiers: Vec<Id>, edit: EditType)
+    pub fn push(&mut self, identifiers: HvVec<Id>, edit: EditType)
     {
         let despawn = if matches!(
             edit,
@@ -216,7 +218,7 @@ impl Edit
 
         for (id, value) in iter
         {
-            self.edits.push((vec![id], EditType::PropertyChange(value)));
+            self.edits.push((smallvec![id], EditType::PropertyChange(value)));
         }
     }
 

@@ -3,7 +3,6 @@
 //
 //=======================================================================//
 
-use bevy::utils::{HashMap, HashSet};
 use bevy_egui::egui;
 use glam::Vec2;
 use hill_vacuum_shared::{match_or_panic, return_if_no_match, return_if_none};
@@ -26,7 +25,6 @@ use super::{
     VertexesToggle
 };
 use crate::{
-    hash_map,
     map::{
         brush::{
             convex_polygon::{
@@ -58,13 +56,13 @@ use crate::{
         }
     },
     utils::{
+        collections::{hash_map, hash_set, HashMap, Ids},
         hull::Hull,
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         math::{lines_and_segments::closest_point_on_line, AroundEqual, HashVec2},
         misc::{Camera, TakeValue}
-    },
-    Ids
+    }
 };
 
 //=======================================================================//
@@ -214,9 +212,9 @@ impl BrushesWithSelectedSides
     fn new() -> Self
     {
         Self {
-            ids:               HashSet::new(),
+            ids:               hash_set![],
             selected_sides:    SelectedVertexes::default(),
-            one_selected_side: HashSet::new(),
+            one_selected_side: hash_set![],
             error_id:          None
         }
     }
@@ -794,7 +792,7 @@ impl SideTool
 
         // Since everything went well confirm the move, store the vertexes and ids for
         // the overlap check.
-        let mut moved_sides = HashSet::new();
+        let mut moved_sides = hash_set![];
 
         for payload in move_payloads
         {

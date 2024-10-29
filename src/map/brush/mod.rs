@@ -9,11 +9,10 @@ pub mod group;
 //
 //=======================================================================//
 
-use bevy::utils::HashMap;
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::{Group, Id, TextureSettings, Value};
+use crate::{utils::collections::HashMap, Group, Id, TextureSettings, Value};
 
 //=======================================================================//
 // STRUCTS
@@ -54,7 +53,7 @@ pub(in crate::map) mod ui_mod
     use std::borrow::Cow;
 
     use arrayvec::ArrayVec;
-    use bevy::{transform::components::Transform, utils::HashMap, window::Window};
+    use bevy::{transform::components::Transform, window::Window};
     use glam::Vec2;
     use hill_vacuum_shared::{match_or_panic, return_if_no_match, return_if_none};
     use serde::{Deserialize, Serialize};
@@ -110,6 +109,7 @@ pub(in crate::map) mod ui_mod
             Viewer
         },
         utils::{
+            collections::{HashMap, Ids},
             hull::Hull,
             identifiers::{EntityCenter, EntityId},
             iterators::SlicePairIter,
@@ -118,7 +118,6 @@ pub(in crate::map) mod ui_mod
         },
         Animation,
         Id,
-        Ids,
         TextureSettings,
         Timing,
         Value

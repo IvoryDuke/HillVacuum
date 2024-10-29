@@ -29,14 +29,14 @@ use crate::{
         MAP_SIZE
     },
     utils::{
+        collections::Ids,
         hull::{CircleIterator, Hull, TriangleOrientation},
         math::{
             points::{sort_vxs_ccw, vertexes_orientation, vxs_center, VertexesOrientation},
             AroundEqual
         },
         misc::{next, Camera, PointInsideUiHighlight, ReplaceValues, TakeValue}
-    },
-    Ids
+    }
 };
 
 //=======================================================================//

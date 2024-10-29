@@ -1,9 +1,8 @@
-use bevy::utils::HashMap;
 use glam::Vec2;
 use serde::{Deserialize, Deserializer};
 
 use super::ThingId;
-use crate::{Id, Node, Value};
+use crate::{utils::collections::HashMap, Id, Node, Value};
 
 #[must_use]
 #[derive(Deserialize)]

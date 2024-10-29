@@ -3,7 +3,6 @@
 //
 //=======================================================================//
 
-use bevy::utils::HashSet;
 use hill_vacuum_shared::{return_if_none, NextValue};
 
 use super::{
@@ -30,11 +29,11 @@ use crate::{
         thing::catalog::ThingsCatalog
     },
     utils::{
+        collections::{hash_set, HashSet, Ids},
         identifiers::{EntityId, Id},
         iterators::FilterSet,
         misc::{AssertedInsertRemove, ReplaceValues, TakeValue}
-    },
-    Ids
+    }
 };
 
 //=======================================================================//
@@ -128,8 +127,8 @@ impl SubtractTool
         ActiveTool::Subtract(SubtractTool {
             drag_selection:       drag_selection.into(),
             selector:             Selector::new(),
-            subtractees:          HashSet::with_capacity(4),
-            non_selected_brushes: HashSet::new()
+            subtractees:          hash_set![capacity; 4],
+            non_selected_brushes: hash_set![]
         })
     }
 
