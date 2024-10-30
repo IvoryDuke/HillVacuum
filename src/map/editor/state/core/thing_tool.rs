@@ -274,7 +274,7 @@ impl ThingTool
             &mut self.max_bottom_panel_height,
             PREVIEW_SIZE,
             things_catalog.selected_thing_index(),
-            |item_per_row| things_catalog.chunked_things(item_per_row, drawing_resources),
+            things_catalog.ui_iter(drawing_resources),
             |ui, texture| {
                 (
                     ui.vertical(|ui| {

@@ -1085,21 +1085,21 @@ fn fill_backup_polygons(manager: &EntitiesManager, backup_polygons: &mut Vec<(Id
 
 #[inline]
 #[must_use]
-fn bottom_panel<T, I, F, C, H>(
+fn bottom_panel<T, F, I>(
     egui_context: &egui::Context,
     label: &'static str,
     max_height: &mut f32,
     frame: egui::Vec2,
     selected_item_index: Option<usize>,
-    chunker: C,
+    mut items: I,
     preview: F
 ) -> Option<usize>
 where
-    H: ExactSizeIterator<Item = I>,
-    I: Iterator<Item = T>,
-    C: Fn(usize) -> H,
+    I: ExactSizeIterator<Item = T>,
     F: Fn(&mut egui::Ui, T) -> (egui::Response, usize) + Copy
 {
+    use hill_vacuum_shared::NextValue;
+
     const EXTRA_PADDING: f32 = 32f32;
 
     egui::TopBottomPanel::bottom(label)
@@ -1132,7 +1132,8 @@ where
                     #[inline]
                     fn row_without_highlight<T, I, F>(
                         ui: &mut egui::Ui,
-                        chunk: I,
+                        iter: &mut I,
+                        items_in_row: usize,
                         clicked: &mut Option<usize>,
                         preview: F
                     ) where
@@ -1140,9 +1141,9 @@ where
                         F: Fn(&mut egui::Ui, T) -> (egui::Response, usize) + Copy
                     {
                         ui.horizontal(|ui| {
-                            for texture in chunk
+                            for _ in 0..items_in_row
                             {
-                                draw_preview(ui, texture, clicked, preview);
+                                draw_preview(ui, iter.next_value(), clicked, preview);
                             }
 
                             ui.add_space(ui.available_width());
@@ -1150,9 +1151,7 @@ where
                     }
 
                     let items_per_row = texture_per_row(ui, frame.x);
-
                     let mut clicked = None;
-                    let mut chunks = chunker(items_per_row);
 
                     if let Some(selected_item_index) = selected_item_index
                     {
@@ -1162,7 +1161,8 @@ where
                         {
                             row_without_highlight(
                                 ui,
-                                chunks.next().unwrap(),
+                                &mut items,
+                                items_per_row,
                                 &mut clicked,
                                 preview
                             );
@@ -1170,28 +1170,33 @@ where
 
                         ui.horizontal(|ui| {
                             let highlight_index_in_row = selected_item_index % items_per_row;
-                            let mut textures = chunks.next().unwrap();
 
                             for _ in 0..highlight_index_in_row
                             {
-                                draw_preview(ui, textures.next().unwrap(), &mut clicked, preview);
+                                draw_preview(ui, items.next_value(), &mut clicked, preview);
                             }
 
-                            draw_preview(ui, textures.next().unwrap(), &mut clicked, preview)
-                                .highlight();
+                            draw_preview(ui, items.next_value(), &mut clicked, preview).highlight();
 
-                            for texture in textures
+                            for _ in 0..items.len().min(items_per_row - (highlight_index_in_row + 1))
                             {
-                                draw_preview(ui, texture, &mut clicked, preview);
+                                draw_preview(ui, items.next_value(), &mut clicked, preview);
                             }
 
                             ui.add_space(ui.available_width());
                         });
                     }
 
-                    for chunk in chunks
+                    loop
                     {
-                        row_without_highlight(ui, chunk, &mut clicked, preview);
+                        let len = items.len().min(items_per_row);
+
+                        if len == 0
+                        {
+                            break;
+                        }
+
+                        row_without_highlight(ui, &mut items, len, &mut clicked, preview);
                     }
 
                     *max_height = ui.min_rect().height() + EXTRA_PADDING;

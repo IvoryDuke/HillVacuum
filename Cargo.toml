@@ -16,6 +16,7 @@ ui = [
     "dep:bevy_egui",
     "dep:configparser",
     "dep:egui_extras",
+    "dep:indexmap",
     "dep:is_executable",
     "dep:paste",
     "dep:rfd",
@@ -78,6 +79,10 @@ features = ["serde"]
 [dependencies.hashbrown]
 version = "0.15"
 features = ["serde"]
+
+[dependencies.indexmap]
+version = "2.*"
+optional = true
 
 [dependencies.is_executable]
 version = "1.*"

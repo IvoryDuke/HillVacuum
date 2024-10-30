@@ -12,8 +12,11 @@ use hill_vacuum_shared::{continue_if_err, continue_if_none};
 
 use super::{HardcodedThings, Thing, ThingId};
 use crate::{
-    map::{drawer::drawing_resources::DrawingResources, hash_map, indexed_map::IndexedMap},
-    utils::{collections::HashMap, misc::TakeValue}
+    map::{drawer::drawing_resources::DrawingResources, hash_map},
+    utils::{
+        collections::{index_map, HashMap, IndexMap},
+        misc::TakeValue
+    }
 };
 
 //=======================================================================//
@@ -22,7 +25,7 @@ use crate::{
 //=======================================================================//
 
 #[derive(Clone, Copy)]
-pub(in crate::map) struct ChunkItem<'a>
+pub(in crate::map) struct UiThing<'a>
 {
     pub index:    usize,
     pub name:     &'a str,
@@ -39,7 +42,7 @@ pub(in crate::map) struct ThingsCatalog
     /// The [`Thing`]s that are hardcoded in the editor.
     hardcoded_things: HashMap<ThingId, Thing>,
     /// All the loaded [`Thing`]s, both hardcoded and from files.
-    things:           IndexedMap<ThingId, Thing>,
+    things:           IndexMap<ThingId, Thing>,
     /// The [`Thing`] selected in the UI gallery, if any.
     selected_thing:   Option<usize>,
     ///The [`Thing`] used to display errors.
@@ -53,7 +56,7 @@ impl Default for ThingsCatalog
     {
         Self {
             hardcoded_things: hash_map![],
-            things:           IndexedMap::new(Vec::new(), Thing::id),
+            things:           index_map![],
             selected_thing:   None,
             error:            Self::error_thing()
         }
@@ -97,7 +100,7 @@ impl ThingsCatalog
     /// If a thing loaded from file has the same [`ThingId`] as an hardcoded one the latter will be
     /// overwritten. Things files are searched in the `assets/things/` folder.
     #[inline]
-    fn loaded_things(hardcoded_things: &HashMap<ThingId, Thing>) -> IndexedMap<ThingId, Thing>
+    fn loaded_things(hardcoded_things: &HashMap<ThingId, Thing>) -> IndexMap<ThingId, Thing>
     {
         /// The directory where ini defined things are located.
         const THINGS_DIR: &str = "assets/things/";
@@ -175,7 +178,7 @@ impl ThingsCatalog
         }
 
         things.sort_by(|a, b| a.name().cmp(b.name()));
-        IndexedMap::new(things, Thing::id)
+        things.into_iter().map(|thing| (thing.id, thing)).collect()
     }
 
     //==============================================================
@@ -248,29 +251,19 @@ impl ThingsCatalog
     /// [`Thing`]s.
     #[inline]
     #[must_use]
-    pub fn chunked_things<'a>(
+    pub fn ui_iter<'a>(
         &'a self,
-        chunk_size: usize,
         drawing_resources: &'a DrawingResources
-    ) -> impl ExactSizeIterator<Item = impl Iterator<Item = ChunkItem<'a>>>
+    ) -> impl ExactSizeIterator<Item = UiThing<'a>>
     {
-        self.things
-            .chunks(chunk_size)
-            .enumerate()
-            .map(move |(index, things)| {
-                let mut index = index * chunk_size;
-
-                things.iter().map(move |thing| {
-                    let texture = drawing_resources.egui_texture(thing.preview());
-                    let value = ChunkItem {
-                        index,
-                        name: thing.name(),
-                        tex_id: texture.0,
-                        tex_size: texture.1
-                    };
-                    index += 1;
-                    value
-                })
-            })
+        self.things.iter().enumerate().map(move |(index, (_, thing))| {
+            let texture = drawing_resources.egui_texture(thing.preview());
+            UiThing {
+                index,
+                name: thing.name(),
+                tex_id: texture.0,
+                tex_size: texture.1
+            }
+        })
     }
 }

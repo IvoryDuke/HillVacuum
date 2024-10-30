@@ -4,7 +4,6 @@ mod camera;
 pub mod drawer;
 #[cfg(feature = "ui")]
 pub mod editor;
-mod indexed_map;
 pub mod path;
 pub mod properties;
 mod selectable_vector;

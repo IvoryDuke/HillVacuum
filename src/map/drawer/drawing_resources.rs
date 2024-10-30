@@ -53,11 +53,10 @@ use crate::{
             },
             Placeholder
         },
-        indexed_map::IndexedMap,
         thing::{catalog::ThingsCatalog, ThingInterface}
     },
     utils::{
-        collections::{hash_map, hash_set, HashMap, HashSet},
+        collections::{hash_map, hash_set, index_map, HashMap, HashSet, IndexMap},
         hull::Hull,
         math::{points::rotate_point_around_origin, HashVec2},
         misc::{vertex_highlight_square, AssertedInsertRemove, Camera, TakeValue, Translate}
@@ -229,7 +228,7 @@ pub(in crate::map) struct DrawingResources
     /// The default [`ColorMaterial`].
     default_material: Handle<ColorMaterial>,
     /// The textures loaded from the assets folder.
-    textures: IndexedMap<String, TextureMaterials>,
+    textures: IndexMap<String, TextureMaterials>,
     /// The error texture.
     error_texture: TextureMaterials,
     /// The clip overlay texture.
@@ -254,7 +253,7 @@ impl Placeholder for DrawingResources
             sprite_highlight_mesh: Mesh2dHandle::default(),
             tt_label_gen: TooltipLabelGenerator::default(),
             default_material: Handle::default(),
-            textures: IndexedMap::new(Vec::new(), |tex| tex.texture.name().to_owned()),
+            textures: index_map![],
             error_texture: TextureMaterials::placeholder(),
             clip_texture: Handle::default(),
             animated_textures: hash_set![],
@@ -593,25 +592,14 @@ impl DrawingResources
 
     /// Returns a [`Chunks`] iterator with `chunk_size` to the [`TextureMaterials`].
     #[inline]
-    pub fn chunked_textures<'a, F>(
-        &'a self,
-        chunk_size: usize,
-        chunks_container: &'a mut Vec<&'static TextureMaterials>,
-        f: Option<F>
-    ) -> ChunkedTextures<'a, F>
+    pub fn ui_textures<'a, F>(&'a self, f: Option<F>) -> impl Iterator<Item = &'a TextureMaterials>
     where
         F: Fn(&&'a TextureMaterials) -> bool
     {
-        let iter = match f
+        match f
         {
-            Some(f) => TexturesIter::Filtered(self.textures.values().filter(f)),
-            None => TexturesIter::Unfiltered(self.textures.values())
-        };
-
-        ChunkedTextures {
-            iter,
-            chunk_size,
-            container: chunks_container
+            Some(f) => UiTextures::Filtered(self.textures.values().filter(f)),
+            None => UiTextures::Unfiltered(self.textures.values())
         }
     }
 
@@ -627,15 +615,13 @@ impl DrawingResources
     fn sort_textures(
         materials: &mut Assets<ColorMaterial>,
         mut textures: Vec<(Texture, egui::TextureId)>
-    ) -> IndexedMap<String, TextureMaterials>
+    ) -> IndexMap<String, TextureMaterials>
     {
         textures.sort_by(|a, b| a.0.name().cmp(b.0.name()));
-        let textures = textures
+        textures
             .into_iter()
-            .map(|(tex, id)| TextureMaterials::new(tex, id, materials))
-            .collect();
-
-        IndexedMap::new(textures, |tex| tex.texture.name().to_owned())
+            .map(|(tex, id)| (tex.name().to_string(), TextureMaterials::new(tex, id, materials)))
+            .collect()
     }
 
     /// Reloads the textures.
@@ -1704,57 +1690,17 @@ impl<'a> TextureMut<'a>
 //=======================================================================//
 
 #[must_use]
-pub(in crate::map) struct ChunkedTextures<'a, F>
+enum UiTextures<'a, F>
 where
     F: Fn(&&'a TextureMaterials) -> bool
 {
-    iter:       TexturesIter<'a, F>,
-    chunk_size: usize,
-    container:  &'a mut Vec<&'static TextureMaterials>
+    Unfiltered(indexmap::map::Values<'a, std::string::String, TextureMaterials>),
+    Filtered(
+        std::iter::Filter<indexmap::map::Values<'a, std::string::String, TextureMaterials>, F>
+    )
 }
 
-impl<'a, F> ChunkedTextures<'a, F>
-where
-    F: Fn(&&'a TextureMaterials) -> bool
-{
-    #[inline]
-    pub fn next(&mut self) -> Option<&[&'static TextureMaterials]>
-    {
-        self.container.clear();
-
-        for _ in 0..self.chunk_size
-        {
-            match self.iter.next()
-            {
-                Some(e) => self.container.push(unsafe { std::mem::transmute(e) }),
-                None =>
-                {
-                    if self.container.is_empty()
-                    {
-                        return None;
-                    }
-
-                    break;
-                }
-            };
-        }
-
-        Some(self.container)
-    }
-}
-
-//=======================================================================//
-
-#[must_use]
-enum TexturesIter<'a, F>
-where
-    F: Fn(&&'a TextureMaterials) -> bool
-{
-    Unfiltered(std::slice::Iter<'a, TextureMaterials>),
-    Filtered(std::iter::Filter<std::slice::Iter<'a, TextureMaterials>, F>)
-}
-
-impl<'a, F> Iterator for TexturesIter<'a, F>
+impl<'a, F> Iterator for UiTextures<'a, F>
 where
     F: Fn(&&'a TextureMaterials) -> bool
 {

@@ -598,58 +598,68 @@ impl Innards
     }
 
     #[inline]
-    fn textures_gallery(
-        &mut self,
-        ui: &mut egui::Ui,
-        bundle: &mut UiBundle,
-        chunked_textures_container: &mut Vec<&'static TextureMaterials>
-    )
+    fn textures_gallery(&mut self, ui: &mut egui::Ui, bundle: &mut UiBundle)
     {
         #[inline]
         fn gallery<'a, F, G>(
             ui: &mut egui::Ui,
             drawing_resources: &'a DrawingResources,
             textures_per_row: usize,
-            chunked_textures_container: &'a mut Vec<&'static TextureMaterials>,
             filter: Option<F>,
             mut click_func: G
         ) where
             F: Fn(&&'a TextureMaterials) -> bool,
             G: FnMut(&Texture, &egui::Response)
         {
-            let mut chunks = drawing_resources.chunked_textures(
-                textures_per_row,
-                chunked_textures_container,
-                filter
-            );
+            let mut textures = drawing_resources.ui_textures(filter);
 
-            while let Some(chunk) = chunks.next()
+            loop
             {
-                ui.horizontal(|ui| {
-                    for texture_materials in chunk
-                    {
-                        ui.vertical(|ui| {
-                            ui.set_width(TEXTURE_GALLERY_PREVIEW_FRAME_SIDE);
+                let stop = ui
+                    .horizontal(|ui| {
+                        let mut stop = false;
 
-                            let texture = texture_materials.texture();
-                            let response = format_texture_preview!(
-                                ImageButton,
-                                ui,
-                                texture_materials.egui_id(),
-                                texture.size(),
-                                TEXTURE_GALLERY_PREVIEW_FRAME_SIDE
-                            );
+                        for _ in 0..textures_per_row
+                        {
+                            let texture_materials = match textures.next()
+                            {
+                                Some(t) => t,
+                                None =>
+                                {
+                                    stop = true;
+                                    break;
+                                }
+                            };
 
-                            click_func(texture, &response);
+                            ui.vertical(|ui| {
+                                ui.set_width(TEXTURE_GALLERY_PREVIEW_FRAME_SIDE);
 
-                            ui.vertical_centered(|ui| {
-                                ui.add(egui::Label::new(texture.label()).wrap());
+                                let texture = texture_materials.texture();
+                                let response = format_texture_preview!(
+                                    ImageButton,
+                                    ui,
+                                    texture_materials.egui_id(),
+                                    texture.size(),
+                                    TEXTURE_GALLERY_PREVIEW_FRAME_SIDE
+                                );
+
+                                click_func(texture, &response);
+
+                                ui.vertical_centered(|ui| {
+                                    ui.add(egui::Label::new(texture.label()).wrap());
+                                });
                             });
-                        });
-                    }
+                        }
 
-                    ui.add_space(ui.available_width());
-                });
+                        ui.add_space(ui.available_width());
+                        stop
+                    })
+                    .inner;
+
+                if stop
+                {
+                    break;
+                }
             }
         }
 
@@ -749,23 +759,16 @@ impl Innards
         {
             let mut clicked_texture = None;
 
-            gallery(
-                ui,
-                drawing_resources,
-                textures_per_row,
-                chunked_textures_container,
-                filter,
-                |texture, response| {
-                    if response.clicked()
-                    {
-                        clicked_texture = texture.name().to_owned().into();
-                    }
-                    else if response.secondary_clicked()
-                    {
-                        self.animation_editor.set_texture_override(texture);
-                    }
+            gallery(ui, drawing_resources, textures_per_row, filter, |texture, response| {
+                if response.clicked()
+                {
+                    clicked_texture = texture.name().to_owned().into();
                 }
-            );
+                else if response.secondary_clicked()
+                {
+                    self.animation_editor.set_texture_override(texture);
+                }
+            });
 
             self.animation_editor.push_list_animation_frame(
                 drawing_resources,
@@ -779,39 +782,27 @@ impl Innards
             return;
         }
 
-        gallery(
-            ui,
-            drawing_resources,
-            textures_per_row,
-            chunked_textures_container,
-            filter,
-            |texture, response| {
-                if response.clicked()
-                {
-                    _ = Innards::assign_texture(
-                        drawing_resources,
-                        manager,
-                        edits_history,
-                        grid,
-                        texture.name()
-                    );
-                }
-                else if response.secondary_clicked()
-                {
-                    self.animation_editor.set_texture_override(texture);
-                }
+        gallery(ui, drawing_resources, textures_per_row, filter, |texture, response| {
+            if response.clicked()
+            {
+                _ = Innards::assign_texture(
+                    drawing_resources,
+                    manager,
+                    edits_history,
+                    grid,
+                    texture.name()
+                );
             }
-        );
+            else if response.secondary_clicked()
+            {
+                self.animation_editor.set_texture_override(texture);
+            }
+        });
     }
 
     /// Shows the texture editor.
     #[inline]
-    fn show(
-        &mut self,
-        ui: &mut egui::Ui,
-        bundle: &mut UiBundle,
-        chunked_textures_container: &mut Vec<&'static TextureMaterials>
-    )
+    fn show(&mut self, ui: &mut egui::Ui, bundle: &mut UiBundle)
     {
         const X_SPACING: f32 = 2f32;
 
@@ -889,8 +880,7 @@ impl Innards
         });
 
         ui.vertical(|ui| {
-            egui::ScrollArea::vertical()
-                .show(ui, |ui| self.textures_gallery(ui, bundle, chunked_textures_container));
+            egui::ScrollArea::vertical().show(ui, |ui| self.textures_gallery(ui, bundle));
         });
     }
 
@@ -1062,10 +1052,9 @@ impl Innards
 pub(in crate::map::editor::state::ui) struct TextureEditor
 {
     /// The data of the window.
-    window:                     Window,
+    window:  Window,
     /// The core of the editor.
-    innards:                    Innards,
-    chunked_textures_container: Vec<&'static TextureMaterials>
+    innards: Innards
 }
 
 impl Default for TextureEditor
@@ -1075,9 +1064,8 @@ impl Default for TextureEditor
     fn default() -> Self
     {
         Self {
-            window:                     Window::new(),
-            innards:                    Innards::default(),
-            chunked_textures_container: Vec::new()
+            window:  Window::new(),
+            innards: Innards::default()
         }
     }
 }
@@ -1173,7 +1161,7 @@ impl TextureEditor
                     .min_height(300f32)
                     .default_height(WINDOW_MIN_SIZE),
                 |ui| {
-                    self.innards.show(ui, bundle, &mut self.chunked_textures_container);
+                    self.innards.show(ui, bundle);
                 }
             )
             .unwrap_or_default()

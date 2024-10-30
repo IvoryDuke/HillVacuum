@@ -38,12 +38,11 @@ pub(in crate::map) mod ui_mod
         map::{
             drawer::drawing_resources::DrawingResources,
             editor::state::grid::Grid,
-            indexed_map::IndexedMap,
             properties::value::Value,
             Viewer
         },
         utils::{
-            collections::{hash_map, HashMap},
+            collections::{hash_map, HashMap, IndexMap},
             misc::AssertedInsertRemove
         }
     };
@@ -160,7 +159,7 @@ pub(in crate::map) mod ui_mod
             #[derive(Clone)]
             pub(in crate::map) struct [< Default $entity Properties >]
             {
-                user:     IndexedMap<String, Value>,
+                user:     IndexMap<String, Value>,
                 instance: [< $entity Properties >]
             }
 
@@ -170,7 +169,7 @@ pub(in crate::map) mod ui_mod
                 fn default() -> Self
                 {
                     Self {
-                        user:      IndexedMap::default(),
+                        user:      IndexMap::default(),
                         instance:  [< $entity Properties >]::from_parts(hash_map![])
                     }
                 }
@@ -255,20 +254,8 @@ pub(in crate::map) mod ui_mod
                     let mut properties = properties.into_iter().collect::<Vec<_>>();
                     properties.sort_by(|a, b| a.0.cmp(&b.0));
 
-                    let mut values = Vec::new();
-                    let mut keys = Vec::new();
-
-                    for (k, v) in &properties
-                    {
-                        values.push(v.clone());
-                        keys.push(k.clone());
-                    }
-
-                    let mut keys = keys.into_iter();
-                    let map = IndexedMap::new(values, |_| keys.next_value());
-
                     Self {
-                        user:      map,
+                        user:      properties.iter().cloned().collect(),
                         instance:  [< $entity Properties >]::from_parts(properties.into_iter().collect())
                     }
                 }
@@ -290,7 +277,12 @@ pub(in crate::map) mod ui_mod
                 }
 
                 #[inline]
-                fn iter(&self) -> impl Iterator<Item = (&str, &Value)> { self.instance.iter() }
+                fn iter(&self) -> impl Iterator<Item = (&str, &Value)>
+                {
+                    [$(($property, &$default)),+]
+                        .into_iter()
+                        .chain(self.user.iter().map(|(k, v)| (k.as_str(), v)))
+                }
             }
 
             impl [< Default $entity Properties >]
@@ -308,7 +300,7 @@ pub(in crate::map) mod ui_mod
                         return true;
                     }
 
-                    self.user.contains(k)
+                    self.user.contains_key(k)
                 }
 
                 /// Returns an instance of [`BrushProperties`] with default values.
@@ -367,14 +359,6 @@ pub(in crate::map) mod ui_mod
                         $($property_name: map.remove($property).unwrap_or($default),)+
                         user: map
                     }
-                }
-
-                #[inline]
-                pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)>
-                {
-                    [$(($property, &self.$property_name)),+]
-                        .into_iter()
-                        .chain(self.user.iter().map(|(name, value)| (name.as_str(), value)))
                 }
 
                 /// Sets the [`Value`] associated with `k` to `value`.

@@ -455,7 +455,7 @@ impl PaintTool
             &mut self.max_bottom_panel_height,
             PREVIEW_SIZE,
             clipboard.selected_prop_index(),
-            |items_per_row| clipboard.chunked_props(items_per_row),
+            clipboard.ui_iter(),
             |ui, texture| {
                 (
                     ui.vertical(|ui| {

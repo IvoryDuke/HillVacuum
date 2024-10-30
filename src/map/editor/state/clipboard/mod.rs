@@ -9,8 +9,7 @@ pub(in crate::map) mod prop;
 
 use std::{
     fs::File,
-    io::{BufReader, BufWriter},
-    marker::PhantomData
+    io::{BufReader, BufWriter}
 };
 
 use arrayvec::ArrayVec;
@@ -282,11 +281,10 @@ pub(in crate::map) type PropCamerasMut<'world, 'state, 'a> = Query<
 //=======================================================================//
 
 #[derive(Clone, Copy)]
-pub(in crate::map) struct ChunkItem<'a>
+pub(in crate::map) struct UiProp
 {
     pub index:  usize,
-    pub tex_id: egui::TextureId,
-    data:       PhantomData<&'a ()>
+    pub tex_id: egui::TextureId
 }
 
 //=======================================================================//
@@ -1227,23 +1225,15 @@ impl Clipboard
     /// Returns a [`Chunks`] iterator to the slotted [`Prop`]s with size `chunk_size`.
     #[inline]
     #[must_use]
-    pub(in crate::map::editor::state) fn chunked_props(
-        &self,
-        chunk_size: usize
-    ) -> impl ExactSizeIterator<Item = impl Iterator<Item = ChunkItem<'_>>>
+    pub(in crate::map::editor::state) fn ui_iter(
+        &self
+    ) -> impl ExactSizeIterator<Item = UiProp> + '_
     {
-        self.props.chunks(chunk_size).enumerate().map(move |(index, props)| {
-            let mut index = index * chunk_size;
-
-            props.iter().map(move |prop| {
-                let value = ChunkItem {
-                    index,
-                    tex_id: prop.screenshot(),
-                    data: PhantomData
-                };
-                index += 1;
-                value
-            })
+        self.props.iter().enumerate().map(|(index, prop)| {
+            UiProp {
+                index,
+                tex_id: prop.screenshot()
+            }
         })
     }
 

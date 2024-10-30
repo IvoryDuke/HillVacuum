@@ -92,6 +92,10 @@ pub(crate) mod ui_mod
     //
     //=======================================================================//
 
+    use std::hash::BuildHasherDefault;
+
+    use ahash::AHasher;
+
     use super::HashSet;
     use crate::utils::misc::{NoneIfEmpty, ReplaceValues};
 
@@ -117,6 +121,26 @@ pub(crate) mod ui_mod
     }
 
     pub(crate) use hash_set;
+
+    //=======================================================================//
+
+    macro_rules! index_map {
+        [] => {{
+            crate::utils::collections::IndexMap::with_hasher(std::hash::BuildHasherDefault::<ahash::AHasher>::default())
+        }};
+
+        [$($v:expr),+] => {{
+            let mut map = crate::utils::collections::index_map![];
+            $(map.insert($v);)+
+            map
+        }};
+
+        [capacity; $n:expr] => {{
+            crate::utils::collections::IndexMap::with_capacity_and_hasher($n, std::hash::BuildHasherDefault::<ahash::AHasher>::default())
+        }};
+    }
+
+    pub(crate) use index_map;
 
     //=======================================================================//
     // TYPES
@@ -167,6 +191,10 @@ pub(crate) mod ui_mod
             self.extend(iter);
         }
     }
+
+    //=======================================================================//
+
+    pub(crate) type IndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<AHasher>>;
 }
 
 #[cfg(feature = "ui")]

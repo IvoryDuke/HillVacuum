@@ -18,10 +18,12 @@ use crate::{
             },
             Placeholder
         },
-        indexed_map::IndexedMap,
         properties::{DefaultProperties, Properties, SetProperty}
     },
-    utils::overall_value::{OverallValue, OverallValueInterface, OverallValueToUi, UiOverallValue},
+    utils::{
+        collections::IndexMap,
+        overall_value::{OverallValue, OverallValueInterface, OverallValueToUi, UiOverallValue}
+    },
     Value
 };
 
@@ -45,12 +47,12 @@ struct OverallProperty
 
 /// The UI elements to edit the overall [`Properties`].
 #[must_use]
-pub(in crate::map) struct UiOverallProperties(IndexedMap<String, OverallProperty>);
+pub(in crate::map) struct UiOverallProperties(IndexMap<String, OverallProperty>);
 
 impl Placeholder for UiOverallProperties
 {
     #[inline]
-    unsafe fn placeholder() -> Self { Self(IndexedMap::default()) }
+    unsafe fn placeholder() -> Self { Self(IndexMap::default()) }
 }
 
 impl UiOverallProperties
@@ -59,28 +61,21 @@ impl UiOverallProperties
     #[inline]
     pub fn new<D: DefaultProperties>(values: &D) -> Self
     {
-        let mut vec = Vec::with_capacity(values.len());
+        Self(
+            values
+                .iter()
+                .map(|(k, d_v)| {
+                    let value = OverallValue::from(d_v.clone());
+                    let ui = value.clone().ui();
 
-        for (k, d_v) in values.iter()
-        {
-            vec.push((k.to_string(), (d_v.tag(), OverallValue::from(d_v.clone()))));
-        }
-
-        vec.sort_by(|(a, _), (b, _)| a.cmp(b));
-
-        let mut values = Vec::with_capacity(vec.len());
-        let mut keys = Vec::with_capacity(vec.len());
-
-        for (k, (tag, value)) in vec
-        {
-            keys.push(k);
-
-            let ui = value.clone().ui();
-            values.push(OverallProperty { tag, value, ui });
-        }
-
-        let mut keys = keys.into_iter();
-        Self(IndexedMap::new(values, |_| keys.next_value()))
+                    (k.to_string(), OverallProperty {
+                        tag: d_v.tag(),
+                        value,
+                        ui
+                    })
+                })
+                .collect()
+        )
     }
 
     /// The amount of overall properties.
@@ -96,7 +91,7 @@ impl UiOverallProperties
             let properties = iter.next_value();
             assert!(properties.len() == self.len(), "Different lengths.");
 
-            for (k, o) in self.0.iter_mut()
+            for (k, o) in &mut self.0
             {
                 let b = properties.get(k);
                 assert!(o.tag == b.tag(), "Mismatching discriminants.");
@@ -110,7 +105,7 @@ impl UiOverallProperties
         {
             assert!(properties.len() == self.len(), "Different lengths.");
 
-            for (k, o) in self.0.iter_mut()
+            for (k, o) in &mut self.0
             {
                 let b = properties.get(k);
                 assert!(o.tag == b.tag(), "Mismatching discriminants.");
@@ -168,7 +163,7 @@ impl UiOverallProperties
     {
         assert!(default_properties.len() == self.0.len(), "Different lengths.");
 
-        for (k, o) in self.0.iter_mut()
+        for (k, o) in &mut self.0
         {
             let d_v = default_properties.get(k);
             assert!(o.tag == d_v.tag(), "Mismatching discriminants.");
