@@ -1178,7 +1178,8 @@ where
 
                             draw_preview(ui, items.next_value(), &mut clicked, preview).highlight();
 
-                            for _ in 0..items.len().min(items_per_row - (highlight_index_in_row + 1))
+                            for _ in
+                                0..items.len().min(items_per_row - (highlight_index_in_row + 1))
                             {
                                 draw_preview(ui, items.next_value(), &mut clicked, preview);
                             }

@@ -57,7 +57,7 @@ pub(crate) mod ui_mod
     //
     //=======================================================================//
 
-    use std::io::Write;
+    use std::{collections::HashMap, io::Write};
 
     pub use bevy;
     use bevy::{
@@ -89,7 +89,6 @@ pub(crate) mod ui_mod
             thing::HardcodedThings,
             MapEditorPlugin
         },
-        utils::collections::HashMap,
         Value
     };
     #[allow(unused_imports)]
@@ -242,7 +241,7 @@ pub(crate) mod ui_mod
     {
         pub brush_properties: HashMap<&'static str, Value>,
         pub thing_properties: HashMap<&'static str, Value>,
-        pub things:           Vec<Thing>
+        pub hardcoded_things: Vec<Thing>
     }
 
     impl Default for HillVacuumPlugin
@@ -253,7 +252,7 @@ pub(crate) mod ui_mod
             Self {
                 brush_properties: HashMap::default(),
                 thing_properties: HashMap::default(),
-                things:           Vec::default()
+                hardcoded_things: Vec::default()
             }
         }
     }
@@ -298,36 +297,36 @@ pub(crate) mod ui_mod
             };
             window.set_maximized(true);
 
-            app.add_plugins(
-                DefaultPlugins
-                    .set(AssetPlugin {
-                        file_path: "assets/".to_owned(),
-                        processed_file_path: "processed_assets/".to_owned(),
-                        watch_for_changes_override: false.into(),
-                        mode: AssetMode::Unprocessed,
-                        ..Default::default()
-                    })
-                    .set(ImagePlugin {
-                        default_sampler: ImageSamplerDescriptor {
-                            address_mode_u: ImageAddressMode::Repeat,
-                            address_mode_v: ImageAddressMode::Repeat,
-                            address_mode_w: ImageAddressMode::Repeat,
+            app.init_state::<EditorState>()
+                .insert_resource(BrushUserProperties(self.brush_properties.clone()))
+                .insert_resource(ThingUserProperties(self.thing_properties.clone()))
+                .insert_resource(HardcodedThings(self.hardcoded_things.clone()))
+                .add_plugins(
+                    DefaultPlugins
+                        .set(AssetPlugin {
+                            file_path: "assets/".to_owned(),
+                            processed_file_path: "processed_assets/".to_owned(),
+                            watch_for_changes_override: false.into(),
+                            mode: AssetMode::Unprocessed,
                             ..Default::default()
-                        }
-                    })
-                    .set(WindowPlugin {
-                        primary_window: Some(window),
-                        ..Default::default()
-                    })
-                    .disable::<LogPlugin>()
-                    .disable::<HierarchyPlugin>()
-                    .disable::<DiagnosticsPlugin>()
-            )
-            .add_plugins((EmbeddedPlugin, ConfigPlugin, MapEditorPlugin))
-            .insert_resource(BrushUserProperties(self.brush_properties.clone()))
-            .insert_resource(ThingUserProperties(self.thing_properties.clone()))
-            .insert_resource(HardcodedThings(self.things.clone()))
-            .init_state::<EditorState>();
+                        })
+                        .set(ImagePlugin {
+                            default_sampler: ImageSamplerDescriptor {
+                                address_mode_u: ImageAddressMode::Repeat,
+                                address_mode_v: ImageAddressMode::Repeat,
+                                address_mode_w: ImageAddressMode::Repeat,
+                                ..Default::default()
+                            }
+                        })
+                        .set(WindowPlugin {
+                            primary_window: Some(window),
+                            ..Default::default()
+                        })
+                        .disable::<LogPlugin>()
+                        .disable::<HierarchyPlugin>()
+                        .disable::<DiagnosticsPlugin>()
+                )
+                .add_plugins((EmbeddedPlugin, ConfigPlugin, MapEditorPlugin));
         }
     }
 

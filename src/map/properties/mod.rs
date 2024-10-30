@@ -69,7 +69,7 @@ pub(in crate::map) mod ui_mod
             #[doc = concat!("The default properties associated with all ", $entities_str)]
             #[must_use]
             #[derive(Resource)]
-            pub(crate) struct [< $entity UserProperties >](pub HashMap<&'static str, Value>);
+            pub(crate) struct [< $entity UserProperties >](pub std::collections::HashMap<&'static str, Value>);
 
             //=======================================================================//
 
