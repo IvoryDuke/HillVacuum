@@ -5,7 +5,8 @@
 ### Changes
 - Removed `arena_alloc` feature and removed custom collections for simpler library usage;
 - removed `BrushUserProperties`, `ThingUserProperties`, `HardcodedThings`, `brush_properties`, `thing_properties`, `hardcoded_things`, and `MapThing`. All of the functionality of these structs and macros have been integrated as fields in the `HillVacuumPlugin` struct;
-- changed return type of `Thing::new()`.
+- changed return type of `Thing::new()`;
+- properties in the properties window are now listed in alphabetical order.
 
 ### Fixes
 - Fixed ui window not closing when text editor was being used;

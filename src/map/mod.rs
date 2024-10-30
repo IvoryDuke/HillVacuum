@@ -794,7 +794,7 @@ pub(in crate::map) mod ui_mod
                 egui::Key::Tab => index = matches!(ui_focus, UiFocus::None).then_some(i),
                 egui::Key::F4 =>
                 {
-                    add_escape = matches!(ui_focus, UiFocus::Window | UiFocus::Element)
+                    add_escape = matches!(ui_focus, UiFocus::Window | UiFocus::Element);
                 },
                 _ => continue
             };

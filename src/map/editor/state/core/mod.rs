@@ -1112,14 +1112,14 @@ where
                     #[inline]
                     fn draw_preview<T, F>(
                         ui: &mut egui::Ui,
-                        texture: T,
+                        item: T,
                         clicked: &mut Option<usize>,
                         preview: F
                     ) -> egui::Response
                     where
                         F: Fn(&mut egui::Ui, T) -> (egui::Response, usize) + Copy
                     {
-                        let (response, index) = preview(ui, texture);
+                        let (response, index) = preview(ui, item);
 
                         if response.clicked()
                         {
@@ -1133,7 +1133,7 @@ where
                     fn row_without_highlight<T, I, F>(
                         ui: &mut egui::Ui,
                         iter: &mut I,
-                        items_in_row: usize,
+                        items_per_row: usize,
                         clicked: &mut Option<usize>,
                         preview: F
                     ) where
@@ -1141,9 +1141,9 @@ where
                         F: Fn(&mut egui::Ui, T) -> (egui::Response, usize) + Copy
                     {
                         ui.horizontal(|ui| {
-                            for _ in 0..items_in_row
+                            for item in iter.take(items_per_row)
                             {
-                                draw_preview(ui, iter.next_value(), clicked, preview);
+                                draw_preview(ui, item, clicked, preview);
                             }
 
                             ui.add_space(ui.available_width());
@@ -1171,33 +1171,26 @@ where
                         ui.horizontal(|ui| {
                             let highlight_index_in_row = selected_item_index % items_per_row;
 
-                            for _ in 0..highlight_index_in_row
+                            for item in (&mut items).take(highlight_index_in_row)
                             {
-                                draw_preview(ui, items.next_value(), &mut clicked, preview);
+                                draw_preview(ui, item, &mut clicked, preview);
                             }
 
                             draw_preview(ui, items.next_value(), &mut clicked, preview).highlight();
 
-                            for _ in
-                                0..items.len().min(items_per_row - (highlight_index_in_row + 1))
+                            for item in
+                                (&mut items).take(items_per_row - (highlight_index_in_row + 1))
                             {
-                                draw_preview(ui, items.next_value(), &mut clicked, preview);
+                                draw_preview(ui, item, &mut clicked, preview);
                             }
 
                             ui.add_space(ui.available_width());
                         });
                     }
 
-                    loop
+                    while items.len() != 0
                     {
-                        let len = items.len().min(items_per_row);
-
-                        if len == 0
-                        {
-                            break;
-                        }
-
-                        row_without_highlight(ui, &mut items, len, &mut clicked, preview);
+                        row_without_highlight(ui, &mut items, items_per_row, &mut clicked, preview);
                     }
 
                     *max_height = ui.min_rect().height() + EXTRA_PADDING;

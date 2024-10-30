@@ -613,54 +613,45 @@ impl Innards
         {
             let mut textures = drawing_resources.ui_textures(filter);
 
-            loop
-            {
-                let stop = ui
-                    .horizontal(|ui| {
-                        let mut stop = false;
-
-                        for _ in 0..textures_per_row
+            while ui
+                .horizontal(|ui| {
+                    for _ in 0..textures_per_row
+                    {
+                        let texture_materials = match textures.next()
                         {
-                            let texture_materials = match textures.next()
+                            Some(t) => t,
+                            None =>
                             {
-                                Some(t) => t,
-                                None =>
-                                {
-                                    stop = true;
-                                    break;
-                                }
-                            };
+                                ui.add_space(ui.available_width());
+                                return false;
+                            }
+                        };
 
-                            ui.vertical(|ui| {
-                                ui.set_width(TEXTURE_GALLERY_PREVIEW_FRAME_SIDE);
+                        ui.vertical(|ui| {
+                            ui.set_width(TEXTURE_GALLERY_PREVIEW_FRAME_SIDE);
 
-                                let texture = texture_materials.texture();
-                                let response = format_texture_preview!(
-                                    ImageButton,
-                                    ui,
-                                    texture_materials.egui_id(),
-                                    texture.size(),
-                                    TEXTURE_GALLERY_PREVIEW_FRAME_SIDE
-                                );
+                            let texture = texture_materials.texture();
+                            let response = format_texture_preview!(
+                                ImageButton,
+                                ui,
+                                texture_materials.egui_id(),
+                                texture.size(),
+                                TEXTURE_GALLERY_PREVIEW_FRAME_SIDE
+                            );
 
-                                click_func(texture, &response);
+                            click_func(texture, &response);
 
-                                ui.vertical_centered(|ui| {
-                                    ui.add(egui::Label::new(texture.label()).wrap());
-                                });
+                            ui.vertical_centered(|ui| {
+                                ui.add(egui::Label::new(texture.label()).wrap());
                             });
-                        }
+                        });
+                    }
 
-                        ui.add_space(ui.available_width());
-                        stop
-                    })
-                    .inner;
-
-                if stop
-                {
-                    break;
-                }
-            }
+                    ui.add_space(ui.available_width());
+                    true
+                })
+                .inner
+            {}
         }
 
         #[inline]
