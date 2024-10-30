@@ -37,7 +37,7 @@ use bevy_egui::{
     EguiUserTextures
 };
 use glam::{UVec2, Vec2};
-use hill_vacuum_shared::{return_if_none, NextValue};
+use hill_vacuum_shared::return_if_none;
 use prop::{Prop, PropScreenshotTimer, PropViewer};
 use serde::{Deserialize, Serialize};
 
@@ -603,14 +603,12 @@ impl Clipboard
             i += 1;
         }
 
-        let mut prop_cameras = prop_cameras.iter_mut();
-
-        for _ in 0..self
-            .props_with_no_camera
-            .len()
-            .min(PROP_CAMERAS_AMOUNT - self.props_with_assigned_camera.len())
+        for mut camera in prop_cameras.iter_mut().take(
+            self.props_with_no_camera
+                .len()
+                .min(PROP_CAMERAS_AMOUNT - self.props_with_assigned_camera.len())
+        )
         {
-            let mut camera = prop_cameras.next_value();
             let index = self.props_with_no_camera.pop().unwrap();
 
             Self::assign_camera_to_prop(

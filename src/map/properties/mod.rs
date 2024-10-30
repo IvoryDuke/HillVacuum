@@ -203,9 +203,8 @@ pub(in crate::map) mod ui_mod
 
                     let mut iter = self.user.iter();
 
-                    for _ in 0..len - 1
+                    for (k, v) in (&mut iter).take(len - 1)
                     {
-                        let (k, v) = iter.next_value();
                         properties.push_str(&format(k, v));
                         properties.push_str(",\n");
                     }

@@ -2860,15 +2860,11 @@ impl EntitiesManager
         properties: BrushProperties
     )
     {
-        for _ in 0..polygons.len() - 1
+        let take = polygons.len() - 1;
+
+        for polygon in (&mut polygons).take(take)
         {
-            self.spawn_brush(
-                drawing_resources,
-                edits_history,
-                grid,
-                polygons.next_value(),
-                properties.clone()
-            );
+            self.spawn_brush(drawing_resources, edits_history, grid, polygon, properties.clone());
         }
 
         self.spawn_brush(drawing_resources, edits_history, grid, polygons.next_value(), properties);
@@ -2923,19 +2919,20 @@ impl EntitiesManager
         ) -> HashSet<Id>
         {
             let mut ids = hash_set![];
+            let len = polygons.len();
 
-            if polygons.len() == 0
+            if len == 0
             {
                 return ids;
             }
 
-            for _ in 0..polygons.len() - 1
+            for polygon in (&mut polygons).take(len - 1)
             {
                 ids.asserted_insert(manager.spawn_brush(
                     drawing_resources,
                     edits_history,
                     grid,
-                    polygons.next_value(),
+                    polygon,
                     properties.clone()
                 ));
             }
