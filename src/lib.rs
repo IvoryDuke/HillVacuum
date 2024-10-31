@@ -239,8 +239,11 @@ pub(crate) mod ui_mod
     /// The main plugin.
     pub struct HillVacuumPlugin
     {
+        /// The properties associated with the [`Brush`]es.
         pub brush_properties: HashMap<&'static str, Value>,
+        /// The properties associated with the [`ThingInstance`]s.
         pub thing_properties: HashMap<&'static str, Value>,
+        /// The [`Thing`]s coded into the engine.
         pub hardcoded_things: Vec<Thing>
     }
 

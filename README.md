@@ -145,7 +145,7 @@ Otherwise it can be integrated in your own project as such:
 fn main()
 {
     bevy::app::App::new()
-        .add_plugins(hill_vacuum::HillVacuumPlugin)
+        .add_plugins(hill_vacuum::HillVacuumPlugin::default())
         .run();
 }
 ```
