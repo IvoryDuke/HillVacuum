@@ -40,7 +40,6 @@ impl ThingId
 //=======================================================================//
 
 /// An object which can be used to create map placeable items.
-#[allow(dead_code)]
 #[must_use]
 #[derive(Clone)]
 pub struct Thing
@@ -183,7 +182,6 @@ pub mod ui_mod
     //=======================================================================//
 
     /// A trait with methods returning basic information about a type representing a thing.
-    #[allow(dead_code)]
     pub(in crate::map) trait ThingInterface
     {
         /// Returns the [`ThingId`].
