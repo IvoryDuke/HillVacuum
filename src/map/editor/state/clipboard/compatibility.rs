@@ -121,10 +121,10 @@ pub(in crate::map::editor::state) fn convert_09_prps_file(
 ) -> Result<BufReader<File>, &'static str>
 {
     let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
-    file_name.push_str("_09.prps");
+    file_name.push_str("_10.prps");
 
     warning_message(&format!(
-        "This file appears to use the old file structure 0.8, if it is valid it will now be \
+        "This file appears to use the old file structure 0.9, if it is valid it will now be \
          converted to {file_name}."
     ));
 
@@ -154,7 +154,7 @@ pub(in crate::map::editor::state) fn convert_09_prps_file(
         "Error saving converted props file."
     );
 
-    let mut reader = BufReader::new(File::create(&path).unwrap());
+    let mut reader = BufReader::new(File::open(&path).unwrap());
     let _ = version_number(&mut reader);
     let _ = ciborium::from_reader::<usize, _>(&mut reader)
         .map_err(|_| "Error reading converted props length.")?;
