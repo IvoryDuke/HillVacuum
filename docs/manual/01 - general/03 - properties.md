@@ -1,6 +1,6 @@
 ### Properties
 Properties are custom user defined values which can be associated to brushes and things.  
-Such values can be inserted through the `brush_properties` and `thing_properties` macros by specifying the pairs `(name, default_value)` of the properties.  
+Such values can be added to the application through the `brush_properties` and `thing_properties` fields of the `HillVacuumPlugin`.  
 Properties can be edited per-entity using the properties window.  
 Currently supported value types are `bool`, `u8`, `u16`, `u32`, `u64`, `u128`, `i8`, `i16`, `i32`, `i64`, `i128`, `f32`, `f64`, and `String`.  
   

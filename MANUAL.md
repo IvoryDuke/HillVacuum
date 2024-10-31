@@ -8,7 +8,7 @@ Finally, brushes have a built-in property, `collision`, which determines whether
 ### Thing
 A thing is an object which can be placed around the map. It is characterized by an ID, a width and height, a name, and a texture which represents it.  
 Things can also be assigned a path that describes how it moves in the bidimensional space and that can be edited with the Path tool.  
-Things can either be defined in one or many .ini files to be placed in the `assets/things/` folder or, if `HillVacuum` is used as a library, implementing the `MapThing` interface for the structs representing an object to be placed in the map and using the `hardcoded_things` macro to insert them in the bevy App.  
+Things can either be defined in one or many .ini files to be placed in the `assets/things/` folder or, if `HillVacuum` is used as a library, adding them to the `hardcoded_things` field of the `HillVacuumPlugin` to insert them in the bevy App.  
 If defined in the .ini files, the things must follow a similar format:
 ```ini
 [Name]
@@ -20,14 +20,14 @@ preview = TEX
 Where `ID` is an unique identifier between 0 and 65534, and `TEX` is the name of the texture (without the file extension) to be drawn along with the bounding box.  
 If the texture assigned to the Thing has an animation, the texture will be drawn accordingly.  
   
-If a thing defined through the `MapThing` interface has the same `ID` as one loaded from file, the latter will overwrite the former.  
+If a thing in the `HillVacuumPlugin` has the same `ID` as one loaded from file, the latter will overwrite the former.  
 Finally, things have two built-in properties, `angle` and `draw height`. The orientation of the arrow drawn on top of the things will change based on the value of `angle`, and `draw height` determines its draw order. They can be edited in the properties window.
   
 Things can be reloaded while the application is running through the UI button in the Options menu.
 
 ### Properties
 Properties are custom user defined values which can be associated to brushes and things.  
-Such values can be inserted through the `brush_properties` and `thing_properties` macros by specifying the pairs `(name, default_value)` of the properties.  
+Such values can be added to the application through the `brush_properties` and `thing_properties` fields of the `HillVacuumPlugin`.  
 Properties can be edited per-entity using the properties window.  
 Currently supported value types are `bool`, `u8`, `u16`, `u32`, `u64`, `u128`, `i8`, `i16`, `i32`, `i64`, `i128`, `f32`, `f64`, and `String`.  
   

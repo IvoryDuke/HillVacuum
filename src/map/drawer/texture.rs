@@ -1802,7 +1802,7 @@ pub(in crate::map) mod ui_mod
 
         #[inline]
         #[must_use]
-        pub fn sprite_pivot(&self, brush_center: Vec2) -> Option<Vec2>
+        pub(in crate::map) fn sprite_pivot(&self, brush_center: Vec2) -> Option<Vec2>
         {
             self.sprite.enabled().then(|| brush_center + self.draw_offset())
         }
