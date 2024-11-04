@@ -46,31 +46,31 @@ impl Movement
     #[must_use]
     pub const fn min_speed(&self) -> f32 { self.min_speed }
 
-    /// The time of the travel spent accelerating from the minimum to the maximum speed represented
+    /// The percentage of the travel spent accelerating from the minimum to the maximum speed represented
     /// by a value between 0 and 100.
     #[inline]
     #[must_use]
     pub const fn accel_travel_percentage(&self) -> f32 { self.accel_travel_percentage }
 
-    /// The time of the travel spent accelerating from the minimum to the maximum speed represented
+    /// The percentage of the travel spent accelerating from the minimum to the maximum speed represented
     /// by a value between 0 and 1.
     #[inline]
     #[must_use]
     pub fn scaled_accel_travel_percentage(&self) -> f32 { self.accel_travel_percentage / 100f32 }
 
-    /// The time of the travel spent decelerating from the maximum to the minimum speed represented
+    /// The percentage of the travel spent decelerating from the maximum to the minimum speed represented
     /// by a value between 0 and 100.
     #[inline]
     #[must_use]
     pub const fn decel_travel_percentage(&self) -> f32 { self.decel_travel_percentage }
 
-    /// The time of the travel spent decelerating from the maximum to the minimum speed represented
+    /// The percentage of the travel spent decelerating from the maximum to the minimum speed represented
     /// by a value between 0 and 1.
     #[inline]
     #[must_use]
     pub fn scaled_decel_travel_percentage(&self) -> f32 { self.decel_travel_percentage / 100f32 }
 
-    /// Returns the standby time, that is the time that has to pass before the entity should
+    /// Returns the standby time, the time that has to pass before the entity should
     /// start moving to the next [`crate::Node`].
     #[inline]
     #[must_use]
