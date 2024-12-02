@@ -57,27 +57,6 @@ pub(in crate::map) struct PropViewer
     center:           Vec2
 }
 
-impl From<super::compatibility::PropViewer> for PropViewer
-{
-    #[inline]
-    fn from(value: super::compatibility::PropViewer) -> Self
-    {
-        let super::compatibility::PropViewer {
-            entities,
-            attached_brushes,
-            pivot,
-            center
-        } = value;
-
-        Self {
-            entities: entities.into_iter().map(ClipboardDataViewer::from).collect(),
-            attached_brushes,
-            pivot,
-            center
-        }
-    }
-}
-
 //=======================================================================//
 
 /// An agglomeration of entities that can be spawned around the map.

@@ -1,5 +1,3 @@
-#[cfg(feature = "ui")]
-pub(in crate::map) mod compatibility;
 pub(in crate::map) mod prop;
 
 //=======================================================================//

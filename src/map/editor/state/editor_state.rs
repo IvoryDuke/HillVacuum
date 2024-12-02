@@ -41,25 +41,15 @@ use crate::{
     },
     error_message,
     map::{
-        brush::BrushViewer,
         drawer::{
             color::Color,
             drawing_resources::DrawingResources,
             file_animations,
-            texture::DefaultAnimation,
             texture_loader::TextureLoadingProgress,
             TextureSize
         },
         editor::{
             state::{
-                clipboard::{
-                    compatibility::{
-                        convert_09_props,
-                        convert_09_prps_file,
-                        save_imported_09_props
-                    },
-                    prop::PropViewer
-                },
                 core::{tool::ToolInterface, Core},
                 dialog_if_error,
                 test_writer,
@@ -74,20 +64,16 @@ use crate::{
         },
         properties::{
             DefaultBrushProperties,
-            DefaultPropertiesViewer,
             DefaultThingProperties,
             EngineDefaultBrushProperties,
             EngineDefaultThingProperties
         },
-        thing::{catalog::ThingsCatalog, Thing, ThingViewer},
+        thing::{catalog::ThingsCatalog, Thing},
         version_number,
         FileStructure,
-        GridSettings,
         MapHeader,
         Viewer,
-        CONVERTED_FILE_APPENDIX,
         FILE_VERSION,
-        PREVIOUS_FILE_VERSION,
         UPGRADE_WARNING
     },
     utils::{
@@ -95,7 +81,6 @@ use crate::{
         hull::Hull,
         misc::{next, prev, Camera, TakeValue, Toggle}
     },
-    warning_message,
     Animation,
     EditorState,
     HardcodedActions,
@@ -1192,25 +1177,25 @@ impl State
         images: &mut Assets<Image>,
         prop_cameras: &mut PropCamerasMut,
         user_textures: &mut EguiUserTextures,
-        mut path: PathBuf,
+        path: PathBuf,
         drawing_resources: &DrawingResources,
         things_catalog: &ThingsCatalog,
         engine_default_brush_properties: &EngineDefaultBrushProperties,
         engine_default_thing_properties: &EngineDefaultThingProperties
     ) -> Result<FileRead, &'static str>
     {
-        #[must_use]
-        struct OldFileRead
-        {
-            header:                   MapHeader,
-            grid:                     GridSettings,
-            animations:               HashMap<String, Animation>,
-            default_brush_properties: DefaultPropertiesViewer,
-            default_thing_properties: DefaultPropertiesViewer,
-            brushes:                  Vec<BrushViewer>,
-            things:                   Vec<ThingViewer>,
-            props:                    Vec<PropViewer>
-        }
+        // #[must_use]
+        // struct OldFileRead
+        // {
+        //     header:                   MapHeader,
+        //     grid:                     GridSettings,
+        //     animations:               HashMap<String, Animation>,
+        //     default_brush_properties: DefaultPropertiesViewer,
+        //     default_thing_properties: DefaultPropertiesViewer,
+        //     brushes:                  Vec<BrushViewer>,
+        //     things:                   Vec<ThingViewer>,
+        //     props:                    Vec<PropViewer>
+        // }
 
         #[must_use]
         struct DrawingResourcesTemp<'a>
@@ -1241,180 +1226,180 @@ impl State
             }
         }
 
-        #[inline]
-        fn convert_09(mut reader: BufReader<File>) -> Result<OldFileRead, &'static str>
-        {
-            // Header.
-            let header = ciborium::from_reader::<MapHeader, _>(&mut reader)
-                .map_err(|_| "Error reading file header for conversion.")?;
+        // #[inline]
+        // fn convert_09(mut reader: BufReader<File>) -> Result<OldFileRead, &'static str>
+        // {
+        //     // Header.
+        //     let header = ciborium::from_reader::<MapHeader, _>(&mut reader)
+        //         .map_err(|_| "Error reading file header for conversion.")?;
 
-            // Grid.
-            let grid = ciborium::from_reader::<GridSettings, _>(&mut reader)
-                .map_err(|_| "Error reading grid settings for conversion.")?;
+        //     // Grid.
+        //     let grid = ciborium::from_reader::<GridSettings, _>(&mut reader)
+        //         .map_err(|_| "Error reading grid settings for conversion.")?;
 
-            // Animations.
-            let animations = file_animations(header.animations, &mut reader)
-                .map_err(|_| "Error reading animations for conversion.")?;
+        //     // Animations.
+        //     let animations = file_animations(header.animations, &mut reader)
+        //         .map_err(|_| "Error reading animations for conversion.")?;
 
-            // Properties.
-            let default_brush_properties =
-                ciborium::from_reader::<DefaultPropertiesViewer, _>(&mut reader)
-                    .map_err(|_| "Error reading default brush properties for conversion.")?;
+        //     // Properties.
+        //     let default_brush_properties =
+        //         ciborium::from_reader::<DefaultPropertiesViewer, _>(&mut reader)
+        //             .map_err(|_| "Error reading default brush properties for conversion.")?;
 
-            let default_thing_properties =
-                ciborium::from_reader::<DefaultPropertiesViewer, _>(&mut reader)
-                    .map_err(|_| "Error reading default thing properties for conversion.")?;
+        //     let default_thing_properties =
+        //         ciborium::from_reader::<DefaultPropertiesViewer, _>(&mut reader)
+        //             .map_err(|_| "Error reading default thing properties for conversion.")?;
 
-            // Brushes.
-            let mut brushes = Vec::new();
+        //     // Brushes.
+        //     let mut brushes = Vec::new();
 
-            for _ in 0..header.brushes
-            {
-                brushes.push(BrushViewer::from(
-                    ciborium::from_reader::<crate::map::brush::compatibility::BrushViewer, _>(
-                        &mut reader
-                    )
-                    .map_err(|_| "Error reading brushes for conversion.")?
-                ));
-            }
+        //     for _ in 0..header.brushes
+        //     {
+        //         brushes.push(BrushViewer::from(
+        //             ciborium::from_reader::<crate::map::brush::compatibility::BrushViewer, _>(
+        //                 &mut reader
+        //             )
+        //             .map_err(|_| "Error reading brushes for conversion.")?
+        //         ));
+        //     }
 
-            // Things.
-            let mut things = Vec::new();
+        //     // Things.
+        //     let mut things = Vec::new();
 
-            for _ in 0..header.things
-            {
-                things.push(ThingViewer::from(
-                    ciborium::from_reader::<crate::map::thing::compatibility::ThingViewer, _>(
-                        &mut reader
-                    )
-                    .map_err(|_| "Error reading things for conversion.")?
-                ));
-            }
+        //     for _ in 0..header.things
+        //     {
+        //         things.push(ThingViewer::from(
+        //             ciborium::from_reader::<crate::map::thing::compatibility::ThingViewer, _>(
+        //                 &mut reader
+        //             )
+        //             .map_err(|_| "Error reading things for conversion.")?
+        //         ));
+        //     }
 
-            Ok(OldFileRead {
-                header,
-                grid,
-                animations,
-                default_brush_properties,
-                default_thing_properties,
-                brushes,
-                things,
-                props: convert_09_props(&mut reader, header.props)?
-            })
-        }
+        //     Ok(OldFileRead {
+        //         header,
+        //         grid,
+        //         animations,
+        //         default_brush_properties,
+        //         default_thing_properties,
+        //         brushes,
+        //         things,
+        //         props: convert_09_props(&mut reader, header.props)?
+        //     })
+        // }
 
-        #[inline]
-        fn convert(
-            version: &str,
-            path: &mut PathBuf,
-            reader: BufReader<File>,
-            f: fn(BufReader<File>) -> Result<OldFileRead, &'static str>
-        ) -> Result<BufReader<File>, &'static str>
-        {
-            let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
-            file_name.push_str(CONVERTED_FILE_APPENDIX);
+        // #[inline]
+        // fn convert(
+        //     version: &str,
+        //     path: &mut PathBuf,
+        //     reader: BufReader<File>,
+        //     f: fn(BufReader<File>) -> Result<OldFileRead, &'static str>
+        // ) -> Result<BufReader<File>, &'static str>
+        // {
+        //     let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
+        //     file_name.push_str(CONVERTED_FILE_APPENDIX);
 
-            warning_message(&format!(
-                "This file appears to use the old file structure {version}, if it is valid it \
-                 will now be converted to {file_name}."
-            ));
+        //     warning_message(&format!(
+        //         "This file appears to use the old file structure {version}, if it is valid it \
+        //          will now be converted to {file_name}."
+        //     ));
 
-            let OldFileRead {
-                header,
-                grid,
-                mut animations,
-                default_brush_properties,
-                default_thing_properties,
-                mut brushes,
-                mut things,
-                mut props
-            } = f(reader)?;
+        //     let OldFileRead {
+        //         header,
+        //         grid,
+        //         mut animations,
+        //         default_brush_properties,
+        //         default_thing_properties,
+        //         mut brushes,
+        //         mut things,
+        //         mut props
+        //     } = f(reader)?;
 
-            // Write to file.
-            let mut data = Vec::new();
-            let mut writer = BufWriter::new(&mut data);
+        //     // Write to file.
+        //     let mut data = Vec::new();
+        //     let mut writer = BufWriter::new(&mut data);
 
-            for step in FileStructure::iter()
-            {
-                match step
-                {
-                    FileStructure::Version =>
-                    {
-                        test_writer!(FILE_VERSION, &mut writer, "Error converting version number.");
-                    },
-                    FileStructure::Header =>
-                    {
-                        test_writer!(&header, &mut writer, "Error converting header.");
-                    },
-                    FileStructure::Grid =>
-                    {
-                        test_writer!(&grid, &mut writer, "Error converting grid settings.");
-                    },
-                    FileStructure::Animations =>
-                    {
-                        for (texture, animation) in animations.take_value()
-                        {
-                            test_writer!(
-                                &DefaultAnimation { texture, animation },
-                                &mut writer,
-                                "Error converting animations."
-                            );
-                        }
-                    },
-                    FileStructure::Properties =>
-                    {
-                        test_writer!(
-                            &default_brush_properties,
-                            &mut writer,
-                            "Error converting Brush default properties."
-                        );
-                        test_writer!(
-                            &default_thing_properties,
-                            &mut writer,
-                            "Error converting Thing default properties."
-                        );
-                    },
-                    FileStructure::Brushes =>
-                    {
-                        for brush in brushes.take_value()
-                        {
-                            test_writer!(&brush, &mut writer, "Error converting brushes.");
-                        }
-                    },
-                    FileStructure::Things =>
-                    {
-                        for thing in things.take_value()
-                        {
-                            test_writer!(&thing, &mut writer, "Error converting things.");
-                        }
-                    },
-                    FileStructure::Props => save_imported_09_props(&mut writer, props.take_value())?
-                };
-            }
+        //     for step in FileStructure::iter()
+        //     {
+        //         match step
+        //         {
+        //             FileStructure::Version =>
+        //             {
+        //                 test_writer!(FILE_VERSION, &mut writer, "Error converting version
+        // number.");             },
+        //             FileStructure::Header =>
+        //             {
+        //                 test_writer!(&header, &mut writer, "Error converting header.");
+        //             },
+        //             FileStructure::Grid =>
+        //             {
+        //                 test_writer!(&grid, &mut writer, "Error converting grid settings.");
+        //             },
+        //             FileStructure::Animations =>
+        //             {
+        //                 for (texture, animation) in animations.take_value()
+        //                 {
+        //                     test_writer!(
+        //                         &DefaultAnimation { texture, animation },
+        //                         &mut writer,
+        //                         "Error converting animations."
+        //                     );
+        //                 }
+        //             },
+        //             FileStructure::Properties =>
+        //             {
+        //                 test_writer!(
+        //                     &default_brush_properties,
+        //                     &mut writer,
+        //                     "Error converting Brush default properties."
+        //                 );
+        //                 test_writer!(
+        //                     &default_thing_properties,
+        //                     &mut writer,
+        //                     "Error converting Thing default properties."
+        //                 );
+        //             },
+        //             FileStructure::Brushes =>
+        //             {
+        //                 for brush in brushes.take_value()
+        //                 {
+        //                     test_writer!(&brush, &mut writer, "Error converting brushes.");
+        //                 }
+        //             },
+        //             FileStructure::Things =>
+        //             {
+        //                 for thing in things.take_value()
+        //                 {
+        //                     test_writer!(&thing, &mut writer, "Error converting things.");
+        //                 }
+        //             },
+        //             FileStructure::Props => save_imported_09_props(&mut writer,
+        // props.take_value())?         };
+        //     }
 
-            drop(writer);
+        //     drop(writer);
 
-            path.pop();
-            path.push(file_name);
+        //     path.pop();
+        //     path.push(file_name);
 
-            test_writer!(
-                BufWriter::new(
-                    OpenOptions::new()
-                        .create(true)
-                        .write(true)
-                        .truncate(true)
-                        .open(&*path)
-                        .unwrap()
-                )
-                .write_all(&data),
-                "Error saving converted file."
-            );
+        //     test_writer!(
+        //         BufWriter::new(
+        //             OpenOptions::new()
+        //                 .create(true)
+        //                 .write(true)
+        //                 .truncate(true)
+        //                 .open(&*path)
+        //                 .unwrap()
+        //         )
+        //         .write_all(&data),
+        //         "Error saving converted file."
+        //     );
 
-            // Return exported file.
-            let mut file = BufReader::new(File::open(path).unwrap());
-            _ = version_number(&mut file)?;
-            Ok(file)
-        }
+        //     // Return exported file.
+        //     let mut file = BufReader::new(File::open(path).unwrap());
+        //     _ = version_number(&mut file)?;
+        //     Ok(file)
+        // }
 
         let mut reader = BufReader::new(File::open(&path).unwrap());
         let mut steps = FileStructure::iter();
@@ -1425,7 +1410,7 @@ impl State
 
         let mut file = match version_number
         {
-            PREVIOUS_FILE_VERSION => convert(version_number, &mut path, reader, convert_09)?,
+            // PREVIOUS_FILE_VERSION => convert(version_number, &mut path, reader, convert_09)?,
             FILE_VERSION => reader,
             _ => return Err(UPGRADE_WARNING)
         };
@@ -1882,12 +1867,12 @@ impl State
                     "Import props",
                     PROPS_FILTER_NAME,
                     PROPS_EXTENSION,
-                    |version, reader, path, len| {
+                    |version, reader, _, _| {
                         match version
                         {
-                            PREVIOUS_FILE_VERSION => convert_09_prps_file(path, reader, len),
+                            // PREVIOUS_FILE_VERSION => convert_09_prps_file(path, reader, len),
                             FILE_VERSION => Ok(reader),
-                            _ => unreachable!()
+                            _ => Err(UPGRADE_WARNING)
                         }
                     },
                     |file, len| {

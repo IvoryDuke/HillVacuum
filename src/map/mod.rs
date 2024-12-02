@@ -369,15 +369,14 @@ pub(in crate::map) mod ui_mod
     /// The amount of prop screenshot taking cameras placed around the map.
     pub(in crate::map) const PROP_CAMERAS_AMOUNT: usize =
         8 * (PROP_CAMERAS_ROWS * (PROP_CAMERAS_ROWS + 1)) / 2;
-    pub(in crate::map) const PREVIOUS_FILE_VERSION: &str = "0.9";
-    // /// The string that is appended to the name of a converted `.hv` file.
-    pub(in crate::map) const CONVERTED_FILE_APPENDIX: &str = "_010.hv";
+    // pub(in crate::map) const PREVIOUS_FILE_VERSION: &str = "0.9";
+    // // /// The string that is appended to the name of a converted `.hv` file.
+    // pub(in crate::map) const CONVERTED_FILE_APPENDIX: &str = "_010.hv";
     /// The warning that is displayed when trying to convert a no longer supported `.hv` file.
     pub(in crate::map) const UPGRADE_WARNING: &str =
-        "This file appears to use a no longer supported format, only files with version 0.9.0 are \
-         supported to be upgraded to version 0.10.0.\nTo upgrade the file you will need to open \
-         it with the previous HillVacuum version and then open the generated file with this \
-         version.\nI apologize for the inconvenience.";
+        "This file appears to use a no longer supported format.\nTo upgrade the file you will \
+         need to open it with the previous HillVacuum version and then open the generated file \
+         with this version.\nI apologize for the inconvenience.";
 
     //=======================================================================//
     // TRAITS

@@ -1,6 +1,4 @@
 #[cfg(feature = "ui")]
-pub(in crate::map) mod compatibility;
-#[cfg(feature = "ui")]
 pub(in crate::map) mod convex_polygon;
 pub mod group;
 
@@ -534,27 +532,6 @@ pub(in crate::map) mod ui_mod
         texture:    Option<TextureSettings>,
         group:      GroupViewer,
         properties: HashMap<String, Value>
-    }
-
-    impl From<super::compatibility::BrushDataViewer> for BrushDataViewer
-    {
-        #[inline]
-        fn from(value: super::compatibility::BrushDataViewer) -> Self
-        {
-            let super::compatibility::BrushDataViewer {
-                vertexes,
-                texture,
-                group,
-                properties
-            } = value;
-
-            Self {
-                vertexes,
-                texture,
-                group,
-                properties: properties.0
-            }
-        }
     }
 
     //=======================================================================//

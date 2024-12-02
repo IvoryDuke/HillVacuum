@@ -1,7 +1,5 @@
 #[cfg(feature = "ui")]
 pub(in crate::map) mod catalog;
-#[cfg(feature = "ui")]
-pub(in crate::map) mod compatibility;
 
 //=======================================================================//
 // IMPORTS
@@ -216,27 +214,6 @@ pub mod ui_mod
         pub pos:        Vec2,
         pub path:       Option<Vec<Node>>,
         pub properties: HashMap<String, Value>
-    }
-
-    impl From<super::compatibility::ThingInstanceDataViewer> for ThingInstanceDataViewer
-    {
-        #[inline]
-        fn from(value: super::compatibility::ThingInstanceDataViewer) -> Self
-        {
-            let super::compatibility::ThingInstanceDataViewer {
-                thing_id,
-                pos,
-                path,
-                properties
-            } = value;
-
-            Self {
-                thing_id,
-                pos,
-                path,
-                properties: properties.0
-            }
-        }
     }
 
     //=======================================================================//
