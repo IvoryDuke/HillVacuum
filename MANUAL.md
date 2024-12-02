@@ -377,7 +377,7 @@ Quick snap: snaps the entities to a two-units size grid.
 ### Side clip subtool (Alt + Left mouse)  
 <img src="images/clip_side.svg" alt="clip_side" height="48" width="48"/>  
 
-After selectig it, if there is a side of a selected brush beneath the cursor all brushes are clipped by the line passing through the vertexes of such side. Can only be enabled when there are two or more selected brushes.
+After selecting it, if there is a side of a selected brush beneath the cursor all brushes are clipped by the line passing through the vertexes of such side. Can only be enabled when there are two or more selected brushes.
 
 ### Left mouse
 Places the points through which the clipping line passes.

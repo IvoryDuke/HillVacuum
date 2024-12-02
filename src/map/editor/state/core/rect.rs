@@ -101,7 +101,7 @@ pub(crate) trait RectTrait
     #[must_use]
     fn hull(&self) -> Option<Hull>;
 
-    /// Updates the extremeties of the surface from `p`.
+    /// Updates the extremities of the surface from `p`.
     fn update_extremes<T: Camera>(&mut self, camera: &T, p: Vec2);
 
     #[must_use]
