@@ -57,7 +57,7 @@ pub(crate) mod ui_mod
     //
     //=======================================================================//
 
-    use std::{collections::HashMap, io::Write};
+    use std::{collections::HashMap, io::Write, sync::RwLock};
 
     pub use bevy;
     use bevy::{
@@ -82,6 +82,7 @@ pub(crate) mod ui_mod
             thing::HardcodedThings,
             MapEditorPlugin
         },
+        utils::misc::TakeValue,
         Value
     };
     #[allow(unused_imports)]
@@ -229,27 +230,17 @@ pub(crate) mod ui_mod
     //=======================================================================//
 
     #[must_use]
-    /// The main plugin.
-    pub struct HillVacuumPlugin
-    {
-        /// The properties associated with the [`Brush`]es.
-        pub brush_properties: HashMap<&'static str, Value>,
-        /// The properties associated with the [`ThingInstance`]s.
-        pub thing_properties: HashMap<&'static str, Value>,
-        /// The [`Thing`]s coded into the engine.
-        pub hardcoded_things: Vec<Thing>
-    }
+    /// The UI editor plugin.
+    pub struct HillVacuumPlugin(
+        RwLock<(HashMap<&'static str, Value>, HashMap<&'static str, Value>, Vec<Thing>)>
+    );
 
     impl Default for HillVacuumPlugin
     {
         #[inline]
         fn default() -> Self
         {
-            Self {
-                brush_properties: HashMap::default(),
-                thing_properties: HashMap::default(),
-                hardcoded_things: Vec::default()
-            }
+            Self(RwLock::new((HashMap::default(), HashMap::default(), Vec::default())))
         }
     }
 
@@ -289,6 +280,8 @@ pub(crate) mod ui_mod
             };
             window.set_maximized(true);
 
+            let mut resources = self.0.write().unwrap();
+
             app.add_plugins(
                 DefaultPlugins
                     .set(AssetPlugin {
@@ -316,9 +309,30 @@ pub(crate) mod ui_mod
             )
             .add_plugins((EmbeddedPlugin, ConfigPlugin, MapEditorPlugin))
             .init_state::<EditorState>()
-            .insert_resource(BrushUserProperties(self.brush_properties.clone()))
-            .insert_resource(ThingUserProperties(self.thing_properties.clone()))
-            .insert_resource(HardcodedThings(self.hardcoded_things.clone()));
+            .insert_resource(BrushUserProperties(resources.0.take_value()))
+            .insert_resource(ThingUserProperties(resources.1.take_value()))
+            .insert_resource(HardcodedThings(resources.2.take_value()));
+        }
+    }
+
+    impl HillVacuumPlugin
+    {
+        /// Returns a new [`HillVacuumPlugin`].  
+        /// `brush_properties`: the properties associated with the [`Brush`]es.  
+        /// `thing_properties`: the properties associated with the [`ThingInstance`]s.  
+        /// `hardcoded_things`: the [`Thing`]s coded into the engine.
+        #[inline]
+        pub fn new<B, T, H>(brush_properties: B, thing_properties: T, hardcoded_things: H) -> Self
+        where
+            B: IntoIterator<Item = (&'static str, Value)>,
+            T: IntoIterator<Item = (&'static str, Value)>,
+            H: IntoIterator<Item = Thing>
+        {
+            Self(RwLock::new((
+                brush_properties.into_iter().collect(),
+                thing_properties.into_iter().collect(),
+                hardcoded_things.into_iter().collect()
+            )))
         }
     }
 
