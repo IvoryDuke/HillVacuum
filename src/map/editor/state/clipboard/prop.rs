@@ -7,15 +7,13 @@ use std::{iter::Rev, ops::Range};
 
 use bevy::{
     ecs::entity::Entity,
-    render::{
-        render_resource::{
-            Extent3d,
-            TextureDescriptor,
-            TextureDimension,
-            TextureFormat,
-            TextureUsages
-        },
-        texture::Image
+    image::Image,
+    render::render_resource::{
+        Extent3d,
+        TextureDescriptor,
+        TextureDimension,
+        TextureFormat,
+        TextureUsages
     }
 };
 use bevy_egui::egui;

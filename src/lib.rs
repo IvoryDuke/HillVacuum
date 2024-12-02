@@ -65,19 +65,12 @@ pub(crate) mod ui_mod
         asset::{AssetMode, AssetPlugin},
         diagnostic::DiagnosticsPlugin,
         hierarchy::HierarchyPlugin,
+        image::{ImageAddressMode, ImageSamplerDescriptor},
         input::keyboard::KeyCode,
         log::LogPlugin,
-        render::texture::{ImageAddressMode, ImagePlugin, ImageSamplerDescriptor},
+        render::texture::ImagePlugin,
         state::{app::AppExtStates, state::States},
-        window::{
-            Cursor,
-            CursorIcon,
-            PresentMode,
-            Window,
-            WindowPlugin,
-            WindowPosition,
-            WindowResizeConstraints
-        },
+        window::{PresentMode, Window, WindowPlugin, WindowPosition, WindowResizeConstraints},
         DefaultPlugins
     };
 
@@ -284,10 +277,6 @@ pub(crate) mod ui_mod
             }));
 
             let mut window = Window {
-                cursor: Cursor {
-                    icon: CursorIcon::Pointer,
-                    ..Default::default()
-                },
                 title: NAME.into(),
                 position: WindowPosition::At((0, 0).into()),
                 resize_constraints: WindowResizeConstraints {

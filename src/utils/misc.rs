@@ -28,7 +28,7 @@ pub(crate) mod ui_mod
     //
     //=======================================================================//
 
-    use bevy::window::{Window, WindowMode};
+    use bevy::window::{MonitorSelection, Window, WindowMode};
     use bevy_egui::egui;
     use glam::Vec2;
 
@@ -415,8 +415,8 @@ pub(crate) mod ui_mod
         {
             *self = match self
             {
-                WindowMode::Windowed => WindowMode::BorderlessFullscreen,
-                WindowMode::BorderlessFullscreen => WindowMode::Windowed,
+                WindowMode::Windowed => WindowMode::BorderlessFullscreen(MonitorSelection::Current),
+                WindowMode::BorderlessFullscreen(MonitorSelection::Current) => WindowMode::Windowed,
                 _ => unreachable!()
             };
         }

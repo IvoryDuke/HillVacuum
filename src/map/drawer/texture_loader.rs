@@ -11,11 +11,9 @@ use std::{
 use arrayvec::ArrayVec;
 use bevy::{
     asset::Assets,
+    image::{CompressedImageFormats, Image, ImageSampler, ImageType},
     prelude::Resource,
-    render::{
-        render_asset::RenderAssetUsages,
-        texture::{CompressedImageFormats, Image, ImageSampler, ImageType}
-    },
+    render::render_asset::RenderAssetUsages,
     state::state::{NextState, States},
     window::Window
 };

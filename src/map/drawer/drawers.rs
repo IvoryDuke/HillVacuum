@@ -13,8 +13,9 @@ use bevy::{
         query::With,
         system::{Commands, Query}
     },
+    prelude::Mesh2d,
     render::{mesh::Mesh, render_resource::PrimitiveTopology},
-    sprite::{ColorMaterial, Mesh2dHandle},
+    sprite::ColorMaterial,
     transform::components::Transform,
     window::Window
 };
@@ -223,7 +224,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         camera: &Transform,
         prop_cameras: &PropCameras,
         meshes: &'a mut Assets<Mesh>,
-        meshes_query: &Query<Entity, With<Mesh2dHandle>>,
+        meshes_query: &Query<Entity, With<Mesh2d>>,
         egui_context: &'a egui::Context,
         resources: &'a mut DrawingResources,
         color_resources: &'a ColorResources,
@@ -353,7 +354,7 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         let bottom_x = mid.x - half_height;
         let mut top_left = Vec2::new(bottom_x, mid.y + half_height);
         let mut bottom_left = Vec2::new(bottom_x, mid.y - half_height);
-        let angle = -(end - start).angle_between(Vec2::X);
+        let angle = -(end - start).angle_to(Vec2::X);
 
         for vx in [&mut tip, &mut top_left, &mut bottom_left]
         {
@@ -1262,7 +1263,7 @@ impl<'w: 'a, 's: 'a, 'a> MapPreviewDrawer<'w, 's, 'a>
         commands: &'a mut Commands<'w, 's>,
         prop_cameras: &PropCameras,
         meshes: &'a mut Assets<Mesh>,
-        meshes_query: &Query<Entity, With<Mesh2dHandle>>,
+        meshes_query: &Query<Entity, With<Mesh2d>>,
         resources: &'a mut DrawingResources,
         grid: &'a Grid,
         elapsed_time: f32

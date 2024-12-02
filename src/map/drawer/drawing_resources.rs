@@ -16,13 +16,14 @@ use bevy::{
         query::With,
         system::{Commands, Query}
     },
+    image::Image,
+    prelude::{Bundle, Mesh2d},
     render::{
         mesh::{Indices, Mesh, PrimitiveTopology, VertexAttributeValues},
         render_asset::RenderAssetUsages,
-        texture::Image,
         view::NoFrustumCulling
     },
-    sprite::{ColorMaterial, MaterialMesh2dBundle, Mesh2dHandle},
+    sprite::{ColorMaterial, MeshMaterial2d},
     transform::components::Transform
 };
 use bevy_egui::{egui, EguiUserTextures};
@@ -127,11 +128,12 @@ impl Materials
     #[inline]
     fn new(handle: Handle<Image>, materials: &mut Assets<ColorMaterial>) -> Self
     {
+        let mut semitransparent =
+            ColorMaterial::from_color(BevyColor::srgba(1.0, 1.0, 1.0, 1f32 / 4f32));
+        semitransparent.texture = handle.clone_weak().into();
+
         Self {
-            semitransparent: materials.add(ColorMaterial {
-                color:   BevyColor::srgba(1.0, 1.0, 1.0, 1f32 / 4f32),
-                texture: handle.clone_weak().into()
-            }),
+            semitransparent: materials.add(semitransparent),
             pure:            materials.add(handle)
         }
     }
@@ -207,22 +209,32 @@ impl TextureMaterials
 
 //=======================================================================//
 
+#[derive(Bundle)]
+struct MaterialMesh2dBundle
+{
+    mesh:      Mesh2d,
+    material:  MeshMaterial2d<ColorMaterial>,
+    transform: Transform
+}
+
+//=======================================================================//
+
 /// The resources needed to draw things onto the map.
 pub(in crate::map) struct DrawingResources
 {
     /// The container of the generated brushes and handles.
     brush_meshes: Meshes,
     /// The [`Mesh2dHandle`] of the vertex highlight square.
-    vertex_highlight_mesh: Mesh2dHandle,
+    vertex_highlight_mesh: Handle<Mesh>,
     /// The [`Mesh2dHandle`] of the [`Prop`] pivot displayed in front of the the paint tool camera.
-    paint_tool_vertex_highlight_mesh: Mesh2dHandle,
+    paint_tool_vertex_highlight_mesh: Handle<Mesh>,
     /// The [`Mesh2dHandle`]s of the [`Prop`] pivots displayed in front of the prop cameras.
-    props_pivots_mesh: HashMap<Entity, Mesh2dHandle>,
+    props_pivots_mesh: HashMap<Entity, Handle<Mesh>>,
     /// The [`Mesh2dHandle`] of the circular highlight of the brushes other brushes are
     /// tied to.
-    attachment_highlight_mesh: Mesh2dHandle,
+    attachment_highlight_mesh: Handle<Mesh>,
     /// The [`Mesh2dHandle`] of the circular highlight of the brushes that own a sprite.
-    sprite_highlight_mesh: Mesh2dHandle,
+    sprite_highlight_mesh: Handle<Mesh>,
     /// The tooltip labels generator.
     tt_label_gen: TooltipLabelGenerator,
     /// The default [`ColorMaterial`].
@@ -246,11 +258,11 @@ impl Placeholder for DrawingResources
     {
         Self {
             brush_meshes: Meshes::default(),
-            vertex_highlight_mesh: Mesh2dHandle::default(),
-            paint_tool_vertex_highlight_mesh: Mesh2dHandle::default(),
+            vertex_highlight_mesh: Handle::<Mesh>::default(),
+            paint_tool_vertex_highlight_mesh: Handle::<Mesh>::default(),
             props_pivots_mesh: hash_map![],
-            attachment_highlight_mesh: Mesh2dHandle::default(),
-            sprite_highlight_mesh: Mesh2dHandle::default(),
+            attachment_highlight_mesh: Handle::<Mesh>::default(),
+            sprite_highlight_mesh: Handle::<Mesh>::default(),
             tt_label_gen: TooltipLabelGenerator::default(),
             default_material: Handle::default(),
             textures: index_map![],
@@ -352,7 +364,7 @@ impl DrawingResources
 
         let props_vertex_highlight_mesh = prop_cameras
             .iter()
-            .map(|(id, ..)| (id, meshes.add(square_mesh.clone()).into()))
+            .map(|(id, ..)| (id, meshes.add(square_mesh.clone())))
             .collect();
         let err_tex = {
             let handle = asset_server.load(embedded_asset_path(ERROR_TEXTURE_NAME));
@@ -363,11 +375,11 @@ impl DrawingResources
 
         Self {
             brush_meshes: Meshes::default(),
-            vertex_highlight_mesh: meshes.add(square_mesh.clone()).into(),
-            paint_tool_vertex_highlight_mesh: meshes.add(square_mesh).into(),
+            vertex_highlight_mesh: meshes.add(square_mesh.clone()),
+            paint_tool_vertex_highlight_mesh: meshes.add(square_mesh),
             props_pivots_mesh: props_vertex_highlight_mesh,
-            attachment_highlight_mesh: meshes.add(highlight_mesh!(attachment_highlight_vxs)).into(),
-            sprite_highlight_mesh: meshes.add(highlight_mesh!(sprite_highlight_vxs)).into(),
+            attachment_highlight_mesh: meshes.add(highlight_mesh!(attachment_highlight_vxs)),
+            sprite_highlight_mesh: meshes.add(highlight_mesh!(sprite_highlight_vxs)),
             tt_label_gen: TooltipLabelGenerator::default(),
             default_material: materials.add(ColorMaterial::default()),
             textures: Self::sort_textures(materials, texture_loader.loaded_textures()),
@@ -669,7 +681,7 @@ impl DrawingResources
         commands: &mut Commands,
         prop_cameras: &PropCameras,
         meshes: &mut Assets<Mesh>,
-        meshes_query: &Query<Entity, With<Mesh2dHandle>>,
+        meshes_query: &Query<Entity, With<Mesh2d>>,
         camera_scale: f32,
         paint_tool_camera_scale: f32
     )
@@ -678,14 +690,14 @@ impl DrawingResources
         #[inline]
         fn refresh_highlight<I: Iterator<Item = Vec2>>(
             meshes: &mut Assets<Mesh>,
-            handle: &Mesh2dHandle,
+            handle: &Handle<Mesh>,
             camera_scale: f32,
             generator: fn(f32) -> I
         )
         {
             for (f32x3, vx) in match_or_panic!(
                 meshes
-                    .get_mut(&handle.0)
+                    .get_mut(handle)
                     .unwrap()
                     .attribute_mut(Mesh::ATTRIBUTE_POSITION)
                     .unwrap(),
@@ -756,7 +768,7 @@ impl DrawingResources
     #[inline]
     pub(in crate::map::drawer) fn push_mesh(
         &mut self,
-        mesh: Mesh2dHandle,
+        mesh: Mesh2d,
         material: Handle<ColorMaterial>,
         height: f32
     )
@@ -765,10 +777,8 @@ impl DrawingResources
 
         self.brush_meshes.push(MaterialMesh2dBundle {
             mesh,
-            material,
-            global_transform: transform.into(),
-            transform,
-            ..Default::default()
+            material: MeshMaterial2d(material),
+            transform
         });
     }
 
@@ -776,7 +786,7 @@ impl DrawingResources
     #[inline]
     pub(in crate::map::drawer) fn push_textured_mesh<T: TextureInterface>(
         &mut self,
-        mesh: Mesh2dHandle,
+        mesh: Mesh2d,
         settings: &T,
         color: Color
     )
@@ -792,7 +802,7 @@ impl DrawingResources
     #[inline]
     pub(in crate::map::drawer) fn push_map_preview_textured_mesh<T: TextureInterface>(
         &mut self,
-        mesh: Mesh2dHandle,
+        mesh: Mesh2d,
         texture: &TextureMaterials,
         settings: &T
     )
@@ -804,7 +814,7 @@ impl DrawingResources
     #[inline]
     pub(in crate::map::drawer) fn push_sprite<T: TextureInterface>(
         &mut self,
-        mesh: Mesh2dHandle,
+        mesh: Mesh2d,
         settings: &T,
         color: Color
     )
@@ -820,7 +830,7 @@ impl DrawingResources
     #[inline]
     pub(in crate::map::drawer) fn push_map_preview_sprite<T: TextureInterface>(
         &mut self,
-        mesh: Mesh2dHandle,
+        mesh: Mesh2d,
         texture: &TextureMaterials,
         settings: &T
     )
@@ -832,7 +842,7 @@ impl DrawingResources
     #[inline]
     pub(in crate::map::drawer) fn push_thing<T: ThingInterface>(
         &mut self,
-        mesh: Mesh2dHandle,
+        mesh: Mesh2d,
         catalog: &ThingsCatalog,
         thing: &T,
         color: Color
@@ -850,7 +860,7 @@ impl DrawingResources
     #[inline]
     pub(in crate::map::drawer) fn push_map_preview_thing<T: ThingInterface>(
         &mut self,
-        mesh: Mesh2dHandle,
+        mesh: Mesh2d,
         texture: &TextureMaterials,
         thing: &T
     )
@@ -870,11 +880,9 @@ impl DrawingResources
         let transform = Self::mesh_transform(center, height);
 
         self.brush_meshes.push_highlight(MaterialMesh2dBundle {
-            mesh: self.vertex_highlight_mesh.clone(),
-            material,
-            global_transform: transform.into(),
-            transform,
-            ..Default::default()
+            mesh: self.vertex_highlight_mesh.clone().into(),
+            material: material.into(),
+            transform
         });
     }
 
@@ -888,8 +896,6 @@ impl DrawingResources
         camera_id: Option<Entity>
     )
     {
-        let transform = Self::mesh_transform(center, height);
-
         let handle = match camera_id
         {
             Some(id) => self.props_pivots_mesh.get(&id).unwrap(),
@@ -897,11 +903,9 @@ impl DrawingResources
         };
 
         self.brush_meshes.push_highlight(MaterialMesh2dBundle {
-            mesh: handle.clone(),
-            material,
-            global_transform: transform.into(),
-            transform,
-            ..Default::default()
+            mesh:      handle.clone().into(),
+            material:  material.into(),
+            transform: Self::mesh_transform(center, height)
         });
     }
 
@@ -914,14 +918,10 @@ impl DrawingResources
         height: f32
     )
     {
-        let transform = Self::mesh_transform(center, height);
-
         self.brush_meshes.push_highlight(MaterialMesh2dBundle {
-            mesh: self.attachment_highlight_mesh.clone(),
-            material,
-            global_transform: transform.into(),
-            transform,
-            ..Default::default()
+            mesh:      self.attachment_highlight_mesh.clone().into(),
+            material:  material.into(),
+            transform: Self::mesh_transform(center, height)
         });
     }
 
@@ -934,29 +934,21 @@ impl DrawingResources
         height: f32
     )
     {
-        let transform = Self::mesh_transform(center, height);
-
         self.brush_meshes.push_highlight(MaterialMesh2dBundle {
-            mesh: self.sprite_highlight_mesh.clone(),
-            material,
-            global_transform: transform.into(),
-            transform,
-            ..Default::default()
+            mesh:      self.sprite_highlight_mesh.clone().into(),
+            material:  material.into(),
+            transform: Self::mesh_transform(center, height)
         });
     }
 
     /// Queues the [`Mesh`] of the map grid to be drawn at the end of the frame.
     #[inline]
-    pub(in crate::map::drawer) fn push_grid_mesh(&mut self, mesh: Mesh2dHandle)
+    pub(in crate::map::drawer) fn push_grid_mesh(&mut self, mesh: Mesh2d)
     {
-        let transform = Self::mesh_transform(Vec2::ZERO, Color::GridLines.line_height());
-
         self.brush_meshes.push_grid(MaterialMesh2dBundle {
             mesh,
-            material: self.default_material.clone_weak(),
-            global_transform: transform.into(),
-            transform,
-            ..Default::default()
+            material: self.default_material.clone_weak().into(),
+            transform: Self::mesh_transform(Vec2::ZERO, Color::GridLines.line_height())
         });
     }
 
@@ -1076,13 +1068,13 @@ impl TooltipLabelGenerator
 struct Meshes
 {
     /// The meshes to batch spawn at the end of the frame.
-    spawn:       Vec<MaterialMesh2dBundle<ColorMaterial>>,
+    spawn:       Vec<MaterialMesh2dBundle>,
     /// The meshes to remove from the assets at the start of the frame.
     remove:      Vec<Handle<Mesh>>,
     /// The meshes that can be reused to generate new ones.
     parts:       MeshParts,
     /// The grid [`Mesh`] to spawn.
-    grid:        Option<MaterialMesh2dBundle<ColorMaterial>>,
+    grid:        Option<MaterialMesh2dBundle>,
     /// The [`Handle`] of the grid [`Mesh`].
     grid_handle: Option<Handle<Mesh>>
 }
@@ -1112,7 +1104,7 @@ impl Meshes
         &mut self,
         commands: &mut Commands,
         meshes: &mut Assets<Mesh>,
-        meshes_query: &Query<Entity, With<Mesh2dHandle>>
+        meshes_query: &Query<Entity, With<Mesh2d>>
     )
     {
         for handle in &self.remove
@@ -1135,7 +1127,7 @@ impl Meshes
 
     /// Pushes a new [`MaterialMesh2dBundle`] generated from a square or circle highlight mesh.
     #[inline]
-    pub fn push(&mut self, mesh: MaterialMesh2dBundle<ColorMaterial>)
+    pub fn push(&mut self, mesh: MaterialMesh2dBundle)
     {
         self.remove.push(mesh.mesh.0.clone());
         self.spawn.push(mesh);
@@ -1143,14 +1135,11 @@ impl Meshes
 
     /// Pushes a new [`MaterialMesh2dBundle`] belonging to a square or attachment highlight.
     #[inline]
-    pub fn push_highlight(&mut self, mesh: MaterialMesh2dBundle<ColorMaterial>)
-    {
-        self.spawn.push(mesh);
-    }
+    pub fn push_highlight(&mut self, mesh: MaterialMesh2dBundle) { self.spawn.push(mesh); }
 
     /// Pushes a new [`MaterialMesh2dBundle`] of the map grid.
     #[inline]
-    pub fn push_grid(&mut self, mesh: MaterialMesh2dBundle<ColorMaterial>)
+    pub fn push_grid(&mut self, mesh: MaterialMesh2dBundle)
     {
         assert!(self.grid_handle.is_none() && self.grid.is_none(), "Grid mesh already exists.");
         self.grid_handle = mesh.mesh.0.clone().into();

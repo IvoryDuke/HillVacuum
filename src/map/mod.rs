@@ -294,7 +294,6 @@ pub(in crate::map) mod ui_mod
         input::mouse::MouseWheel,
         prelude::*,
         render::{camera::RenderTarget, render_resource::Extent3d},
-        sprite::Mesh2dHandle,
         window::{PrimaryWindow, WindowCloseRequested},
         winit::WinitSettings
     };
@@ -664,27 +663,21 @@ pub(in crate::map) mod ui_mod
         fn prop_camera<T: Default + Component>(
             images: &mut Assets<Image>,
             pos: Vec2
-        ) -> (Camera2dBundle, T)
+        ) -> (Camera2d, Camera, Transform, OrthographicProjection, T)
         {
             (
-                Camera2dBundle {
-                    camera: Camera {
-                        is_active: false,
-                        target: RenderTarget::Image(images.add(Prop::image(Extent3d {
-                            width:                 1,
-                            height:                1,
-                            depth_or_array_layers: 1
-                        }))),
-                        ..Default::default()
-                    },
-                    transform: Transform::from_translation(pos.extend(0f32)),
-                    projection: OrthographicProjection {
-                        near: -1000f32,
-                        far: 10000f32,
-                        ..Default::default()
-                    },
+                Camera2d,
+                Camera {
+                    is_active: false,
+                    target: RenderTarget::Image(images.add(Prop::image(Extent3d {
+                        width:                 1,
+                        height:                1,
+                        depth_or_array_layers: 1
+                    }))),
                     ..Default::default()
                 },
+                Transform::from_translation(pos.extend(0f32)),
+                OrthographicProjection::default_2d(),
                 T::default()
             )
         }
@@ -692,15 +685,7 @@ pub(in crate::map) mod ui_mod
         let mut context = egui_contexts.iter_mut().next_value();
 
         // Cameras.
-        commands.spawn(Camera2dBundle {
-            transform: init_camera_transform(),
-            projection: OrthographicProjection {
-                near: f32::MIN,
-                far: f32::MAX,
-                ..Default::default()
-            },
-            ..Default::default()
-        });
+        commands.spawn((Camera2d, init_camera_transform(), OrthographicProjection::default_2d()));
 
         let mut prop_cameras_amount = 0;
         let mut y = 0f32;
@@ -983,7 +968,7 @@ pub(in crate::map) mod ui_mod
         mut meshes: ResMut<Assets<Mesh>>,
         time: Res<Time>,
         mut egui_context: Query<&'static mut EguiContext, With<PrimaryWindow>>,
-        meshes_query: Query<Entity, With<Mesh2dHandle>>,
+        meshes_query: Query<Entity, With<Mesh2d>>,
         mut editor: ResMut<Editor>,
         config: Res<Config>
     )

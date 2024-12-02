@@ -14,14 +14,15 @@ use bevy::{
         query::With,
         system::{Commands, Query}
     },
+    image::Image,
     input::{
         keyboard::KeyCode,
         mouse::{MouseButton, MouseScrollUnit, MouseWheel},
         ButtonInput
     },
-    prelude::Resource,
-    render::{mesh::Mesh, texture::Image},
-    sprite::{ColorMaterial, Mesh2dHandle},
+    prelude::{Mesh2d, Resource},
+    render::mesh::Mesh,
+    sprite::ColorMaterial,
     state::state::NextState,
     time::Time,
     transform::components::Transform,
@@ -384,8 +385,8 @@ impl Editor
             materials,
             camera,
             prop_cameras,
-            elapsed_time: time.elapsed_seconds(),
-            delta_time: time.delta_seconds(),
+            elapsed_time: time.elapsed_secs(),
+            delta_time: time.delta_secs(),
             mouse_buttons,
             key_inputs,
             egui_context,
@@ -437,7 +438,7 @@ impl Editor
         self.state.update_active_tool(&mut ToolUpdateBundle {
             window,
             images,
-            delta_time: time.delta_seconds(),
+            delta_time: time.delta_secs(),
             camera,
             prop_cameras,
             paint_tool_camera,
@@ -680,11 +681,11 @@ impl Editor
         time: &Time,
         meshes: &mut Assets<Mesh>,
         egui_context: &egui::Context,
-        meshes_query: &Query<Entity, With<Mesh2dHandle>>,
+        meshes_query: &Query<Entity, With<Mesh2d>>,
         color_resources: &ColorResources
     )
     {
-        let elapsed_time = time.elapsed_seconds();
+        let elapsed_time = time.elapsed_secs();
 
         if self.state.map_preview()
         {
@@ -710,7 +711,7 @@ impl Editor
 
         self.state.draw(&mut DrawBundle {
             window,
-            delta_time: time.delta_seconds(),
+            delta_time: time.delta_secs(),
             drawer: &mut EditDrawer::new(
                 commands,
                 camera,

@@ -302,15 +302,18 @@ impl ColorHandles
         {
             bevy_color.set_alpha(0.5);
         }
+        else
+        {
+            bevy_color.set_alpha(1.0);
+        }
 
-        let mut material = ColorMaterial::from(bevy_color);
-        let line = materials.add(material.clone());
+        let line = materials.add(bevy_color);
 
-        material.color.set_alpha(SEMITRANSPARENT_LINE_ALPHA);
-        let semitransparent_line = materials.add(material.clone());
+        bevy_color.set_alpha(SEMITRANSPARENT_LINE_ALPHA);
+        let semitransparent_line = materials.add(bevy_color);
 
-        material.color.set_alpha(BODY_ALPHA);
-        let body = materials.add(material);
+        bevy_color.set_alpha(BODY_ALPHA);
+        let body = materials.add(bevy_color);
 
         Self {
             body,

@@ -19,9 +19,9 @@ use std::ops::{BitOrAssign, Range};
 use arrayvec::ArrayVec;
 use bevy::{
     asset::{AssetServer, Assets},
+    image::Image,
     input::ButtonInput,
     prelude::KeyCode,
-    render::texture::Image,
     sprite::ColorMaterial,
     transform::components::Transform,
     window::Window

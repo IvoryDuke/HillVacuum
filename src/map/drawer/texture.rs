@@ -321,7 +321,7 @@ pub(in crate::map) mod ui_mod
 
     use bevy::{
         asset::{Assets, Handle},
-        render::texture::{Image, ImageSampler, ImageSamplerDescriptor}
+        image::{Image, ImageSampler, ImageSamplerDescriptor}
     };
     use glam::{UVec2, Vec2};
     use hill_vacuum_shared::{match_or_panic, return_if_none, TEXTURE_HEIGHT_RANGE};

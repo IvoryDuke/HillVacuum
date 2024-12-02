@@ -22,10 +22,8 @@ use bevy::{
         query::{With, Without},
         system::Query
     },
-    render::{
-        camera::{Camera, RenderTarget},
-        texture::Image
-    },
+    image::Image,
+    render::camera::{Camera, RenderTarget},
     transform::components::Transform
 };
 use bevy_egui::{

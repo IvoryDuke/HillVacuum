@@ -11,9 +11,9 @@ use std::{
 
 use bevy::{
     asset::{AssetServer, Assets},
+    image::Image,
     input::{keyboard::KeyCode, ButtonInput},
     prelude::NextState,
-    render::texture::Image,
     window::Window
 };
 use bevy_egui::{egui, EguiUserTextures};
