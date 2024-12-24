@@ -280,7 +280,7 @@ pub(crate) mod ui_mod
             };
             window.set_maximized(true);
 
-            let mut resources = self.0.write().unwrap();
+            let (brush_props, thing_props, things) = self.0.write().unwrap().take_value();
 
             app.add_plugins(
                 DefaultPlugins
@@ -309,9 +309,9 @@ pub(crate) mod ui_mod
             )
             .add_plugins((EmbeddedPlugin, ConfigPlugin, MapEditorPlugin))
             .init_state::<EditorState>()
-            .insert_resource(BrushUserProperties(resources.0.take_value()))
-            .insert_resource(ThingUserProperties(resources.1.take_value()))
-            .insert_resource(HardcodedThings(resources.2.take_value()));
+            .insert_resource(BrushUserProperties(brush_props))
+            .insert_resource(ThingUserProperties(thing_props))
+            .insert_resource(HardcodedThings(things));
         }
     }
 

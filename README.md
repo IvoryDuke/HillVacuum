@@ -3,11 +3,6 @@
 ## What is HillVacuum?
 `HillVacuum` is a `Doom Builder` and `TrenchBroom` inspired editor that allows the creation of bidimensional maps through the manipulation of convex polygons, placement of items and entities, and texture mapping.
 
-## Why is HillVacuum?
-- I wanted to learn Rust;
-- I wanted to create my editor;
-- I got tired of manually typing the coordinates of the collision polygons in a text file.
-
 ## How is HillVacuum?
 For those who do not mind reading, HV features a manual, which can be referenced in three ways:  
 - the `MANUAL.md` file;  
@@ -179,12 +174,3 @@ The executable can be picked through Options->Exporter.
 
 ## Misc
 In order to close the in-editor windows through the keyboard the `F4` key needs to be pressed (similar to pressing `Alt+F4` to close OS windows).
-
-## FAQ
-### It's "vertices", not "vertexes"
-First of all <https://dictionary.cambridge.org/dictionary/english/vertexes>.  
-Finally, [if popular culture has taught us anything is that 'c's are not extreme](https://youtu.be/mols06iqcfA?si=ijCNCojPOR4rC8n1&t=336).
-
-### Actually if you read the "Rust programming language" book it clearly says: "It’s good style to place the opening curly bracket on the same line as the function declaration, adding one space in between."
-There's a lot of talk around the internet about respecting each other's differences, and rightfully so. So I would appreciate it if people could respect this difference of mine.
-

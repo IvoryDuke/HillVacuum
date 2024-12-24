@@ -27,7 +27,7 @@ fn main()
     let mut description = String::new();
 
     macro_rules! push {
-        ($(f: $folder:literal,)? $($file:expr),+) => {{$(
+        ($($file:expr),+) => {{$(
             let str = std::fs::read_to_string(concat!("docs/", $file, ".md")).unwrap();
 
             for s in [&mut readme, &mut description]
@@ -61,8 +61,6 @@ fn main()
     push!("outro");
 
     write(&mut f, &description);
-
-    push!("faq");
 
     let mut f = File::create("README.md").unwrap();
     write(&mut f, &std::fs::read_to_string("docs/license.md").unwrap());

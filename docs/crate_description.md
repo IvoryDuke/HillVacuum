@@ -1,11 +1,6 @@
 ## What is HillVacuum?
 `HillVacuum` is a `Doom Builder` and `TrenchBroom` inspired editor that allows the creation of bidimensional maps through the manipulation of convex polygons, placement of items and entities, and texture mapping.
 
-## Why is HillVacuum?
-- I wanted to learn Rust;
-- I wanted to create my editor;
-- I got tired of manually typing the coordinates of the collision polygons in a text file.
-
 ## How is HillVacuum?
 For those who do not mind reading, HV features a manual, which can be referenced in three ways:  
 - the `MANUAL.md` file;  
