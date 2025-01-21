@@ -222,7 +222,11 @@ impl DrawMode
         match self
         {
             Self::Spawn(hull, ..) => Some(*hull),
-            Self::Drag(rect, _) => rect.hull()
+            Self::Drag(rect, _) =>
+            {
+                let hull = rect.hull()?;
+                (hull.width() != 0f32 && hull.height() != 0f32).then_some(hull)
+            }
         }
     }
 
