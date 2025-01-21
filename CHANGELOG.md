@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.1
+
+### Fixes
+Fixed a crash that could occur when using the drag draw tool.
+
 ## 0.11.0
 
 ### Changes
