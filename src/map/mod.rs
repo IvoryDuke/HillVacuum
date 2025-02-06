@@ -291,21 +291,10 @@ pub(in crate::map) mod ui_mod
     use std::ops::RangeInclusive;
 
     use bevy::{
-        input::mouse::MouseWheel,
-        prelude::*,
-        render::{camera::RenderTarget, render_resource::Extent3d},
-        window::{PrimaryWindow, WindowCloseRequested},
-        winit::WinitSettings
+        ecs::query::QueryData, input::mouse::MouseWheel, prelude::*, render::{camera::RenderTarget, render_resource::Extent3d}, window::{PrimaryWindow, WindowCloseRequested}, winit::WinitSettings
     };
     use bevy_egui::{
-        egui,
-        EguiContext,
-        EguiContextQuery,
-        EguiContexts,
-        EguiInput,
-        EguiPlugin,
-        EguiSet,
-        EguiUserTextures
+        egui, EguiContext, EguiContexts, EguiInput, EguiOutput, EguiPlugin, EguiPreUpdateSet, EguiRenderOutput, EguiUserTextures
     };
     use glam::Vec2;
     use hill_vacuum_shared::{continue_if_no_match, return_if_err, return_if_none, NextValue};
@@ -608,7 +597,7 @@ pub(in crate::map) mod ui_mod
             app
             // UI
             .add_plugins(EguiPlugin)
-            .add_systems(PreUpdate, process_egui_inputs.after(EguiSet::ProcessInput).before(EguiSet::BeginPass))
+            .add_systems(PreUpdate, process_egui_inputs.after(EguiPreUpdateSet::ProcessInput).before(EguiPreUpdateSet::BeginPass))
             // Init resources
             .insert_resource(unsafe { Editor::placeholder() })
             .init_state::<TextureLoadingProgress>()
@@ -645,6 +634,14 @@ pub(in crate::map) mod ui_mod
     // FUNCTIONS
     //
     //=======================================================================//
+
+    #[derive(QueryData)]
+    #[query_data(mutable)]
+    struct EguiContextQuery {
+        ctx: &'static mut EguiContext,
+        render_output: &'static mut EguiRenderOutput,
+        egui_output: &'static mut EguiOutput
+    }
 
     /// Initializes the editor.
     #[allow(clippy::needless_pass_by_value)]
