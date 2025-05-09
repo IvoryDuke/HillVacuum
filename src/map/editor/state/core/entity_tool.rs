@@ -378,7 +378,6 @@ pub(in crate::map::editor::state::core) struct EntityTool(Status, Selector);
 impl Default for EntityTool
 {
     #[inline]
-    #[must_use]
     fn default() -> Self { Self(Status::default(), Selector::new()) }
 }
 

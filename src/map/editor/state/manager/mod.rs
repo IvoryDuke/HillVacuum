@@ -2716,7 +2716,6 @@ impl EntitiesManager
             type Item = &'a Id;
 
             #[inline]
-            #[must_use]
             fn next(&mut self) -> Option<Self::Item>
             {
                 match self.sub_iter.next()
@@ -4200,14 +4199,12 @@ impl<T: TextureSize> Deref for BrushMut<'_, T>
     type Target = Brush;
 
     #[inline]
-    #[must_use]
     fn deref(&self) -> &Self::Target { self.manager.brush(self.id) }
 }
 
 impl<T: TextureSize> DerefMut for BrushMut<'_, T>
 {
     #[inline]
-    #[must_use]
     fn deref_mut(&mut self) -> &mut Self::Target { self.manager.brushes.get_mut(&self.id).unwrap() }
 }
 
@@ -4334,14 +4331,12 @@ impl Deref for ThingMut<'_>
     type Target = ThingInstance;
 
     #[inline]
-    #[must_use]
     fn deref(&self) -> &Self::Target { self.manager.thing(self.id) }
 }
 
 impl DerefMut for ThingMut<'_>
 {
     #[inline]
-    #[must_use]
     fn deref_mut(&mut self) -> &mut Self::Target { self.manager.things.get_mut(&self.id).unwrap() }
 }
 
@@ -4410,7 +4405,6 @@ impl Deref for MovingMut<'_>
     type Target = dyn EditPath;
 
     #[inline]
-    #[must_use]
     fn deref(&self) -> &Self::Target
     {
         match self
@@ -4424,7 +4418,6 @@ impl Deref for MovingMut<'_>
 impl DerefMut for MovingMut<'_>
 {
     #[inline]
-    #[must_use]
     fn deref_mut(&mut self) -> &mut Self::Target
     {
         match self

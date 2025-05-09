@@ -403,7 +403,6 @@ pub(in crate::map) struct ToolsSettings
 impl Default for ToolsSettings
 {
     #[inline]
-    #[must_use]
     fn default() -> Self
     {
         Self {

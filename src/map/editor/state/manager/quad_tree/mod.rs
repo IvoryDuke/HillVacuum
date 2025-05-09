@@ -72,7 +72,6 @@ struct MaybeNode(Option<Node>);
 impl Default for MaybeNode
 {
     #[inline]
-    #[must_use]
     fn default() -> Self { Self(None) }
 }
 

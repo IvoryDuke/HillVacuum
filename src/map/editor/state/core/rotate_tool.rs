@@ -116,7 +116,6 @@ impl Display for RotateAngle
 impl Default for RotateAngle
 {
     #[inline]
-    #[must_use]
     fn default() -> Self { Self::Fixed(Self::MAX_ROTATE_ANGLE) }
 }
 
@@ -127,7 +126,6 @@ impl Numeric for RotateAngle
     const MIN: Self = Self::Free;
 
     #[inline]
-    #[must_use]
     fn to_f64(self) -> f64
     {
         match self
@@ -138,7 +136,6 @@ impl Numeric for RotateAngle
     }
 
     #[inline]
-    #[must_use]
     fn from_f64(num: f64) -> Self
     {
         #[allow(clippy::cast_possible_truncation)]

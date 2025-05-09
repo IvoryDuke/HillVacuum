@@ -24,7 +24,6 @@ pub(in crate::map) struct SelectableVector
 impl From<Vec2> for SelectableVector
 {
     #[inline]
-    #[must_use]
     fn from(vector: Vec2) -> Self { Self::new(vector) }
 }
 

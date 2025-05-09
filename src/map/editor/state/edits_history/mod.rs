@@ -209,7 +209,7 @@ pub(in crate::map::editor) struct EditsHistory
 
 impl Default for EditsHistory
 {
-    #[must_use]
+    #[inline]
     fn default() -> Self
     {
         Self {

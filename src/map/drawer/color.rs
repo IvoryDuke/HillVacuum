@@ -36,13 +36,13 @@ const INI_SECTION: &str = "COLORS";
 trait FromArray
 {
     /// Returns a new `Self` instance from an rgb array.
+    #[must_use]
     fn from_array(rgb: &[f32; 3]) -> Self;
 }
 
 impl FromArray for BevyColor
 {
     #[inline]
-    #[must_use]
     fn from_array(rgb: &[f32; 3]) -> Self { Self::srgb(rgb[0], rgb[1], rgb[2]) }
 }
 
@@ -51,7 +51,6 @@ impl FromArray for egui::Color32
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_possible_truncation)]
     #[inline]
-    #[must_use]
     fn from_array(rgb: &[f32; 3]) -> Self
     {
         Self::from_rgb((255f32 * rgb[0]) as u8, (255f32 * rgb[1]) as u8, (255f32 * rgb[2]) as u8)

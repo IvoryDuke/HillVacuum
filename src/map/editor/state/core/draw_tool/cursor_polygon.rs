@@ -50,11 +50,9 @@ macro_rules! shape_cursor_brush {
         impl Core for [<$shape CursorPolygon>]
         {
             #[inline]
-            #[must_use]
             fn core(&self) -> &DrawMode { &self.0 }
 
             #[inline]
-            #[must_use]
             fn core_mut(&mut self) -> &mut DrawMode { &mut self.0 }
         }
 
@@ -176,7 +174,6 @@ enum DrawMode
 impl Default for DrawMode
 {
     #[inline]
-    #[must_use]
     fn default() -> Self
     {
         Self::Spawn(
@@ -371,7 +368,6 @@ pub(in crate::map::editor::state) struct TriangleCursorPolygon(DrawMode, Triangl
 impl Default for TriangleCursorPolygon
 {
     #[inline]
-    #[must_use]
     fn default() -> Self { unreachable!() }
 }
 
@@ -465,7 +461,6 @@ pub(in crate::map::editor::state) struct CircleCursorPolygon(DrawMode);
 impl Default for CircleCursorPolygon
 {
     #[inline]
-    #[must_use]
     fn default() -> Self { unreachable!() }
 }
 

@@ -466,7 +466,6 @@ pub(in crate::map) mod ui_mod
     impl ExactSizeIterator for NodesInsertionIter<'_>
     {
         #[inline]
-        #[must_use]
         fn len(&self) -> usize
         {
             self.slice.len() - self.i + usize::from(self.new_node_returned != 0)
@@ -478,7 +477,6 @@ pub(in crate::map) mod ui_mod
         type Item = [NodeWorld; 2];
 
         #[inline]
-        #[must_use]
         fn next(&mut self) -> Option<Self::Item>
         {
             if self.len() == 0

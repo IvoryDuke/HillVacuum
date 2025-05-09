@@ -673,7 +673,7 @@ impl Clipboard
         );
 
         let image = images.add(Prop::empty_image());
-        prop_camera.0.target = RenderTarget::Image(image.clone_weak());
+        prop_camera.0.target = RenderTarget::Image(image.clone_weak().into());
         prop.screenshot = user_textures.add_image(image).into();
     }
 

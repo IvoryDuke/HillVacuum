@@ -35,7 +35,7 @@ impl FastSinCosTan for i8
         (slot.0, slot.1)
     }
 
-    #[must_use]
+    #[inline]
     fn fast_tan(&self) -> f32 { i8_sin_cos_slot(*self).2 }
 }
 
@@ -48,7 +48,7 @@ impl FastSinCosTan for i16
         (*sin, *cos)
     }
 
-    #[must_use]
+    #[inline]
     fn fast_tan(&self) -> f32 { i16_sin_cos_slot(*self).2 }
 }
 

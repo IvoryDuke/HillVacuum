@@ -408,7 +408,7 @@ impl DrawingResources
             egui::Area::new(label.into())
                 .order(egui::Order::Background)
                 .show(ctx, |ui| {
-                    egui::Frame::none().fill(egui::Color32::TRANSPARENT).show(ui, |ui| {
+                    egui::Frame::NONE.fill(egui::Color32::TRANSPARENT).show(ui, |ui| {
                         ui.label(egui::RichText::default().color(egui::Color32::TRANSPARENT));
                     });
                 });
@@ -990,7 +990,6 @@ struct TooltipLabelGenerator
 impl Default for TooltipLabelGenerator
 {
     #[inline]
-    #[must_use]
     fn default() -> Self
     {
         Self {
@@ -1082,7 +1081,6 @@ struct Meshes
 impl Default for Meshes
 {
     #[inline]
-    #[must_use]
     fn default() -> Self
     {
         Self {
@@ -1191,7 +1189,6 @@ struct MeshParts
 impl Default for MeshParts
 {
     #[inline]
-    #[must_use]
     fn default() -> Self
     {
         Self {
@@ -1615,14 +1612,12 @@ impl Deref for TextureMut<'_>
     type Target = Texture;
 
     #[inline]
-    #[must_use]
     fn deref(&self) -> &Self::Target { &self.resources.textures.get(&self.name).unwrap().texture }
 }
 
 impl DerefMut for TextureMut<'_>
 {
     #[inline]
-    #[must_use]
     fn deref_mut(&mut self) -> &mut Self::Target
     {
         &mut self.resources.textures.get_mut(&self.name).unwrap().texture

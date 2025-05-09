@@ -72,7 +72,6 @@ where
     T: EntityId + Copy + PartialEq
 {
     #[inline]
-    #[must_use]
     fn default() -> Self
     {
         Self {

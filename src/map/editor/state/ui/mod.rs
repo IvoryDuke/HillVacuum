@@ -804,7 +804,7 @@ impl Ui
         // Output.
         Interaction {
             hovered: !egui::CentralPanel::default()
-                .frame(egui::Frame::none())
+                .frame(egui::Frame::NONE)
                 .show(egui_context, |_| {})
                 .response
                 .contains_pointer(),
@@ -892,7 +892,7 @@ impl Ui
                     let spacing = ui.spacing_mut();
                     spacing.button_padding = [6f32; 2].into();
                     spacing.item_spacing = [2f32; 2].into();
-                    ui.visuals_mut().menu_rounding = 0f32.into();
+                    ui.visuals_mut().menu_corner_radius = 0f32.into();
 
                     let UiBundle { window, camera, config: Config { binds, exporter, .. }, manager, .. } = bundle;
 
@@ -951,7 +951,7 @@ impl Ui
                                 let spacing = ui.spacing_mut();
                                 spacing.button_padding = [6f32; 2].into();
                                 spacing.item_spacing = [2f32; 2].into();
-                                ui.visuals_mut().menu_rounding = 0f32.into();
+                                ui.visuals_mut().menu_corner_radius = 0f32.into();
 
                                 $(
                                     menu_button!(ui, $($enabled, )? $tag, $action $(, $shortcut)?);

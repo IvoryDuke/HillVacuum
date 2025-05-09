@@ -64,10 +64,8 @@ pub(crate) mod ui_mod
         app::PluginGroup,
         asset::{AssetMode, AssetPlugin},
         diagnostic::DiagnosticsPlugin,
-        hierarchy::HierarchyPlugin,
         image::{ImageAddressMode, ImageSamplerDescriptor},
         input::keyboard::KeyCode,
-        log::LogPlugin,
         render::texture::ImagePlugin,
         state::{app::AppExtStates, state::States},
         window::{PresentMode, Window, WindowPlugin, WindowPosition, WindowResizeConstraints},
@@ -303,8 +301,6 @@ pub(crate) mod ui_mod
                         primary_window: Some(window),
                         ..Default::default()
                     })
-                    .disable::<LogPlugin>()
-                    .disable::<HierarchyPlugin>()
                     .disable::<DiagnosticsPlugin>()
             )
             .add_plugins((EmbeddedPlugin, ConfigPlugin, MapEditorPlugin))

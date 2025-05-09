@@ -277,7 +277,6 @@ enum VertexesToggle
 impl From<bool> for VertexesToggle
 {
     #[inline]
-    #[must_use]
     fn from(value: bool) -> Self
     {
         if value

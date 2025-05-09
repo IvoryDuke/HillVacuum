@@ -55,6 +55,7 @@ pub(in crate::map) use sprite_values;
 pub trait TextureInterface
 {
     /// Returns the name of the texture.
+    #[must_use]
     fn name(&self) -> &str;
 
     /// Returns the horizontal offset of the texture as set by the user.
@@ -222,7 +223,6 @@ impl TextureInterface for TextureSettings
     fn scale_x(&self) -> f32 { self.scale_x }
 
     #[inline]
-    #[must_use]
     fn scale_y(&self) -> f32 { self.scale_y }
 
     #[inline]

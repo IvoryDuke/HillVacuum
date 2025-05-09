@@ -550,7 +550,6 @@ impl ExactSizeIterator for ParallelLines
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
     #[inline]
-    #[must_use]
     fn len(&self) -> usize { (self.y_right - self.y_left + self.x_right - self.x_left) as usize }
 }
 
@@ -559,7 +558,6 @@ impl Iterator for ParallelLines
     type Item = (Vec2, Vec2, Color);
 
     #[inline]
-    #[must_use]
     fn next(&mut self) -> Option<Self::Item>
     {
         if self.x_left <= self.x_right

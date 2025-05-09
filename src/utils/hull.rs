@@ -296,7 +296,6 @@ impl<T: ExactSizeIterator<Item = Vec2>> From<T> for Hull
 impl AroundEqual for Hull
 {
     #[inline]
-    #[must_use]
     fn around_equal(&self, other: &Self) -> bool
     {
         self.top.around_equal(&other.top) &&
@@ -306,7 +305,6 @@ impl AroundEqual for Hull
     }
 
     #[inline]
-    #[must_use]
     fn around_equal_narrow(&self, other: &Self) -> bool
     {
         self.top.around_equal_narrow(&other.top) &&
@@ -944,7 +942,7 @@ pub struct CircleIterator
 
 impl ExactSizeIterator for CircleIterator
 {
-    #[must_use]
+    #[inline]
     fn len(&self) -> usize { self.right - self.left }
 }
 
@@ -953,7 +951,7 @@ impl Iterator for CircleIterator
 {
     type Item = Vec2;
 
-    #[must_use]
+    #[inline]
     fn next(&mut self) -> Option<Self::Item>
     {
         if self.left == self.right

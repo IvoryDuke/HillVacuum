@@ -19,7 +19,6 @@ use crate::{
 macro_rules! impl_update {
     () => {
         #[inline]
-        #[must_use]
         fn drag_selection<'a, U, N, I, F, E>(
             &mut self,
             bundle: &mut ToolUpdateBundle,

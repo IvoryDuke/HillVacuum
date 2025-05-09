@@ -955,7 +955,6 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
         impl ExactSizeIterator for ThingOutline
         {
             #[inline]
-            #[must_use]
             fn len(&self) -> usize
             {
                 let len = self.circle_iter.len();
@@ -1149,11 +1148,11 @@ impl<'w: 'a, 's: 'a, 'a> EditDrawer<'w, 's, 'a>
             .constrain(false)
             .movable(false)
             .show(self.egui_context, |ui| {
-                egui::Frame::none()
+                egui::Frame::NONE
                     .fill(fill_color)
                     .inner_margin(TOOLTIP_ROUNDING)
                     .outer_margin(0f32)
-                    .rounding(TOOLTIP_ROUNDING)
+                    .corner_radius(TOOLTIP_ROUNDING)
                     .show(ui, |ui| {
                         ui.add(
                             egui::Label::new(

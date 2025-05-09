@@ -231,7 +231,6 @@ impl<'a> Iterator for MergedVertexesIter<'a>
     type Item = &'a (Vec2, u8);
 
     #[inline]
-    #[must_use]
     fn next(&mut self) -> Option<Self::Item>
     {
         if self.left == self.right
@@ -254,7 +253,6 @@ impl<'a> Iterator for MergedVertexesIter<'a>
 impl DoubleEndedIterator for MergedVertexesIter<'_>
 {
     #[inline]
-    #[must_use]
     fn next_back(&mut self) -> Option<Self::Item>
     {
         if self.left == self.right
@@ -954,7 +952,6 @@ impl From<Vec<crate::map::selectable_vector::SelectableVector>> for ConvexPolygo
 impl PartialEq for ConvexPolygon
 {
     #[inline]
-    #[must_use]
     fn eq(&self, other: &Self) -> bool
     {
         for (vx_0, vx_1) in self.vertexes().zip(other.vertexes())
@@ -4747,7 +4744,6 @@ struct NewVertexIterator<'a>
 impl ExactSizeIterator for NewVertexIterator<'_>
 {
     #[inline]
-    #[must_use]
     fn len(&self) -> usize
     {
         let len = self.vertexes.len() - self.left;
@@ -4766,7 +4762,6 @@ impl Iterator for NewVertexIterator<'_>
     type Item = Vec2;
 
     #[inline]
-    #[must_use]
     fn next(&mut self) -> Option<Self::Item>
     {
         if !self.new_vx_returned && self.left == self.new_vx_index

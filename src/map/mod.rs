@@ -291,10 +291,23 @@ pub(in crate::map) mod ui_mod
     use std::ops::RangeInclusive;
 
     use bevy::{
-        ecs::query::QueryData, input::mouse::MouseWheel, prelude::*, render::{camera::RenderTarget, render_resource::Extent3d}, window::{PrimaryWindow, WindowCloseRequested}, winit::WinitSettings
+        ecs::query::QueryData,
+        input::mouse::MouseWheel,
+        prelude::*,
+        render::{camera::RenderTarget, render_resource::Extent3d},
+        window::{PrimaryWindow, WindowCloseRequested},
+        winit::WinitSettings
     };
     use bevy_egui::{
-        egui, EguiContext, EguiContexts, EguiInput, EguiOutput, EguiPlugin, EguiPreUpdateSet, EguiRenderOutput, EguiUserTextures
+        egui,
+        EguiContext,
+        EguiContexts,
+        EguiInput,
+        EguiOutput,
+        EguiPlugin,
+        EguiPreUpdateSet,
+        EguiRenderOutput,
+        EguiUserTextures
     };
     use glam::Vec2;
     use hill_vacuum_shared::{continue_if_no_match, return_if_err, return_if_none, NextValue};
@@ -596,7 +609,7 @@ pub(in crate::map) mod ui_mod
         {
             app
             // UI
-            .add_plugins(EguiPlugin)
+            .add_plugins(EguiPlugin {enable_multipass_for_primary_context: false})
             .add_systems(PreUpdate, process_egui_inputs.after(EguiPreUpdateSet::ProcessInput).before(EguiPreUpdateSet::BeginPass))
             // Init resources
             .insert_resource(unsafe { Editor::placeholder() })
@@ -637,10 +650,11 @@ pub(in crate::map) mod ui_mod
 
     #[derive(QueryData)]
     #[query_data(mutable)]
-    struct EguiContextQuery {
-        ctx: &'static mut EguiContext,
+    struct EguiContextQuery
+    {
+        ctx:           &'static mut EguiContext,
         render_output: &'static mut EguiRenderOutput,
-        egui_output: &'static mut EguiOutput
+        egui_output:   &'static mut EguiOutput
     }
 
     /// Initializes the editor.
@@ -659,21 +673,25 @@ pub(in crate::map) mod ui_mod
         fn prop_camera<T: Default + Component>(
             images: &mut Assets<Image>,
             pos: Vec2
-        ) -> (Camera2d, Camera, Transform, OrthographicProjection, T)
+        ) -> (Camera2d, Camera, Transform, Projection, T)
         {
             (
                 Camera2d,
                 Camera {
                     is_active: false,
-                    target: RenderTarget::Image(images.add(Prop::image(Extent3d {
-                        width:                 1,
-                        height:                1,
-                        depth_or_array_layers: 1
-                    }))),
+                    target: RenderTarget::Image(
+                        images
+                            .add(Prop::image(Extent3d {
+                                width:                 1,
+                                height:                1,
+                                depth_or_array_layers: 1
+                            }))
+                            .into()
+                    ),
                     ..Default::default()
                 },
                 Transform::from_translation(pos.extend(0f32)),
-                OrthographicProjection::default_2d(),
+                Projection::Orthographic(OrthographicProjection::default_2d()),
                 T::default()
             )
         }
@@ -681,7 +699,11 @@ pub(in crate::map) mod ui_mod
         let mut context = egui_contexts.iter_mut().next_value();
 
         // Cameras.
-        commands.spawn((Camera2d, init_camera_transform(), OrthographicProjection::default_2d()));
+        commands.spawn((
+            Camera2d,
+            init_camera_transform(),
+            Projection::Orthographic(OrthographicProjection::default_2d())
+        ));
 
         let mut prop_cameras_amount = 0;
         let mut y = 0f32;
@@ -722,15 +744,8 @@ pub(in crate::map) mod ui_mod
         let ctx = context.ctx.get_mut();
 
         // Initialize the labels.
-        let egui::FullOutput {
-            platform_output,
-            textures_delta,
-            ..
-        } = ctx.run(egui::RawInput::default(), |ctx| {
-            DrawingResources::init(ctx);
-        });
-        context.render_output.textures_delta.append(textures_delta);
-        context.egui_output.platform_output = platform_output.clone();
+        ctx.begin_pass(egui::RawInput::default());
+        DrawingResources::init(ctx);
 
         // Set looks.
         let mut style = (*ctx.style()).clone();
@@ -754,7 +769,7 @@ pub(in crate::map) mod ui_mod
     fn process_egui_inputs(mut input: Query<&mut EguiInput>, editor: Res<Editor>)
     {
         let ui_focus = editor.is_ui_focused();
-        let events = &mut return_if_err!(input.get_single_mut()).0.events;
+        let events = &mut return_if_err!(input.single_mut()).0.events;
         let mut iter = events.iter_mut().enumerate();
         let mut index = None;
         let mut checked = false;
@@ -837,7 +852,7 @@ pub(in crate::map) mod ui_mod
             }
 
             *editor = Editor::new(
-                window.single_mut().as_mut(),
+                window.single_mut().as_mut().unwrap(),
                 &mut prop_cameras,
                 &asset_server,
                 &mut images,
@@ -881,7 +896,7 @@ pub(in crate::map) mod ui_mod
             return;
         }
 
-        let mut window = return_if_err!(window.get_single_mut());
+        let mut window = return_if_err!(window.single_mut());
 
         if !editor.quit(&mut window, &mut config, &mut next_editor_state)
         {
@@ -914,10 +929,8 @@ pub(in crate::map) mod ui_mod
         mut next_tex_load: ResMut<NextState<TextureLoadingProgress>>
     )
     {
-        let mut window = return_if_err!(window.get_single_mut());
-        let mut egui_context = egui_context.single_mut();
-        let egui_context = egui_context.get_mut();
-        let mut camera = camera.single_mut();
+        let mut window = return_if_err!(window.single_mut());
+        let mut camera = camera.single_mut().unwrap();
 
         editor.update(
             &mut window,
@@ -926,7 +939,7 @@ pub(in crate::map) mod ui_mod
             &mut camera,
             &mut prop_cameras,
             &time,
-            egui_context,
+            egui_context.single_mut().unwrap().get_mut(),
             &mut user_textures,
             &mouse_buttons,
             &mut mouse_wheel,
@@ -936,7 +949,7 @@ pub(in crate::map) mod ui_mod
             &mut next_tex_load
         );
 
-        let mut paint_tool_camera = paint_tool_camera.single_mut();
+        let mut paint_tool_camera = paint_tool_camera.single_mut().unwrap();
 
         editor.update_active_tool(
             &window,
@@ -971,13 +984,13 @@ pub(in crate::map) mod ui_mod
     {
         editor.draw(
             &mut commands,
-            return_if_err!(window.get_single()),
-            camera.single(),
+            return_if_err!(window.single()),
+            camera.single().unwrap(),
             &prop_cameras,
-            paint_tool_camera.single(),
+            paint_tool_camera.single().unwrap(),
             &time,
             &mut meshes,
-            egui_context.single_mut().get_mut(),
+            egui_context.single_mut().unwrap().get_mut(),
             &meshes_query,
             &config.colors
         );
@@ -1019,7 +1032,7 @@ pub(in crate::map) mod ui_mod
         texture_loader: Res<TextureLoader>
     )
     {
-        texture_loader.ui(window.single(), egui_context.ctx_mut());
+        texture_loader.ui(window.single().unwrap(), egui_context.ctx_mut());
     }
 }
 

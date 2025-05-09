@@ -46,7 +46,6 @@ impl Default for Cursor
 {
     /// Returns a [`Cursor`] out of the visible portion of the map on load.
     #[inline]
-    #[must_use]
     fn default() -> Self
     {
         /// The position used at startup.

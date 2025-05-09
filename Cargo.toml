@@ -32,7 +32,7 @@ version = "0.11.1"
 version = "0.11.1"
 
 [dependencies.bevy]
-version = "0.15"
+version = "0.16"
 default-features = false
 features = [
     "bevy_asset",
@@ -50,7 +50,7 @@ features = [
 optional = true
 
 [dependencies.bevy_egui]
-version = "0.32"
+version = "0.34"
 default-features = false
 features = ["default_fonts", "render"]
 optional = true
@@ -71,11 +71,11 @@ features = ["indexmap"]
 optional = true
 
 [dependencies.egui_extras]
-version = "0.30"
+version = "0.31"
 optional = true
 
 [dependencies.glam]
-version = "0.29.2"
+version = "0.29"
 features = ["serde"]
 
 [dependencies.hashbrown]
@@ -83,15 +83,15 @@ version = "0.15"
 features = ["serde"]
 
 [dependencies.indexmap]
-version = "2.*"
+version = "2"
 optional = true
 
 [dependencies.is_executable]
-version = "1.*"
+version = "1"
 optional = true
 
 [dependencies.paste]
-version = "1.*"
+version = "1"
 optional = true
 
 [dependencies.rfd]
@@ -101,10 +101,10 @@ features = ["gtk3"]
 optional = true
 
 [dependencies.serde]
-version = "1.*"
+version = "1"
 
 [dependencies.smallvec]
-version = "1.*"
+version = "1"
 features = ["union", "serde"]
 optional = true
 

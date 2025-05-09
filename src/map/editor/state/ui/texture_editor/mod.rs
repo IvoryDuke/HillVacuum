@@ -1051,7 +1051,6 @@ pub(in crate::map::editor::state::ui) struct TextureEditor
 impl Default for TextureEditor
 {
     #[inline]
-    #[must_use]
     fn default() -> Self
     {
         Self {

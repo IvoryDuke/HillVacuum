@@ -137,7 +137,6 @@ pub(in crate::map) struct OverallTextureSettings
 impl From<Option<&TextureSettings>> for OverallTextureSettings
 {
     #[inline]
-    #[must_use]
     fn from(value: Option<&TextureSettings>) -> Self
     {
         match value
@@ -292,7 +291,6 @@ pub(in crate::map) struct UiOverallTextureSettings
 impl From<OverallTextureSettings> for UiOverallTextureSettings
 {
     #[inline]
-    #[must_use]
     fn from(value: OverallTextureSettings) -> Self
     {
         let (sprite, parallax_x, parallax_y, scroll_x, scroll_y) = match value.sprite

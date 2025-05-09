@@ -163,7 +163,6 @@ enum Status
 impl Default for Status
 {
     #[inline]
-    #[must_use]
     fn default() -> Self { Self::Inactive(Rect::default()) }
 }
 

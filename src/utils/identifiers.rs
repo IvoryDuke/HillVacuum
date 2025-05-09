@@ -104,7 +104,6 @@ pub(crate) mod ui_mod
     impl Default for IdGenerator
     {
         #[inline]
-        #[must_use]
         fn default() -> Self { Self(Id(0)) }
     }
 

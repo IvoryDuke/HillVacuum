@@ -322,7 +322,6 @@ impl DisableSubtool for VertexTool
 impl OngoingMultiframeChange for VertexTool
 {
     #[inline]
-    #[must_use]
     fn ongoing_multi_frame_change(&self) -> bool
     {
         !matches!(

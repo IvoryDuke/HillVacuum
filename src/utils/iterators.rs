@@ -32,6 +32,7 @@ enum FilterResult
 pub(crate) trait TripletIterator<'a, T, I: Iterator<Item = [T; 3]>>
 {
     /// Returns an iterator that returns the elements in tripets.
+    #[must_use]
     fn triplet_iter(&'a self) -> Option<I>;
 }
 
@@ -49,7 +50,6 @@ impl<'a, T: 'a> TripletIterator<'a, &'a T, SliceTripletIter<'a, T>> for [T]
     /// assert!(iter.next() == None);
     /// ```
     #[inline]
-    #[must_use]
     fn triplet_iter(&'a self) -> Option<SliceTripletIter<'a, T>> { SliceTripletIter::new(self) }
 }
 
@@ -109,6 +109,7 @@ impl<T> FilterSet for T where T: Iterator {}
 pub(crate) trait PairIterator<'a, T, I: Iterator<Item = [T; 2]>>
 {
     /// Returns an iterator that returns the elements in pairs.
+    #[must_use]
     fn pair_iter(&'a self) -> Option<I>;
 }
 
@@ -126,7 +127,6 @@ impl<'a, T: 'a> PairIterator<'a, &'a T, SlicePairIter<'a, T>> for [T]
     /// assert!(iter.next() == None);
     /// ```
     #[inline]
-    #[must_use]
     fn pair_iter(&'a self) -> Option<SlicePairIter<'a, T>> { SlicePairIter::new(self) }
 }
 
@@ -136,6 +136,7 @@ impl<'a, T: 'a> PairIterator<'a, &'a T, SlicePairIter<'a, T>> for [T]
 pub(crate) trait PairIteratorMut<'a, T: 'a, I: Iterator<Item = [&'a mut T; 2]>>
 {
     /// Returns an iterator that returns the elements in pairs.
+    #[must_use]
     fn pair_iter_mut(&'a mut self) -> Option<I>;
 }
 
@@ -153,7 +154,6 @@ impl<'a, T: 'a> PairIteratorMut<'a, T, SlicePairIterMut<'a, T>> for [T]
     /// assert!(iter.next() == None);
     /// ```
     #[inline]
-    #[must_use]
     fn pair_iter_mut(&'a mut self) -> Option<SlicePairIterMut<'a, T>>
     {
         SlicePairIterMut::new(self)
@@ -229,7 +229,6 @@ impl<T> Enumeration<3> for SliceTripletIter<'_, T>
 impl<T> ExactSizeIterator for SliceTripletIter<'_, T>
 {
     #[inline]
-    #[must_use]
     fn len(&self) -> usize { self.iter.len - self.iter.k }
 }
 
@@ -238,7 +237,6 @@ impl<'a, T> Iterator for SliceTripletIter<'a, T>
     type Item = [&'a T; 3];
 
     #[inline]
-    #[must_use]
     fn next(&mut self) -> Option<Self::Item>
     {
         self.iter
@@ -274,7 +272,6 @@ impl<'a> TripletIterator<'a, usize, RangeTripleIter> for Range<usize>
 impl ExactSizeIterator for RangeTripleIter
 {
     #[inline]
-    #[must_use]
     fn len(&self) -> usize { self.len - self.i }
 }
 
@@ -335,7 +332,6 @@ where
     I: Iterator<Item = [T; N]> + ExactSizeIterator + Enumeration<N>
 {
     #[inline]
-    #[must_use]
     fn len(&self) -> usize { self.0.len() }
 }
 
@@ -346,7 +342,6 @@ where
     type Item = ([usize; N], [T; N]);
 
     #[inline]
-    #[must_use]
     fn next(&mut self) -> Option<Self::Item>
     {
         let idxs = self.0.enumeration();
@@ -408,6 +403,7 @@ where
 //=======================================================================//
 
 /// An iterator that returns all elements except a subset that should be filtered.
+#[must_use]
 pub(crate) struct FilteredSet<'a, I, T, P, const N: usize>
 where
     I: Sized + Iterator
@@ -485,7 +481,6 @@ where
     type Item = I::Item;
 
     #[inline]
-    #[must_use]
     fn next(&mut self) -> Option<Self::Item> { (self.factory)(self) }
 }
 
@@ -501,6 +496,7 @@ where
 /// assert!(iter.next() == [&1, &2]).into();
 /// assert!(iter.next() == None);
 /// ```
+#[must_use]
 #[derive(Clone)]
 pub(crate) struct SlicePairIter<'a, T>
 {
@@ -537,7 +533,6 @@ impl<T> Enumeration<2> for SlicePairIter<'_, T>
 impl<T> ExactSizeIterator for SlicePairIter<'_, T>
 {
     #[inline]
-    #[must_use]
     fn len(&self) -> usize { self.iter.len - self.iter.i }
 }
 
@@ -546,7 +541,6 @@ impl<'a, T> Iterator for SlicePairIter<'a, T>
     type Item = [&'a T; 2];
 
     #[inline]
-    #[must_use]
     fn next(&mut self) -> Option<Self::Item>
     {
         self.iter.next().map(|[j, i]| [&self.slice[j], &self.slice[i]])
@@ -578,7 +572,6 @@ impl<'a> PairIterator<'a, usize, RangePairIter> for Range<usize>
 impl ExactSizeIterator for RangePairIter
 {
     #[inline]
-    #[must_use]
     fn len(&self) -> usize { self.len - self.i }
 }
 
@@ -632,6 +625,7 @@ impl RangePairIter
 /// assert!(iter.next() == [&mut 1, &mut 2]).into();
 /// assert!(iter.next() == None);
 /// ```
+#[must_use]
 pub(crate) struct SlicePairIterMut<'a, T>
 {
     /// The slice containing the elements.
@@ -674,7 +668,6 @@ impl<'a, T> Iterator for SlicePairIterMut<'a, T>
     type Item = [&'a mut T; 2];
 
     #[inline]
-    #[must_use]
     fn next(&mut self) -> Option<Self::Item>
     {
         self.iter.next().map(|[j, i]| {
@@ -687,6 +680,7 @@ impl<'a, T> Iterator for SlicePairIterMut<'a, T>
 //=======================================================================//
 
 /// An iterator that skips a certain index.
+#[must_use]
 pub(crate) struct SkipIndex<I>
 where
     I: Sized + Iterator
@@ -749,6 +743,5 @@ where
     type Item = I::Item;
 
     #[inline]
-    #[must_use]
     fn next(&mut self) -> Option<Self::Item> { (self.factory)(self) }
 }

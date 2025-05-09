@@ -259,7 +259,6 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            #[must_use]
             fn deselect_path_nodes(&mut self) -> Option<Vec<u8>>
             {
                 let center = self.center();
@@ -273,7 +272,6 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            #[must_use]
             fn select_path_nodes_in_range(&mut self, range: &Hull) -> Option<Vec<u8>>
             {
                 let center = self.center();
@@ -287,7 +285,6 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            #[must_use]
             fn exclusively_select_path_nodes_in_range(&mut self, range: &Hull) -> Option<Vec<u8>>
             {
                 let center = self.center();
@@ -358,7 +355,6 @@ pub(in crate::map) mod ui_mod
             }
 
             #[inline]
-            #[must_use]
             fn snap_selected_path_nodes(
                 &mut self,
                 grid: &crate::map::editor::state::grid::Grid
@@ -1113,7 +1109,6 @@ pub(in crate::map) mod ui_mod
         type Item = (u8, bool);
 
         #[inline]
-        #[must_use]
         fn next(&mut self) -> Option<Self::Item>
         {
             for (i, node) in &mut self.nodes
@@ -1598,7 +1593,6 @@ pub(in crate::map) mod ui_mod
     impl PartialEq for Path
     {
         #[inline]
-        #[must_use]
         fn eq(&self, other: &Self) -> bool
         {
             self.len() == other.len() &&
@@ -1666,7 +1660,6 @@ pub(in crate::map) mod ui_mod
         }
 
         #[inline]
-        #[must_use]
         fn to_viewer(self) -> Self::Item
         {
             self.nodes

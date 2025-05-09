@@ -100,7 +100,6 @@ pub(in crate::map::editor::state::core) struct DrawTool
 
 impl Default for DrawTool
 {
-    #[must_use]
     #[inline]
     fn default() -> Self
     {

@@ -16,7 +16,8 @@ use bevy::{
     asset::Assets,
     ecs::{
         event::EventWriter,
-        system::{Res, ResMut, Resource},
+        resource::Resource,
+        system::{Res, ResMut},
         world::{FromWorld, Mut, World}
     },
     sprite::ColorMaterial,
@@ -166,7 +167,6 @@ impl FromWorld for IniConfig
 {
     /// Loads the config file, or created a new one if it does not exist.
     #[inline]
-    #[must_use]
     fn from_world(world: &mut World) -> Self
     {
         if !Path::new(CONFIG_FILE_NAME).exists() && create_default_config_file().is_err()
@@ -187,7 +187,7 @@ impl FromWorld for IniConfig
                     file.update_window_title(
                         &mut world
                             .query::<(&mut Window, &PrimaryWindow)>()
-                            .get_single_mut(world)
+                            .single_mut(world)
                             .unwrap()
                             .0
                     );
@@ -295,5 +295,5 @@ fn save_config(
         error_message("Error while saving config file");
     }
 
-    app_exit_events.send(AppExit::Success);
+    app_exit_events.write(AppExit::Success);
 }
