@@ -130,7 +130,7 @@ pub(in crate::map) mod ui_mod
         /// Creates a new [`Movement`].
         /// # Panics
         /// Panics if at least one among the values is not acceptable.
-        /// `min_speed` must be >= 0 and less than `max_speed`, `max_speed` must be > 0,
+        /// `min_speed` must be >= 0 and less than or equal to `max_speed`, `max_speed` must be > 0,
         /// `accel_travel_percentage` and `decel_travel_percentage` must be values between
         /// 0 and 1 and their sum must be <= 1.
         #[inline]
@@ -151,7 +151,7 @@ pub(in crate::map) mod ui_mod
             );
             assert!(
                 (0f32..=1f32).contains(&decel_travel_percentage),
-                "Accel travel percentage is not within 0 and 1."
+                "Decel travel percentage is not within 0 and 1."
             );
             assert!(
                 accel_travel_percentage + decel_travel_percentage <= 1f32,

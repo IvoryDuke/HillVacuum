@@ -320,8 +320,6 @@ impl Hull
     // New
 
     /// Returns a new [`Hull`].
-    /// # Panics
-    /// Panics if `bottom` is greater than `top` or `left` is greater than `right`.
     #[inline]
     pub fn new(top: f32, bottom: f32, left: f32, right: f32) -> Option<Self>
     {
